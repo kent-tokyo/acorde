@@ -2,7 +2,11 @@
 
 ## [Unreleased]
 
+### Fixed
+- MusicXML import applies a mid-part `<sound><midi-instrument><midi-program>` as a part program change at its position, instead of ignoring it (#203).
+
 ### Added
+- `scripts/compare_audio_corpus.py` measures Acorde and alphaTab PCM against the same playback schedule (onsets, paired onset difference, release into rests, buffer end, level, import diagnostics). The eight-score record is in `docs/archive/playback-audio-corpus.md` (#203).
 - Standard-bass candidates carry a readable `label` (e.g. `C bass + Em chord`) and a `realization` (`direct` or `combined`), and arrangement results report `edition_kinds` (`direct-buttons`, `combined-buttons`, `simplified`, `no-candidate`) and the `harmony_source` (`supplied` or `editorial-proposal`, an option echoed from the input). All new fields default for existing JSON (#358, #359).
 - `standard_bass_double_chord_candidates` (Rust and WASM) searches one bass plus two chord buttons, opt-in, capped at 256 results, each button required to contribute a requested pitch class (#358).
 - `arrange_standard_bass_proposed_harmony` proposes editorial harmony for the selected melody with `suggest_chord_plans` and marks the result `editorial-proposal` (#359).

@@ -374,6 +374,17 @@
       "expected_losses": ["Only hidden time signature visibility is evaluated"]
     },
     {
+      "path": "issue_203_instrument_change.musicxml",
+      "format": "musicxml",
+      "license": "self-authored",
+      "source": "Synthetic two-bar mid-part MIDI program change for the Issue #203 audio corpus",
+      "sha256": "5d8b8758d0f0584e0756ca554745c182e9df8e5f7e31e3f0e40f923da3ed0e92",
+      "round_trip": "import-only",
+      "expected_losses": [
+        "MusicXML export reports mid-part program changes as unsupported"
+      ]
+    },
+    {
       "path": "issue_311_trill.musicxml",
       "format": "musicxml",
       "license": "self-authored",

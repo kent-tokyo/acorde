@@ -4,10 +4,10 @@ use acorde_core::{
     AccidentalDisplay, Articulation, Barline, ChordDegree, ChordSymbol, Clef, Duration, Dynamic,
     FiguredBassFigure, FiguredBassGroup, GuitarTechnique, HairpinKind, HarpPedalDiagram,
     HarpPedalPosition, KeySignature, Lyric, Measure, MeasureLength, MetronomeMark,
-    MidiControlChange, NotationSpanner, NotationSpannerKind, Note, NoteAddr, NoteHead, OttavaKind,
-    Part, PartGroup, PartGroupSymbol, PercussionInstrument, Pitch, Score, Staff, StaffKind, Step,
-    StyledText, TextStyle, TimeSignature, TimeSymbol, TupletBoundary, TupletInfo, VerseLyric,
-    VoltaBracket,
+    MidiControlChange, MidiProgramChange, NotationSpanner, NotationSpannerKind, Note, NoteAddr,
+    NoteHead, OttavaKind, Part, PartGroup, PartGroupSymbol, PercussionInstrument, Pitch, Score,
+    Staff, StaffKind, Step, StyledText, TextStyle, TimeSignature, TimeSymbol, TupletBoundary,
+    TupletInfo, VerseLyric, VoltaBracket,
 };
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
@@ -586,6 +586,10 @@ pub(crate) fn parse_musicxml_collecting(
     let mut pending_midi_pan: Option<u8> = None;
     let mut in_midi_instrument = false;
     let mut midi_instrument_id = String::new();
+    // A `<sound><midi-instrument>` inside a measure changes the part's program there:
+    // (part, measure, quarter-note offset, program), resolved to ticks after parsing.
+    let mut in_sound_midi_instrument = false;
+    let mut sound_program_changes: Vec<(usize, usize, f64, u8)> = Vec::new();
     // Standard MusicXML puts <midi-unpitched> in <midi-instrument id="..."> matching a
     // <score-instrument>; collected per id and applied when the <score-part> closes.
     let mut midi_unpitched_by_id: HashMap<String, u8> = HashMap::new();
@@ -712,6 +716,7 @@ pub(crate) fn parse_musicxml_collecting(
                         in_midi_instrument = true;
                         midi_instrument_id = attr_str(e, b"id").unwrap_or_default();
                     }
+                    "midi-instrument" if part_index.is_some() => in_sound_midi_instrument = true,
                     "harmony" => {
                         in_harmony = true;
                         harmony_root_step.clear();
@@ -1698,6 +1703,22 @@ pub(crate) fn parse_musicxml_collecting(
                     }
                     "midi-instrument" if in_score_part => {
                         in_midi_instrument = false;
+                    }
+                    "midi-instrument" => in_sound_midi_instrument = false,
+                    "midi-program" if in_sound_midi_instrument => {
+                        if let (Some(pi), Ok(program)) =
+                            (part_index, current_text.trim().parse::<u16>())
+                        {
+                            let measure =
+                                score.parts[pi].staves[0].measures.len().saturating_sub(1);
+                            sound_program_changes.push((
+                                pi,
+                                measure,
+                                f64::from(measure_cursor_ticks)
+                                    / f64::from(current_divisions.max(1)),
+                                program.saturating_sub(1).min(127) as u8,
+                            ));
+                        }
                     }
                     "score-part" if in_score_part => {
                         if let Some(instruments) = part_percussion.get_mut(&score_part_id) {
@@ -3518,6 +3539,16 @@ pub(crate) fn parse_musicxml_collecting(
     }
     score.settings.time_signature = current_time;
     score.settings.key_signature = current_key;
+    for (pi, measure, offset, program) in sound_program_changes {
+        let start: f64 = (0..measure).map(|m| score.playback_measure_beats(m)).sum();
+        let part = &mut score.parts[pi];
+        part.midi_program_changes.push(MidiProgramChange {
+            tick: ((start + offset) * 480.0).round() as u64,
+            channel: part.midi_channel,
+            program,
+        });
+        part.midi_program_changes.sort_by_key(|change| change.tick);
+    }
 
     Ok(score)
 }
