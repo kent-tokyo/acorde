@@ -93,6 +93,10 @@ preserved in the records below.
 
 [Full record](archive/playback-corpus-and-controls.md#webern-same-cursor-pedal-retake-2026-10-31).
 
+## Eight-score audio corpus against alphaTab 1.8.4 (2026-11-04)
+
+[Full record](archive/playback-audio-corpus.md).
+
 ## Evidence boundary
 
 [Full record](archive/playback-corpus-and-controls.md#evidence-boundary).

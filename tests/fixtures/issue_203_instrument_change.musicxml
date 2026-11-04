@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Solo</part-name><score-instrument id="P1-I1"><instrument-name>Piano</instrument-name></score-instrument><midi-instrument id="P1-I1"><midi-channel>1</midi-channel><midi-program>1</midi-program></midi-instrument></score-part></part-list>
+<part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes>
+<sound tempo="120"/>
+<note><pitch><step>C</step><octave>5</octave></pitch><duration>2</duration><type>half</type></note><note><rest/><duration>2</duration><type>half</type></note></measure>
+<measure number="2"><sound><midi-instrument id="P1-I1"><midi-program>41</midi-program></midi-instrument></sound>
+<note><pitch><step>C</step><octave>5</octave></pitch><duration>2</duration><type>half</type></note><note><rest/><duration>2</duration><type>half</type></note></measure></part></score-partwise>

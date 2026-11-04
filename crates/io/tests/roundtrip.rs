@@ -1534,6 +1534,9 @@ fn fixture_manifest_sha256_matches_checked_in_files() {
             "openscore_omr_score_1033.mscx" => {
                 include_bytes!("../../../tests/fixtures/openscore_omr_score_1033.mscx")
             }
+            "issue_203_instrument_change.musicxml" => {
+                include_bytes!("../../../tests/fixtures/issue_203_instrument_change.musicxml")
+            }
             "issue_311_trill.musicxml" => {
                 include_bytes!("../../../tests/fixtures/issue_311_trill.musicxml")
             }
@@ -8054,4 +8057,18 @@ fn positioned_figured_bass_extender_exports_without_a_loss_warning() {
         again.parts[0].staves[0].measures[0].figured_bass_groups,
         score.parts[0].staves[0].measures[0].figured_bass_groups
     );
+}
+
+#[test]
+fn musicxml_sound_midi_instrument_changes_the_part_program_in_place() {
+    let xml = include_str!("../../../tests/fixtures/issue_203_instrument_change.musicxml");
+    let score = acorde_io::parse_musicxml(xml).unwrap();
+    let part = &score.parts[0];
+    assert_eq!(part.midi_program, 0);
+    assert_eq!(part.midi_program_changes.len(), 1);
+    let change = &part.midi_program_changes[0];
+    assert_eq!((change.tick, change.channel, change.program), (1920, 0, 40));
+    let events = acorde_core::to_playback_events(&score, &Default::default());
+    let programs: Vec<_> = events.iter().map(|e| (e.time_beats, e.program)).collect();
+    assert_eq!(programs, [(0.0, 0), (4.0, 40)]);
 }
