@@ -43,7 +43,7 @@ New v1.3.6 preset configs use engine `1.3.6+arrangement-presets.2`. The engine
 marker changes with the workspace release; select the saved chords and preset
 again to create a v1.3.6 config before replaying a v1.3.5 result.
 
-New v1.3.8 preset configs use engine `1.3.8+arrangement-presets.2`. Reselect
+New v1.3.9 preset configs use engine `1.3.9+arrangement-presets.2`. Reselect
 the saved chords and preset before replaying an earlier configuration.
 Generated score and note IDs can differ between runs; note addresses, pitches,
 durations and musical timing are reproducible.
@@ -75,6 +75,67 @@ A first pickup occupies the end of its nominal bar without advancing that
 alternation; a short final bar starts on beat 1. Existing `bass-pulse` and
 `alternating-bass` retain their four-beat pattern.
 
+## Standard-bass buttons and dominant sevenths
+
+The existing standard-bass preset selection uses a default model with all twelve
+bass roots and major, minor and dominant-seventh chord buttons. Its seventh
+button sounds an ideal root, third, fifth and minor seventh. This is an explicit
+model, not a description of every accordion. Augmented and diminished triads,
+major/minor sevenths and unsupported melodic bass patterns return a diagnostic;
+a diminished triad is distinct from a diminished-seventh button. Free-bass
+selection retains its separate behavior. See [migration notes](migrations.md)
+for the changed acceptance of previously saved selections.
+
+For a specific instrument, `model::standard_bass_preset::arrange_profiled_bass_pulse`
+and the full/viewer WASM export `arrange_profiled_bass_pulse(scoreJson, optionsJson)`
+take a standard-bass preset selection and an explicit button profile. It uses
+the `bass-pulse` rhythm, returns the actual button IDs and MIDI pitches per
+attack, and reports permitted omitted or added pitch classes. Missing rows or
+root columns produce diagnostics with no partial score. Omission and additions
+must be explicitly permitted. Bass and chord attacks are separate: the candidate
+contains both button identities for context, while each action's
+`sounding_midi` identifies the notes actually sounding at that attack.
+The default profile's four-note voicing is not substituted for the real profile.
+Movement, fingering and performer review remain separate requirements.
+
+For example, a three-note G7 chord button that omits D can be declared as:
+
+```js
+const options = {
+  selection: {
+    chords: [{ measure_index: 0, offset_beats: 0,
+      chord: { root: 'G', kind: 'dominant' } }],
+    alternative_chords: null, inversion: null, bass_mode: 'standard-bass',
+  },
+  profile: {
+    bass_buttons: [{ id: 'G bass', position: 0, midi: 43 }],
+    chord_buttons: [{ id: 'G7 chord', position: 0, midi: [67, 71, 77] }],
+    max_distance: 0,
+  },
+  allow_chord_omissions: true, allow_chord_additions: false,
+};
+const result = JSON.parse(arrange_profiled_bass_pulse(scoreJson, JSON.stringify(options)));
+```
+
+The returned action's `candidate.omitted_pitch_classes` includes D (pitch class
+2). Bass and chord actions have distinct `sounding_midi` lists.
+
+`model::standard_bass_patterns::arrange_profiled_accompaniment` (WASM:
+`arrange_profiled_accompaniment(scoreJson, optionsJson)`) extends this to the
+patterns listed by `profiled_accompaniment_capabilities()`: `bass-pulse`,
+`alternating-bass`, `offbeat-chords`, `waltz-bass` and `waltz-alternating-bass`,
+with their supported meters and melody layers (currently `unchanged` only).
+Options add `pattern` and an optional `transition_policy` to the bass-pulse
+options. Each action names the one button pressed (`button_id`,
+`button_position`), its `sounding_midi`, and the chord pitch classes omitted or
+added by that attack alone; a bass attack never implies the chord, nor a chord
+attack the bass. An alternating fifth must be a supplied bass button, otherwise
+`missing-alternate-bass-button`. `attacks` lists the expanded playback attacks
+(repeats included) with time, duration, elapsed time and same-side movement;
+each is checked against its action, and a supplied policy is enforced. Any
+failure returns no score, actions or attacks. With the G7 profile above,
+`waltz-bass` in 3/4 plays `[43] → [67,71,77] → [67,71,77]`.
+
 ## Two 2/4 accompaniment patterns
 
 `fine-bass-chord` and `habanera` are straight 2/4 presets, also exposed as
@@ -87,6 +148,29 @@ split the current slot and rearticulate with the new chord; identical repeated
 chords do not restart a slot. Other meters, shorter internal bars, finer
 positions, and notated-swing combinations return diagnostics. The standard
 bass chord restrictions apply as for existing presets.
+
+## Driving 4/4 accompaniment
+
+`driving-bass-chord` alternates a bass on each beat with a staccato chord on
+its eighth-note offbeat. Bass notes alternate the selected bass and its fifth
+within each two-beat cycle. The first beat of a complete bar has an accent;
+chord staccato shortens playback without changing written onset positions.
+`driving-bass-chord-light` is an unaccented quarter-note bass/chord pattern for
+lower-density comparison. Both names are also available as free-layer
+`accompaniment` values. They require 4/4 and straight notation; chord changes,
+pickups and short final bars must lie on eighth-note boundaries. A first pickup
+occupies the end of the nominal bar; a short final bar begins at its start.
+A changed chord rearticulates the current slot without resetting the two-beat
+phase; identical repeated chord symbols do not restart it.
+
+Standard bass uses the default chord-kind model and range restrictions described above. As a
+conservative configurable-by-pattern rate policy, it rejects score tempos or
+ramps exceeding 200 BPM for either pattern: a half-beat chord change can split
+a light-pattern quarter note, so the minimum possible attack spacing is 150 ms. This is a
+product constraint, not a universal assessment of a player's technique.
+Free bass is not subject to that rate policy. The check uses the written score tempo;
+a host-applied playback tempo override or multiplier must be checked by the host.
+Neither pattern changes tempo.
 
 ## Minimal browser flow
 
@@ -150,11 +234,12 @@ Save that config as JSON and pass it with the same source after re-parsing to
 `arrange_from_resolved_layers`. Its `v2:` fingerprint, contract version, and
 `arrangement-layers.1` engine version are validated before generation.
 For v1.3.6 the full marker is `1.3.6+arrangement-layers.1`. Reselect the saved
-free-layer options to create a v1.3.8 config with marker
-`1.3.8+arrangement-layers.1`.
+free-layer options to create a v1.3.9 config with marker
+`1.3.9+arrangement-layers.1`.
 Built-in preset configs continue to use `arrange_from_resolved_preset`; changing
 their options still returns `invalid-configuration`.
 
+The free-layer shuffle accepts at most 12 accompaniment choices (including `null`).
 The free-layer shuffle takes an explicit chord `selection`, up to three
 `alternative_selections`, and allowed sets of accompaniment patterns, melodic
 voices, and swing policies. Put `null` in `allowed_accompaniments` to allow no
@@ -195,3 +280,38 @@ For a previous fixed preset, use
 `{ kind: 'preset', config: selected.resolved_config }`. Acorde compares the
 playback events, so the same result under a different technique ID is not
 selected again. The host still owns source IDs, sharing URLs, labels and UI.
+
+### Positioned plans and instrument profiles
+
+`model::profiled_chord_plan::profile_chord_plan` (also exposed to WASM) checks each positioned chord against the supplied button inventory and returns options for `arrange_profiled_bass_pulse` only when every entry has a supported candidate. It checks harmony and timing-grid positions, not complete score coverage or physical playability; performer review is required. Candidate matching uses the combined pitch classes of a bass and chord button. The resulting bass pulse attacks them separately, so it does not claim the simultaneous harmony sounds throughout.
+
+### Re-arranging in another key
+
+`model::standard_bass_transposition::arrange_standard_bass_transposed` (WASM:
+`arrange_standard_bass_transposed(scoreJson, optionsJson)`) takes the source
+score, the source edition's `StandardBassArrangementOptions`, an explicit
+`semitones` value and an optional `transition_policy`. It transposes the score
+through `transpose_checked`, respells every positioned chord for the key in
+force at its measure (slash basses included), and runs `arrange_standard_bass`
+again with the **unchanged** profile: profile MIDI and button names are never
+transposed. `arrangement.resolved_options` holds only the respelled harmony;
+`source_options` echoes the input. No left-hand octave, harmony or free-bass
+change is made implicitly. Failures (`transposition-out-of-range`,
+`transposition-unsupported`, `unsupported-chord-spelling`,
+`no-standard-bass-candidate`, `transition-*`) return no score or actions.
+
+`evaluate_standard_bass_transpositions` (WASM: same name) classifies an
+ascending range of at most 25 semitone values as `arranged`, `out-of-range`,
+`no-button-combination`, `transition-rejected` or `unsupported`; a wider range
+returns `transposition-search-limit`. A missing combination describes the
+supplied profile only, not the playability of the piece.
+
+### Explicit button rows and columns
+
+`model::standard_bass_button_layout::located_standard_bass_candidates` and its WASM binding add caller-supplied row and column labels to simultaneous-button candidates. Every button must have one unique location; the API does not infer a physical layout from an instrument size. For root-position dominant seventh chords, a supplied seventh-row button containing the root, third and minor seventh is preferred when it meets the requested omission/addition policy. A missing fifth is never allowed implicitly. Slash bass remains explicit. Optional transition distance is the sum of column changes, not a physical reach or fingering guarantee; performer review is still required. This candidate search does not yet select actions for positioned chord plans or generated scores.
+
+`model::standard_bass_arrangement::arrange_standard_bass_located` (also in WASM) applies those candidate priorities to the existing simultaneous arrangement, and writes the selected buttons' actual notes into the score. The instrument inventory must match the arrangement options. Ordering uses the preceding written action and is greedy; it does not screen timing, repeat-back transitions or certify reach. `arrange_standard_bass_located_screened` additionally checks expanded playback transitions against caller-supplied timing and linear position limits. These checks do not certify physical playability; performer review remains necessary. A rejected greedy candidate does not prove that all other button paths are impossible.
+
+`arrange_standard_bass_located_selected_screened` additionally accepts explicit pitch choices for chords in the selected melody voice. It reports each omitted source pitch and checks the chosen melody against source playback before screening expanded button transitions. The search remains greedy and requires performer review; a rejected result does not rule out other arrangements.
+
+`find_located_standard_bass_path` extends that selected-melody workflow with bounded alternate-button search over repeat-expanded transitions. By default, replacement buttons must sound the same MIDI notes; the caller may explicitly allow different voicings with the same bass MIDI and chord pitch classes. Exhausting a search limit is reported as incomplete, and no candidate proves fingering or reach without performer review.

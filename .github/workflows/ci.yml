@@ -149,7 +149,7 @@ jobs:
             --out-dir ../../target/wasm-profiles/viewer \
             --no-default-features --features viewer
           declarations=target/wasm-profiles/viewer/acorde_wasm.d.ts
-          for binding in parse_abc parse_mscz compute_beams detect_chord extract_chord_plan suggest_chord_plans arrange_from_chord_proposal arrange_with_drone render_score_svg render_print_page_svgs to_playback_events_ex serialize_mscz; do
+          for binding in parse_abc parse_mscz compute_beams detect_chord extract_chord_plan suggest_chord_plans assess_chord_presets arrange_from_chord_proposal arrange_with_drone standard_bass_chord_candidates located_standard_bass_candidates arrange_standard_bass_located arrange_standard_bass_located_screened arrange_standard_bass_located_selected_screened find_located_standard_bass_path profile_chord_plan arrange_standard_bass arrange_standard_bass_with_pitch_selection arrange_standard_bass_screened arrange_standard_bass_find_buttons arrange_standard_bass_find_voicings arrange_profiled_bass_pulse arrange_profiled_accompaniment profiled_accompaniment_capabilities render_score_svg render_print_page_svgs to_playback_events_ex serialize_mscz arrange_standard_bass_transposed evaluate_standard_bass_transpositions arrange_standard_bass_proposed_harmony arrange_standard_bass_with_phrases standard_bass_double_chord_candidates; do
             grep -q "^export function $binding(" "$declarations"
           done
           if grep -q '^export function parse_musicxml(' "$declarations"; then
@@ -226,12 +226,47 @@ jobs:
           # allow for that observed increase plus roughly 6 KB headroom.
           # Hairpin placement and adjacent-staff clearance measured 6,419,338
           # bytes on Linux CI (commit 3562eee), 7,685 above the beam baseline.
-          # Two 2/4 accompaniment patterns measured 6,452,656 bytes on Linux.
-          # Incoming partial ties measured 6,462,118 on their earlier base,
-          # 42,780 above the 6,419,338-byte hairpin baseline. The integrated
-          # macOS build measures 6,466,437 versus 6,405,305 without partial ties.
-          # This combined budget is provisional pending Linux CI measurement.
-          test "$size" -le 6521000
+          # The macOS build grew by 20,186 bytes. Two 2/4 accompaniment
+          # patterns measured 6,452,656 bytes on Linux (+33,318 over the
+          # preceding hairpin baseline). Driving accompaniment adds 3,212 bytes
+          # on macOS (6,405,305 -> 6,408,517). The Linux driving build measured
+          # 6,421,699 bytes. Melodic insertion adds 53,057 bytes on macOS
+          # (6,408,517 -> 6,461,574); the combined Linux budget is provisional
+          # pending CI measurement.
+          # Free-bass splitting measured 6,514,678 bytes in Linux CI (4ea0fd4),
+          # +47,542 bytes over the exact fa05ace baseline (6,467,136 bytes).
+          # Preserve the existing roughly 6 KB regression headroom.
+          # Standard-bass candidate search adds 42,266 bytes on macOS
+          # (6,504,664 -> 6,546,930). The provisional Linux budget adds that
+          # observed growth and approximately 6 KB of headroom to the
+          # 6,519,614-byte pre-change Linux artifact; verify the CI result.
+          # Melody-preserving standard-bass arrangement adds 30,136 bytes on
+          # macOS (6,549,688 -> 6,579,824). Linux before this change measured
+          # 6,558,001 bytes; this provisional limit includes the observed
+          # growth and approximately 6 KB headroom pending CI measurement.
+          # Explicit chord-pitch selection adds 37,305 bytes on macOS
+          # (6,579,824 -> 6,617,129). The previous Linux artifact measured
+          # 6,582,528 bytes; Linux CI measured 6,630,133 bytes (+47,605).
+          # Keep approximately 7 KB of headroom above the measured artifact.
+          # Playback-order transition screening adds 26,767 bytes on macOS
+          # (6,617,129 -> 6,643,896). Previous Linux measured 6,630,133;
+          # estimate 1.4 times the macOS increase plus ~8 KB pending CI.
+          # Same-sounding button search adds 28,970 bytes on macOS
+          # (6,643,896 -> 6,672,866). Linux CI measured 6,705,836 bytes
+          # (+32,353 from 6,673,483); retain approximately 7 KB headroom.
+          # Alternate voicing search measured 6,664,984 bytes on macOS,
+          # 7,882 below the preceding build. Linux CI measured 6,708,307
+          # bytes (+2,471 from 6,705,836); retain about 7.7 KB headroom.
+          # Profiled bass-pulse adds 30,482 bytes on macOS
+          # (6,664,984 -> 6,695,466). Linux CI measured 6,711,897 bytes
+          # (+3,590 from 6,708,307); retain approximately 7 KB headroom.
+          # Transposed standard-bass re-arrangement adds 21,414 bytes over main on Linux
+          # (6,767,544 -> 6,788,958) and profiled accompaniment patterns 27,759
+          # (-> 6,795,303). Linux CI measured the combination at 6,818,427 bytes; The edition labels measured 6,825,607 bytes on Linux CI; Phrase, proposed-harmony and two-button bindings measured 6,887,484 bytes on Linux CI;
+          # retain approximately 6.5 KB headroom.
+          # Incoming MuseScore partial ties (#282) measured +42,780 bytes on Linux
+          # over their earlier base; this budget is provisional pending CI.
+          test "$size" -le 6945000
 
   renderer-benchmark:
     name: Renderer performance budget
@@ -246,7 +281,9 @@ jobs:
   wasm-browser:
     name: WASM browser contract
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Each integration-test file costs about 16 s of browser start-up. The full run took
+    # 4 m 40 s, close to its step limit, before the transposition tests were added.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
@@ -257,9 +294,9 @@ jobs:
       - name: Install wasm-pack
         run: cargo install wasm-pack --version 0.15.0 --locked
       - name: wasm browser tests
-        run: timeout 5m wasm-pack test --headless --chrome crates/wasm
+        run: timeout 8m wasm-pack test --headless --chrome crates/wasm
       - name: Viewer browser tests
-        run: timeout 5m wasm-pack test --headless --chrome crates/wasm --no-default-features --features viewer
+        run: timeout 6m wasm-pack test --headless --chrome crates/wasm --no-default-features --features viewer
       - name: Playback-only browser tests
         run: timeout 5m wasm-pack test --headless --chrome crates/wasm --no-default-features --features playback-only
 

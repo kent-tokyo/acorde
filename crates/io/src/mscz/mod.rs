@@ -280,6 +280,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     // begins the next bar, so its courtesy clef precedes the barline), per staff id.
     let mut pending_next_clefs: HashMap<usize, Clef> = HashMap::new();
     let mut cur_tempo: Option<u16> = None;
+    let mut cur_tempo_hidden = false;
+    // A hidden first-bar tempo is the score's playback tempo, not a written change.
+    let mut hidden_opening_tempos: HashMap<usize, u16> = HashMap::new();
     let mut cur_voices: [Vec<Note>; 4] = [vec![], vec![], vec![], vec![]];
     let mut cur_channel_switches: Vec<acorde_core::VoiceChannelSwitch> = Vec::new();
 
@@ -653,6 +656,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         timesig_hidden = false;
                         cur_clef_events.clear();
                         cur_tempo = None;
+                        cur_tempo_hidden = false;
                         cur_voices = [vec![], vec![], vec![], vec![]];
                         cur_channel_switches.clear();
                         cur_barline_left = Barline::Normal;
@@ -1412,6 +1416,12 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         {
                             staff_clefs.entry(sid).or_insert_with(|| clef.clone());
                         }
+                        if cur_tempo_hidden
+                            && is_first_measure
+                            && let Some(bpm) = cur_tempo.take()
+                        {
+                            hidden_opening_tempos.insert(sid, bpm);
+                        }
                         let meas = Measure {
                             number: cur_measure_num,
                             time_sig: cur_time.clone(),
@@ -1540,6 +1550,9 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     "tempo" if in_tempo_elem => {
                         let qps: f64 = t.parse().unwrap_or(2.0);
                         cur_tempo = Some((qps * 60.0).round() as u16);
+                    }
+                    "visible" if in_tempo_elem => {
+                        cur_tempo_hidden = t.trim() == "0";
                     }
                     "Tempo" if in_tempo_elem => {
                         in_tempo_elem = false;
@@ -2507,6 +2520,13 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
             order: score_staff_order,
         },
     )?;
+    if let Some(bpm) = staff_ids
+        .first()
+        .and_then(|ids| ids.first())
+        .and_then(|id| hidden_opening_tempos.get(id))
+    {
+        score.settings.tempo_bpm = *bpm;
+    }
     resolve_cross_voice_slurs(&mut score, &staff_ids, cross_voice_slurs);
     if create_multi_measure_rests {
         mark_multi_measure_rests(&mut score);

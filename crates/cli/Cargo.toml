@@ -17,18 +17,23 @@ name = "acorde"
 path = "src/main.rs"
 
 [dependencies]
-acorde-core = { path = "../core", version = "1.3.8" }
-acorde-io   = { path = "../io", version = "1.3.8", features = ["abc", "gp", "mei", "mscz"] }
-acorde-analysis = { path = "../analysis", version = "1.3.8" }
-acorde-layout = { path = "../layout", version = "1.3.8" }
-acorde-render-svg = { path = "../render-svg", version = "1.3.8" }
-acorde-omr = { path = "../omr", version = "1.3.8" }
-acorde-soundfont = { path = "../soundfont", version = "1.3.8", features = ["full-sf2"] }
+acorde-core = { path = "../core", version = "1.3.9" }
+acorde-io   = { path = "../io", version = "1.3.9", features = ["abc", "gp", "mei", "mscz"] }
+acorde-analysis = { path = "../analysis", version = "1.3.9" }
+acorde-layout = { path = "../layout", version = "1.3.9" }
+acorde-render-svg = { path = "../render-svg", version = "1.3.9" }
+acorde-omr = { path = "../omr", version = "1.3.9" }
+acorde-soundfont = { path = "../soundfont", version = "1.3.9", features = ["full-sf2"] }
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+rmcp = { version = "3.8", features = ["server", "macros", "transport-io"] }
+tokio = { version = "1", features = ["rt", "io-std"] }
+schemars = "1.2.3"
 
 [dev-dependencies]
+rmcp = { version = "3.8", features = ["client", "transport-child-process"] }
+tokio = { version = "1", features = ["rt", "macros", "process", "io-util"] }
 png = "0.18"
 
 [lints]

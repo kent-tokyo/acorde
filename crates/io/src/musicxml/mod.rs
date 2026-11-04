@@ -569,6 +569,24 @@ fn push_pitch_alter_diagnostic(
 /// Report canonical score fields that the MusicXML serializer cannot represent.
 pub fn export_loss_diagnostics(score: &acorde_core::Score) -> Vec<crate::Diagnostic> {
     let mut diagnostics = Vec::new();
+    // With an opening tempo mark the serializer writes only the mark, and import takes the
+    // default tempo solely from a bare first-bar `<sound tempo>`, so a non-default value is lost.
+    let opening_mark = score.parts.iter().any(|part| {
+        part.staves
+            .first()
+            .and_then(|staff| staff.measures.first())
+            .is_some_and(|measure| measure.tempo.is_some() || measure.metronome_mark.is_some())
+    });
+    let default_tempo = acorde_core::ScoreSettings::default().tempo_bpm;
+    if opening_mark && score.settings.tempo_bpm != default_tempo {
+        let mut diagnostic = crate::Diagnostic::warning(
+            "musicxml.export-shadowed-default-tempo",
+            "the score default tempo is not written when the first measure has its own tempo mark; it re-imports as the default",
+        );
+        diagnostic.source_location = Some("/score/settings/tempo_bpm".to_string());
+        diagnostic.preserved_value = Some(score.settings.tempo_bpm.to_string());
+        diagnostics.push(diagnostic);
+    }
     for (view_index, view) in score.views.iter().enumerate() {
         let mut diagnostic = crate::Diagnostic::warning(
             "musicxml.export-unsupported-score-view",
@@ -903,6 +921,28 @@ pub fn export_loss_diagnostics(score: &acorde_core::Score) -> Vec<crate::Diagnos
 mod tests {
     use super::{export_loss_diagnostics, loss_diagnostics};
     use acorde_core::{Score, ScoreView};
+
+    #[test]
+    fn export_loss_report_flags_default_tempo_shadowed_by_opening_mark() {
+        let code = "musicxml.export-shadowed-default-tempo";
+        let mut score = Score::new("Tempo", 97, 4, 4, 0, 1);
+        let has_code = |score: &Score| {
+            export_loss_diagnostics(score)
+                .iter()
+                .any(|diagnostic| diagnostic.code == code)
+        };
+        assert!(!has_code(&score), "a bare default tempo is written");
+        score.parts[0].staves[0].measures[0].tempo = Some(80);
+        assert!(has_code(&score));
+        let xml = crate::serialize_musicxml(&score).expect("serialize");
+        let reopened = crate::parse_musicxml(&xml).expect("parse");
+        assert_ne!(
+            reopened.settings.tempo_bpm, 97,
+            "the reported value is really lost"
+        );
+        score.settings.tempo_bpm = 120;
+        assert!(!has_code(&score), "the default re-imports unchanged");
+    }
 
     #[test]
     fn export_loss_report_locates_linked_score_views() {

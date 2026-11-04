@@ -23,7 +23,35 @@ survives conversion. Explicit predecessor locations are retained in MSCX; other 
 note-spanner endpoints and outgoing partial ties are reported when they may not be retained.
 MuseScore jump-tie metadata and complex navigation are not yet fully supported.
 
-## Unreleased: 2/4 accompaniment patterns
+## v1.3.9: saved arrangement markers
+
+Preset and free-layer engine markers include the workspace version. Reselect saved chords, presets
+and layer options to produce 1.3.9 resolved configurations before replaying them.
+
+## v1.3.9: standard-bass chord capability
+
+Standard-bass preset and chord-plan capability checks now accept `dominant` (G7,
+D7, etc.) and reject `augmented` and `diminished` triads under the default model.
+This is a behavioral compatibility change: saved selections using those triads
+may no longer generate a standard-bass preset. Select a supported harmony, an
+explicit instrument-profile arrangement, or free bass after reviewing the part.
+Major/minor-seventh chords remain unsupported by this default preset model.
+The default assumes all twelve bass roots and major, minor and dominant-seventh
+chord buttons, with an ideal four-note dominant seventh. It is a model, not a
+claim about a particular instrument. For actual rows, roots and omitted fifths,
+use the new profiled `bass-pulse` API or profile-based simplified arrangement
+and inspect the resulting button/action report. New profile API types are
+additive; no fields or variants were added to the existing public types.
+
+## v1.3.9: driving accompaniment patterns
+
+`AccordionPattern::DrivingBassChord` and `AccordionPattern::DrivingBassChordLight`
+are new enum variants. Exhaustive Rust matches need updating, and older readers
+cannot deserialize these new values. Existing configuration structures and
+preset IDs are unchanged. See the [preset contract](accordion-preset-contract.md)
+for timing, expression and standard-bass rate constraints.
+
+## v1.3.9: 2/4 accompaniment patterns
 
 `AccordionPattern::FineBassChord` and `AccordionPattern::Habanera` add enum
 variants. Rust callers matching `AccordionPattern` exhaustively must handle
@@ -31,7 +59,7 @@ both; old consumers cannot deserialize these new values. Existing preset IDs
 and their output are unchanged. See the [preset contract](accordion-preset-contract.md)
 for meter, pickup and chord-change constraints.
 
-## Unreleased: authored hairpin placement
+## v1.3.9: authored hairpin placement
 
 `Note.hairpin_above` records an explicit above/below hairpin position. Complete Rust `Note`
 struct literals need the new field; older score JSON defaults to `None`. MusicXML, MSCX and MEI

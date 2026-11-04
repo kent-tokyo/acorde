@@ -977,6 +977,35 @@ pub(crate) fn build_svg_with_metadata_placement(
                             .strip_suffix("</g>")
                             .expect("measure group closes"),
                     );
+                    let measure = &score.parts[text.part].staves[text.staff].measures[text.measure];
+                    let above_escape = if shared_alignment
+                        && print_placement.is_none()
+                        && layout.rows.len() == 1
+                        && row.measure_indices.len() == 1
+                        && score.parts.len() == 1
+                        && score.parts[0].staves.len() == 1
+                        && score.parts[text.part].staves[text.staff]
+                            .tablature_at(text.measure)
+                            .is_none()
+                        && simple_above_text_escape(score, measure)
+                        && text.semantic_placements.is_empty()
+                    {
+                        let top = neighbor_heads
+                            .iter()
+                            .map(|&(_, y)| y)
+                            .chain(beam_tip_points.iter().filter_map(|(&(p, s, m, _, _), &y)| {
+                                (p == text.part && s == text.staff && m == text.measure)
+                                    .then_some(y)
+                            }))
+                            .fold(
+                                text.bottom_y
+                                    - staff_height_u(score, text.part, text.staff) * space,
+                                f32::min,
+                            );
+                        Some((top - 2.0 * space, options.width))
+                    } else {
+                        None
+                    };
                     text_clear &= render_measure_text(
                         &mut body,
                         &score.parts[text.part].staves[text.staff].measures[text.measure],
@@ -994,6 +1023,7 @@ pub(crate) fn build_svg_with_metadata_placement(
                         &note_points,
                         &text.semantic_placements,
                         &neighbor_heads,
+                        above_escape,
                     )?;
                     body.push_str("</g>");
                 }
@@ -3554,6 +3584,254 @@ fn write_repeat_dots(body: &mut String, x: f32, staff_ranges: &[(f32, f32)], spa
 
 // ── measure content ──────────────────────────────────────────────────────────────
 
+// Two simultaneous single-note voices need separate accidental columns even when their
+// noteheads share a rhythmic column. Keep this narrow until chord, grace and cross-staff
+// accidental geometry can be solved together.
+fn opening_voice_accidental_offsets(
+    measure: &Measure,
+    part: usize,
+    staff: usize,
+    measure_idx: usize,
+    mandatory: &HashMap<AccKey, i8>,
+    courtesy: &HashMap<AccKey, i8>,
+) -> [f32; 4] {
+    let mut offsets = [0.0; 4];
+    let voices: Vec<_> = measure
+        .voices
+        .iter()
+        .enumerate()
+        .filter(|(_, v)| !v.is_empty())
+        .collect();
+    if voices.len() != 2 {
+        return offsets;
+    }
+    let ((first_voice, first_notes), (second_voice, second_notes)) = (voices[0], voices[1]);
+    let (a, b) = (&first_notes[0], &second_notes[0]);
+    let simple = |n: &Note| {
+        !n.is_rest
+            && !n.is_unpitched
+            && !n.is_grace
+            && !n.is_cue
+            && !n.hidden
+            && n.pitches.len() == 1
+            && n.cross_staff.is_none()
+            && n.arpeggiate.is_none()
+            && n.offset_x.unwrap_or(0.0) == 0.0
+            && n.relative_x.unwrap_or(0.0) == 0.0
+            && n.offset_y.unwrap_or(0.0) == 0.0
+            && n.relative_y.unwrap_or(0.0) == 0.0
+            && !n.is_parenthesized(0)
+            && note_annotation_width_u(n) == 0.0
+    };
+    if !simple(a) || !simple(b) || !noncolliding_voice_noteheads(a, b) {
+        return offsets;
+    }
+    let a_key = (part, staff, measure_idx, first_voice, 0, 0);
+    let b_key = (part, staff, measure_idx, second_voice, 0, 0);
+    if !(mandatory.contains_key(&a_key) || courtesy.contains_key(&a_key))
+        || !(mandatory.contains_key(&b_key) || courtesy.contains_key(&b_key))
+    {
+        return offsets;
+    }
+    let distance = (geometry::diatonic_index(&a.pitches[0].step, a.pitches[0].octave)
+        - geometry::diatonic_index(&b.pitches[0].step, b.pitches[0].octave))
+    .abs();
+    if distance <= 7 {
+        offsets[first_voice] = 2.0;
+    }
+    offsets
+}
+
+/// Opening accidental lead for one staff, in staff spaces.
+fn opening_accidental_lead(
+    measure: &Measure,
+    part: usize,
+    staff: usize,
+    measure_idx: usize,
+    mandatory: &HashMap<AccKey, i8>,
+    courtesy: &HashMap<AccKey, i8>,
+    offsets: &[f32; 4],
+) -> f32 {
+    measure
+        .voices
+        .iter()
+        .enumerate()
+        .filter_map(|(voice_idx, voice)| {
+            let note_idx = voice.iter().position(|note| !note.is_grace)?;
+            let note = &voice[note_idx];
+            (!note.is_rest).then(|| {
+                (0..note.pitches.len())
+                    .filter_map(|pitch_idx| {
+                        let key = (part, staff, measure_idx, voice_idx, note_idx, pitch_idx);
+                        mandatory.get(&key).or_else(|| courtesy.get(&key)).copied()
+                    })
+                    .map(|alter| {
+                        glyphs::NOTEHEAD_RX_U
+                            + 0.18
+                            + glyphs::accidental_width_u(alter)
+                            + 0.15
+                            + offsets[voice_idx]
+                    })
+                    .fold(0.0_f32, f32::max)
+            })
+        })
+        .fold(MEASURE_PAD_U, f32::max)
+}
+
+/// Coordinate a simple grand-staff bar when opening accidentals require different leads.
+/// Other arrangements keep their existing staff-local spacing until the general
+/// inter-staff spacing solver accounts for headers, annotations and cross-staff notation.
+fn grand_staff_opening_lead(
+    score: &Score,
+    measure_idx: usize,
+    width: f32,
+    space: f32,
+    mandatory: &HashMap<AccKey, i8>,
+    courtesy: &HashMap<AccKey, i8>,
+) -> Option<f32> {
+    if width < (2.0 + glyphs::NOTEHEAD_RX_U + 0.18 + 1.25 + 0.15 + MEASURE_PAD_U + 1.0) * space
+        || score.parts.len() != 1
+        || score.parts[0].staves.len() != 2
+        || !score.spanners.is_empty()
+        || !score.views.is_empty()
+    {
+        return None;
+    }
+    let staves = &score.parts[0].staves;
+    // Most bars have no opening accidental. Avoid scanning prior measures for meter and
+    // tablature in those bars; neither a second column nor differing accidental leads can exist.
+    let has_opening_mark = staves.iter().enumerate().any(|(staff_idx, staff)| {
+        staff.measures.get(measure_idx).is_some_and(|measure| {
+            measure.voices.iter().enumerate().any(|(voice_idx, voice)| {
+                voice
+                    .iter()
+                    .position(|note| !note.is_grace)
+                    .is_some_and(|note_idx| {
+                        let note = &voice[note_idx];
+                        !note.is_rest
+                            && (0..note.pitches.len()).any(|pitch_idx| {
+                                let key =
+                                    (0, staff_idx, measure_idx, voice_idx, note_idx, pitch_idx);
+                                mandatory.contains_key(&key) || courtesy.contains_key(&key)
+                            })
+                    })
+            })
+        })
+    });
+    if !has_opening_mark {
+        return None;
+    }
+    if staves.iter().any(|staff| {
+        staff.measures.get(measure_idx).is_none()
+            || staff.tablature_at(measure_idx).is_some()
+            || !staff.presentation.visible
+            || staff.presentation.cutaway
+            || staff.presentation.kind != acorde_core::StaffKind::Standard
+    }) {
+        return None;
+    }
+    if staves[0].measures.len() != staves[1].measures.len() {
+        return None;
+    }
+    let beats = staves[0].measure_beats(measure_idx, &score.settings.time_signature);
+    let other_beats = staves[1].measure_beats(measure_idx, &score.settings.time_signature);
+    if !beats.is_finite()
+        || beats <= 0.0
+        || !other_beats.is_finite()
+        || (beats - other_beats).abs() > 1e-9
+    {
+        return None;
+    }
+    let mut lead = MEASURE_PAD_U;
+    let mut needs_column = false;
+    let mut local_leads = [MEASURE_PAD_U; 2];
+    for (staff_idx, staff) in staves.iter().enumerate() {
+        let m = &staff.measures[measure_idx];
+        if (measure_idx > 0
+            && (m.clef.is_some()
+                || m.key_sig.is_some()
+                || m.time_sig.is_some()
+                || m.time_symbol.is_some()
+                || m.time_sig_hidden))
+            || m.barline_left != Barline::Normal
+            || m.tablature_change.is_some()
+            || !m.mid_clefs.is_empty()
+            || m.measure_repeat.is_some()
+            || !measure_text_entries(m).is_empty()
+            || m.volta.is_some()
+            || m.voices.iter().filter(|voice| !voice.is_empty()).count() == 0
+            || m.voices
+                .iter()
+                .filter_map(|voice| voice.first())
+                .any(|n| n.is_rest || n.is_grace || n.is_cue || n.hidden)
+            || m.voices.iter().any(|voice| voice.len() > 4)
+            || m.voices.iter().flatten().any(|n| {
+                n.is_rest
+                    || n.is_unpitched
+                    || n.is_grace
+                    || n.is_cue
+                    || n.hidden
+                    || n.pitches.len() != 1
+                    || n.is_parenthesized(0)
+                    || n.tuplet.is_some()
+                    || n.tuplet_boundary.is_some()
+                    || n.cross_staff.is_some()
+                    || n.arpeggiate.is_some()
+                    || n.offset_x.unwrap_or(0.0) != 0.0
+                    || n.relative_x.unwrap_or(0.0) != 0.0
+                    || n.offset_y.unwrap_or(0.0) != 0.0
+                    || n.relative_y.unwrap_or(0.0) != 0.0
+                    || note_annotation_width_u(n) != 0.0
+            })
+        {
+            return None;
+        }
+        let offsets =
+            opening_voice_accidental_offsets(m, 0, staff_idx, measure_idx, mandatory, courtesy);
+        needs_column |= offsets.iter().any(|&offset| offset > 0.0);
+        local_leads[staff_idx] =
+            opening_accidental_lead(m, 0, staff_idx, measure_idx, mandatory, courtesy, &offsets);
+        lead = lead.max(local_leads[staff_idx]);
+    }
+    needs_column |= (local_leads[0] - local_leads[1]).abs() > 1e-5;
+    if !needs_column || width < (lead + MEASURE_PAD_U + 1.0) * space {
+        return None;
+    }
+    // Do not reduce the rhythmic span when doing so would require later noteheads or
+    // accidentals to be shifted independently by the per-voice spacing pass.
+    let content_u = width / space - lead - MEASURE_PAD_U;
+    for staff in staves {
+        let mut events = Vec::new();
+        for (voice_idx, voice) in staff.measures[measure_idx].voices.iter().enumerate() {
+            let mut beat = 0.0;
+            for note in voice {
+                let duration = note.beats();
+                if !duration.is_finite() || duration <= 0.0 || beat + duration > beats + 1e-9 {
+                    return None;
+                }
+                events.push((beat, voice_idx, note));
+                beat += duration;
+            }
+        }
+        for (i, &(a_beat, a_voice, a)) in events.iter().enumerate() {
+            for &(b_beat, b_voice, b) in &events[i + 1..] {
+                if (a_beat - b_beat).abs() < 1e-9 {
+                    if a_voice != b_voice && !noncolliding_voice_noteheads(a, b) {
+                        return None;
+                    }
+                } else {
+                    let (earlier, later) = if a_beat < b_beat { (a, b) } else { (b, a) };
+                    let available = ((a_beat - b_beat).abs() / beats) as f32 * content_u;
+                    if available < event_pair_clearance_u(earlier, later) {
+                        return None;
+                    }
+                }
+            }
+        }
+    }
+    Some(lead)
+}
+
 #[allow(clippy::too_many_arguments)]
 fn render_measure(
     body: &mut String,
@@ -3590,29 +3868,43 @@ fn render_measure(
         .tablature_fret_mark_style;
     let total_beats =
         score.parts[part].staves[staff].measure_beats(measure_idx, &score.settings.time_signature);
+    // Only reserve the second column when the resulting content still fits inside this bar.
+    let enough_width =
+        width >= (2.0 + glyphs::NOTEHEAD_RX_U + 0.18 + 1.25 + 0.15 + MEASURE_PAD_U + 1.0) * space;
+    let grand_staff_lead = if allow_shared_alignment {
+        grand_staff_opening_lead(score, measure_idx, width, space, mandatory, courtesy)
+    } else {
+        None
+    };
+    // A staff-local lead must not desynchronize a grand staff or another part.
+    let single_staff = score
+        .parts
+        .iter()
+        .map(|part| part.staves.len())
+        .sum::<usize>()
+        == 1;
+    let opening_accidental_offsets = if allow_shared_alignment
+        && tablature.is_none()
+        && enough_width
+        && (single_staff || grand_staff_lead.is_some())
+    {
+        opening_voice_accidental_offsets(measure, part, staff, measure_idx, mandatory, courtesy)
+    } else {
+        [0.0; 4]
+    };
     // Accidentals on the bar's first notes sit left of their heads: start the content far enough
     // in that they clear the barline, clef or time signature before them.
-    let lead_u = measure
-        .voices
-        .iter()
-        .enumerate()
-        .filter_map(|(voice_idx, voice)| {
-            let note_idx = voice.iter().position(|note| !note.is_grace)?;
-            let note = &voice[note_idx];
-            (!note.is_rest).then(|| {
-                (0..note.pitches.len())
-                    .filter_map(|pitch_idx| {
-                        let key: AccKey =
-                            (part, staff, measure_idx, voice_idx, note_idx, pitch_idx);
-                        mandatory.get(&key).or_else(|| courtesy.get(&key)).copied()
-                    })
-                    .map(|alter| {
-                        glyphs::NOTEHEAD_RX_U + 0.18 + glyphs::accidental_width_u(alter) + 0.15
-                    })
-                    .fold(0.0_f32, f32::max)
-            })
-        })
-        .fold(MEASURE_PAD_U, f32::max);
+    let lead_u = grand_staff_lead.unwrap_or_else(|| {
+        opening_accidental_lead(
+            measure,
+            part,
+            staff,
+            measure_idx,
+            mandatory,
+            courtesy,
+            &opening_accidental_offsets,
+        )
+    });
     // A clef change drawn at the bar's start also pushes its content along, as do the dots of
     // a forward repeat.
     let repeat_lead_u = if matches!(
@@ -3750,6 +4042,7 @@ fn render_measure(
                 tablature_rhythm_display,
                 tablature_fret_mark_style,
                 allow_shared_alignment,
+                opening_accidental_offsets[voice_idx],
                 &mut prior_voice_events,
                 note_points,
                 beam_tip_points,
@@ -4126,6 +4419,7 @@ fn render_measure_voice<'a>(
     tablature_rhythm_display: TablatureRhythmDisplay,
     tablature_fret_mark_style: acorde_core::TablatureFretMarkStyle,
     allow_shared_alignment: bool,
+    opening_accidental_offset: f32,
     prior_voice_events: &mut Vec<(f32, &'a Note, f64)>,
     note_points: &mut HashMap<NoteKey, NotePoint>,
     beam_tip_points: &mut HashMap<NoteKey, f32>,
@@ -4313,6 +4607,7 @@ fn render_measure_voice<'a>(
             interactive,
             mandatory,
             courtesy,
+            opening_accidental_offset,
             tablature,
             tablature_rhythm_display,
             tablature_fret_mark_style,
@@ -4364,6 +4659,7 @@ struct VoiceNotesRenderContext<'a> {
     interactive: bool,
     mandatory: &'a HashMap<AccKey, i8>,
     courtesy: &'a HashMap<AccKey, i8>,
+    opening_accidental_offset: f32,
     tablature: Option<&'a acorde_core::TablatureConfig>,
     tablature_rhythm_display: TablatureRhythmDisplay,
     tablature_fret_mark_style: acorde_core::TablatureFretMarkStyle,
@@ -4392,6 +4688,7 @@ fn render_measure_voice_notes(
         interactive,
         mandatory,
         courtesy,
+        opening_accidental_offset,
         tablature,
         tablature_rhythm_display,
         tablature_fret_mark_style,
@@ -4444,6 +4741,11 @@ fn render_measure_voice_notes(
             *interactive,
             mandatory,
             courtesy,
+            if note_idx == 0 {
+                *opening_accidental_offset
+            } else {
+                0.0
+            },
             *tablature,
             *tablature_rhythm_display,
             *tablature_fret_mark_style,
@@ -5171,11 +5473,95 @@ fn nearest_text_gap(x: f32, min: f32, max: f32, mut blocked: Vec<(f32, f32)>) ->
     }
 }
 
+/// Restrict vertical recovery to a score whose complete visible obstacles are known here.
+/// More complex notation and print layouts keep the established conservative fallback.
+fn simple_above_text_escape(score: &Score, measure: &Measure) -> bool {
+    if !score.spanners.is_empty()
+        || !score.texts.is_empty()
+        || !measure.harp_pedal_diagrams.is_empty()
+        || !measure.timed_pedals.is_empty()
+        || !measure.mid_clefs.is_empty()
+        || measure.measure_repeat.is_some()
+        || measure.tempo_ramp_to.is_some()
+        || measure.metronome_mark.is_some()
+        || measure.volta.is_some()
+    {
+        return false;
+    }
+    let entries = measure_text_entries(measure);
+    if entries.len() != 1
+        || !entries[0]
+            .text
+            .bytes()
+            .all(|b| b == b' ' || b.is_ascii_graphic())
+        || entries[0].style != TextStyle::Expression
+        || entries[0]
+            .placement
+            .as_deref()
+            .is_some_and(|v| !v.eq_ignore_ascii_case("above"))
+    {
+        return false;
+    }
+    measure.voices.iter().flatten().all(|n| {
+        !n.is_rest
+            && !n.is_unpitched
+            && !n.hidden
+            && !n.is_grace
+            && !n.is_cue
+            && !n.grace_slash
+            && n.duration == Duration::Quarter
+            && n.dot_count == 0
+            && n.pitches.len() == 1
+            && n.pitches[0].alter == 0
+            && n.pitches[0].microtone_cents == 0
+            && n.pitch_accidentals.is_empty()
+            && n.pitch_parentheses.is_empty()
+            && n.beam == acorde_core::BeamState::None
+            && n.cross_staff.is_none()
+            && n.offset_x.unwrap_or(0.0) == 0.0
+            && n.relative_x.unwrap_or(0.0) == 0.0
+            && n.offset_y.unwrap_or(0.0) == 0.0
+            && n.relative_y.unwrap_or(0.0) == 0.0
+            && n.articulations.is_empty()
+            && n.dynamic.is_none()
+            && n.chord_symbol.is_none()
+            && n.lyric.is_none()
+            && n.additional_lyrics.is_empty()
+            && n.tuplet.is_none()
+            && n.tuplet_boundary.is_none()
+            && !n.tie_start
+            && !n.tie_end
+            && n.pitch_tie_starts.is_empty()
+            && n.pitch_tie_ends.is_empty()
+            && !n.slur_start
+            && !n.slur_end
+            && n.hairpin_start.is_none()
+            && !n.hairpin_end
+            && !n.pedal_start
+            && !n.pedal_end
+            && n.ottava_start.is_none()
+            && !n.ottava_end
+            && !n.glissando_start
+            && !n.glissando_end
+            && !n.trill_line_start
+            && !n.trill_line_end
+            && n.arpeggiate.is_none()
+            && n.tremolo_pair.is_none()
+            && n.technique_text.is_none()
+            && n.fingering.is_none()
+            && n.fingerings.is_empty()
+            && n.pitch_fingerings.is_empty()
+            && n.string_number.is_none()
+            && n.guitar_technique.is_none()
+            && n.guitar_bend_alter_cents.is_none()
+            && n.guitar_bend_curve.is_empty()
+    })
+}
+
 /// Render measure-level publication and navigation text after note content has been placed.
 ///
-/// Text stacking is intentionally kept separate from note and beam rendering: this gives later
-/// print-quality work one place to add font-independent collision policies without changing the
-/// event-coordinate pipeline.
+/// Text stacking is separate from note and beam rendering so collision policies can evolve
+/// without changing the event-coordinate pipeline.
 #[allow(clippy::too_many_arguments)]
 fn render_measure_text(
     body: &mut String,
@@ -5194,6 +5580,7 @@ fn render_measure_text(
     note_points: &HashMap<NoteKey, NotePoint>,
     resolved_annotations: &[acorde_layout::GlyphPlacement],
     neighbor_heads: &[(f32, f32)],
+    above_escape: Option<(f32, f32)>,
 ) -> Result<bool, RenderError> {
     let mut text_clear = true;
     let mut above_texts = 0usize;
@@ -5520,6 +5907,23 @@ fn render_measure_text(
                 blocked,
             ) {
                 placements[index].x_mm = candidate;
+            } else if let Some((safe_bottom, canvas_width)) = above_escape {
+                let candidate_y = safe_bottom - text.metrics.top_mm - text.metrics.height_mm;
+                let top = candidate_y + text.metrics.top_mm;
+                // The ordinary collision estimate is an average glyph width. At the canvas edge,
+                // budget a full staff space per ASCII character to allow for wider serif glyphs.
+                let conservative_width =
+                    (entries[index - annotation_count].text.len() as f32 * space * text_scale)
+                        .max(text.metrics.width_mm);
+                if top >= 0.0
+                    && candidate_y <= text.y_mm
+                    && text.x_mm >= x + 0.3 * space
+                    && text.x_mm + conservative_width <= canvas_width
+                {
+                    placements[index].y_mm = candidate_y;
+                } else {
+                    text_clear = false;
+                }
             } else {
                 text_clear = false;
             }
@@ -7569,6 +7973,7 @@ fn render_note(
     interactive: bool,
     mandatory: &HashMap<AccKey, i8>,
     courtesy: &HashMap<AccKey, i8>,
+    opening_accidental_offset: f32,
     tablature: Option<&acorde_core::TablatureConfig>,
     tablature_rhythm_display: TablatureRhythmDisplay,
     tablature_fret_mark_style: acorde_core::TablatureFretMarkStyle,
@@ -7664,6 +8069,7 @@ fn render_note(
         interactive,
         mandatory,
         courtesy,
+        opening_accidental_offset,
         tablature,
         tablature_rhythm_display,
         tablature_fret_mark_style,
@@ -7767,6 +8173,7 @@ fn render_note_content(
     interactive: bool,
     mandatory: &HashMap<AccKey, i8>,
     courtesy: &HashMap<AccKey, i8>,
+    opening_accidental_offset: f32,
     tablature: Option<&acorde_core::TablatureConfig>,
     tablature_rhythm_display: TablatureRhythmDisplay,
     tablature_fret_mark_style: acorde_core::TablatureFretMarkStyle,
@@ -7814,6 +8221,7 @@ fn render_note_content(
             beam_tip,
             mandatory,
             courtesy,
+            opening_accidental_offset,
         )?;
         render_note_annotations(body, note, x, anchor_y, stem_up, space);
         if note.grace_slash {
@@ -9373,6 +9781,7 @@ fn render_pitched_note(
     beam_tip: Option<f32>,
     mandatory: &HashMap<AccKey, i8>,
     courtesy: &HashMap<AccKey, i8>,
+    opening_accidental_offset: f32,
 ) -> Result<(), RenderError> {
     let filled = matches!(
         note.duration,
@@ -9430,8 +9839,11 @@ fn render_pitched_note(
                 .map_or(0.0, glyphs::accidental_width_u)
         })
         .collect();
-    let accidental_offsets =
+    let mut accidental_offsets =
         chord_accidental_offsets(&positions, &has_accidentals, &accidental_widths);
+    for offset in &mut accidental_offsets {
+        *offset += opening_accidental_offset;
+    }
 
     render_pitched_note_heads(
         body,
@@ -9907,6 +10319,7 @@ mod tests {
             &std::collections::HashMap::new(),
             &[],
             &[(10.0, 138.0)],
+            None,
         )
         .unwrap();
         assert!(!clear);
@@ -10037,6 +10450,7 @@ mod tests {
             &note_points,
             &[],
             &[],
+            None,
         )
         .expect("positioned print direction renders");
         let text_x = body
@@ -10326,6 +10740,7 @@ mod tests {
             &HashMap::new(),
             &[obstacle],
             &[],
+            None,
         )
         .expect("measure text renders");
         let text_y = body

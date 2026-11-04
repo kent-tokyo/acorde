@@ -6633,3 +6633,97 @@ fn incoming_partial_tie_stays_inside_its_own_measure() {
         "partial tie has no readable horizontal space"
     );
 }
+
+#[test]
+fn issue_299_same_onset_voices_align_for_every_key_clef_and_accidental() {
+    for fifths in -7..=7 {
+        for (sign, line, octave) in [("G", 2, 0), ("F", 4, 0), ("C", 3, 0), ("G", 2, -1)] {
+            for explicit in [false, true] {
+                let (alter, shown) = if explicit {
+                    ("<alter>1</alter>", "<accidental>sharp</accidental>")
+                } else {
+                    ("", "")
+                };
+                let (hi, lo) = if sign == "F" { (2, 1) } else { (3, 3) };
+                let xml = format!(
+                    r#"<score-partwise><part-list><score-part id="P1"><part-name>Guitar</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><key><fifths>{fifths}</fifths></key><time><beats>2</beats><beat-type>4</beat-type></time><clef><sign>{sign}</sign><line>{line}</line><clef-octave-change>{octave}</clef-octave-change></clef></attributes><note><pitch><step>A</step>{alter}<octave>{hi}</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type>{shown}<stem>up</stem></note><note><pitch><step>G</step><alter>1</alter><octave>{hi}</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><stem>up</stem></note><backup><duration>2</duration></backup><note><pitch><step>C</step>{alter}<octave>{lo}</octave></pitch><duration>1</duration><voice>2</voice><type>quarter</type>{shown}<stem>down</stem></note><note><pitch><step>B</step><octave>{}</octave></pitch><duration>1</duration><voice>2</voice><type>quarter</type><stem>down</stem></note></measure></part></score-partwise>"#,
+                    lo - 1
+                );
+                let score = acorde_io::parse_musicxml(&xml).unwrap();
+                let heads = notehead_centers(&render_svg(&score, &opts()).unwrap());
+                let label = format!("key {fifths} clef {sign}{octave} explicit {explicit}");
+                assert_eq!(heads.len(), 4, "{label}");
+                assert!((heads[0].0 - heads[2].0).abs() < 0.1, "{label}: {heads:?}");
+                assert!((heads[1].0 - heads[3].0).abs() < 0.1, "{label}: {heads:?}");
+                let onsets: Vec<f64> = acorde_core::to_playback_events(&score, &Default::default())
+                    .iter()
+                    .map(|e| e.time_beats)
+                    .collect();
+                assert_eq!(onsets.iter().filter(|&&t| t == 0.0).count(), 2, "{label}");
+                assert_eq!(onsets.iter().filter(|&&t| t == 1.0).count(), 2, "{label}");
+            }
+        }
+    }
+}
+
+#[test]
+fn issue_296_slur_stays_above_an_upper_voice_with_or_without_stems_and_beams() {
+    for stems in [true, false] {
+        for beams in [false, true] {
+            for count in [3usize, 5] {
+                let stem = |dir: &str| {
+                    if stems {
+                        format!("<stem>{dir}</stem>")
+                    } else {
+                        String::new()
+                    }
+                };
+                let steps = ["B", "C", "D", "C", "B"];
+                let low = ["G", "A", "B", "A", "G"];
+                let mut upper = String::new();
+                let mut lower = String::new();
+                for i in 0..count {
+                    let (alter, octave) = if i == 0 || i + 1 == count {
+                        ("<alter>-1</alter>", 4)
+                    } else {
+                        ("", 5)
+                    };
+                    let slur = match i {
+                        0 => r#"<notations><slur type="start" number="1"/></notations>"#,
+                        i if i + 1 == count => {
+                            r#"<notations><slur type="stop" number="1"/></notations>"#
+                        }
+                        _ => "",
+                    };
+                    upper += &format!(
+                        "<note><pitch><step>{}</step>{alter}<octave>{octave}</octave></pitch><duration>1</duration><voice>1</voice><type>eighth</type>{}{slur}</note>",
+                        steps[i],
+                        stem("up")
+                    );
+                    lower += &format!(
+                        "<note><pitch><step>{}</step><octave>4</octave></pitch><duration>1</duration><voice>2</voice><type>eighth</type>{}</note>",
+                        low[i],
+                        stem("down")
+                    );
+                }
+                let rest = 6 - count;
+                let xml = format!(
+                    r#"<score-partwise><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>2</divisions><time><beats>3</beats><beat-type>4</beat-type></time></attributes>{upper}<note><rest/><duration>{rest}</duration><voice>1</voice><type>eighth</type></note><backup><duration>6</duration></backup>{lower}<note><rest/><duration>{rest}</duration><voice>2</voice><type>eighth</type></note></measure></part></score-partwise>"#
+                );
+                let score = acorde_io::parse_musicxml(&xml).unwrap();
+                let mut config = SvgRenderConfig::new(opts());
+                if beams {
+                    config = config.with_auto_beams();
+                }
+                let svg = render_svg_with_config(&score, &config).unwrap();
+                let slurs = slur_geometries(&svg);
+                assert_eq!(slurs.len(), 1, "stems {stems} beams {beams} count {count}");
+                let path = slurs[0];
+                assert!(
+                    path[3] < path[1].min(path[5]),
+                    "stems {stems} beams {beams} count {count}: slur bows down {path:?}"
+                );
+            }
+        }
+    }
+}

@@ -35,8 +35,9 @@ pub use model::chord_plan::{
 };
 pub use model::chord_proposals::{
     CHORD_PROPOSAL_CONTRACT_VERSION, CHORD_PROPOSAL_MAX_MEASURES, ChordChangedSpan,
-    ChordProposalArrangementResult, ChordProposalCandidate, ChordProposalDiagnostic,
-    ChordProposalRequest, ChordProposalResult, ResolvedChordProposal, arrange_from_chord_proposal,
+    ChordPresetAssessment, ChordPresetAssessmentResult, ChordProposalArrangementResult,
+    ChordProposalCandidate, ChordProposalDiagnostic, ChordProposalRequest, ChordProposalResult,
+    ResolvedChordProposal, SourceRangeViolation, arrange_from_chord_proposal, assess_chord_presets,
     suggest_chord_plans,
 };
 pub use model::commands::{
@@ -73,9 +74,17 @@ pub use model::fragment::{
     ScoreFragmentMeasureAttributes, ScoreFragmentSelection, ScoreFragmentVoice,
     extract_score_fragment,
 };
+pub use model::free_bass::{
+    AccordionHandLimits, FreeBassDiagnostic, FreeBassOptions, FreeBassPitchMapping, FreeBassResult,
+    split_for_free_bass,
+};
 pub use model::gm::{drum_name, program_name};
 pub use model::harmony::{detect_chord, roman_numeral};
 pub use model::interval::{Interval, IntervalQuality};
+pub use model::melodic_insert::{
+    MelodicInsertion, MelodicInsertionDiagnostic, MelodicInsertionKind, MelodicInsertionOptions,
+    MelodicInsertionResult, MelodicInsertionSource, MelodicSourceMapping, insert_melodic_notes,
+};
 pub use model::musical_diff::{
     MusicalChange, MusicalChangeKind, MusicalComparisonDiagnostic, MusicalComparisonOptions,
     MusicalComparisonResult, NoteCorrespondence, StructurePolicy, VoiceAddr, VoiceCorrespondence,
