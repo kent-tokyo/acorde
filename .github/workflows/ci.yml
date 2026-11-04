@@ -266,9 +266,9 @@ jobs:
           # retain approximately 6.5 KB headroom.
           # Incoming MuseScore partial ties (#282) measured +42,780 bytes on Linux
           # over their earlier base; this budget is provisional pending CI.
-          # Positioned figured bass (#276) measured +49,862 bytes on its earlier
-          # Linux base; this combined budget is provisional pending CI.
-          test "$size" -le 6995000
+          # Partial ties and positioned figured bass (#282, #276) together
+          # measured 7,006,513 bytes on Linux CI; keep about 6.5 KB headroom.
+          test "$size" -le 7013000
 
   renderer-benchmark:
     name: Renderer performance budget
