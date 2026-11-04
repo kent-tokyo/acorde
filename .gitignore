@@ -32,3 +32,4 @@ fuzz/artifacts/
 # ── Environment / secrets ─────────────────────────────────────────────────────
 .env
 .env.*
+__pycache__/
