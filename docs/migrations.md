@@ -11,6 +11,19 @@ struct literals must still update for added variants and fields.
 > longer compile in 1.2.19 or 1.2.20, despite the patch version. Pin `=1.2.18` or migrate the
 > literal before updating; do not assume a later 1.2 patch restores the old literal form.
 
+## Unreleased: positioned figured-bass groups
+
+`Measure::figured_bass_groups` retains separate MusicXML figure groups, their beat positions,
+explicit durations, following-note voice slots, and per-figure extender types. Older JSON defaults
+this field to an empty vector; complete Rust `Measure` literals and `ScoreFragmentMeasureAttributes` literals must
+initialize it. On imported MusicXML, `figured_bass` retains the final group for compatibility.
+When editing the final group, update both fields before MusicXML export; conflicting values are
+reported as an error rather than silently discarding either edit. Positioned groups are emitted
+before their corresponding voice note when their timing can be represented. The export
+report warns when MSCX, MEI, or ABC cannot preserve these positions or extender types. Groups
+must be ordered by voice and beat for export. Continuation across measures and full engraving
+validation remain open.
+
 ## Unreleased: incoming MuseScore partial ties
 
 `Note::pitch_incoming_partial_ties` and `Note::pitch_tie_sources` are serde-defaulted vectors

@@ -6,7 +6,8 @@
 //! objects before copying it.
 
 use super::notation::{
-    Barline, Clef, FiguredBassFigure, KeySignature, StyledText, TablatureConfig, TimeSignature,
+    Barline, Clef, FiguredBassFigure, FiguredBassGroup, KeySignature, StyledText, TablatureConfig,
+    TimeSignature,
 };
 use super::score::{
     HarpPedalDiagram, InstrumentDefinition, Measure, MidMeasureClef, NotationSpanner, Note,
@@ -123,6 +124,8 @@ pub struct ScoreFragmentMeasureAttributes {
     pub texts: Vec<StyledText>,
     #[serde(default)]
     pub figured_bass: Vec<FiguredBassFigure>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub figured_bass_groups: Vec<FiguredBassGroup>,
     #[serde(default)]
     pub harp_pedal_diagrams: Vec<HarpPedalDiagram>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -160,6 +163,7 @@ impl ScoreFragmentMeasureAttributes {
             expression_text: measure.expression_text.clone(),
             texts: measure.texts.clone(),
             figured_bass: measure.figured_bass.clone(),
+            figured_bass_groups: measure.figured_bass_groups.clone(),
             harp_pedal_diagrams: measure.harp_pedal_diagrams.clone(),
             channel_switches: measure.channel_switches.clone(),
             timed_pedals: measure.timed_pedals.clone(),
@@ -197,6 +201,7 @@ impl ScoreFragmentMeasureAttributes {
         measure.expression_text = self.expression_text.clone();
         measure.texts = self.texts.clone();
         measure.figured_bass = self.figured_bass.clone();
+        measure.figured_bass_groups = self.figured_bass_groups.clone();
         measure.harp_pedal_diagrams = self.harp_pedal_diagrams.clone();
         measure.channel_switches = self.channel_switches.clone();
         measure.timed_pedals = self.timed_pedals.clone();
