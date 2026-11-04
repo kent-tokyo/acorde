@@ -6584,6 +6584,57 @@ fn repeat_both_draws_dots_on_both_sides_of_barline() {
 }
 
 #[test]
+fn incoming_partial_tie_renders_a_stub_for_only_the_marked_chord_pitch() {
+    let mut score = acorde_core::Score::new("partial tie", 120, 4, 4, 0, 1);
+    let mut note = acorde_core::Note::new(
+        acorde_core::Pitch::from_midi(60, false),
+        acorde_core::Duration::Whole,
+    );
+    note.pitches.push(acorde_core::Pitch::from_midi(64, false));
+    note.pitch_incoming_partial_ties = vec![true, false];
+    score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+    let svg = render_svg(&score, &opts()).unwrap();
+    assert_eq!(svg.matches("class=\"acorde-tie\"").count(), 1);
+    let fragment = svg.split("class=\"acorde-tie\" d=\"M ").nth(1).unwrap();
+    let start_x: f32 = fragment.split(',').next().unwrap().parse().unwrap();
+    assert!(start_x < notehead_centers(&svg)[0].0);
+}
+
+#[test]
+fn incoming_partial_tie_stays_inside_its_own_measure() {
+    let mut score = acorde_core::Score::new("partial tie at barline", 120, 4, 4, 0, 2);
+    let first = acorde_core::Note::new(
+        acorde_core::Pitch::from_midi(60, false),
+        acorde_core::Duration::Whole,
+    );
+    let mut second = first.clone();
+    second.pitch_incoming_partial_ties = vec![true];
+    score.parts[0].staves[0].measures[0].voices[0] = vec![first];
+    score.parts[0].staves[0].measures[1].voices[0] = vec![second];
+    let svg = render_svg(&score, &opts()).unwrap();
+    let fragment = svg.split("class=\"acorde-tie\" d=\"M ").nth(1).unwrap();
+    let start: f32 = fragment.split(',').next().unwrap().parse().unwrap();
+    let barline: f32 = svg
+        .split("class=\"acorde-barline\" x1=\"")
+        .nth(1)
+        .unwrap()
+        .split('"')
+        .next()
+        .unwrap()
+        .parse()
+        .unwrap();
+    assert!(
+        start > barline,
+        "partial tie starts at {start}, before barline {barline}"
+    );
+    let end = notehead_centers(&svg)[1].0;
+    assert!(
+        end - start > opts().staff_size,
+        "partial tie has no readable horizontal space"
+    );
+}
+
+#[test]
 fn issue_299_same_onset_voices_align_for_every_key_clef_and_accidental() {
     for fifths in -7..=7 {
         for (sign, line, octave) in [("G", 2, 0), ("F", 4, 0), ("C", 3, 0), ("G", 2, -1)] {

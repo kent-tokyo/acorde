@@ -264,7 +264,9 @@ jobs:
           # (6,767,544 -> 6,788,958) and profiled accompaniment patterns 27,759
           # (-> 6,795,303). Linux CI measured the combination at 6,818,427 bytes; The edition labels measured 6,825,607 bytes on Linux CI; Phrase, proposed-harmony and two-button bindings measured 6,887,484 bytes on Linux CI;
           # retain approximately 6.5 KB headroom.
-          test "$size" -le 6895000
+          # Incoming MuseScore partial ties (#282) measured +42,780 bytes on Linux
+          # over their earlier base; this budget is provisional pending CI.
+          test "$size" -le 6945000
 
   renderer-benchmark:
     name: Renderer performance budget

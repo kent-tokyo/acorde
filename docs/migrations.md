@@ -11,6 +11,18 @@ struct literals must still update for added variants and fields.
 > longer compile in 1.2.19 or 1.2.20, despite the patch version. Pin `=1.2.18` or migrate the
 > literal before updating; do not assume a later 1.2 patch restores the old literal form.
 
+## Unreleased: incoming MuseScore partial ties
+
+`Note::pitch_incoming_partial_ties` and `Note::pitch_tie_sources` are serde-defaulted vectors
+parallel to the chord's pitches. Rust code using complete `Note` struct literals must initialize
+both, usually with `Vec::new()`.
+An incoming partial tie is distinct from `tie_end`: it represents a continuation across a repeat
+or jump and is retained through MSCX. Re-import original MuseScore files to recover it. MusicXML,
+MEI, and ABC export reports identify this data as unsupported rather than silently claiming it
+survives conversion. Explicit predecessor locations are retained in MSCX; other nonadjacent
+note-spanner endpoints and outgoing partial ties are reported when they may not be retained.
+MuseScore jump-tie metadata and complex navigation are not yet fully supported.
+
 ## v1.3.9: saved arrangement markers
 
 Preset and free-layer engine markers include the workspace version. Reselect saved chords, presets
