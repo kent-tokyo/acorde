@@ -298,19 +298,32 @@ struct TimedEvent {
 struct MidiNoteCandidate {
     start_tick: u64,
     sounding_ticks: u64,
+    notated_ticks: u64,
+    staccato: bool,
     pitch: u8,
     velocity: u8,
     tie_start: bool,
     tie_end: bool,
+    partial_end: bool,
+    source_location: Option<acorde_core::TieSourceLocation>,
+    written_onset: f64,
     staff: usize,
     voice: usize,
+    measure: usize,
+    note: usize,
     channel: u8,
 }
 
 struct OpenMidiTie {
     off_event: usize,
+    start_tick: u64,
+    notated_end_tick: u64,
+    staccato: bool,
+    written_onset: f64,
     staff: usize,
     voice: usize,
+    measure: usize,
+    note: usize,
 }
 
 struct MidiNoteEventPair {
@@ -520,7 +533,7 @@ fn build_part_track(
                     .collect();
                 switches.sort_by(|a, b| a.position_beats.total_cmp(&b.position_beats));
                 let mut next_switch = 0;
-                for note in &measure.voices[voice_idx] {
+                for (note_index, note) in measure.voices[voice_idx].iter().enumerate() {
                     if note.is_grace || note.is_cue {
                         continue;
                     }
@@ -567,12 +580,29 @@ fn build_part_track(
                             notes.push(MidiNoteCandidate {
                                 start_tick: cursor,
                                 sounding_ticks,
+                                notated_ticks: ticks,
+                                staccato: note.articulations.iter().any(|a| {
+                                    matches!(
+                                        a,
+                                        Articulation::Staccato | Articulation::Staccatissimo
+                                    )
+                                }),
                                 pitch: midi,
                                 velocity: vel,
                                 tie_start: note.pitch_tie_start(pitch_index),
                                 tie_end: note.pitch_tie_end(pitch_index),
+                                partial_end: note.pitch_incoming_partial_ties.get(pitch_index)
+                                    == Some(&true),
+                                source_location: note
+                                    .pitch_tie_sources
+                                    .get(pitch_index)
+                                    .cloned()
+                                    .flatten(),
+                                written_onset: onset_beats,
                                 staff: staff_index,
                                 voice: voice_idx,
+                                measure: idx,
+                                note: note_index,
                                 channel: note_channel,
                             });
                         }
@@ -600,13 +630,42 @@ fn build_part_track(
     let mut note_pairs = Vec::new();
     for note in notes {
         if let Some(candidates) = open_ties.get_mut(&note.pitch) {
-            candidates.retain(|candidate| events[candidate.off_event].abs_tick >= note.start_tick);
-            if note.tie_end {
+            candidates.retain(|candidate| candidate.notated_end_tick >= note.start_tick);
+            if note.tie_end || note.partial_end {
                 let matching = candidates
                     .iter()
                     .enumerate()
                     .filter(|(_, candidate)| {
-                        events[candidate.off_event].abs_tick == note.start_tick
+                        let jumped = note.measure != candidate.measure.saturating_add(1)
+                            && (note.measure != candidate.measure || note.note <= candidate.note);
+                        let target = acorde_core::NoteAddr {
+                            part: 0,
+                            staff: note.staff,
+                            measure: note.measure,
+                            voice: note.voice,
+                            note: note.note,
+                        };
+                        let previous = acorde_core::NoteAddr {
+                            part: 0,
+                            staff: candidate.staff,
+                            measure: candidate.measure,
+                            voice: candidate.voice,
+                            note: candidate.note,
+                        };
+                        let source_matches = note.source_location.as_ref().is_none_or(|location| {
+                            location.matches(
+                                &target,
+                                &previous,
+                                candidate.written_onset - note.written_onset,
+                            )
+                        });
+                        let partial_matches = note.partial_end
+                            && jumped
+                            && candidate.staff == note.staff
+                            && candidate.voice == note.voice;
+                        source_matches
+                            && (note.tie_end || partial_matches)
+                            && candidate.notated_end_tick == note.start_tick
                     })
                     .max_by_key(|(_, candidate)| {
                         (candidate.staff == note.staff, candidate.voice == note.voice)
@@ -614,10 +673,20 @@ fn build_part_track(
                     .map(|(position, _)| position);
                 if let Some(position) = matching {
                     let mut candidate = candidates.remove(position);
-                    events[candidate.off_event].abs_tick = note.start_tick + note.sounding_ticks;
+                    candidate.notated_end_tick = note.start_tick + note.notated_ticks;
+                    candidate.staccato |= note.staccato;
+                    events[candidate.off_event].abs_tick = if candidate.staccato {
+                        candidate.start_tick
+                            + (candidate.notated_end_tick - candidate.start_tick) / 2
+                    } else {
+                        note.start_tick + note.sounding_ticks
+                    };
                     if note.tie_start {
                         candidate.staff = note.staff;
                         candidate.voice = note.voice;
+                        candidate.measure = note.measure;
+                        candidate.note = note.note;
+                        candidate.written_onset = note.written_onset;
                         candidates.push(candidate);
                     }
                     continue;
@@ -652,8 +721,14 @@ fn build_part_track(
         if note.tie_start {
             open_ties.entry(note.pitch).or_default().push(OpenMidiTie {
                 off_event: events.len() - 1,
+                start_tick: note.start_tick,
+                notated_end_tick: note.start_tick + note.notated_ticks,
+                staccato: note.staccato,
+                written_onset: note.written_onset,
                 staff: note.staff,
                 voice: note.voice,
+                measure: note.measure,
+                note: note.note,
             });
         }
     }

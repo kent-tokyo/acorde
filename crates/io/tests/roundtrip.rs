@@ -1581,8 +1581,8 @@ fn interchange_report_has_machine_checked_phase_evidence() {
     let report: serde_json::Value =
         serde_json::from_str(INTERCHANGE_REPORT).expect("interchange report is valid JSON");
     assert_eq!(report["schema_version"], 1);
-    assert_eq!(report["version_policy"], "workspace version is 1.3.8");
-    assert!(WORKSPACE_MANIFEST.contains("version = \"1.3.8\""));
+    assert_eq!(report["version_policy"], "workspace version is 1.3.9");
+    assert!(WORKSPACE_MANIFEST.contains("version = \"1.3.9\""));
     assert_eq!(
         report["phase_7_policy"]["status"],
         "local-slices-available-external-gates-open"
@@ -8034,4 +8034,24 @@ fn figured_bass_belongs_to_the_following_notes_voice() {
             );
         }
     }
+}
+
+#[test]
+fn positioned_figured_bass_extender_exports_without_a_loss_warning() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Bass</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>F</sign><line>4</line></clef></attributes><figured-bass><figure><prefix>sharp</prefix></figure></figured-bass><note><pitch><step>C</step><octave>3</octave></pitch><duration>2</duration><type>half</type></note><figured-bass><figure><figure-number>6</figure-number><extend type="start"/></figure></figured-bass><note><pitch><step>D</step><octave>3</octave></pitch><duration>2</duration><type>half</type></note></measure></part></score-partwise>"#;
+    let score = acorde_io::parse_musicxml(xml).unwrap();
+    let report = acorde_io::serialize_musicxml_with_report(&score).unwrap();
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .all(|d| d.code != "musicxml.export-unsupported-figured-bass-extender")
+    );
+    assert!(report.output.contains(r#"<extend type="start"/>"#));
+    assert!(report.output.contains("<prefix>sharp</prefix>"));
+    let again = acorde_io::parse_musicxml(&report.output).unwrap();
+    assert_eq!(
+        again.parts[0].staves[0].measures[0].figured_bass_groups,
+        score.parts[0].staves[0].measures[0].figured_bass_groups
+    );
 }

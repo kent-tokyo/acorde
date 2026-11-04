@@ -26,9 +26,14 @@ note identity, notation, pickup, repeats and endings.
   in the result. Hosts should leave `PlaybackOptions.swing` unset for this
   output to avoid applying a second timing shift. This fixed 2:1 teaching
   pattern does not describe every swing performance.
-- `bass_mode`: `standard-bass` or `free-bass`. The former rejects seventh
-  chords and melodic bass patterns requiring free bass. This conservative
-  check is not a complete button-map or fingering proof.
+- `bass_mode`: `standard-bass` or `free-bass`. The default standard-bass
+  model assumes twelve bass roots and major, minor and dominant-seventh chord
+  buttons, with an ideal four-note seventh voicing. It rejects augmented and
+  diminished triads, major/minor sevenths and melodic bass patterns. This is
+  not an instrument inventory or fingering proof; real seventh buttons may omit
+  the fifth. For explicit button pitches and omission reports, use the
+  [profile-based simplified arrangement](standard-bass-simplified-arrangement.md)
+  or the [profiled bass-pulse preset](accordion-preset-contract.md#standard-bass-buttons-and-dominant-sevenths).
 
 Supported chord kinds are `major`, `minor`, `diminished`, `augmented`,
 `major-seventh`, `minor-seventh` and `dominant`. Slash bass and chord changes

@@ -2769,6 +2769,22 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
             );
         }
 
+        let partial_count = part
+            .staves
+            .iter()
+            .flat_map(|staff| &staff.measures)
+            .flat_map(|measure| &measure.voices)
+            .flatten()
+            .flat_map(|note| &note.pitch_incoming_partial_ties)
+            .filter(|&&incoming| incoming)
+            .count();
+        if partial_count > 0 {
+            push(
+                format!("{part_path}/incoming-partial-ties"),
+                partial_count.to_string(),
+                "ABC export does not preserve incoming partial ties across jumps",
+            );
+        }
         let switch_count: usize = part
             .staves
             .iter()

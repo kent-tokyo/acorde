@@ -3134,6 +3134,8 @@ fn merge_tied_events(
         index: usize,
         staff: usize,
         voice: usize,
+        measure: usize,
+        note: usize,
         notated_end_beats: f64,
         staccato: bool,
     }
@@ -3164,9 +3166,13 @@ fn merge_tied_events(
             .pitches
             .iter()
             .position(|pitch| pitch.to_midi_cents() + transpose_cents == event.pitch_midi_cents);
-        let (tie_start, tie_end) = match pitch_index {
-            Some(index) => (note.pitch_tie_start(index), note.pitch_tie_end(index)),
-            None => (note.tie_start, note.tie_end),
+        let (tie_start, tie_end, partial_end) = match pitch_index {
+            Some(index) => (
+                note.pitch_tie_start(index),
+                note.pitch_tie_end(index),
+                note.pitch_incoming_partial_ties.get(index) == Some(&true),
+            ),
+            None => (note.tie_start, note.tie_end, false),
         };
         let mut articulation_scale = 1.0;
         let mut staccato = false;
@@ -3193,17 +3199,65 @@ fn merge_tied_events(
         } else {
             note.beats()
         };
+        let explicit_source = pitch_index
+            .and_then(|index| note.pitch_tie_sources.get(index))
+            .and_then(Option::as_ref);
+        let written_onset = |address: &NoteAddr| -> Option<f64> {
+            let notes = &score
+                .parts
+                .get(address.part)?
+                .staves
+                .get(address.staff)?
+                .measures
+                .get(address.measure)?
+                .voices
+                .get(address.voice)?;
+            Some(
+                notes
+                    .iter()
+                    .take(address.note)
+                    .filter(|note| !note.is_grace && !note.is_cue)
+                    .map(Note::beats)
+                    .sum(),
+            )
+        };
+        let target_onset = written_onset(source);
         let source_staff = source.staff;
         let source_voice = source.voice;
+        let source_measure = source.measure;
+        let source_note = source.note;
         let key = (source.part, event.pitch_midi_cents);
         if let Some(candidates) = pending.get_mut(&key) {
             candidates.retain(|candidate| candidate.notated_end_beats >= event.time_beats - 1e-9);
-            if tie_end {
+            if tie_end || partial_end {
                 let matching = candidates
                     .iter()
                     .enumerate()
                     .filter(|(_, candidate)| {
-                        (candidate.notated_end_beats - event.time_beats).abs() < 1e-9
+                        let jumped = source.measure != candidate.measure.saturating_add(1)
+                            && (source.measure != candidate.measure
+                                || source.note <= candidate.note);
+                        let previous_address = NoteAddr {
+                            part: source.part,
+                            staff: candidate.staff,
+                            measure: candidate.measure,
+                            voice: candidate.voice,
+                            note: candidate.note,
+                        };
+                        let source_matches = explicit_source.is_none_or(|location| {
+                            written_onset(&previous_address)
+                                .zip(target_onset)
+                                .is_some_and(|(previous, target)| {
+                                    location.matches(source, &previous_address, previous - target)
+                                })
+                        });
+                        let partial_matches = partial_end
+                            && jumped
+                            && candidate.staff == source.staff
+                            && candidate.voice == source.voice;
+                        source_matches
+                            && (tie_end || partial_matches)
+                            && (candidate.notated_end_beats - event.time_beats).abs() < 1e-9
                     })
                     .max_by_key(|(_, candidate)| {
                         (
@@ -3244,6 +3298,8 @@ fn merge_tied_events(
                     if tie_start {
                         candidate.staff = source.staff;
                         candidate.voice = source.voice;
+                        candidate.measure = source.measure;
+                        candidate.note = source.note;
                         candidates.push(candidate);
                     }
                     continue;
@@ -3258,6 +3314,8 @@ fn merge_tied_events(
                 index,
                 staff: source_staff,
                 voice: source_voice,
+                measure: source_measure,
+                note: source_note,
                 notated_end_beats: merged[index].time_beats + notated_duration,
                 staccato,
             });

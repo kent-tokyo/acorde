@@ -2,6 +2,48 @@
 
 ## [Unreleased]
 
+### Added
+- Standard-bass candidates carry a readable `label` (e.g. `C bass + Em chord`) and a `realization` (`direct` or `combined`), and arrangement results report `edition_kinds` (`direct-buttons`, `combined-buttons`, `simplified`, `no-candidate`) and the `harmony_source` (`supplied` or `editorial-proposal`, an option echoed from the input). All new fields default for existing JSON (#358, #359).
+- `standard_bass_double_chord_candidates` (Rust and WASM) searches one bass plus two chord buttons, opt-in, capped at 256 results, each button required to contribute a requested pitch class (#358).
+- `arrange_standard_bass_proposed_harmony` proposes editorial harmony for the selected melody with `suggest_chord_plans` and marks the result `editorial-proposal` (#359).
+- `arrange_standard_bass_with_phrases` lets the melody follow explicit measure-range voice choices; source addresses refer to the unmodified score and playback is re-checked against it (#359).
+- A synthetic polyphonic regression test checks the loss report (every source pitch kept or omitted exactly once) and fail-closed ambiguity and omission diagnostics (#359). A Bach Sarabande fixture was not added: the site file is CC BY-SA 3.0.
+
+- Add `acorde mcp --root <dir> [--allow-write]`, a local MCP server over stdio (rmcp 3.8). It
+  exposes `score_info`, `validate_score`, `import_report`, `compatibility_report` and
+  `render_svg_preview` with the same results and diagnostics as the corresponding CLI paths, plus
+  reviewed editing: `open_session`, `preview_edit` (semantic diff and validation, no change),
+  `apply_edit` (only the current, valid, previewed proposal), `undo_edit`/`redo_edit`,
+  `session_diff`, `write_score` and `close_session`. Ten `Command` types are exposed. Writing
+  requires `--allow-write` and an explicit destination inside a root, never replaces the source,
+  replaces another existing file only with `overwrite: true`, refuses scores with validation
+  errors, and returns the export loss report. Paths must resolve, after symlinks, inside a
+  configured root; inputs over 64 MiB and results over 8 MiB are refused. No HTTP transport.
+  Tests drive the server both with raw JSON-RPC and with the rmcp client SDK.
+- MusicXML export now reports `musicxml.export-shadowed-default-tempo` when a non-default score
+  tempo is dropped because the first measure has its own tempo mark (it re-imports as 120 BPM).
+- MSCX/MSCZ export writes the score tempo in the first bar when that bar has no tempo of its own, so `settings.tempo_bpm` and playback timing survive a roundtrip (#379).
+- Add `arrange_profiled_accompaniment` and `profiled_accompaniment_capabilities` (Rust and full/viewer WASM): `bass-pulse`, `alternating-bass`, `offbeat-chords`, `waltz-bass` and `waltz-alternating-bass` with an explicit standard-bass button profile. Each attack reports the one button actually pressed, its sounding MIDI and per-attack omissions; alternate basses come only from supplied buttons; expanded playback attacks are checked against actions and can be screened with a caller transition policy. `arrange_profiled_bass_pulse` is unchanged (#378).
+- Add `arrange_standard_bass_transposed` and `evaluate_standard_bass_transpositions` (Rust and full/viewer WASM): transpose the selected melody and explicit harmony (respelled for the key at each chord, including slash basses and local key changes), then choose buttons again from the unchanged profile, with optional transition screening on the expanded playback order. The bounded search (at most 25 semitone values) classifies each value as arranged, out of range, no button combination, transition rejected or unsupported (#377).
+
+## 1.3.9 - 2026-11-02
+
+- Add explicit standard-bass button profiles, located candidate search, melody-pitch selection and bounded repeat-aware transition/alternative search in Rust and WASM. Source-pitch omissions are reported and results require performer review. A fixed 16-measure Eventide fixture checks selected-melody playback and MSCZ roundtrip with synthetic harmony and a mock profile; it does not establish physical reach or a publishable edition.
+- Preserve same-onset voice alignment at supported system openings, and improve diagnostics for unsupported accompaniment rate and range.
+- **Compatibility:** `Note::hairpin_above` is a new serde-defaulted public field and new `AccordionPattern` variants affect exhaustive Rust matches. Preset and layer engine markers change with the release; reselect saved inputs. Standard-bass default chord capabilities also change. See the migration notes.
+
+- Correct standard-bass preset and chord-plan capabilities: the documented 12-root default model accepts dominant sevenths and rejects augmented/diminished triads; callers using the latter must choose another arrangement. Add a profiled bass-pulse preset with actual button pitches, per-attack actions and explicit omission reports.
+
+- Whole-score transposition updates chord roots/slash bass and key-aware pitch spelling; checked transposition rejects out-of-range pitches and unsupported fret/pedal rewriting instead of silently clipping.
+
+- Add a lossless single-staff polyphony splitter for free-bass accordion in Rust and WASM, with declared hand limits, pitch provenance and explicit review requirements.
+
+- Add a conservative, explicitly keyed passing/neighbor-note insertion API for Rust and viewer WASM, with source mapping and diagnostics.
+
+- Add driving and lighter 4/4 bass/chord accompaniment options, with explicit
+  accent, articulation and standard-bass rate policies. New enum variants require
+  updates to exhaustive Rust matches; see the migration notes.
+
 - Add fine bass/chord and habanera 2/4 accompaniment presets. New `AccordionPattern`
   variants require updates to exhaustive Rust matches; see the migration notes.
 

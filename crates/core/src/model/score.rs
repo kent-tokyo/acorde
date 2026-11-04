@@ -1372,14 +1372,35 @@ pub fn transpose(score: &Score, semitones: i8) -> Score {
     );
     for part in &mut out.parts {
         for staff in &mut part.staves {
+            if part.midi_channel == 9 || staff.clef == Clef::Percussion {
+                continue;
+            }
+            let mut source_key = score.settings.key_signature.fifths;
+            let mut target_key = out.settings.key_signature.fifths;
             for measure in &mut staff.measures {
                 if let Some(ref mut ks) = measure.key_sig {
+                    source_key = ks.fifths;
                     ks.fifths = transpose_fifths(ks.fifths, &ks.mode, semitones);
+                    target_key = ks.fifths;
                 }
-                for voice in &mut measure.voices {
-                    for note in voice.iter_mut() {
-                        for pitch in note.pitches.iter_mut() {
-                            *pitch = transpose_pitch(pitch, semitones);
+                for note in measure.voices.iter_mut().flatten() {
+                    if !note.is_rest && !note.is_unpitched {
+                        for pitch in &mut note.pitches {
+                            *pitch =
+                                transpose_spelled_pitch(pitch, semitones, source_key, target_key);
+                        }
+                    }
+                    if let Some(chord) = &mut note.chord_symbol {
+                        if let Some(root) =
+                            transpose_chord_name(&chord.root, semitones, source_key, target_key)
+                        {
+                            chord.root = root;
+                        }
+                        if let Some(bass) = &mut chord.bass
+                            && let Some(name) =
+                                transpose_chord_name(bass, semitones, source_key, target_key)
+                        {
+                            *bass = name;
                         }
                     }
                 }
@@ -1393,6 +1414,58 @@ pub fn transpose(score: &Score, semitones: i8) -> Score {
 pub fn transpose_checked(score: &Score, semitones: i8) -> Result<Score, Error> {
     if !super::validate::validate(score).is_valid() {
         return Err(Error::InvalidScore);
+    }
+    // Reject a lossy boundary before the legacy saturating pitch helper can run.
+    // Tablature/fret and harp-pedal rewriting need an instrument-aware operation.
+    if semitones != 0 {
+        for part in &score.parts {
+            for staff in &part.staves {
+                if part.midi_channel == 9 || staff.clef == Clef::Percussion {
+                    continue;
+                }
+                if staff.tablature.is_some()
+                    || staff
+                        .measures
+                        .iter()
+                        .any(|m| m.tablature_change.is_some() || !m.harp_pedal_diagrams.is_empty())
+                {
+                    return Err(Error::InvalidCommand(
+                        "transposition requires tablature/pedal remapping".into(),
+                    ));
+                }
+                for note in staff.measures.iter().flat_map(|m| &m.voices).flatten() {
+                    if !note.is_rest
+                        && !note.is_unpitched
+                        && note
+                            .pitches
+                            .iter()
+                            .any(|p| !(0..=127).contains(&(p.to_midi() + i16::from(semitones))))
+                    {
+                        return Err(Error::InvalidCommand(
+                            "transposed pitch exceeds MIDI range".into(),
+                        ));
+                    }
+                    if note.tab_position.is_some() || !note.tab_positions.is_empty() {
+                        return Err(Error::InvalidCommand(
+                            "transposition requires fret remapping".into(),
+                        ));
+                    }
+                    if let Some(chord) = &note.chord_symbol
+                        && ((!chord.root.is_empty()
+                            && chord.kind != "none"
+                            && chord_name_pitch(&chord.root).is_none())
+                            || chord
+                                .bass
+                                .as_ref()
+                                .is_some_and(|bass| chord_name_pitch(bass).is_none()))
+                    {
+                        return Err(Error::InvalidCommand(
+                            "unsupported chord root or slash bass spelling".into(),
+                        ));
+                    }
+                }
+            }
+        }
     }
     let transposed = transpose(score, semitones);
     if !super::validate::validate(&transposed).is_valid() {
@@ -1471,6 +1544,124 @@ pub fn transpose_staff_region_checked(
     Ok(transformed)
 }
 
+const TRANSPOSE_STEPS: [Step; 7] = [
+    Step::C,
+    Step::D,
+    Step::E,
+    Step::F,
+    Step::G,
+    Step::A,
+    Step::B,
+];
+
+fn chord_name_pitch(name: &str) -> Option<Pitch> {
+    let mut chars = name.chars();
+    let step = Step::from_char(chars.next()?)?;
+    let mut alter = 0i8;
+    for c in chars {
+        alter = alter.checked_add(match c {
+            '#' | '♯' => 1,
+            'b' | '♭' => -1,
+            'x' | '𝄪' => 2,
+            _ => return None,
+        })?;
+    }
+    (-2..=2)
+        .contains(&alter)
+        .then(|| Pitch::with_alter(step, 4, alter))
+}
+
+/// Spell a chord written outside the score at `measure_index` of `staff` as [`transpose`]
+/// spells chord symbols there: from the key in force at that measure to its transposed key.
+/// Returns None for an unsupported root or slash-bass spelling.
+pub(crate) fn transpose_chord_symbol_at(
+    score: &Score,
+    staff: &Staff,
+    measure_index: usize,
+    chord: &ChordSymbol,
+    semitones: i8,
+) -> Option<ChordSymbol> {
+    let key = &score.settings.key_signature;
+    let (mut source_key, mut target_key) = (
+        key.fifths,
+        transpose_fifths(key.fifths, &key.mode, semitones),
+    );
+    for measure in staff.measures.iter().take(measure_index.saturating_add(1)) {
+        if let Some(ks) = &measure.key_sig {
+            source_key = ks.fifths;
+            target_key = transpose_fifths(ks.fifths, &ks.mode, semitones);
+        }
+    }
+    let mut out = chord.clone();
+    out.root = transpose_chord_name(&chord.root, semitones, source_key, target_key)?;
+    if let Some(bass) = &chord.bass {
+        out.bass = Some(transpose_chord_name(
+            bass, semitones, source_key, target_key,
+        )?);
+    }
+    Some(out)
+}
+
+fn transpose_chord_name(
+    name: &str,
+    semitones: i8,
+    source_key: i8,
+    target_key: i8,
+) -> Option<String> {
+    if semitones % 12 == 0 {
+        return Some(name.to_string());
+    }
+    let pitch =
+        transpose_spelled_pitch(&chord_name_pitch(name)?, semitones, source_key, target_key);
+    let accidental = if pitch.alter < 0 { "b" } else { "#" };
+    Some(format!(
+        "{}{}",
+        pitch.step.to_char(),
+        accidental.repeat(pitch.alter.unsigned_abs() as usize)
+    ))
+}
+
+// Preserve the diatonic interval between the source and destination key signatures.
+// This writes E-flat in E-flat major, and retains E-sharp in F-sharp major.
+fn transpose_spelled_pitch(pitch: &Pitch, semitones: i8, source_key: i8, target_key: i8) -> Pitch {
+    if semitones % 12 == 0 {
+        let mut out = pitch.clone();
+        out.octave = out.octave.saturating_add(semitones / 12);
+        return out;
+    }
+    let tonic = |fifths: i8| {
+        let index = (i16::from(fifths) * 4).rem_euclid(7);
+        let natural = i16::from(TRANSPOSE_STEPS[index as usize].to_semitone());
+        let pc = (i16::from(fifths) * 7).rem_euclid(12);
+        let alter = (pc - natural + 6).rem_euclid(12) - 6;
+        (index, natural + alter)
+    };
+    let (from_step, from_pc) = tonic(source_key);
+    let (to_step, to_pc) = tonic(target_key);
+    let shift = to_step - from_step + 7 * ((i16::from(semitones) - (to_pc - from_pc)) / 12);
+    let step_index = match pitch.step {
+        Step::C => 0,
+        Step::D => 1,
+        Step::E => 2,
+        Step::F => 3,
+        Step::G => 4,
+        Step::A => 5,
+        Step::B => 6,
+    };
+    let diatonic = i16::from(pitch.octave) * 7 + step_index + shift;
+    let step = TRANSPOSE_STEPS[diatonic.rem_euclid(7) as usize].clone();
+    let octave = diatonic.div_euclid(7) as i8;
+    let midi = (pitch.to_midi() + i16::from(semitones)).clamp(0, 127);
+    let alter = midi - (i16::from(octave) + 1) * 12 - i16::from(step.to_semitone());
+    if (-2..=2).contains(&alter) {
+        Pitch::with_microtone(step, octave, alter as i8, pitch.microtone_cents)
+    } else {
+        let mut out = Pitch::from_midi(midi as u8, target_key < 0);
+        out.microtone_cents = pitch.microtone_cents;
+        out
+    }
+}
+
 fn transpose_pitch(pitch: &Pitch, semitones: i8) -> Pitch {
     let new_midi = (pitch.to_midi() + semitones as i16).clamp(0, 127) as u8;
     let pc = new_midi % 12;
@@ -1517,6 +1708,9 @@ fn transpose_pitch(pitch: &Pitch, semitones: i8) -> Pitch {
 /// - `tonic_pc = (fifths * 7) mod 12`  (for major; minor adds 9 to get relative major tonic)
 /// - `new_fifths = (new_tonic_pc * 7) mod 12`, adjusted to `[-7, 7]`
 fn transpose_fifths(fifths: i8, mode: &str, semitones: i8) -> i8 {
+    if semitones % 12 == 0 {
+        return fifths;
+    }
     let tonic_major_pc = ((fifths as i32 * 7).rem_euclid(12)) as u8;
     let tonic_pc = if mode == "minor" {
         ((tonic_major_pc as i32 + 9).rem_euclid(12)) as u8
@@ -2377,6 +2571,47 @@ impl Measure {
     }
 }
 
+/// Relative MuseScore location of an explicitly referenced tie predecessor.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TieSourceLocation {
+    pub measures: i32,
+    pub staves: i32,
+    pub voices: i32,
+    /// Signed difference between within-measure onsets, in whole-note units.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fractions: Option<String>,
+    /// Invalid source offsets are retained for round-tripping and never match a note.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub invalid_measures: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub invalid_staves: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub invalid_voices: Option<String>,
+}
+
+impl TieSourceLocation {
+    /// Check whether `previous` is the source referenced from `target`.
+    pub fn matches(&self, target: &NoteAddr, previous: &NoteAddr, beat_difference: f64) -> bool {
+        let shifted = |value: usize, delta: i32| value.checked_add_signed(delta as isize);
+        let beat = match self.fractions.as_deref() {
+            None => Some(0.0),
+            Some(value) => value.split_once('/').and_then(|(n, d)| {
+                let numerator = n.parse::<i32>().ok()?;
+                let denominator = d.parse::<u32>().ok()?;
+                (denominator != 0).then_some(f64::from(numerator) * 4.0 / f64::from(denominator))
+            }),
+        };
+        self.invalid_measures.is_none()
+            && self.invalid_staves.is_none()
+            && self.invalid_voices.is_none()
+            && target.part == previous.part
+            && shifted(target.measure, self.measures) == Some(previous.measure)
+            && shifted(target.staff, self.staves) == Some(previous.staff)
+            && shifted(target.voice, self.voices) == Some(previous.voice)
+            && beat.is_some_and(|value| (value - beat_difference).abs() < 1e-7)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Note {
     pub id: String,
@@ -2421,6 +2656,13 @@ pub struct Note {
     /// Per-pitch tie ends, parallel to `pitches`; empty means `tie_end` applies to every pitch.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub pitch_tie_ends: Vec<bool>,
+    /// MuseScore incoming partial ties, parallel to `pitches`. These indicate
+    /// ties from a repeat or jump and are distinct from ordinary tie endpoints.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pitch_incoming_partial_ties: Vec<bool>,
+    /// Per-pitch explicit relative predecessor locations, if supplied by the source.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pitch_tie_sources: Vec<Option<TieSourceLocation>>,
     /// Per-pitch accidental display, parallel to `pitches`. Empty (the usual case) leaves every
     /// accidental to the notation rules; pitches past the end are `Auto`, and a vector longer
     /// than `pitches` is ignored. See [`Note::accidental_display`].
@@ -2582,6 +2824,8 @@ impl Note {
             tie_end: false,
             pitch_tie_starts: Vec::new(),
             pitch_tie_ends: Vec::new(),
+            pitch_incoming_partial_ties: Vec::new(),
+            pitch_tie_sources: Vec::new(),
             pitch_accidentals: Vec::new(),
             pitch_parentheses: Vec::new(),
             pitch_fingerings: Vec::new(),
@@ -2645,6 +2889,8 @@ impl Note {
             tie_end: false,
             pitch_tie_starts: Vec::new(),
             pitch_tie_ends: Vec::new(),
+            pitch_incoming_partial_ties: Vec::new(),
+            pitch_tie_sources: Vec::new(),
             pitch_accidentals: Vec::new(),
             pitch_parentheses: Vec::new(),
             pitch_fingerings: Vec::new(),
@@ -2696,6 +2942,8 @@ impl Note {
         copy.id = Uuid::new_v4().to_string();
         copy.tie_start = false;
         copy.tie_end = false;
+        copy.pitch_incoming_partial_ties.clear();
+        copy.pitch_tie_sources.clear();
         copy.slur_start = false;
         copy.slur_end = false;
         copy.hairpin_start = None;
@@ -5288,6 +5536,8 @@ fn note_content_eq(a: &Note, b: &Note) -> bool {
         && a.dot_count == b.dot_count
         && a.tie_start == b.tie_start
         && a.tie_end == b.tie_end
+        && a.pitch_incoming_partial_ties == b.pitch_incoming_partial_ties
+        && a.pitch_tie_sources == b.pitch_tie_sources
         && a.beam == b.beam
         && a.explicit_unbeamed == b.explicit_unbeamed
         && a.articulations == b.articulations

@@ -11,6 +11,7 @@ acorde render input.musicxml output.svg
 acorde render input.mscz output.svg --auto-beams
 acorde print-report input.musicxml --preset a4-score --fail-on-issues
 acorde compatibility-report source.musicxml candidate.musicxml --fail-on-differences
+acorde mcp --root ./scores
 ~~~
 
 Use `acorde <command> --help` for the full surface. Commands are grouped as conversion and
@@ -40,6 +41,33 @@ high-confidence, diagnostic-free proposal; callers supply the meter and retain s
 consent, and review UI. `omr-evaluate` is a per-pair observation gate, and `omr-apply-report`
 revalidates an untrusted report before writing. See the [proposal contract](../../docs/omr-proposal-contract.md)
 and [validation boundary](../../docs/omr-validation.md).
+
+`mcp` serves score tools to a local MCP client over stdio. Inspection tools are `score_info`,
+`validate_score`, `import_report` (diagnostics and renderer issues, not the score),
+`compatibility_report`, and `render_svg_preview` (SVG returned inline). Each `--root` is a
+directory the tools may use; paths are resolved relative to the first root, symlinks are followed
+before the root check, and inputs over 64 MiB or results over 8 MiB are rejected. Domain failures
+return MCP tool errors. Stdout carries only protocol messages.
+
+Editing is reviewed and in memory. `open_session` imports a file into an undoable session;
+`preview_edit` returns the semantic diff and validation of one command and a `proposal_id`
+without changing the session; `apply_edit` commits only that latest, still-current, valid
+proposal; `undo_edit`, `redo_edit`, and `session_diff` (cumulative diff from the opened file)
+follow the engine history. Exposed commands are `set_metadata`, `set_tempo`, `set_tempo_at_measure`, `set_key_signature`,
+`set_time_signature`, `set_part_name`, `set_dynamic`, `transpose_staff_region`, `add_measure`, and
+`delete_measure`, in the serde shape of `acorde_core::Command`. `write_score` exports to an
+explicit destination and returns the same loss report as `export-report`; it is disabled unless
+the server is started with `--allow-write`, never writes over the session's source, replaces
+another existing file only with `overwrite: true`, and refuses scores with validation errors.
+`set_tempo` changes the default tempo, which a first-measure tempo mark overrides; MusicXML export
+then writes only that mark and reports `musicxml.export-shadowed-default-tempo`, so use
+`set_tempo_at_measure` to change a marked tempo. Check the returned loss report for other limits. A client configuration looks like:
+
+~~~json
+{ "mcpServers": { "acorde": { "command": "acorde", "args": ["mcp", "--root", "/path/to/scores", "--allow-write"] } } }
+~~~
+
+The server does not listen on a network port.
 
 [Repository](https://github.com/kent-tokyo/acorde)
 

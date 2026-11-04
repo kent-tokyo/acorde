@@ -48,14 +48,14 @@ rendering SVG.
 
 ```toml
 [dependencies]
-acorde = "=1.3.8"
-acorde-render-svg = "=1.3.8"
+acorde = "=1.3.9"
+acorde-render-svg = "=1.3.9"
 ```
 
 Default I/O features are MusicXML and MIDI. Enable optional formats explicitly:
 
 ```toml
-acorde = { version = "=1.3.8", features = ["abc", "mei", "mscz", "gp"] }
+acorde = { version = "=1.3.9", features = ["abc", "mei", "mscz", "gp"] }
 ```
 
 ```rust
@@ -109,8 +109,9 @@ review-first, high-contrast PNG subset; its limits and no-silent-write rule are 
 
 ## Documentation
 
-Start with the [documentation guide](docs/README.md). It groups contracts, migration notes, and
-bounded evidence by task. The most common references are the [notation coverage matrix](docs/notation-coverage.md),
+Start with the [documentation guide](docs/README.md) for current contracts and
+[roadmap](ROADMAP.md) for planned work. The most common references are the
+[notation coverage matrix](docs/notation-coverage.md),
 [migration notes](docs/migrations.md), [browser contract](docs/browser-rendering.md), and
 [PDF export boundary](docs/pdf-export.md).
 
