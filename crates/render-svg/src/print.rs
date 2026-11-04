@@ -301,6 +301,14 @@ pub fn render_print_page_svgs(
         .and_then(|(_, remainder)| remainder.strip_suffix("</g></svg>"))
         .ok_or(PrintRenderError::InternalSvg)?;
     let staff_offsets = render::print_staff_offsets(score, staff_gap);
+    let fragments = top_level_fragments(body)
+        .map(|fragments| {
+            fragments
+                .into_iter()
+                .map(|fragment| (fragment, fragment_y_extent(fragment)))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_else(|| vec![(body, None)]);
     let mut pages = Vec::with_capacity(layout.pages.len());
     for (page, offset) in layout.pages.iter().zip(offsets) {
         let has_movement_title = !page.publication.movement_title.trim().is_empty()
@@ -336,10 +344,19 @@ pub fn render_print_page_svgs(
         );
         let _ = write!(
             svg,
-            "<g class=\"acorde-print-notation acorde-score\" transform=\"translate({:.3} {:.3})\">{body}</g>",
+            "<g class=\"acorde-print-notation acorde-score\" transform=\"translate({:.3} {:.3})\">",
             page.content_left_mm * PX_PER_MM,
             -offset * PX_PER_MM
         );
+        // Each page carries only the notation that reaches it, not every other page's
+        // content hidden outside its viewBox.
+        let (page_top, page_bottom) = (offset * PX_PER_MM, (offset + page.height_mm) * PX_PER_MM);
+        for (fragment, extent) in &fragments {
+            if extent.is_none_or(|(top, bottom)| bottom >= page_top && top <= page_bottom) {
+                svg.push_str(fragment);
+            }
+        }
+        svg.push_str("</g>");
         write_publication(
             &mut svg,
             page,
@@ -478,16 +495,32 @@ fn write_publication(
                 continue;
             }
             let part_middle = (*first_top + *last_top + *last_height) / 2.0;
-            let size_mm =
-                (2.0 * (page.content_left_mm - 2.0) / text.chars().count().max(1) as f32).min(3.0);
-            let _ = write!(
-                svg,
-                "<text class=\"acorde-print-part-label\" x=\"{:.3}\" y=\"{:.3}\" text-anchor=\"end\" font-family=\"serif\" font-size=\"{:.3}\">{}</text>",
-                (page.content_left_mm - 1.5) * scale,
-                row_top - offset_px + part_middle * space_px + size_mm * scale * 0.25,
-                size_mm * scale,
-                escape_xml(text)
-            );
+            let lines = part_label_lines(text);
+            if lines.is_empty() {
+                continue;
+            }
+            let longest = lines
+                .iter()
+                .map(|line| line.chars().count())
+                .max()
+                .unwrap_or(1);
+            // Glyphs average up to 0.6 em; keep 3 mm of paper outside the label.
+            let size_mm = ((page.content_left_mm - PART_LABEL_GAP_MM - PART_LABEL_PAPER_MM)
+                / (0.6 * longest.max(1) as f32))
+                .min(3.0);
+            let leading = size_mm * 1.15;
+            let first_baseline = part_middle * space_px + size_mm * scale * 0.25
+                - (lines.len() - 1) as f32 * leading * scale / 2.0;
+            for (index, line) in lines.iter().enumerate() {
+                let _ = write!(
+                    svg,
+                    "<text class=\"acorde-print-part-label\" x=\"{:.3}\" y=\"{:.3}\" text-anchor=\"end\" font-family=\"serif\" font-size=\"{:.3}\">{}</text>",
+                    (page.content_left_mm - PART_LABEL_GAP_MM) * scale,
+                    row_top - offset_px + first_baseline + index as f32 * leading * scale,
+                    size_mm * scale,
+                    escape_xml(line)
+                );
+            }
         }
     }
     for block in &page.publication.text_blocks {
@@ -527,6 +560,113 @@ fn write_publication(
     }
 }
 
+const PART_LABEL_GAP_MM: f32 = 1.5;
+const PART_LABEL_PAPER_MM: f32 = 3.0;
+
+/// Lines of a part label: its own line breaks, else a long two-word name split at the space
+/// nearest its middle so it can keep a readable size in the left margin.
+fn part_label_lines(text: &str) -> Vec<&str> {
+    let lines = text
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>();
+    if lines.len() != 1 || lines[0].chars().count() <= 8 {
+        return lines;
+    }
+    let line = lines[0];
+    let middle = line.len() / 2;
+    line.match_indices(' ')
+        .map(|(index, _)| index)
+        .min_by_key(|index| index.abs_diff(middle))
+        .map_or(lines, |index| {
+            vec![line[..index].trim_end(), line[index + 1..].trim_start()]
+        })
+}
+
+/// Split rendered SVG markup into its top-level elements. `None` for unbalanced markup.
+fn top_level_fragments(body: &str) -> Option<Vec<&str>> {
+    let mut fragments = Vec::new();
+    let (mut depth, mut start, mut cursor) = (0usize, 0usize, 0usize);
+    while let Some(relative) = body[cursor..].find('<') {
+        let open = cursor + relative;
+        let close = open + body[open..].find('>')?;
+        let tag = &body[open + 1..close];
+        if tag.starts_with('/') {
+            depth = depth.checked_sub(1)?;
+            if depth == 0 {
+                fragments.push(&body[start..=close]);
+            }
+        } else if tag.ends_with('/') {
+            if depth == 0 {
+                fragments.push(&body[open..=close]);
+            }
+        } else {
+            if depth == 0 {
+                start = open;
+            }
+            depth += 1;
+        }
+        cursor = close + 1;
+    }
+    (depth == 0).then_some(fragments)
+}
+
+/// Vertical extent of one element in the stacked-page coordinate space. Print bodies use
+/// absolute coordinates (`M`/`L`/`C`/`Q` path pairs, polygon points, positioned shapes);
+/// their only transforms rotate a glyph about its own point. Text is padded by its size.
+fn fragment_y_extent(fragment: &str) -> Option<(f32, f32)> {
+    let mut extent: Option<(f32, f32)> = None;
+    let mut add = |top: f32, bottom: f32| {
+        if top.is_finite() && bottom.is_finite() {
+            extent = Some(extent.map_or((top, bottom), |(t, b)| (t.min(top), b.max(bottom))));
+        }
+    };
+    for tag in fragment.split('<').skip(1) {
+        let tag = tag.split('>').next().unwrap_or_default();
+        if tag.starts_with('/') {
+            continue;
+        }
+        let attribute = |name: &str| {
+            tag.split_once(&format!(" {name}=\""))
+                .and_then(|(_, rest)| rest.split('"').next())
+        };
+        let number = |name: &str| attribute(name).and_then(|value| value.parse::<f32>().ok());
+        let pad = number("font-size").unwrap_or(0.0);
+        for name in ["y", "y1", "y2"] {
+            if let Some(y) = number(name) {
+                add(y - pad, y + pad);
+            }
+        }
+        if let (Some(y), Some(height)) = (number("y"), number("height")) {
+            add(y, y + height);
+        }
+        if let Some(cy) = number("cy") {
+            let radius = number("ry").or_else(|| number("r")).unwrap_or(0.0);
+            add(cy - radius, cy + radius);
+        }
+        // Absolute path commands: `A` carries seven values with y last, the others x,y pairs.
+        for name in ["d", "points"] {
+            let (mut arity, mut y_slot, mut slot) = (2, 1, 0);
+            for token in attribute(name)
+                .into_iter()
+                .flat_map(|value| value.split(|c: char| c == ',' || c.is_whitespace()))
+                .filter(|token| !token.is_empty())
+            {
+                if let Ok(value) = token.parse::<f32>() {
+                    if slot == y_slot {
+                        add(value, value);
+                    }
+                    slot = (slot + 1) % arity;
+                } else {
+                    (arity, y_slot, slot) = if token == "A" { (7, 6, 0) } else { (2, 1, 0) };
+                }
+            }
+        }
+    }
+    extent
+}
+
 fn escape_xml(text: &str) -> String {
     let mut escaped = String::with_capacity(text.len());
     for c in text.chars() {
@@ -540,4 +680,32 @@ fn escape_xml(text: &str) -> String {
         }
     }
     escaped
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{fragment_y_extent, top_level_fragments};
+
+    #[test]
+    fn page_split_reads_arc_and_text_extents() {
+        let body = r#"<g class="acorde-articulation acorde-fermata"><path d="M 229.24,1869.22 A 4.04,3.84 0 0 1 237.33,1869.22"/></g><text x="1" y="40" font-size="8">a</text><line x1="0" y1="5" x2="9" y2="5"/>"#;
+        let fragments = top_level_fragments(body).expect("balanced markup");
+        assert_eq!(fragments.len(), 3);
+        assert_eq!(fragment_y_extent(fragments[0]), Some((1869.22, 1869.22)));
+        assert_eq!(fragment_y_extent(fragments[1]), Some((32.0, 48.0)));
+        assert_eq!(fragment_y_extent(fragments[2]), Some((5.0, 5.0)));
+        assert!(top_level_fragments("<g><g></g>").is_none());
+    }
+
+    #[test]
+    fn long_part_labels_wrap_at_breaks_or_the_middle_space() {
+        assert_eq!(
+            super::part_label_lines("Gesang\nVoice"),
+            ["Gesang", "Voice"]
+        );
+        assert_eq!(super::part_label_lines("Γούντ Μπλόκ"), ["Γούντ", "Μπλόκ"]);
+        assert_eq!(super::part_label_lines("Violoncello"), ["Violoncello"]);
+        assert_eq!(super::part_label_lines("Piano"), ["Piano"]);
+        assert!(super::part_label_lines(" \n ").is_empty());
+    }
 }

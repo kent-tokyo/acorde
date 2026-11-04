@@ -553,6 +553,13 @@ fn openscore_five_staff_score_reserves_space_for_two_lyric_verses() {
     }
     assert!(svgs[0].contains("acorde-print-title"));
     assert!(svgs[0].contains("acorde-print-part-label"));
+    // Each page carries only its own notation: every notehead appears on exactly one page.
+    let heads = svgs
+        .iter()
+        .map(|svg| svg.matches(r#"class="acorde-notehead""#).count())
+        .collect::<Vec<_>>();
+    assert!(heads.iter().all(|&count| count > 0), "{heads:?}");
+    assert_eq!(heads.iter().sum::<usize>(), 646, "{heads:?}");
     // SVG viewBox units are 4 px/mm. Keep voice lyrics readable on the physical A4 page.
     let first_lyric = svgs[0]
         .split_once("class=\"acorde-lyric\"")
@@ -896,6 +903,10 @@ fn print_page_retains_quilter_publication_credits() {
     let layout = compute_print_layout(&score, &PrintConfig::default()).expect("A4 layout");
     let pages = render_print_page_svgs(&score, &layout).expect("physical page SVG");
     assert_eq!(pages.len(), 1);
+    // All eight source ties print, including the bar-8 chord whose C#3 and G3 tie into
+    // the other voice's chord. Those three cross the bar-8/9 system break, so each is
+    // drawn as two segments: 5 + 3 * 2.
+    assert_eq!(pages[0].matches(r#"class="acorde-tie""#).count(), 11);
     assert!(pages[0].contains("class=\"acorde-print-composer\""));
     assert!(pages[0].contains(">Roger Quilter</text>"));
     assert!(pages[0].contains("class=\"acorde-print-movement-title\""));
@@ -1137,6 +1148,32 @@ fn print_interstaff_hairpin_clearance_crosses_system_breaks() {
             heads[row * 2 + 1] > bottom,
             "system {row}: lower head {}, wedge {path:?}",
             heads[row * 2 + 1]
+        );
+    }
+}
+
+#[test]
+fn part_labels_stay_clear_of_the_paper_edge() {
+    let fixture = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/fixtures/openscore_lieder_webern_so_ich_traurig_bin.mxl"
+    );
+    let bytes = std::fs::read(fixture).expect("pinned CC0 fixture");
+    let score = acorde_io::parse_mxl(&bytes).expect("MXL import");
+    let layout = compute_print_layout(&score, &PrintConfig::default()).expect("A4 layout");
+    let pages = render_print_page_svgs(&score, &layout).expect("physical page SVGs");
+    // "Gesang\nVoice" prints as two lines rather than one run-on label.
+    assert!(pages[0].contains(">Gesang</text>"));
+    assert!(pages[0].contains(">Voice</text>"));
+    for label in pages[0].split(r#"class="acorde-print-part-label""#).skip(1) {
+        let text = label.split_once('>').unwrap().1.split('<').next().unwrap();
+        // 4 px/mm; right-aligned text at up to 0.6 em per glyph.
+        let left_mm = (svg_attribute_f32(label, "x")
+            - 0.6 * svg_attribute_f32(label, "font-size") * text.chars().count() as f32)
+            / 4.0;
+        assert!(
+            left_mm >= 2.99,
+            "{text} starts {left_mm} mm from the paper edge"
         );
     }
 }
