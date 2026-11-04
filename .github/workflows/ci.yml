@@ -268,7 +268,9 @@ jobs:
           # over their earlier base; this budget is provisional pending CI.
           # Partial ties and positioned figured bass (#282, #276) together
           # measured 7,006,513 bytes on Linux CI; keep about 6.5 KB headroom.
-          test "$size" -le 7013000
+          # Per-page print SVG splitting, cross-voice chord ties and part-label
+          # wrapping (#183) measured 7,019,443 bytes on Linux CI (+12,930).
+          test "$size" -le 7026000
 
   renderer-benchmark:
     name: Renderer performance budget

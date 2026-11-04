@@ -149,6 +149,12 @@ records below. For the current print interface see [print layout](print-layout.m
 
 [Full record](archive/verovio-baseline-beams-and-wedges.md#cross-staff-partial-beams-with-unequal-durations-2026-11-01).
 
+### Ten-score print corpus (2026-11-05)
+
+[Full record](archive/print-corpus-verovio.md): same-input measurements of clipping,
+missing marks, text collisions, staff and text size, and page geometry on ten licensed
+fixtures, with four defects fixed and the open observations listed.
+
 ## Gates before a quality claim
 
 [Full record](archive/verovio-baseline-beams-and-wedges.md#gates-before-a-quality-claim).

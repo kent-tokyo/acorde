@@ -7761,7 +7761,7 @@ fn render_ties(
                                 .filter(|pitch| pitch.to_midi() < midi)
                                 .count()
                         };
-                        for (from, to) in pairs {
+                        for &(from, to) in &pairs {
                             let dy1 = from_offsets.get(from).copied().unwrap_or(0.0);
                             let dy2 = to_offsets.get(to).copied().unwrap_or(0.0);
                             let doubled = 2 * rank(from) + 1;
@@ -7769,6 +7769,47 @@ fn render_ties(
                             draw(
                                 (a.0, a.1 + dy1, a.2, a.3),
                                 (b.0, b.1 + dy2, b.2, b.3),
+                                above,
+                            );
+                        }
+                        // A chord member may tie into another voice's chord at the same onset.
+                        for from in (0..count).filter(|index| {
+                            current.pitch_tie_start(*index)
+                                && !pairs.iter().any(|(paired, _)| paired == index)
+                        }) {
+                            let midi = current.pitches[from].to_midi();
+                            let (_, _, next_measure, _, _) = next_key;
+                            let target = s.measures[next_measure]
+                                .voices
+                                .iter()
+                                .enumerate()
+                                .filter(|(other, _)| *other != voice)
+                                .flat_map(|(other, notes)| {
+                                    notes.iter().enumerate().map(move |(index, note)| {
+                                        ((part, staff, next_measure, other, index), note)
+                                    })
+                                })
+                                .find_map(|(key, note)| {
+                                    let point = points.get(&key)?;
+                                    let to = note.pitches.iter().position(|pitch| {
+                                        !note.is_rest && pitch.to_midi() == midi
+                                    })?;
+                                    ((point.0 - b.0).abs() < 0.5 && point.3 == b.3)
+                                        .then_some((*point, note, to))
+                                });
+                            let Some((point, note, to)) = target else {
+                                continue;
+                            };
+                            let dy1 = from_offsets.get(from).copied().unwrap_or(0.0);
+                            let dy2 = pitch_offsets_from_anchor(note, tablature, point.2, space)
+                                .get(to)
+                                .copied()
+                                .unwrap_or(0.0);
+                            let doubled = 2 * rank(from) + 1;
+                            let above = (count > 1 && doubled != count).then_some(doubled > count);
+                            draw(
+                                (a.0, a.1 + dy1, a.2, a.3),
+                                (point.0, point.1 + dy2, point.2, point.3),
                                 above,
                             );
                         }

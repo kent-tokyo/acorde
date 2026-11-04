@@ -3,9 +3,14 @@
 ## [Unreleased]
 
 ### Fixed
+- Physical print-page SVGs, and the PDF pages built from them, now contain only the notation that reaches each page. Previously every page carried the whole score hidden outside its viewBox (#183).
+- A chord member tied into another voice's chord at the same onset now draws its tie. Previously only same-voice ties were drawn (#183).
+- Print part labels split at their own line breaks, or at the middle space of a long name. They are sized to keep 3 mm of paper clear instead of reaching the page edge (#183).
+- MusicXML import reports a wedge replaced by another start (`musicxml.unsupported-overlapping-hairpin`) and a wedge with no stop (`musicxml.unterminated-hairpin`), instead of dropping them silently. Open hairpin state no longer carries into the next part (#183).
 - MusicXML import applies a mid-part `<sound><midi-instrument><midi-program>` as a part program change at its position, instead of ignoring it (#203).
 
 ### Added
+- `scripts/compare_print_corpus.py` measures Acorde print pages and Verovio 6.3.0 on the same MusicXML in headless Chrome: page and system counts, elements past the page edge or margins, text-over-notation and text-over-text candidates, staff space, font sizes, mark counts against the source, and import diagnostics. The ten-score record is in `docs/archive/print-corpus-verovio.md` (#183).
 - `scripts/compare_audio_corpus.py` measures Acorde and alphaTab PCM against the same playback schedule (onsets, paired onset difference, release into rests, buffer end, level, import diagnostics). The eight-score record is in `docs/archive/playback-audio-corpus.md` (#203).
 - Standard-bass candidates carry a readable `label` (e.g. `C bass + Em chord`) and a `realization` (`direct` or `combined`), and arrangement results report `edition_kinds` (`direct-buttons`, `combined-buttons`, `simplified`, `no-candidate`) and the `harmony_source` (`supplied` or `editorial-proposal`, an option echoed from the input). All new fields default for existing JSON (#358, #359).
 - `standard_bass_double_chord_candidates` (Rust and WASM) searches one bass plus two chord buttons, opt-in, capped at 256 results, each button required to contribute a requested pitch class (#358).

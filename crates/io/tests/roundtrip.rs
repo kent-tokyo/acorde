@@ -8072,3 +8072,32 @@ fn musicxml_sound_midi_instrument_changes_the_part_program_in_place() {
     let programs: Vec<_> = events.iter().map(|e| (e.time_beats, e.program)).collect();
     assert_eq!(programs, [(0.0, 0), (4.0, 40)]);
 }
+
+#[test]
+fn musicxml_reports_wedges_it_cannot_draw() {
+    let note = r#"<note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration><type>whole</type></note>"#;
+    let wedge = |kind: &str| {
+        format!(r#"<direction><direction-type><wedge type="{kind}"/></direction-type></direction>"#)
+    };
+    let xml = format!(
+        r#"<?xml version="1.0"?><score-partwise version="4.0"><part-list><score-part id="P1"><part-name>P</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>{a}{b}{note}</measure><measure number="2">{c}{note}</measure></part></score-partwise>"#,
+        a = wedge("crescendo"),
+        b = wedge("diminuendo"),
+        c = wedge("crescendo"),
+    );
+    let report = acorde_io::parse_musicxml_with_report(&xml).unwrap();
+    let codes = report
+        .diagnostics
+        .iter()
+        .map(|d| d.code.as_str())
+        .filter(|code| code.contains("hairpin"))
+        .collect::<Vec<_>>();
+    // Two starts before one note: the first is replaced. The bar-2 start never stops.
+    assert_eq!(
+        codes,
+        [
+            "musicxml.unsupported-overlapping-hairpin",
+            "musicxml.unterminated-hairpin"
+        ]
+    );
+}

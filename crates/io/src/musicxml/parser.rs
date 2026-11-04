@@ -1646,6 +1646,26 @@ pub(crate) fn parse_musicxml_collecting(
                         }
                         pending_pedal_end = false;
                         pending_pedal_start = false;
+                        // Wedges still open at the end of the part have no stop to pair with.
+                        let mut unterminated = open_hairpin_voices
+                            .drain()
+                            .map(|(staff, _)| staff)
+                            .collect::<Vec<_>>();
+                        unterminated.extend(staff_hairpin_starts.drain().map(|(staff, _)| staff));
+                        unterminated.sort_unstable();
+                        unterminated.dedup();
+                        for staff in unterminated {
+                            let mut diagnostic = crate::Diagnostic::warning(
+                                "musicxml.unterminated-hairpin",
+                                "a wedge without a stop is not drawn",
+                            );
+                            diagnostic.source_location = Some(format!(
+                                "/score-partwise/part[{}]/staff[{}]/direction/wedge",
+                                score.parts.len(),
+                                staff + 1
+                            ));
+                            tolerated.push(diagnostic);
+                        }
                     }
                     "glissando" if in_notations => {
                         let text = current_text.trim();
@@ -2169,8 +2189,20 @@ pub(crate) fn parse_musicxml_collecting(
                         pending_section_break = false;
                         match pending_direction_wedge.take() {
                             Some(Some(kind)) => {
-                                staff_hairpin_starts
-                                    .insert(pending_direction_staff, (kind, hairpin_above));
+                                // A second start before the first reaches a note replaces it.
+                                if staff_hairpin_starts
+                                    .insert(pending_direction_staff, (kind, hairpin_above))
+                                    .is_some()
+                                {
+                                    let mut diagnostic = crate::Diagnostic::warning(
+                                        "musicxml.unsupported-overlapping-hairpin",
+                                        "a wedge replaced by another starting at the same note is not imported",
+                                    );
+                                    diagnostic.source_location = Some(format!(
+                                        "/score-partwise/measure[{current_measure_number}]/direction/wedge"
+                                    ));
+                                    tolerated.push(diagnostic);
+                                }
                             }
                             // A stop ends the hairpin on the latest note of the voice it began
                             // in (or of the staff), where layout pairs the two.
