@@ -1550,6 +1550,9 @@ fn fixture_manifest_sha256_matches_checked_in_files() {
                 include_bytes!("../../../tests/fixtures/issue_280_channel_switch.mscx")
             }
             "sample.abc" => include_bytes!("../../../tests/fixtures/sample.abc"),
+            "chorale_excerpt.krn" => include_bytes!("../../../tests/fixtures/chorale_excerpt.krn"),
+            "incipit_compact.pae" => include_bytes!("../../../tests/fixtures/incipit_compact.pae"),
+            "incipit_fields.pae" => include_bytes!("../../../tests/fixtures/incipit_fields.pae"),
             "program_change_piano_violin.mid" => {
                 include_bytes!("../../../tests/fixtures/program_change_piano_violin.mid")
             }
@@ -8100,4 +8103,128 @@ fn musicxml_reports_wedges_it_cannot_draw() {
             "musicxml.unterminated-hairpin"
         ]
     );
+}
+
+// ── Humdrum **kern and Plaine & Easie ─────────────────────────────────────────
+
+#[cfg(all(feature = "musicxml", any(feature = "humdrum", feature = "pae")))]
+mod kern_pae_tests {
+    use acorde_core::Score;
+    use acorde_io::{parse_musicxml, serialize_musicxml};
+
+    /// Per part, per measure, per voice: (rest, grace, sounding pitches, beats, tie start/end).
+    type NoteProjection = (bool, bool, Vec<i16>, String, bool, bool);
+    type Projection = Vec<Vec<Vec<Vec<NoteProjection>>>>;
+
+    fn projection(score: &Score) -> Projection {
+        score
+            .parts
+            .iter()
+            .map(|part| {
+                part.staves[0]
+                    .measures
+                    .iter()
+                    .map(|measure| {
+                        measure
+                            .voices
+                            .iter()
+                            .map(|voice| {
+                                voice
+                                    .iter()
+                                    .map(|note| {
+                                        (
+                                            note.is_rest,
+                                            note.is_grace,
+                                            note.pitches.iter().map(|p| p.to_midi()).collect(),
+                                            format!("{:.4}", note.beats()),
+                                            note.tie_start,
+                                            note.tie_end,
+                                        )
+                                    })
+                                    .collect()
+                            })
+                            .collect()
+                    })
+                    .collect()
+            })
+            .collect()
+    }
+
+    fn assert_musicxml_round_trip(score: &Score) {
+        let xml = serialize_musicxml(score).expect("MusicXML serializes");
+        let reparsed = parse_musicxml(&xml).expect("MusicXML re-parses");
+        assert_eq!(projection(&reparsed), projection(score));
+    }
+
+    #[cfg(feature = "humdrum")]
+    #[test]
+    fn kern_chorale_round_trips_through_musicxml() {
+        use acorde_core::Barline;
+
+        let text = include_str!("../../../tests/fixtures/chorale_excerpt.krn");
+        let report = acorde_io::parse_kern_with_report(text).expect("kern parses");
+        assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
+        let score = &report.score;
+        assert_eq!(score.metadata.title, "Acorde test chorale");
+        // The leftmost (bass) spine is the lowest staff, so it becomes the second part.
+        assert_eq!(score.parts[0].name, "Soprano");
+        assert_eq!(score.parts[1].name, "Bass");
+        for part in &score.parts {
+            assert_eq!(part.staves[0].measures.len(), 5);
+        }
+        let soprano = &score.parts[0].staves[0].measures;
+        assert_eq!(soprano[1].barline_left, Barline::RepeatStart);
+        assert_eq!(soprano[2].barline_right, Barline::RepeatEnd);
+        assert_eq!(soprano[4].barline_right, Barline::Final);
+        assert!(soprano[2].voices[0][0].tie_start && soprano[3].voices[0][0].tie_end);
+        assert!(!soprano[3].voices[1].is_empty(), "split spine is voice 2");
+        let bass_triplet = &score.parts[1].staves[0].measures[3].voices[0][0];
+        assert_eq!(
+            bass_triplet.tuplet.as_ref().map(|t| t.actual_notes),
+            Some(3)
+        );
+        assert_musicxml_round_trip(score);
+    }
+
+    #[cfg(feature = "pae")]
+    #[test]
+    fn pae_incipits_round_trip_through_musicxml() {
+        let compact = include_str!("../../../tests/fixtures/incipit_compact.pae");
+        let fields = include_str!("../../../tests/fixtures/incipit_fields.pae");
+        for text in [compact, fields] {
+            let report = acorde_io::parse_pae_with_report(text).expect("PAE parses");
+            assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
+            assert_musicxml_round_trip(&report.score);
+        }
+        let compact = acorde_io::parse_pae(compact).expect("compact parses");
+        let measures = &compact.parts[0].staves[0].measures;
+        assert_eq!(measures.len(), 4);
+        // F and C are sharpened by the key signature `$xFC`; `''C` is C#5.
+        assert_eq!(measures[0].voices[0][2].pitches[0].to_midi(), 66);
+        assert_eq!(measures[1].voices[0][3].pitches[0].to_midi(), 73);
+        let fields = acorde_io::parse_pae(fields).expect("field form parses");
+        let measures = &fields.parts[0].staves[0].measures;
+        assert_eq!(measures.len(), 4);
+        assert_eq!(measures[0].voices[0][0].pitches[0].to_midi(), 48);
+        assert_eq!(measures[2].voices[0][1].pitches[0].alter, -1);
+    }
+
+    #[test]
+    fn kern_and_pae_fuzz_guard_never_panics() {
+        let garbage: String = (0..4096u32)
+            .map(|i| char::from_u32((i * 7919) % 0x2FF).unwrap_or('?'))
+            .collect();
+        let huge = "x".repeat(64 * 1024 * 1024 + 1);
+        for input in ["", "\t\t\n", garbage.as_str(), huge.as_str()] {
+            #[cfg(feature = "humdrum")]
+            assert!(acorde_io::parse_kern(input).is_err());
+            #[cfg(feature = "pae")]
+            let _ = acorde_io::parse_pae(input);
+        }
+        #[cfg(feature = "pae")]
+        {
+            assert!(acorde_io::parse_pae("").is_err());
+            assert!(acorde_io::parse_pae(&huge).is_err());
+        }
+    }
 }

@@ -19,7 +19,8 @@ inspection (`convert`, `info`, `validate`, `report`, `preflight`), SVG/print ren
 score edits (`extract`, `transpose`, `normalize`), tablature, playback, and machine-readable
 export/compatibility reports.
 
-Input accepts MusicXML/MXL, MIDI, ABC, MEI, MSCX/MSCZ, and Guitar Pro 3–8. Conversion writes
+Input accepts MusicXML/MXL, MIDI, ABC, MEI, MSCX/MSCZ, Guitar Pro 3–8, Humdrum `**kern` (`.krn`),
+and Plaine & Easie (`.pae`). Conversion writes
 MusicXML, MIDI, ABC, MEI, and the documented canonical MSCX/MSCZ subset; it does not promise full
 MuseScore parity. `render` writes deterministic SVG with optional interactive score-address hooks.
 `render --auto-beams` adds meter-aware display beams for unmarked short notes without editing

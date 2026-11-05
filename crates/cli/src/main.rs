@@ -112,7 +112,7 @@ struct Cli {
 enum Commands {
     /// Convert a score file between formats
     Convert {
-        /// Input file (.musicxml, .mxl, .mid, .midi, .abc, .mei, .mscz, .mscx, .gp, .gpx, .gp3, .gp4, .gp5)
+        /// Input file (.musicxml, .mxl, .mid, .midi, .abc, .mei, .mscz, .mscx, .gp, .gpx, .gp3, .gp4, .gp5, .krn, .pae)
         input: PathBuf,
         /// Output file (.musicxml, .mid, .midi, .abc, .mei)
         output: PathBuf,
@@ -182,7 +182,7 @@ enum Commands {
     },
     /// Render a score file to deterministic SVG
     Render {
-        /// Input file (.musicxml, .mxl, .mid, .midi, .abc, .mei, .mscz, .mscx, .gp, .gpx, .gp3, .gp4, .gp5)
+        /// Input file (.musicxml, .mxl, .mid, .midi, .abc, .mei, .mscz, .mscx, .gp, .gpx, .gp3, .gp4, .gp5, .krn, .pae)
         input: PathBuf,
         /// Output SVG file
         output: PathBuf,
@@ -204,7 +204,7 @@ enum Commands {
     },
     /// Render a score file to SVG and print import/renderer diagnostics as JSON
     RenderReport {
-        /// Input file (.musicxml, .mxl, .mid, .midi, .abc, .mei, .mscz, .mscx, .gp, .gpx, .gp3, .gp4, .gp5)
+        /// Input file (.musicxml, .mxl, .mid, .midi, .abc, .mei, .mscz, .mscx, .gp, .gpx, .gp3, .gp4, .gp5, .krn, .pae)
         input: PathBuf,
         /// Output SVG file
         output: PathBuf,
@@ -292,7 +292,7 @@ enum Commands {
     },
     /// Print a structured import report as JSON
     Report {
-        /// Input file (.musicxml, .mxl, .mid, .abc, .mscz, .mscx, .mei)
+        /// Input file (.musicxml, .mxl, .mid, .abc, .mscz, .mscx, .mei, .krn, .pae)
         input: PathBuf,
     },
     /// Print renderer capability preflight issues as JSON
@@ -305,7 +305,7 @@ enum Commands {
     },
     /// Analyze chords, melodic intervals, and key candidates as JSON
     Analyze {
-        /// Input file (.musicxml, .mxl, .mid, .midi, .abc, .mei, .mscz, .mscx, .gp, .gpx, .gp3, .gp4, .gp5)
+        /// Input file (.musicxml, .mxl, .mid, .midi, .abc, .mei, .mscz, .mscx, .gp, .gpx, .gp3, .gp4, .gp5, .krn, .pae)
         input: PathBuf,
     },
     /// Run a local analysis benchmark manifest and print its JSON report
@@ -337,7 +337,7 @@ enum Commands {
     },
     /// Transpose every pitched note and key signature by semitones
     Transpose {
-        /// Input file (.musicxml, .mxl, .mid, .midi, .abc, .mei, .mscz, .mscx, .gp, .gpx, .gp3, .gp4, .gp5)
+        /// Input file (.musicxml, .mxl, .mid, .midi, .abc, .mei, .mscz, .mscx, .gp, .gpx, .gp3, .gp4, .gp5, .krn, .pae)
         input: PathBuf,
         /// Output file (.musicxml, .mid, .midi)
         output: PathBuf,
@@ -798,6 +798,16 @@ fn parse_score(path: &Path) -> Result<Score, String> {
                 .map_err(|e| format!("cannot decode '{}': {e}", path.display()))?;
             acorde_io::parse_mei(&text).map_err(|e| e.to_string())
         }
+        "krn" => {
+            let text = acorde_io::decode_xml_text(&data)
+                .map_err(|e| format!("cannot decode '{}': {e}", path.display()))?;
+            acorde_io::parse_kern(&text).map_err(|e| e.to_string())
+        }
+        "pae" => {
+            let text = acorde_io::decode_xml_text(&data)
+                .map_err(|e| format!("cannot decode '{}': {e}", path.display()))?;
+            acorde_io::parse_pae(&text).map_err(|e| e.to_string())
+        }
         "mscz" => acorde_io::parse_mscz(&data).map_err(|e| e.to_string()),
         "mscx" => {
             let xml = acorde_io::decode_xml_text(&data)
@@ -832,6 +842,14 @@ fn parse_report(path: &Path) -> Result<ImportReport, String> {
         "mei" => {
             let text = acorde_io::decode_xml_text(&data).map_err(|e| e.to_string())?;
             acorde_io::parse_mei_with_report(&text).map_err(|e| e.to_string())
+        }
+        "krn" => {
+            let text = acorde_io::decode_xml_text(&data).map_err(|e| e.to_string())?;
+            acorde_io::parse_kern_with_report(&text).map_err(|e| e.to_string())
+        }
+        "pae" => {
+            let text = acorde_io::decode_xml_text(&data).map_err(|e| e.to_string())?;
+            acorde_io::parse_pae_with_report(&text).map_err(|e| e.to_string())
         }
         "mscz" => acorde_io::parse_mscz_with_report(&data).map_err(|e| e.to_string()),
         "mscx" => {
@@ -3175,6 +3193,8 @@ mod tests {
             ("interchange_subset.mei", "mei"),
             ("interchange_subset.mscx", "mscx"),
             ("4_steps_in_31-et_on_c.mid", "midi"),
+            ("chorale_excerpt.krn", "humdrum"),
+            ("incipit_compact.pae", "pae"),
         ];
         for (index, (name, format)) in cases.iter().enumerate() {
             let output = std::env::temp_dir().join(format!(

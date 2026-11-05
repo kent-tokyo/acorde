@@ -7,24 +7,24 @@ and covered by a focused test; **partial** means a documented common subset; **n
 format path does not carry it. “Model/SVG/export” distinguishes the canonical score from visible
 rendering and the broadest implemented export route. It is not a lossless-interchange claim.
 
-| Slice | MusicXML | MIDI | ABC | MSCX/MSCZ | MEI | Model / SVG / export |
-|---|---:|---:|---:|---:|---:|---|
-| Parts, staves, measures, voices | yes | partial | partial | partial | partial | yes / yes / yes |
-| Pitch, rests, chords, standard durations | yes | partial | partial | partial | partial | yes / yes / yes |
-| Tempo, meter, key, clef | yes | partial | yes | yes | partial | yes / yes / MusicXML |
-| Barline, repeat, navigation, volta | partial | partial | partial | partial | partial | yes / partial / MusicXML |
-| Dynamics, articulations, ornaments | yes | no | partial | partial | partial | yes / yes / MusicXML |
-| Lyrics and expression text | partial | no | partial | partial | partial | partial / partial / MusicXML, ABC |
-| Ties, slurs, tuplets, grace/cue notes | yes | partial | partial | partial | partial | partial / partial / MusicXML |
-| Hairpin, pedal, ottava, trill, glissando | yes | no | no | partial | partial | yes / partial / MusicXML |
-| Chord symbols, rehearsal, figured bass, text | partial | no | no | partial | partial | yes / partial / MusicXML |
-| MIDI channel, program, control data | yes | yes | no | partial | no | yes / no / MIDI |
-| Percussion and unpitched placement | partial | partial | no | partial | no | partial / partial / MIDI |
-| TAB staff, tuning, string/fret positions | partial | no | no | partial | partial | partial / partial / MusicXML, MSCX |
-| Guitar Pro 3–8 | import only | no | no | no | no | partial / partial / MusicXML, MEI, MSCX |
-| Courtesy/editorial accidentals | yes | no | no | yes | partial | yes / partial / MusicXML, MEI, MSCX |
-| Microtonal cents and quarter-tone subset | partial | no | partial | partial | partial | partial / partial / format-specific |
-| Print, PDF, and browser presentation | n/a | n/a | n/a | n/a | n/a | logical print / SVG / host PDF |
+| Slice | MusicXML | MIDI | ABC | MSCX/MSCZ | MEI | Humdrum kern | PAE | Model / SVG / export |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| Parts, staves, measures, voices | yes | partial | partial | partial | partial | partial | partial | yes / yes / yes |
+| Pitch, rests, chords, standard durations | yes | partial | partial | partial | partial | partial | partial | yes / yes / yes |
+| Tempo, meter, key, clef | yes | partial | yes | yes | partial | partial | partial | yes / yes / MusicXML |
+| Barline, repeat, navigation, volta | partial | partial | partial | partial | partial | partial | partial | yes / partial / MusicXML |
+| Dynamics, articulations, ornaments | yes | no | partial | partial | partial | partial | partial | yes / yes / MusicXML |
+| Lyrics and expression text | partial | no | partial | partial | partial | no | no | partial / partial / MusicXML, ABC |
+| Ties, slurs, tuplets, grace/cue notes | yes | partial | partial | partial | partial | partial | partial | partial / partial / MusicXML |
+| Hairpin, pedal, ottava, trill, glissando | yes | no | no | partial | partial | partial | partial | yes / partial / MusicXML |
+| Chord symbols, rehearsal, figured bass, text | partial | no | no | partial | partial | no | no | yes / partial / MusicXML |
+| MIDI channel, program, control data | yes | yes | no | partial | no | no | no | yes / no / MIDI |
+| Percussion and unpitched placement | partial | partial | no | partial | no | no | no | partial / partial / MIDI |
+| TAB staff, tuning, string/fret positions | partial | no | no | partial | partial | no | no | partial / partial / MusicXML, MSCX |
+| Guitar Pro 3–8 | import only | no | no | no | no | no | no | partial / partial / MusicXML, MEI, MSCX |
+| Courtesy/editorial accidentals | yes | no | no | yes | partial | no | no | yes / partial / MusicXML, MEI, MSCX |
+| Microtonal cents and quarter-tone subset | partial | no | partial | partial | partial | no | no | partial / partial / format-specific |
+| Print, PDF, and browser presentation | n/a | n/a | n/a | n/a | n/a | n/a | n/a | logical print / SVG / host PDF |
 
 ## What callers must do
 
@@ -44,6 +44,10 @@ rendering and the broadest implemented export route. It is not a lossless-interc
 
 - MEI TAB articulations are not exported where the observed Verovio path rejects them.
 - ABC does not yet preserve octave-clef variants or later lyric verses on every path.
+- Humdrum `**kern` and Plaine & Easie are import-only subsets (features `humdrum` and `pae`).
+  Kern imports each `**kern` spine as a part (`*^`/`*v` sub-spines as voices); other spine
+  types, `*+`, rational `%` durations, and unknown signifiers or interpretations are reported
+  as `humdrum.*` diagnostics. PAE imports one staff; unsupported tokens are `pae.*` diagnostics.
 - Guitar Pro right-hand fingering, slap/pop, whammy, volume swells, harmonic types, and chord
   diagrams need model work before they can be preserved.
 - Irregular/cadenza bars and rests shorter than a 128th note require a single model, validation,
