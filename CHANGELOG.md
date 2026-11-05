@@ -3,6 +3,9 @@
 ## [Unreleased]
 
 ### Fixed
+- MusicXML wedges pair by their `number` and in time order per staff, so a crescendo that ends where a numbered diminuendo begins no longer draws a zero-length tick and a wedge running to the system edge. A wedge that would end on its own start note is drawn to the next note or the measure end (#391).
+- Two-staff parts named "Pianoforte", "Klavier", "Πιάνο", "ピアノ" and other localized piano names, or with a piano instrument id, get the implicit piano brace (#391).
+- Print lyrics (1.8 staff spaces) and directions, chord symbols and other annotation text (1.0 staff space) are larger and measured with matching glyph widths (#391).
 - Physical print-page SVGs, and the PDF pages built from them, now contain only the notation that reaches each page. Previously every page carried the whole score hidden outside its viewBox (#183).
 - A chord member tied into another voice's chord at the same onset now draws its tie. Previously only same-voice ties were drawn (#183).
 - Print part labels split at their own line breaks, or at the middle space of a long name. They are sized to keep 3 mm of paper clear instead of reaching the page edge (#183).
@@ -10,6 +13,7 @@
 - MusicXML import applies a mid-part `<sound><midi-instrument><midi-program>` as a part program change at its position, instead of ignoring it (#203).
 
 ### Added
+- `PrintConfig.system_spacing` (`Justified`, the default, or `Packed`). Justified spreads each page's systems over the usable height, up to 1.6 times their reserved height, so pages are not left half empty and the staff space can grow. Spacers and the fixed-height policy keep their positions (#391).
 - `scripts/compare_print_corpus.py` measures Acorde print pages and Verovio 6.3.0 on the same MusicXML in headless Chrome: page and system counts, elements past the page edge or margins, text-over-notation and text-over-text candidates, staff space, font sizes, mark counts against the source, and import diagnostics. The ten-score record is in `docs/archive/print-corpus-verovio.md` (#183).
 - `scripts/compare_audio_corpus.py` measures Acorde and alphaTab PCM against the same playback schedule (onsets, paired onset difference, release into rests, buffer end, level, import diagnostics). The eight-score record is in `docs/archive/playback-audio-corpus.md` (#203).
 - Standard-bass candidates carry a readable `label` (e.g. `C bass + Em chord`) and a `realization` (`direct` or `combined`), and arrangement results report `edition_kinds` (`direct-buttons`, `combined-buttons`, `simplified`, `no-candidate`) and the `harmony_source` (`supplied` or `editorial-proposal`, an option echoed from the input). All new fields default for existing JSON (#358, #359).

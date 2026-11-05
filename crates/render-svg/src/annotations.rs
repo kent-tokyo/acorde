@@ -143,7 +143,10 @@ pub(crate) fn render_measure_semantic_annotations(
                         x,
                         italic: true,
                     });
-                    let width = text.chars().count() as f32 * 0.42 * space + 0.6 * space;
+                    let width = text.chars().count() as f32
+                        * crate::render::ANNOTATION_CHAR_WIDTH_U
+                        * space
+                        + 0.6 * space;
                     owner.push(
                         GlyphPlacement {
                             resource_key: format!(
@@ -152,9 +155,9 @@ pub(crate) fn render_measure_semantic_annotations(
                             metrics: GlyphMetrics {
                                 advance_mm: 0.0,
                                 left_mm: -width / 2.0,
-                                top_mm: -0.72 * space,
+                                top_mm: -crate::render::ANNOTATION_FONT_SIZE_U * space,
                                 width_mm: width,
-                                height_mm: 0.9 * space,
+                                height_mm: 1.25 * crate::render::ANNOTATION_FONT_SIZE_U * space,
                             },
                             x_mm: x,
                             y_mm: y,
@@ -182,7 +185,9 @@ pub(crate) fn render_measure_semantic_annotations(
                     x,
                     italic: false,
                 });
-                let width = text.chars().count() as f32 * 0.42 * space + 0.6 * space;
+                let width =
+                    text.chars().count() as f32 * crate::render::ANNOTATION_CHAR_WIDTH_U * space
+                        + 0.6 * space;
                 owner.push(
                     GlyphPlacement {
                         resource_key: format!(
@@ -191,9 +196,9 @@ pub(crate) fn render_measure_semantic_annotations(
                         metrics: GlyphMetrics {
                             advance_mm: 0.0,
                             left_mm: -width / 2.0,
-                            top_mm: -0.72 * space,
+                            top_mm: -crate::render::ANNOTATION_FONT_SIZE_U * space,
                             width_mm: width,
-                            height_mm: 0.9 * space,
+                            height_mm: 1.25 * crate::render::ANNOTATION_FONT_SIZE_U * space,
                         },
                         x_mm: x,
                         y_mm: lyric_baseline,
@@ -214,7 +219,10 @@ pub(crate) fn render_measure_semantic_annotations(
                         x,
                         italic: false,
                     });
-                    let width = text.chars().count() as f32 * 0.42 * space + 0.6 * space;
+                    let width = text.chars().count() as f32
+                        * crate::render::ANNOTATION_CHAR_WIDTH_U
+                        * space
+                        + 0.6 * space;
                     let verse_offset =
                         crate::render::LYRIC_VERSE_SPACING * f32::from(entry.verse - 1);
                     owner.push(
@@ -226,9 +234,9 @@ pub(crate) fn render_measure_semantic_annotations(
                             metrics: GlyphMetrics {
                                 advance_mm: 0.0,
                                 left_mm: -width / 2.0,
-                                top_mm: -0.72 * space,
+                                top_mm: -crate::render::ANNOTATION_FONT_SIZE_U * space,
                                 width_mm: width,
-                                height_mm: 0.9 * space,
+                                height_mm: 1.25 * crate::render::ANNOTATION_FONT_SIZE_U * space,
                             },
                             x_mm: x,
                             y_mm: lyric_baseline + verse_offset * space,

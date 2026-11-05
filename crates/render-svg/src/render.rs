@@ -31,10 +31,14 @@ use crate::{
 use crate::{spans, tab_technique};
 
 /// Vertical distance between lyric verse lines, in staff spaces.
-pub(crate) const LYRIC_VERSE_SPACING: f32 = 1.9;
+pub(crate) const LYRIC_VERSE_SPACING: f32 = 2.4;
 // Keep printed lyrics near the staff-space height and reserve the same width that is drawn.
-const LYRIC_FONT_SIZE_U: f32 = 1.4;
-const LYRIC_CHAR_WIDTH_U: f32 = 0.8;
+const LYRIC_FONT_SIZE_U: f32 = 1.8;
+/// Font size of directions, chord symbols and other annotation text, in staff spaces.
+pub(crate) const ANNOTATION_FONT_SIZE_U: f32 = 1.0;
+/// Estimated advance of one annotation-text character, in staff spaces.
+pub(crate) const ANNOTATION_CHAR_WIDTH_U: f32 = 0.58;
+const LYRIC_CHAR_WIDTH_U: f32 = 1.03;
 const LYRIC_WIDTH_PADDING_U: f32 = 1.0;
 const LEFT_MARGIN_U: f32 = 1.0;
 const RIGHT_MARGIN_U: f32 = 1.0;
@@ -2152,10 +2156,36 @@ fn validate_score_text(value: &str) -> Result<(), RenderError> {
     Ok(())
 }
 
+/// Piano names in the languages our licensed corpora use, plus a MuseScore-style
+/// `keyboard.piano` instrument id when import kept one.
+// ponytail: fixed name list; extend it when a corpus shows another localized name.
+fn is_piano_part(part: &acorde_core::Part) -> bool {
+    const NAMES: &[&str] = &[
+        "piano",
+        "pianoforte",
+        "fortepiano",
+        "klavier",
+        "clavier",
+        "πιάνο",
+        "фортепиано",
+        "пианино",
+        "ピアノ",
+        "钢琴",
+        "鋼琴",
+        "피아노",
+    ];
+    let name = part.name.trim().to_lowercase();
+    NAMES.contains(&name.as_str())
+        || part
+            .instrument
+            .as_ref()
+            .is_some_and(|instrument| instrument.id.to_lowercase().ends_with("piano"))
+}
+
 /// Draw part and intra-part staff connectors at the system edge.
 fn implicit_piano_brace(part: &acorde_core::Part) -> bool {
     part.staff_groups.is_empty()
-        && part.name.eq_ignore_ascii_case("piano")
+        && is_piano_part(part)
         && part.staves.len() == 2
         && part.staves.iter().all(|staff| {
             staff.presentation.visible
@@ -4276,7 +4306,8 @@ fn render_measure_semantic_annotations(
                     } else {
                         anchor_y + distance * space
                     };
-                    let width = text.chars().count() as f32 * 0.42 * space + 0.6 * space;
+                    let width =
+                        text.chars().count() as f32 * ANNOTATION_CHAR_WIDTH_U * space + 0.6 * space;
                     annotations.push(MeasureSemanticAnnotation::Text {
                         class,
                         text,
@@ -4290,9 +4321,9 @@ fn render_measure_semantic_annotations(
                         metrics: acorde_layout::GlyphMetrics {
                             advance_mm: 0.0,
                             left_mm: -width / 2.0,
-                            top_mm: -0.72 * space,
+                            top_mm: -ANNOTATION_FONT_SIZE_U * space,
                             width_mm: width,
-                            height_mm: 0.9 * space,
+                            height_mm: 1.25 * ANNOTATION_FONT_SIZE_U * space,
                         },
                         x_mm: x,
                         y_mm: y,
@@ -6592,14 +6623,14 @@ fn note_annotation_lane_width_u(note: &Note, above: bool) -> f32 {
         && above
         && let Some(chord) = &note.chord_symbol
     {
-        width = width.max(chord.display_text().chars().count() as f32 * 0.42);
+        width = width.max(chord.display_text().chars().count() as f32 * ANNOTATION_CHAR_WIDTH_U);
     }
     if let Some(dynamic) = &note.dynamic {
         reserve_annotation_lane(
             &mut width,
             direction,
             above,
-            dynamic.to_musicxml_str().chars().count() as f32 * 0.42,
+            dynamic.to_musicxml_str().chars().count() as f32 * ANNOTATION_CHAR_WIDTH_U,
             true,
         );
     }
@@ -6608,7 +6639,7 @@ fn note_annotation_lane_width_u(note: &Note, above: bool) -> f32 {
             &mut width,
             direction,
             above,
-            text.chars().count() as f32 * 0.42,
+            text.chars().count() as f32 * ANNOTATION_CHAR_WIDTH_U,
             true,
         );
     }
@@ -6619,11 +6650,11 @@ fn note_annotation_lane_width_u(note: &Note, above: bool) -> f32 {
                 &mut width,
                 direction,
                 above,
-                label.chars().count() as f32 * 0.42,
+                label.chars().count() as f32 * ANNOTATION_CHAR_WIDTH_U,
                 true,
             );
         } else if above {
-            width = width.max(label.chars().count() as f32 * 0.42);
+            width = width.max(label.chars().count() as f32 * ANNOTATION_CHAR_WIDTH_U);
         }
     }
     if note.fingering.is_some() || !note.fingerings.is_empty() {
@@ -6682,16 +6713,17 @@ fn note_annotation_width_u(note: &Note) -> f32 {
         width = width.max(lyric_width_u(&entry.lyric.text));
     }
     if let Some(chord) = &note.chord_symbol {
-        width = width.max(chord.display_text().chars().count() as f32 * 0.42);
+        width = width.max(chord.display_text().chars().count() as f32 * ANNOTATION_CHAR_WIDTH_U);
     }
     if let Some(dynamic) = &note.dynamic {
-        width = width.max(dynamic.to_musicxml_str().chars().count() as f32 * 0.42);
+        width =
+            width.max(dynamic.to_musicxml_str().chars().count() as f32 * ANNOTATION_CHAR_WIDTH_U);
     }
     if let Some(text) = &note.technique_text {
-        width = width.max(text.chars().count() as f32 * 0.42);
+        width = width.max(text.chars().count() as f32 * ANNOTATION_CHAR_WIDTH_U);
     }
     if let Some(label) = guitar_technique_label(note) {
-        width = width.max(label.chars().count() as f32 * 0.42);
+        width = width.max(label.chars().count() as f32 * ANNOTATION_CHAR_WIDTH_U);
     }
     if note.fingering.is_some() || !note.fingerings.is_empty() {
         width = width.max(0.42 * 3.0);
@@ -6736,6 +6768,33 @@ fn measure_text_class(style: acorde_core::TextStyle) -> &'static str {
         }
         acorde_core::TextStyle::Generic => "acorde-measure-text acorde-measure-text-generic",
     }
+}
+
+/// A hairpin lasts to the end of its end note. When it starts and ends at one onset (a wedge
+/// under a single held note, or into a note another voice holds), draw it to the next onset on
+/// that staff row or to the end of the end note's measure instead of as a zero-length tick.
+fn hairpin_note_end_x(
+    points: &HashMap<NoteKey, NotePoint>,
+    measure_lefts: &HashMap<(usize, usize), f32>,
+    end: &acorde_core::NoteAddr,
+    (x1, x2, row): (f32, f32, usize),
+    system_right: f32,
+    space: f32,
+) -> f32 {
+    if x2 - x1 >= 1.5 * space {
+        return x2;
+    }
+    let measure_right = measure_lefts
+        .get(&(row, end.measure + 1))
+        .copied()
+        .unwrap_or(system_right);
+    points
+        .iter()
+        .filter(|((part, staff, ..), (x, _, _, point_row))| {
+            *part == end.part && *staff == end.staff && *point_row == row && *x > x2 + 0.5 * space
+        })
+        .map(|(_, (x, ..))| *x)
+        .fold(measure_right, f32::min)
 }
 
 /// Render all resolved spans after note coordinates for every row are known. A span crossing a
@@ -6802,6 +6861,18 @@ fn render_all_spans(
             points.get(&(end.part, end.staff, end.measure, end.voice, end.note)),
         ) else {
             continue;
+        };
+        let x2 = if matches!(span, SpanMark::Hairpin { .. }) && row1 == row2 {
+            hairpin_note_end_x(
+                points,
+                measure_lefts,
+                end,
+                (x1, x2, row2),
+                width - right_margin_u * space,
+                space,
+            )
+        } else {
+            x2
         };
         let span_class = match span {
             SpanMark::Hairpin { .. } => "hairpin",
@@ -9795,7 +9866,7 @@ pub(crate) fn write_annotation_text(
     let font_size = if class.starts_with("acorde-lyric") {
         LYRIC_FONT_SIZE_U
     } else {
-        0.72
+        ANNOTATION_FONT_SIZE_U
     };
     let _ = write!(
         body,
@@ -11295,5 +11366,20 @@ mod tests {
             resolve_tab_technique_lane_offsets(&segments, 10.0, &[]).expect("lanes resolve");
         assert_eq!(offsets.len(), 2);
         assert_ne!(offsets[0], offsets[1]);
+    }
+}
+
+#[cfg(test)]
+mod piano_brace_tests {
+    #[test]
+    fn localized_piano_names_get_the_implicit_brace() {
+        for name in ["Piano", "Πιάνο", "Klavier", "ピアノ"] {
+            let mut score = acorde_core::Score::template(acorde_core::ScoreTemplate::Piano);
+            score.parts[0].name = name.to_owned();
+            assert!(super::implicit_piano_brace(&score.parts[0]), "{name}");
+        }
+        let mut score = acorde_core::Score::template(acorde_core::ScoreTemplate::Piano);
+        score.parts[0].name = "Organ".to_owned();
+        assert!(!super::implicit_piano_brace(&score.parts[0]));
     }
 }
