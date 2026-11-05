@@ -143,7 +143,10 @@ pub(crate) fn render_measure_semantic_annotations(
                         x,
                         italic: true,
                     });
-                    let width = crate::render::lyric_width_u(&text) * space;
+                    let width = text.chars().count() as f32
+                        * crate::render::ANNOTATION_CHAR_WIDTH_U
+                        * space
+                        + 0.6 * space;
                     owner.push(
                         GlyphPlacement {
                             resource_key: format!(
@@ -185,7 +188,7 @@ pub(crate) fn render_measure_semantic_annotations(
                     x,
                     italic: false,
                 });
-                let width = crate::render::lyric_width_u(&text) * space;
+                let width = crate::render::lyric_collision_width_u(&text) * space;
                 owner.push(
                     GlyphPlacement {
                         resource_key: format!(
@@ -217,7 +220,7 @@ pub(crate) fn render_measure_semantic_annotations(
                         x,
                         italic: false,
                     });
-                    let width = crate::render::lyric_width_u(&text) * space;
+                    let width = crate::render::lyric_collision_width_u(&text) * space;
                     let verse_offset =
                         crate::render::LYRIC_VERSE_SPACING * f32::from(entry.verse - 1);
                     owner.push(

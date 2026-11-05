@@ -690,17 +690,50 @@ pub(crate) fn build_svg_with_metadata_placement(
         // Every measure keeps at least one staff space; the space those minimums take is
         // removed from the others instead of overflowing the row (a very short bar next to
         // long ones previously failed the whole render).
+        // On print pages a measure also keeps room for its syllables side by side.
+        let minimum_widths: Vec<f32> = row
+            .measure_indices
+            .iter()
+            .map(|&measure| {
+                if print_placement.is_some() {
+                    (print_lyric_demand_u(score, measure) * space).max(space)
+                } else {
+                    space
+                }
+            })
+            .collect();
+        // Lyric minimums that exceed the whole row shrink in proportion, keeping one staff space.
+        let total_minimum: f32 = minimum_widths.iter().sum();
+        let minimum_widths: Vec<f32> = if total_minimum <= rhythmic_area_width {
+            minimum_widths
+        } else {
+            minimum_widths
+                .iter()
+                .map(|minimum| (minimum * rhythmic_area_width / total_minimum).max(space))
+                .collect()
+        };
+        let minimum_widths = if minimum_widths.iter().sum::<f32>() <= rhythmic_area_width {
+            minimum_widths
+        } else {
+            vec![space; minimum_widths.len()]
+        };
         let mut rhythmic_widths: Vec<f32> = width_weights
             .iter()
-            .map(|weight| (rhythmic_area_width * *weight as f32).max(space))
+            .zip(&minimum_widths)
+            .map(|(weight, minimum)| (rhythmic_area_width * *weight as f32).max(*minimum))
             .collect();
         for _ in 0..rhythmic_widths.len() {
-            let clamped: Vec<bool> = width_weights
+            let clamped: Vec<bool> = minimum_widths
                 .iter()
                 .zip(&rhythmic_widths)
-                .map(|(_, width)| *width <= space + f32::EPSILON)
+                .map(|(minimum, width)| *width <= minimum + f32::EPSILON)
                 .collect();
-            let fixed = clamped.iter().filter(|c| **c).count() as f32 * space;
+            let fixed: f32 = clamped
+                .iter()
+                .zip(&minimum_widths)
+                .filter(|(c, _)| **c)
+                .map(|(_, minimum)| minimum)
+                .sum();
             let free_weight: f64 = width_weights
                 .iter()
                 .zip(&clamped)
@@ -714,11 +747,12 @@ pub(crate) fn build_svg_with_metadata_placement(
             let next: Vec<f32> = width_weights
                 .iter()
                 .zip(&clamped)
-                .map(|(weight, c)| {
+                .zip(&minimum_widths)
+                .map(|((weight, c), minimum)| {
                     if *c {
-                        space
+                        *minimum
                     } else {
-                        (free_width * (*weight / free_weight) as f32).max(space)
+                        (free_width * (*weight / free_weight) as f32).max(*minimum)
                     }
                 })
                 .collect();
@@ -1097,6 +1131,15 @@ pub(crate) fn build_svg_with_metadata_placement(
                         &text.semantic_placements,
                         &neighbor_heads,
                         above_escape,
+                        &placed_slur_curves(
+                            score,
+                            layout,
+                            &note_points,
+                            &beam_tip_points,
+                            text.measure,
+                            text.x + text.width,
+                            space,
+                        ),
                     )?;
                     body.push_str("</g>");
                 }
@@ -4087,7 +4130,27 @@ fn render_measure(
     } else {
         0.0
     };
-    let lead_u = lead_u + clef_lead_u + repeat_lead_u + arpeggio_lead_u + partial_tie_lead_u;
+    // A first syllable is centred on its note: start the column far enough in that its left half
+    // clears the barline. Every staff takes the same lead to keep the column aligned.
+    let lyric_lead_u = score
+        .parts
+        .iter()
+        .flat_map(|part| &part.staves)
+        .filter_map(|staff| staff.measures.get(measure_idx))
+        .flat_map(|bar| &bar.voices)
+        .filter_map(|voice| voice.iter().find(|note| !note.is_grace))
+        .flat_map(|note| {
+            note.lyric
+                .iter()
+                .chain(note.additional_lyrics.iter().map(|entry| &entry.lyric))
+        })
+        .map(|lyric| lyric.text.chars().count() as f32 * LYRIC_CHAR_WIDTH_U / 2.0 + 0.3)
+        .fold(0.0_f32, f32::max);
+    let lead_u = lead_u.max(lyric_lead_u)
+        + clef_lead_u
+        + repeat_lead_u
+        + arpeggio_lead_u
+        + partial_tie_lead_u;
     let content_x0 = x + lead_u * space;
     let content_w = (width - (lead_u + MEASURE_PAD_U) * space).max(space);
     let clef_bottom = geometry::clef_bottom_line(clef)?;
@@ -5728,6 +5791,7 @@ fn render_measure_text(
     resolved_annotations: &[acorde_layout::GlyphPlacement],
     neighbor_heads: &[(f32, f32)],
     above_escape: Option<(f32, f32)>,
+    slurs: &[SlurCurve],
 ) -> Result<bool, RenderError> {
     let mut text_clear = true;
     let mut above_texts = 0usize;
@@ -5989,6 +6053,22 @@ fn render_measure_text(
                 )
             {
                 text_x = candidate;
+            }
+        }
+        // A slur on the text's side of the staff bows toward it: move the text past the curve.
+        for curve in slurs.iter().filter(|curve| curve.3 != placement_below) {
+            let Some((curve_top, curve_bottom)) = slur_y_range(curve, text_x, text_x + text_width)
+            else {
+                continue;
+            };
+            let text_top = y - 0.78 * space * text_scale;
+            let text_bottom = y + 0.12 * space * text_scale;
+            if text_bottom + 0.3 * space > curve_top && text_top - 0.3 * space < curve_bottom {
+                y = if placement_below {
+                    curve_bottom + (0.78 * text_scale + 0.4) * space
+                } else {
+                    curve_top - (0.12 * text_scale + 0.4) * space
+                };
             }
         }
         let class = match styled.style {
@@ -6588,12 +6668,32 @@ fn resolve_adjacent_event_spacing(
             candidate[index] = required_x;
         }
     }
-    let right_edge = content_x0 + content_w;
-    if candidate
-        .last()
-        .is_some_and(|&last| last <= right_edge - 0.25 * space && last.is_finite())
-    {
-        xs.copy_from_slice(&candidate);
+    // The last event's syllable is centred on it and must stay inside the bar too.
+    let last_lyric_half_u = notes.last().map_or(0.0, |note| {
+        note.lyric
+            .iter()
+            .chain(note.additional_lyrics.iter().map(|entry| &entry.lyric))
+            .map(|lyric| lyric.text.chars().count() as f32 * LYRIC_CHAR_WIDTH_U / 2.0)
+            .fold(0.0_f32, f32::max)
+    });
+    let limit = content_x0 + content_w - last_lyric_half_u.max(0.25) * space;
+    let (Some(&last), Some(&original_last)) = (candidate.last(), xs.last()) else {
+        return;
+    };
+    if !last.is_finite() {
+        return;
+    }
+    // A bar too dense for full clearance still gets as much as fits: scale every push by the
+    // same share, which keeps the events in order and the last one inside the bar.
+    let share = if last <= limit {
+        1.0
+    } else if last > original_last && limit > original_last {
+        (limit - original_last) / (last - original_last)
+    } else {
+        return;
+    };
+    for (x, wanted) in xs.iter_mut().zip(&candidate) {
+        *x += (wanted - *x) * share;
     }
 }
 
@@ -7183,104 +7283,23 @@ fn render_all_spans(
             .get(&(span_index, row1))
             .copied()
             .unwrap_or_default();
-        let slur_anchors = slur_above.map(|above| {
-            let side = if above { -1.0 } else { 1.0 };
-            let anchor = |addr: &acorde_layout::NoteAddr, y: f32, stem_up: bool| {
-                let normal = y + offset + side * 0.65 * space;
-                let key = (addr.part, addr.staff, addr.measure, addr.voice, addr.note);
-                if stem_up == above
-                    && let Some(tip) = beam_tip_points.get(&key)
-                {
-                    let clearance = tip + offset + side * 0.5 * space;
-                    return if above {
-                        normal.min(clearance)
-                    } else {
-                        normal.max(clearance)
-                    };
-                }
-                normal
-            };
-            (anchor(start, y1, up1), anchor(end, y2, up2))
+        let slur_geometry = slur_above.map(|above| {
+            same_row_slur_geometry(
+                score,
+                points,
+                beam_tip_points,
+                (start, end),
+                (x1, y1, up1),
+                (x2, y2, up2),
+                row1,
+                above,
+                offset,
+                space,
+            )
         });
-        let (slur_extreme, slur_clearance_control) = if let Some(above) = slur_above {
-            let side = if above { -1.0 } else { 1.0 };
-            let direction = if x2 >= x1 { 1.0 } else { -1.0 };
-            let left = x1 + direction * 0.3 * space;
-            let right = x2 - direction * 0.3 * space;
-            let (start_y, end_y) = slur_anchors.expect("slur anchors");
-            let mut extreme: Option<f32> = None;
-            let mut control: Option<f32> = None;
-            for (key @ (part, staff, measure, voice, index), (x, y, stem_up, row)) in points {
-                if *part != start.part
-                    || *staff < start.staff.min(end.staff)
-                    || *staff > start.staff.max(end.staff)
-                    || *row != row1
-                {
-                    continue;
-                }
-                let Some(note) = score
-                    .parts
-                    .get(*part)
-                    .and_then(|p| p.staves.get(*staff))
-                    .and_then(|s| s.measures.get(*measure))
-                    .and_then(|m| m.voices.get(*voice))
-                    .and_then(|v| v.get(*index))
-                else {
-                    continue;
-                };
-                if note.is_rest || note.hidden {
-                    continue;
-                }
-                let select = |a: f32, b: f32| if above { a.min(b) } else { a.max(b) };
-                if *x >= x1.min(x2) && *x <= x1.max(x2) {
-                    let note_y = *y + offset;
-                    let value = if *stem_up == above {
-                        beam_tip_points
-                            .get(key)
-                            .map_or(note_y, |tip| select(note_y, tip + offset))
-                    } else {
-                        note_y
-                    };
-                    extreme = Some(extreme.map_or(value, |a| select(a, value)));
-                }
-                if (right - left).abs() < f32::EPSILON {
-                    continue;
-                }
-                // Beam tips sit at the stem, not at the notehead center.
-                let clearance_x = if *stem_up == above && beam_tip_points.contains_key(key) {
-                    x + (if *stem_up { 1.0 } else { -1.0 })
-                        * glyphs::NOTEHEAD_RX_U
-                        * 0.92
-                        * if note.is_grace || note.is_cue {
-                            GRACE_SCALE
-                        } else {
-                            1.0
-                        }
-                        * space
-                } else {
-                    *x
-                };
-                let t = (clearance_x - left) / (right - left);
-                if !(t > 0.0 && t < 1.0) {
-                    continue;
-                }
-                let remaining = 1.0 - t;
-                let desired_note = y + offset + side * 0.8 * space;
-                let desired = if *stem_up == above {
-                    beam_tip_points.get(key).map_or(desired_note, |tip| {
-                        select(desired_note, tip + offset + side * 0.6 * space)
-                    })
-                } else {
-                    desired_note
-                };
-                let value = (desired - remaining * remaining * start_y - t * t * end_y)
-                    / (2.0 * t * remaining);
-                control = Some(control.map_or(value, |a| select(a, value)));
-            }
-            (extreme, control)
-        } else {
-            (None, None)
-        };
+        let slur_anchors = slur_geometry.map(|geometry| geometry.0);
+        let (slur_extreme, slur_clearance_control) =
+            slur_geometry.map_or((None, None), |geometry| (geometry.1, geometry.2));
         render_same_row_span(
             body,
             span,
@@ -7534,6 +7553,287 @@ fn write_hairpin_wedge(
     );
 }
 
+/// A drawn slur as a quadratic: start, control and end points, and whether it bows upward.
+pub(crate) type SlurCurve = ((f32, f32), (f32, f32), (f32, f32), bool);
+
+/// Same-row slurs over `measure` whose end notes are already placed, and ties leaving the
+/// measure's notes, as quadratics, so measure text can keep clear of them. A tie whose next note
+/// is not placed yet runs to `measure_right`.
+// ponytail: span lane offsets, cross-system slurs and cross-voice chord ties are ignored; text
+// checks the pre-lane curve and the tie's peak height.
+fn placed_slur_curves(
+    score: &Score,
+    layout: &LayoutResult,
+    points: &HashMap<NoteKey, NotePoint>,
+    beam_tip_points: &HashMap<NoteKey, f32>,
+    measure: usize,
+    measure_right: f32,
+    space: f32,
+) -> Vec<SlurCurve> {
+    let mut curves = Vec::new();
+    for (part, p) in score.parts.iter().enumerate() {
+        for (staff, s) in p.staves.iter().enumerate() {
+            let Some(bar) = s.measures.get(measure) else {
+                continue;
+            };
+            for (voice, notes) in bar.voices.iter().enumerate() {
+                for (index, note) in notes.iter().enumerate() {
+                    if note.is_rest
+                        || !(note.tie_start
+                            || (0..note.pitches.len()).any(|i| note.pitch_tie_start(i)))
+                    {
+                        continue;
+                    }
+                    let Some(&(x, y, stem_up, row)) =
+                        points.get(&(part, staff, measure, voice, index))
+                    else {
+                        continue;
+                    };
+                    let next_x = points
+                        .get(&(part, staff, measure, voice, index + 1))
+                        .or_else(|| points.get(&(part, staff, measure + 1, voice, 0)))
+                        .filter(|next| next.3 == row && next.0 > x)
+                        .map_or(measure_right, |next| next.0);
+                    let head = glyphs::NOTEHEAD_RX_U * space;
+                    let (x1, x2) = (x + head, next_x - head);
+                    if x2 <= x1 {
+                        continue;
+                    }
+                    let height = (0.35 + 0.03 * (x2 - x1) / space).min(0.8) * space;
+                    let offsets =
+                        pitch_offsets_from_anchor(note, s.tablature.as_ref(), stem_up, space);
+                    let count = note.pitches.len();
+                    for (pitch, dy) in offsets.iter().enumerate() {
+                        if !(note.tie_start || note.pitch_tie_start(pitch)) {
+                            continue;
+                        }
+                        let midi = note.pitches[pitch].to_midi();
+                        let rank = note.pitches.iter().filter(|p| p.to_midi() < midi).count();
+                        let doubled = 2 * rank + 1;
+                        let above = if count > 1 && doubled != count {
+                            doubled > count
+                        } else {
+                            !stem_up
+                        };
+                        let side = if above { -1.0 } else { 1.0 };
+                        let tie_y = y + dy + side * 0.45 * space;
+                        // A quadratic with its control at twice the cubic's peak height.
+                        curves.push((
+                            (x1, tie_y),
+                            ((x1 + x2) / 2.0, tie_y + side * 2.0 * height),
+                            (x2, tie_y),
+                            above,
+                        ));
+                    }
+                }
+            }
+        }
+    }
+    for span in &layout.spans {
+        let SpanMark::Slur { start, end } = span else {
+            continue;
+        };
+        if start.measure.min(end.measure) > measure || start.measure.max(end.measure) < measure {
+            continue;
+        }
+        let key = |a: &acorde_layout::NoteAddr| (a.part, a.staff, a.measure, a.voice, a.note);
+        let (Some(&(x1, y1, up1, row1)), Some(&(x2, y2, up2, row2))) =
+            (points.get(&key(start)), points.get(&key(end)))
+        else {
+            continue;
+        };
+        if row1 != row2 || (x2 - x1).abs() < 0.6 * space {
+            continue;
+        }
+        let above = spans::slur_above(score, layout, points, start, end, up1, up2);
+        let (anchors, extreme, clearance) = same_row_slur_geometry(
+            score,
+            points,
+            beam_tip_points,
+            (start, end),
+            (x1, y1, up1),
+            (x2, y2, up2),
+            row1,
+            above,
+            0.0,
+            space,
+        );
+        let control_y = slur_control_y(above, (y1, y2), anchors, extreme, clearance, space);
+        let direction = if x2 >= x1 { 1.0 } else { -1.0 };
+        curves.push((
+            (x1 + direction * 0.3 * space, anchors.0),
+            ((x1 + x2) / 2.0, control_y),
+            (x2 - direction * 0.3 * space, anchors.1),
+            above,
+        ));
+    }
+    curves
+}
+
+/// The highest and lowest y of a slur's curve over `[left, right]`, if it reaches that range.
+fn slur_y_range(curve: &SlurCurve, left: f32, right: f32) -> Option<(f32, f32)> {
+    let ((x0, y0), (_, cy), (x2, y2), _) = *curve;
+    let (lo, hi) = (x0.min(x2), x0.max(x2));
+    if right < lo || left > hi || (x2 - x0).abs() < f32::EPSILON {
+        return None;
+    }
+    // The control sits at the chord midpoint, so x is linear in t.
+    let t_at = |x: f32| ((x.clamp(lo, hi) - x0) / (x2 - x0)).clamp(0.0, 1.0);
+    let (ta, tb) = (t_at(left), t_at(right));
+    let (ta, tb) = (ta.min(tb), ta.max(tb));
+    let mut range = (f32::INFINITY, f32::NEG_INFINITY);
+    for step in 0..=8 {
+        let t = ta + (tb - ta) * step as f32 / 8.0;
+        let y = (1.0 - t) * (1.0 - t) * y0 + 2.0 * t * (1.0 - t) * cy + t * t * y2;
+        range = (range.0.min(y), range.1.max(y));
+    }
+    Some(range)
+}
+
+/// The quadratic control height of a same-row slur.
+fn slur_control_y(
+    above: bool,
+    (y1, y2): (f32, f32),
+    (start_y, end_y): (f32, f32),
+    slur_extreme: Option<f32>,
+    slur_clearance_control: Option<f32>,
+    space: f32,
+) -> f32 {
+    let side = if above { -1.0 } else { 1.0 };
+    let extreme = slur_extreme.unwrap_or(if above { y1.min(y2) } else { y1.max(y2) });
+    // A quadratic passes halfway between its control and the midpoint of
+    // its endpoints. Placing the control beyond an intermediate note is
+    // therefore not enough to keep the curve itself beyond that note.
+    let baseline_control = extreme + side * 2.4 * space;
+    let clearance_control = 2.0 * (extreme + side * 0.8 * space) - (start_y + end_y) / 2.0;
+    let control_y = if above {
+        baseline_control.min(clearance_control)
+    } else {
+        baseline_control.max(clearance_control)
+    };
+    // Keep very close endpoints from producing an unbounded bow. The cap
+    // makes clearance best-effort when notation is already too crowded.
+    match slur_clearance_control {
+        Some(required) if above => control_y.min(required.max(control_y - 8.0 * space)),
+        Some(required) => control_y.max(required.min(control_y + 8.0 * space)),
+        None => control_y,
+    }
+}
+
+/// A same-row slur's end anchors, the outermost covered note, and the control height that keeps
+/// the curve clear of covered notes. Shared by span drawing and text placement.
+#[allow(clippy::too_many_arguments)]
+fn same_row_slur_geometry(
+    score: &Score,
+    points: &HashMap<NoteKey, NotePoint>,
+    beam_tip_points: &HashMap<NoteKey, f32>,
+    (start, end): (&acorde_layout::NoteAddr, &acorde_layout::NoteAddr),
+    (x1, y1, up1): (f32, f32, bool),
+    (x2, y2, up2): (f32, f32, bool),
+    row1: usize,
+    above: bool,
+    offset: f32,
+    space: f32,
+) -> ((f32, f32), Option<f32>, Option<f32>) {
+    let slur_anchors = {
+        let side = if above { -1.0 } else { 1.0 };
+        let anchor = |addr: &acorde_layout::NoteAddr, y: f32, stem_up: bool| {
+            let normal = y + offset + side * 0.65 * space;
+            let key = (addr.part, addr.staff, addr.measure, addr.voice, addr.note);
+            if stem_up == above
+                && let Some(tip) = beam_tip_points.get(&key)
+            {
+                let clearance = tip + offset + side * 0.5 * space;
+                return if above {
+                    normal.min(clearance)
+                } else {
+                    normal.max(clearance)
+                };
+            }
+            normal
+        };
+        (anchor(start, y1, up1), anchor(end, y2, up2))
+    };
+    let (slur_extreme, slur_clearance_control) = {
+        let side = if above { -1.0 } else { 1.0 };
+        let direction = if x2 >= x1 { 1.0 } else { -1.0 };
+        let left = x1 + direction * 0.3 * space;
+        let right = x2 - direction * 0.3 * space;
+        let (start_y, end_y) = slur_anchors;
+        let mut extreme: Option<f32> = None;
+        let mut control: Option<f32> = None;
+        for (key @ (part, staff, measure, voice, index), (x, y, stem_up, row)) in points {
+            if *part != start.part
+                || *staff < start.staff.min(end.staff)
+                || *staff > start.staff.max(end.staff)
+                || *row != row1
+            {
+                continue;
+            }
+            let Some(note) = score
+                .parts
+                .get(*part)
+                .and_then(|p| p.staves.get(*staff))
+                .and_then(|s| s.measures.get(*measure))
+                .and_then(|m| m.voices.get(*voice))
+                .and_then(|v| v.get(*index))
+            else {
+                continue;
+            };
+            if note.is_rest || note.hidden {
+                continue;
+            }
+            let select = |a: f32, b: f32| if above { a.min(b) } else { a.max(b) };
+            if *x >= x1.min(x2) && *x <= x1.max(x2) {
+                let note_y = *y + offset;
+                let value = if *stem_up == above {
+                    beam_tip_points
+                        .get(key)
+                        .map_or(note_y, |tip| select(note_y, tip + offset))
+                } else {
+                    note_y
+                };
+                extreme = Some(extreme.map_or(value, |a| select(a, value)));
+            }
+            if (right - left).abs() < f32::EPSILON {
+                continue;
+            }
+            // Beam tips sit at the stem, not at the notehead center.
+            let clearance_x = if *stem_up == above && beam_tip_points.contains_key(key) {
+                x + (if *stem_up { 1.0 } else { -1.0 })
+                    * glyphs::NOTEHEAD_RX_U
+                    * 0.92
+                    * if note.is_grace || note.is_cue {
+                        GRACE_SCALE
+                    } else {
+                        1.0
+                    }
+                    * space
+            } else {
+                *x
+            };
+            let t = (clearance_x - left) / (right - left);
+            if !(t > 0.0 && t < 1.0) {
+                continue;
+            }
+            let remaining = 1.0 - t;
+            let desired_note = y + offset + side * 0.8 * space;
+            let desired = if *stem_up == above {
+                beam_tip_points.get(key).map_or(desired_note, |tip| {
+                    select(desired_note, tip + offset + side * 0.6 * space)
+                })
+            } else {
+                desired_note
+            };
+            let value =
+                (desired - remaining * remaining * start_y - t * t * end_y) / (2.0 * t * remaining);
+            control = Some(control.map_or(value, |a| select(a, value)));
+        }
+        (extreme, control)
+    };
+    (slur_anchors, slur_extreme, slur_clearance_control)
+}
+
 #[allow(clippy::too_many_arguments)]
 fn render_same_row_span(
     body: &mut String,
@@ -7568,24 +7868,14 @@ fn render_same_row_span(
             let side = if above { -1.0 } else { 1.0 };
             let (start_y, end_y) =
                 slur_anchors.unwrap_or((y1 + side * 0.65 * space, y2 + side * 0.65 * space));
-            let extreme = slur_extreme.unwrap_or(if above { y1.min(y2) } else { y1.max(y2) });
-            // A quadratic passes halfway between its control and the midpoint of
-            // its endpoints. Placing the control beyond an intermediate note is
-            // therefore not enough to keep the curve itself beyond that note.
-            let baseline_control = extreme + side * 2.4 * space;
-            let clearance_control = 2.0 * (extreme + side * 0.8 * space) - (start_y + end_y) / 2.0;
-            let control_y = if above {
-                baseline_control.min(clearance_control)
-            } else {
-                baseline_control.max(clearance_control)
-            };
-            // Keep very close endpoints from producing an unbounded bow. The cap
-            // makes clearance best-effort when notation is already too crowded.
-            let control_y = match slur_clearance_control {
-                Some(required) if above => control_y.min(required.max(control_y - 8.0 * space)),
-                Some(required) => control_y.max(required.min(control_y + 8.0 * space)),
-                None => control_y,
-            };
+            let control_y = slur_control_y(
+                above,
+                (y1, y2),
+                (start_y, end_y),
+                slur_extreme,
+                slur_clearance_control,
+                space,
+            );
             render_slur_ribbon(
                 body,
                 x1 + direction * 0.3 * space,
@@ -9949,8 +10239,39 @@ pub(crate) fn write_annotation_text(
     );
 }
 
+/// Widest single lyric line of a measure in staff spaces: per voice, the spacing width of each
+/// note's widest syllable, summed, plus the lead before the first note.
+fn print_lyric_demand_u(score: &Score, measure: usize) -> f32 {
+    score
+        .parts
+        .iter()
+        .flat_map(|part| &part.staves)
+        .filter_map(|staff| staff.measures.get(measure))
+        .flat_map(|bar| &bar.voices)
+        .map(|voice| {
+            voice
+                .iter()
+                .filter_map(|note| {
+                    note.lyric
+                        .iter()
+                        .chain(note.additional_lyrics.iter().map(|entry| &entry.lyric))
+                        .map(|lyric| lyric_width_u(&lyric.text))
+                        .reduce(f32::max)
+                })
+                .sum::<f32>()
+        })
+        .fold(0.0, f32::max)
+        * 1.1
+}
+
 pub(crate) fn lyric_width_u(text: &str) -> f32 {
     text.chars().count() as f32 * LYRIC_CHAR_WIDTH_U + LYRIC_WIDTH_PADDING_U
+}
+
+/// A print lyric's collision box: the glyphs plus a small gap. It is narrower than the spacing
+/// width, so syllables spaced apart by `lyric_width_u` never collide and stay on their verse line.
+pub(crate) fn lyric_collision_width_u(text: &str) -> f32 {
+    text.chars().count() as f32 * LYRIC_CHAR_WIDTH_U + 0.4
 }
 
 /// Emit an exact, browser-addressable microtone marker while retaining the readable fallback
@@ -10602,6 +10923,7 @@ mod tests {
             &[],
             &[(10.0, 138.0)],
             None,
+            &[],
         )
         .unwrap();
         assert!(!clear);
@@ -10749,6 +11071,7 @@ mod tests {
             &[],
             &[],
             None,
+            &[],
         )
         .expect("positioned print direction renders");
         let text_x = body
@@ -11039,6 +11362,7 @@ mod tests {
             &[obstacle],
             &[],
             None,
+            &[],
         )
         .expect("measure text renders");
         let text_y = body
