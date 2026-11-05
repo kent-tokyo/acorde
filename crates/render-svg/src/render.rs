@@ -6683,17 +6683,42 @@ fn resolve_adjacent_event_spacing(
     if !last.is_finite() {
         return;
     }
-    // A bar too dense for full clearance still gets as much as fits: scale every push by the
-    // same share, which keeps the events in order and the last one inside the bar.
-    let share = if last <= limit {
-        1.0
-    } else if last > original_last && limit > original_last {
-        (limit - original_last) / (last - original_last)
-    } else {
+    if last <= limit {
+        xs.copy_from_slice(&candidate);
         return;
-    };
-    for (x, wanted) in xs.iter_mut().zip(&candidate) {
-        *x += (wanted - *x) * share;
+    }
+    // Too dense at rhythmic spacing: keep every gap's clearance and shrink only the room some
+    // gaps have beyond it (a long note before short ones) so the last event fits.
+    let gaps: Vec<(f32, f32)> = (1..notes.len())
+        .map(|index| {
+            let rhythmic = (xs[index] - xs[index - 1]).max(0.0);
+            let needed = if notes[index - 1].is_grace || notes[index].is_grace {
+                rhythmic
+            } else {
+                event_pair_clearance_u(&notes[index - 1], &notes[index]) * space
+            };
+            (needed, rhythmic.max(needed))
+        })
+        .collect();
+    let needed: f32 = gaps.iter().map(|gap| gap.0).sum();
+    let surplus: f32 = gaps.iter().map(|gap| gap.1 - gap.0).sum();
+    let available = limit - xs[0];
+    if needed <= available && surplus > 0.0 {
+        let keep = (available - needed) / surplus;
+        let mut x = xs[0];
+        for (slot, (needed, wanted)) in xs.iter_mut().skip(1).zip(&gaps) {
+            x += needed + (wanted - needed) * keep;
+            *slot = x;
+        }
+        return;
+    }
+    // Clearance alone overflows: scale every push by the same share, which keeps the events
+    // in order and the last one inside the bar.
+    if last > original_last && limit > original_last {
+        let share = (limit - original_last) / (last - original_last);
+        for (x, wanted) in xs.iter_mut().zip(&candidate) {
+            *x += (wanted - *x) * share;
+        }
     }
 }
 
