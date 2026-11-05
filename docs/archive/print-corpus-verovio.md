@@ -153,3 +153,36 @@ unterminated source wedges. The Webern hairpin is a replaced start.
 Rasterized Acorde pages inspected at 990 × 1400 px: Aloha page 1, *Just for Today* page 2,
 Quilter, Webern page 1, and Freilachs, plus a 300 dpi crop of OMR 1036 page 1. Blind human
 scoring of these PDFs is not part of this record.
+
+## Re-measurement after #391 (2026-11-05)
+
+Same inputs, settings and script, Acorde only (Verovio rows are unchanged). The changes are listed
+in the CHANGELOG under #391. Before → after:
+
+| Score | Pages / systems | Text over notation | Text over text | Staff space mm | Lyric font mm | Min text font mm | Count shortfall |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| aloha | 3 / 6 | 0 → 2 | 1 → 1 | 1.39 → 1.61 | 1.95 → 2.58 | 1.67 → 1.94 | dynamics 1 |
+| just-for-today | 4 / 11 | 0 → 0 | 0 → 0 | 1.35 → 1.57 | 1.89 → 2.51 | 1.62 → 1.88 | hairpins 1 → — |
+| quilter | 1 / 4 | 1 → 0 | 0 → 0 | 1.66 → 1.70 | — | 1.99 → 2.04 | hairpins 2 |
+| webern | 2 / 5 | 4 → 0 | 0 → 0 | 1.23 → 1.22 | 1.72 → 1.95 | 1.48 → 1.46 | dynamics 1, hairpins 1 |
+| omr-1003 | 1 / 2 | 0 → 0 | 0 → 0 | 1.69 → 1.70 | 2.37 → 2.72 | 2.04 → 2.04 | — |
+| omr-1016 | 2 / 7 | 0 → 0 | 0 → 0 | 1.69 → 1.70 | — | 2.04 → 2.04 | — |
+| omr-1033 | 1 / 5 | 0 → 0 | 0 → 0 | 1.69 → 1.70 | — | 1.22 → 1.70 | — |
+| omr-1035 | 1 / 5 | 0 → 0 | 0 → 0 | 1.63 → 1.70 | — | 1.44 → 1.44 | — |
+| omr-1036 | 2 / 5 | 0 → 0 | 0 → 0 | 1.49 → 1.50 | — | 1.79 → 1.80 | — |
+| freilachs | 1 / 7 | 0 → 0 | 0 → 0 | 1.13 → 1.67 | — | 0.81 → 1.68 | — |
+
+- **Fixed:** the *Just for Today* numbered wedges (the hairpin shortfall is gone), the OMR 1036
+  piano brace, Webern's tempo (now `Sehr fliessend und zart ( ca 112)`; the source's metronome has
+  no per-minute value, so no note glyph is drawn), and Webern's lyrics over the piano's high
+  chords. Vertical justification raised the staff space on every score except Webern and
+  removed Freilachs's half-empty page.
+- **Trade-off:** the wider lyric staff gap applies to every staff pair in the score, so Webern's
+  staff space is 1.22 mm, slightly below its 1.23 mm baseline.
+- **Regression:** Aloha's lyrics are larger, and two candidates now touch notation. In the
+  raster, `Proud` (bar 5, verse 2) crosses the barline. Spacing still does not reserve room for
+  lyrics across a barline.
+- **Still open:** Quilter's `poco rall.` (bar 8) still sits on the chord, and `Fine` crosses the
+  final slur. The script's count of 0 does not reflect this, because it tracks neither slurs nor
+  that chord overlap. Acorde still uses more systems than Verovio on eight of ten scores, because
+  the four-measure-per-system cap is unchanged.

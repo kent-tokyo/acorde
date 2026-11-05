@@ -5,7 +5,9 @@
 ### Fixed
 - MusicXML wedges pair by their `number` and in time order per staff, so a crescendo that ends where a numbered diminuendo begins no longer draws a zero-length tick and a wedge running to the system edge. A wedge that would end on its own start note is drawn to the next note or the measure end (#391).
 - Two-staff parts named "Pianoforte", "Klavier", "Πιάνο", "ピアノ" and other localized piano names, or with a piano instrument id, get the implicit piano brace (#391).
-- Print lyrics (1.8 staff spaces) and directions, chord symbols and other annotation text (1.0 staff space) are larger and measured with matching glyph widths (#391).
+- Print lyrics (1.6 staff spaces) and directions, chord symbols and other annotation text (1.0 staff space) are larger and measured with matching glyph widths. Print lyric collision boxes use the lyric size, so neighbouring syllables no longer merge (#391).
+- Print widens the staff gap where a staff's lyrics would meet noteheads of the staff below in the same measure (e.g. high piano chords under a vocal line) (#391).
+- MusicXML import joins several `<words>` in one direction, often split around a `<metronome>`, instead of keeping only the last (Webern's opening tempo printed as `ca 112)`) (#391).
 - Physical print-page SVGs, and the PDF pages built from them, now contain only the notation that reaches each page. Previously every page carried the whole score hidden outside its viewBox (#183).
 - A chord member tied into another voice's chord at the same onset now draws its tie. Previously only same-voice ties were drawn (#183).
 - Print part labels split at their own line breaks, or at the middle space of a long name. They are sized to keep 3 mm of paper clear instead of reaching the page edge (#183).

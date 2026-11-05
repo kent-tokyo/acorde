@@ -33,12 +33,12 @@ use crate::{spans, tab_technique};
 /// Vertical distance between lyric verse lines, in staff spaces.
 pub(crate) const LYRIC_VERSE_SPACING: f32 = 2.4;
 // Keep printed lyrics near the staff-space height and reserve the same width that is drawn.
-const LYRIC_FONT_SIZE_U: f32 = 1.8;
+pub(crate) const LYRIC_FONT_SIZE_U: f32 = 1.6;
 /// Font size of directions, chord symbols and other annotation text, in staff spaces.
 pub(crate) const ANNOTATION_FONT_SIZE_U: f32 = 1.0;
 /// Estimated advance of one annotation-text character, in staff spaces.
 pub(crate) const ANNOTATION_CHAR_WIDTH_U: f32 = 0.58;
-const LYRIC_CHAR_WIDTH_U: f32 = 1.03;
+const LYRIC_CHAR_WIDTH_U: f32 = 0.91;
 const LYRIC_WIDTH_PADDING_U: f32 = 1.0;
 const LEFT_MARGIN_U: f32 = 1.0;
 const RIGHT_MARGIN_U: f32 = 1.0;
@@ -247,6 +247,75 @@ pub(crate) fn required_hairpin_staff_gap(score: &Score, layout: &LayoutResult, b
         }
     }
     required
+}
+
+/// Staff gap (in staff spaces) that keeps a staff's lyric lines clear of the noteheads of the
+/// staff below in the same measure. Lyric depth mirrors the print baseline in `annotations.rs`.
+// ponytail: one gap for the whole score (largest need wins) and noteheads only; per-system gaps
+// and stems if real scores need them.
+pub(crate) fn required_lyric_staff_gap(score: &Score, base: f32) -> f32 {
+    let staff_refs = collect_staff_refs(score);
+    let mut required = base;
+    for pair in staff_refs.windows(2) {
+        let upper = &score.parts[pair[0].0].staves[pair[0].1];
+        let lower = &score.parts[pair[1].0].staves[pair[1].1];
+        for index in 0..upper.measures.len().min(lower.measures.len()) {
+            let mut lyric_bottom: Option<f32> = None;
+            for (note, low, _) in measure_note_positions(upper, index) {
+                let verse = note
+                    .additional_lyrics
+                    .iter()
+                    .map(|entry| entry.verse)
+                    .chain(note.lyric.as_ref().map(|_| 1))
+                    .max();
+                let Some(verse) = verse else { continue };
+                let baseline = (1.8_f32).max(-(low as f32) * 0.5 + 0.5 + 0.6) + LYRIC_FONT_SIZE_U;
+                let bottom =
+                    baseline + LYRIC_VERSE_SPACING * f32::from(verse.saturating_sub(1)) + 0.5;
+                lyric_bottom = Some(lyric_bottom.map_or(bottom, |value| value.max(bottom)));
+            }
+            let Some(lyric_bottom) = lyric_bottom else {
+                continue;
+            };
+            let lower_top = measure_note_positions(lower, index)
+                .map(|(_, _, high)| high as f32 * 0.5 - 4.0 + 0.5)
+                .fold(0.0_f32, f32::max);
+            required = required.max(lyric_bottom + 0.4 + lower_top);
+        }
+    }
+    required
+}
+
+/// Each pitched note of one measure with its lowest and highest staff position.
+fn measure_note_positions(
+    staff: &acorde_core::Staff,
+    index: usize,
+) -> impl Iterator<Item = (&Note, i32, i32)> {
+    let measure = &staff.measures[index];
+    let clef = staff.measures[..=index]
+        .iter()
+        .rev()
+        .find_map(|measure| measure.clef.as_ref())
+        .unwrap_or(&staff.clef);
+    measure.voices.iter().flat_map(move |voice| {
+        let mut beat = 0.0;
+        voice.iter().filter_map(move |note| {
+            let note_clef = measure.clef_at(clef, beat);
+            beat += note.beats();
+            if note.is_rest || note.pitches.is_empty() {
+                return None;
+            }
+            let clef_bottom = geometry::clef_bottom_line(&note_clef).ok()?;
+            let positions = note
+                .pitches
+                .iter()
+                .map(|pitch| geometry::staff_position(&pitch.step, pitch.octave, clef_bottom));
+            let (low, high) = positions.fold((i32::MAX, i32::MIN), |(low, high), position| {
+                (low.min(position), high.max(position))
+            });
+            Some((note, low, high))
+        })
+    })
 }
 
 pub(crate) fn print_row_metrics(
@@ -4365,7 +4434,7 @@ fn render_measure_semantic_annotations(
                             left_mm: -width / 2.0,
                             top_mm: -LYRIC_FONT_SIZE_U * space,
                             width_mm: width,
-                            height_mm: 1.6 * space,
+                            height_mm: 1.25 * LYRIC_FONT_SIZE_U * space,
                         },
                         x_mm: x,
                         y_mm: anchor_y + (lyric_offset + verse_offset) * space,
@@ -4392,7 +4461,7 @@ fn render_measure_semantic_annotations(
                             left_mm: -width / 2.0,
                             top_mm: -LYRIC_FONT_SIZE_U * space,
                             width_mm: width,
-                            height_mm: 1.6 * space,
+                            height_mm: 1.25 * LYRIC_FONT_SIZE_U * space,
                         },
                         x_mm: x,
                         y_mm: anchor_y + lyric_offset * space,
@@ -9880,7 +9949,7 @@ pub(crate) fn write_annotation_text(
     );
 }
 
-fn lyric_width_u(text: &str) -> f32 {
+pub(crate) fn lyric_width_u(text: &str) -> f32 {
     text.chars().count() as f32 * LYRIC_CHAR_WIDTH_U + LYRIC_WIDTH_PADDING_U
 }
 
@@ -11381,5 +11450,22 @@ mod piano_brace_tests {
         let mut score = acorde_core::Score::template(acorde_core::ScoreTemplate::Piano);
         score.parts[0].name = "Organ".to_owned();
         assert!(!super::implicit_piano_brace(&score.parts[0]));
+    }
+
+    #[test]
+    fn lyrics_over_high_notes_below_widen_the_staff_gap() {
+        use acorde_core::{Duration, Lyric, Note, Pitch, Step};
+        let mut score = acorde_core::Score::template(acorde_core::ScoreTemplate::Piano);
+        let mut sung = Note::new(Pitch::new(Step::G, 4), Duration::Whole);
+        sung.lyric = Some(Lyric {
+            text: "Lied".to_owned(),
+            syllabic: "single".to_owned(),
+            extend: false,
+        });
+        score.parts[0].staves[0].measures[0].voices[0] = vec![sung];
+        assert_eq!(super::required_lyric_staff_gap(&score, 6.0), 6.0);
+        let high = Note::new(Pitch::new(Step::C, 5), Duration::Whole);
+        score.parts[0].staves[1].measures[0].voices[0] = vec![high];
+        assert!(super::required_lyric_staff_gap(&score, 6.0) > 8.0);
     }
 }

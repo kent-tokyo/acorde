@@ -2369,6 +2369,12 @@ pub(crate) fn parse_musicxml_collecting(
                             if let Some(nav) = words_to_navigation(&text) {
                                 pending_navigation = Some(nav);
                             } else {
+                                // Several <words> in one direction (often split around a
+                                // <metronome>) form one text, not last-wins.
+                                let text = match pending_expression_text.take() {
+                                    Some(previous) => format!("{previous} {text}"),
+                                    None => text,
+                                };
                                 // Reclassified at "direction" close: if no <sound tempo> → expression_text
                                 pending_tempo_text = Some(text.clone());
                                 pending_expression_text = Some(text);
