@@ -247,6 +247,67 @@ pub fn notation_density_units(score: &Score, measure: usize) -> usize {
 
 // ── span resolution ───────────────────────────────────────────────────────────
 
+/// Pair hairpin starts and ends on one staff in time order, across voices: a wedge may begin
+/// on a note of one voice and end where another voice moves (MusicXML places wedges by time).
+fn resolve_staff_hairpins(
+    spans: &mut Vec<SpanMark>,
+    part: usize,
+    staff_index: usize,
+    staff: &acorde_core::Staff,
+) {
+    let mut events = Vec::new();
+    for (mi, measure) in staff.measures.iter().enumerate() {
+        for (voice, notes) in measure.voices.iter().enumerate().take(4) {
+            let mut onset = 0.0f64;
+            for (ni, note) in notes.iter().enumerate() {
+                if note.hairpin_start.is_some() || note.hairpin_end {
+                    events.push((mi, onset, voice, ni, note.hairpin_start, note.hairpin_end));
+                }
+                onset += note.beats();
+            }
+        }
+    }
+    events.sort_by(|a, b| {
+        a.0.cmp(&b.0)
+            .then(a.1.total_cmp(&b.1))
+            .then(a.2.cmp(&b.2))
+            .then(a.3.cmp(&b.3))
+    });
+    let mut open_hairpin: Option<(NoteAddr, HairpinKind)> = None;
+    for (measure, _, voice, note, start_kind, end) in events {
+        let addr = NoteAddr {
+            part,
+            staff: staff_index,
+            measure,
+            voice,
+            note,
+        };
+        // A note can end one hairpin and start the next (cresc. into dim.): close the
+        // earlier one first.
+        let ends_earlier = end && open_hairpin.is_some();
+        if ends_earlier && let Some((start, kind)) = open_hairpin.take() {
+            spans.push(SpanMark::Hairpin {
+                kind,
+                start,
+                end: addr.clone(),
+            });
+        }
+        if let Some(kind) = start_kind {
+            open_hairpin = Some((addr.clone(), kind));
+        }
+        if end
+            && !ends_earlier
+            && let Some((start, kind)) = open_hairpin.take()
+        {
+            spans.push(SpanMark::Hairpin {
+                kind,
+                start,
+                end: addr,
+            });
+        }
+    }
+}
+
 fn resolve_spans(score: &Score, typed_spanners: &[NotationSpanner]) -> Vec<SpanMark> {
     let mut spans = Vec::new();
     let typed_slur_endpoints = typed_spanners
@@ -258,8 +319,8 @@ fn resolve_spans(score: &Score, typed_spanners: &[NotationSpanner]) -> Vec<SpanM
 
     for (pi, part) in score.parts.iter().enumerate() {
         for (si, staff) in part.staves.iter().enumerate() {
+            resolve_staff_hairpins(&mut spans, pi, si, staff);
             for voice in 0..4usize {
-                let mut open_hairpin: Option<(NoteAddr, HairpinKind)> = None;
                 let mut open_ottava: Option<(NoteAddr, OttavaKind)> = None;
                 let mut open_pedal: Option<NoteAddr> = None;
                 let mut open_slurs: Vec<NoteAddr> = Vec::new();
@@ -275,30 +336,6 @@ fn resolve_spans(score: &Score, typed_spanners: &[NotationSpanner]) -> Vec<SpanM
                             voice,
                             note: ni,
                         };
-
-                        // A note can end one hairpin and start the next (cresc. into
-                        // dim.): close the earlier one first.
-                        let ends_earlier = note.hairpin_end && open_hairpin.is_some();
-                        if ends_earlier && let Some((start, kind)) = open_hairpin.take() {
-                            spans.push(SpanMark::Hairpin {
-                                kind,
-                                start,
-                                end: addr.clone(),
-                            });
-                        }
-                        if let Some(kind) = note.hairpin_start {
-                            open_hairpin = Some((addr.clone(), kind));
-                        }
-                        if note.hairpin_end
-                            && !ends_earlier
-                            && let Some((start, kind)) = open_hairpin.take()
-                        {
-                            spans.push(SpanMark::Hairpin {
-                                kind,
-                                start,
-                                end: addr.clone(),
-                            });
-                        }
 
                         if let Some(kind) = note.ottava_start {
                             open_ottava = Some((addr.clone(), kind));

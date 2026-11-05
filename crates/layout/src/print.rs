@@ -656,6 +656,18 @@ pub enum FinalPagePolicy {
     Balance,
 }
 
+/// How systems use the height left on a page after pagination.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum SystemSpacing {
+    /// Spread each page's systems over its usable height, growing each system's height to at
+    /// most 1.6 times its reserved height. A taller system lets renderers use a larger staff
+    /// space.
+    #[default]
+    Justified,
+    /// Stack systems at their reserved height from the top of the page.
+    Packed,
+}
+
 /// How the physical height reserved for each music system is selected.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub enum SystemHeightPolicy {
@@ -1026,6 +1038,9 @@ pub struct PrintConfig {
     /// Whether multiple staves increase the system's reserved physical height.
     #[serde(default)]
     pub system_height_policy: SystemHeightPolicy,
+    /// Whether systems are spread over the page height or stacked at their reserved height.
+    #[serde(default)]
+    pub system_spacing: SystemSpacing,
     /// Content scale factor. `1.0` preserves the configured system height.
     pub scale: f32,
     pub measures_per_system: usize,
@@ -1079,6 +1094,7 @@ impl Default for PrintConfig {
             safe_left_mm: 0.0,
             system_height_mm: 24.0,
             system_height_policy: SystemHeightPolicy::StaffAware,
+            system_spacing: SystemSpacing::Justified,
             scale: 1.0,
             measures_per_system: 4,
             system_break_strategy: PrintSystemBreakStrategy::FixedMeasureCount,
@@ -2595,6 +2611,38 @@ fn page_publication(
     }
 }
 
+/// Spread a page's systems over its usable height so the space below the last system is not
+/// left empty. Each system's pitch grows to at most 1.6 times its reserved height, which also
+/// lets the renderer use a larger staff space. Spacers and fixed-height policies keep their
+/// authored positions.
+fn justify_page_systems(
+    mut systems: Vec<SystemLayout>,
+    config: &PrintConfig,
+    content_height_mm: f32,
+) -> Vec<SystemLayout> {
+    const MAX_STRETCH: f32 = 1.6;
+    if !matches!(config.system_height_policy, SystemHeightPolicy::StaffAware)
+        || config.system_spacing == SystemSpacing::Packed
+        || !config.publication.spacers.is_empty()
+    {
+        return systems;
+    }
+    let Some(first) = systems.first() else {
+        return systems;
+    };
+    let (first_top, height) = (first.top_mm, first.height_mm);
+    let bottom = config.margin_top_mm + config.safe_top_mm + content_height_mm;
+    let pitch = ((bottom - first_top) / systems.len() as f32).min(MAX_STRETCH * height);
+    if !pitch.is_finite() || pitch <= height {
+        return systems;
+    }
+    for (index, system) in systems.iter_mut().enumerate() {
+        system.top_mm = first_top + index as f32 * pitch;
+        system.height_mm = pitch;
+    }
+    systems
+}
+
 #[allow(clippy::too_many_arguments)]
 fn build_page_layout(
     score: &Score,
@@ -2610,6 +2658,7 @@ fn build_page_layout(
     break_reason: BreakReason,
     is_title_page: bool,
 ) -> PageLayout {
+    let systems = justify_page_systems(systems, config, content_height_mm);
     let publication = page_publication(
         score,
         layout_score,
@@ -4477,6 +4526,13 @@ mod tests {
         }
     }
 
+    fn packed() -> PrintConfig {
+        PrintConfig {
+            system_spacing: SystemSpacing::Packed,
+            ..PrintConfig::default()
+        }
+    }
+
     #[test]
     fn multi_staff_systems_reserve_clearance_before_paginating() {
         let mut score = score_with_measures(10);
@@ -4485,7 +4541,7 @@ mod tests {
         score.parts[0].staves.push(lower);
         let config = PrintConfig {
             measures_per_system: 1,
-            ..PrintConfig::default()
+            ..packed()
         };
         let layout = compute_print_layout(&score, &config).expect("piano print layout");
         assert_eq!(layout.pages[0].systems[0].height_mm, 50.0);
@@ -4534,7 +4590,7 @@ mod tests {
                 relative_x: None,
                 relative_y: None,
             });
-        let layout = compute_print_layout(&score, &PrintConfig::default()).unwrap();
+        let layout = compute_print_layout(&score, &packed()).unwrap();
         assert_eq!(layout.pages[0].systems[0].height_mm, 60.0);
     }
 
@@ -4546,13 +4602,13 @@ mod tests {
         staff.measures = vec![Measure::empty(4, 4); 2];
         second.staves.push(staff);
         score.parts.push(second);
-        let full = compute_print_layout(&score, &PrintConfig::default()).unwrap();
+        let full = compute_print_layout(&score, &packed()).unwrap();
         assert_eq!(full.pages[0].systems[0].height_mm, 50.0);
         let part = compute_print_layout(
             &score,
             &PrintConfig {
                 part_layout: PartLayoutPolicy::ExtractedPart { part_index: 1 },
-                ..PrintConfig::default()
+                ..packed()
             },
         )
         .unwrap();
@@ -4594,7 +4650,7 @@ mod tests {
                 scale: 2.0,
                 measures_per_system: 1,
                 systems_per_page: None,
-                ..PrintConfig::default()
+                ..packed()
             },
         )
         .expect("valid print config");

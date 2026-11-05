@@ -3343,7 +3343,7 @@ mod tests {
                 .iter()
                 .flat_map(|page| &page.systems)
                 .all(|system| {
-                    system.height_mm == 104.0
+                    system.height_mm >= 104.0
                         && system.top_mm >= 16.0
                         && system.top_mm + system.height_mm <= 281.0
                 })

@@ -675,6 +675,16 @@ fn musicxml_keeps_repeated_and_later_words_in_one_measure() {
 }
 
 #[test]
+fn musicxml_joins_words_split_around_an_incomplete_metronome() {
+    let direction = "<direction placement=\"above\"><direction-type><words>Sehr zart (</words></direction-type><direction-type><metronome><beat-unit>eighth</beat-unit><per-minute></per-minute></metronome></direction-type><direction-type><words>ca 112)</words></direction-type><sound tempo=\"56\"/></direction>";
+    let xml = SIMPLE_XML.replacen("<note", &format!("{direction}<note"), 1);
+    let score = parse_musicxml(&xml).expect("split tempo words");
+    let measure = &score.parts[0].staves[0].measures[0];
+    assert_eq!(measure.tempo_text.as_deref(), Some("Sehr zart ( ca 112)"));
+    assert_eq!(measure.texts.len(), 1);
+}
+
+#[test]
 fn musicxml_direction_offset_keeps_beat_after_roundtrip() {
     let direction = "<direction placement=\"above\"><direction-type><words>dolce</words></direction-type><offset>1</offset></direction>";
     let xml = SIMPLE_XML.replacen("<note>", &format!("{direction}<note>"), 1);
