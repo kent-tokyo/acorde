@@ -4170,9 +4170,15 @@ fn render_measure(
     }
     let clef_gaps = measure_clef_gap_offsets(score, measure_idx, total_beats);
     let clef_gap_px = (MID_CLEF_GAP_U * space).min(0.4 * content_w / clef_gaps.len().max(1) as f32);
+    let lyric_knots = if clef_gaps.is_empty() {
+        lyric_column_knots(score, measure_idx, total_beats, content_w, space)
+    } else {
+        Vec::new()
+    };
     let clef_gap_layout = ClefGaps {
         offsets: &clef_gaps,
         width: clef_gap_px,
+        knots: &lyric_knots,
     };
 
     let active_voices = measure
@@ -5110,11 +5116,29 @@ fn ottava_display_shifts(score: &Score) -> HashMap<NoteKey, i32> {
 struct ClefGaps<'a> {
     offsets: &'a [f64],
     width: f32,
+    /// Column-wide (beat, offset px) knots that replace proportional spacing in a bar with
+    /// lyrics; empty otherwise.
+    knots: &'a [(f64, f32)],
 }
 
 impl ClefGaps<'_> {
     /// x of a beat in a bar whose content spans `x0..x0 + w`.
     fn x(&self, x0: f32, w: f32, total_beats: f64, beat: f64) -> f32 {
+        if let Some(index) = self.knots.iter().rposition(|knot| knot.0 <= beat + 1e-9) {
+            let (left_beat, left_x) = self.knots[index];
+            let (right_beat, right_x) = self
+                .knots
+                .get(index + 1)
+                .copied()
+                .unwrap_or((total_beats, w));
+            let span = right_beat - left_beat;
+            let t = if span > 1e-9 {
+                ((beat - left_beat) / span) as f32
+            } else {
+                0.0
+            };
+            return x0 + left_x + (right_x - left_x) * t.clamp(0.0, 1.0);
+        }
         let gaps = self.offsets.len() as f32 * self.width;
         let before = self
             .offsets
@@ -5123,6 +5147,137 @@ impl ClefGaps<'_> {
             .count() as f32;
         x0 + (w - gaps) * (beat / total_beats) as f32 + before * self.width
     }
+}
+
+/// Beat-to-offset knots for a bar column with lyrics: every onset in any staff gets a column
+/// position, each gap between consecutive onsets keeps the lyric clearance its events need, and
+/// only room beyond that is shared out by duration. The same knots serve every staff, so
+/// simultaneous notes stay aligned. Empty when the bar has no lyrics or clearance cannot fit.
+fn lyric_column_knots(
+    score: &Score,
+    measure_idx: usize,
+    total_beats: f64,
+    content_w: f32,
+    space: f32,
+) -> Vec<(f64, f32)> {
+    let bars: Vec<&Measure> = score
+        .parts
+        .iter()
+        .flat_map(|part| &part.staves)
+        .filter_map(|staff| staff.measures.get(measure_idx))
+        .collect();
+    let has_lyrics = bars
+        .iter()
+        .flat_map(|bar| bar.voices.iter().flatten())
+        .any(|note| !note.hidden && (note.lyric.is_some() || !note.additional_lyrics.is_empty()));
+    if !has_lyrics || total_beats <= 0.0 || content_w <= 0.0 {
+        return Vec::new();
+    }
+    // Each voice's non-grace events with onsets.
+    let mut events: Vec<Vec<(f64, &Note)>> = Vec::new();
+    for bar in &bars {
+        for voice in &bar.voices {
+            let mut beat = 0.0;
+            let mut list = Vec::new();
+            for note in voice {
+                if !note.is_grace && !note.is_cue {
+                    list.push((beat, note));
+                    beat += note.beats();
+                }
+            }
+            if !list.is_empty() {
+                events.push(list);
+            }
+        }
+    }
+    let mut onsets: Vec<f64> = events.iter().flatten().map(|event| event.0).collect();
+    onsets.push(0.0);
+    onsets.sort_by(f64::total_cmp);
+    onsets.dedup_by(|a, b| (*a - *b).abs() < 1e-9);
+    onsets.retain(|&onset| onset < total_beats - 1e-9);
+    let index_of = |beat: f64| onsets.iter().position(|&onset| (onset - beat).abs() < 1e-9);
+    // Clearance needed from each onset to the next (and from the last onset to the bar end).
+    let mut needed = vec![0.0_f32; onsets.len()];
+    for list in &events {
+        for (position, &(beat, note)) in list.iter().enumerate() {
+            let Some(from) = index_of(beat) else { continue };
+            match list.get(position + 1) {
+                Some(&(next_beat, next)) => {
+                    let Some(to) = index_of(next_beat) else {
+                        continue;
+                    };
+                    if to <= from {
+                        continue;
+                    }
+                    // Spread the pair's clearance over the onset gaps it spans.
+                    let gap = event_pair_clearance_u(note, next) * space;
+                    let span: f64 = onsets[to] - onsets[from];
+                    for index in from..to {
+                        let next_onset = onsets[index + 1];
+                        let share = ((next_onset - onsets[index]) / span) as f32;
+                        needed[index] = needed[index].max(gap * share);
+                    }
+                }
+                None => {
+                    let half = note
+                        .lyric
+                        .iter()
+                        .chain(note.additional_lyrics.iter().map(|entry| &entry.lyric))
+                        .map(|lyric| lyric.text.chars().count() as f32 * LYRIC_CHAR_WIDTH_U / 2.0)
+                        .fold(0.25_f32, f32::max);
+                    for item in needed.iter_mut().skip(from) {
+                        *item = item.max(half * space / (onsets.len() - from) as f32);
+                    }
+                }
+            }
+        }
+    }
+    let rhythmic: Vec<f32> = onsets
+        .iter()
+        .enumerate()
+        .map(|(index, &onset)| {
+            let next = onsets.get(index + 1).copied().unwrap_or(total_beats);
+            content_w * ((next - onset) / total_beats) as f32
+        })
+        .collect();
+    let wanted: Vec<f32> = rhythmic
+        .iter()
+        .zip(&needed)
+        .map(|(r, n)| r.max(*n))
+        .collect();
+    let total_needed: f32 = needed.iter().sum();
+    let total_wanted: f32 = wanted.iter().sum();
+    if total_needed > content_w || needed.iter().zip(&rhythmic).all(|(n, r)| n <= r) {
+        // Clearance cannot fit, or proportional spacing already gives every gap its room.
+        return Vec::new();
+    }
+    let gaps: Vec<f32> = if total_wanted <= content_w {
+        // Widen the tight gaps and share what is left by duration.
+        let total_rhythmic: f32 = rhythmic.iter().sum();
+        wanted
+            .iter()
+            .zip(&rhythmic)
+            .map(|(want, r)| want + (content_w - total_wanted) * r / total_rhythmic)
+            .collect()
+    } else {
+        // Keep each gap's clearance and shrink only the room beyond it.
+        let keep = (content_w - total_needed) / (total_wanted - total_needed);
+        needed
+            .iter()
+            .zip(&wanted)
+            .map(|(need, want)| need + (want - need) * keep)
+            .collect()
+    };
+    let mut x = 0.0;
+    onsets
+        .iter()
+        .zip(&gaps)
+        .map(|(&onset, gap)| {
+            let knot = (onset, x);
+            x += gap;
+            knot
+        })
+        .collect()
 }
 
 /// Room left in a bar for a small mid-bar clef (u).

@@ -183,9 +183,9 @@ in the CHANGELOG under #391. Before → after:
   below: measures keep their lyric width, and the first syllable clears the barline. Quilter's
   `poco rall.` (bar 8) no longer sits on the tied chord, and `Fine` sits above the final slur.
   The script tracks neither slurs nor ties, so these were checked in 300 dpi rasters.
-- **Trade-off:** in a bar too dense for full lyric clearance, Acorde keeps each gap's clearance
-  and shrinks only the extra room after long notes. All of Aloha's syllables now sit on their
-  verse line, but in those bars the voice's short notes no longer line up exactly with the
-  piano's notes on the same beat.
+- **Lyric spacing:** in a bar with lyrics, every staff shares one beat-to-x map. Each gap
+  between consecutive onsets keeps the lyric clearance its events need, and only the room beyond
+  that is shared by duration. All of Aloha's syllables sit on their verse line, and the voice's
+  notes stay in column with the piano's notes on the same beat.
 - **Not a collision:** Acorde still uses more systems than Verovio on eight of ten scores. That
   comes from the corpus setting of at most four measures per system.
