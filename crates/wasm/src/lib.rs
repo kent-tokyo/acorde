@@ -60,9 +60,17 @@ fn score_to_json(score: &Score) -> Result<String, JsValue> {
     serde_json::to_string(score).map_err(|e| js_err(format!("score serialization failed: {e}")))
 }
 
+/// Parse SVG options; the config is `Some` only when an extended setting (`staff_gap`,
+/// `auto_beam_unmarked`, `smufl_font`) is present, so plain options keep the legacy path.
 fn svg_render_options(
     options_json: &str,
-) -> Result<(acorde_render_svg::SvgRenderOptions, Option<f32>, bool), JsValue> {
+) -> Result<
+    (
+        acorde_render_svg::SvgRenderOptions,
+        Option<acorde_render_svg::SvgRenderConfig>,
+    ),
+    JsValue,
+> {
     let value: serde_json::Value = parse_json(options_json, "options", MAX_OPTIONS_JSON_BYTES)?;
     let staff_gap = value
         .get("staff_gap")
@@ -79,32 +87,37 @@ fn svg_render_options(
         })
         .transpose()?
         .unwrap_or(false);
-    let options = serde_json::from_value(value)
+    let smufl_font = value
+        .get("smufl_font")
+        .map(|value| {
+            serde_json::from_value::<String>(value.clone())
+                .map_err(|error| js_err(format!("invalid smufl_font: {error}")))
+        })
+        .transpose()?;
+    let options: acorde_render_svg::SvgRenderOptions = serde_json::from_value(value)
         .map_err(|error| js_err(format!("invalid options JSON: {error}")))?;
-    Ok((options, staff_gap, auto_beam_unmarked))
-}
-
-fn svg_render_config(
-    options: acorde_render_svg::SvgRenderOptions,
-    staff_gap: Option<f32>,
-    auto_beam_unmarked: bool,
-) -> acorde_render_svg::SvgRenderConfig {
-    let mut config = acorde_render_svg::SvgRenderConfig::new(options);
+    if staff_gap.is_none() && !auto_beam_unmarked && smufl_font.is_none() {
+        return Ok((options, None));
+    }
+    let mut config = acorde_render_svg::SvgRenderConfig::new(options.clone());
     if let Some(staff_gap) = staff_gap {
         config = config.with_staff_gap(staff_gap);
     }
     if auto_beam_unmarked {
         config = config.with_auto_beams();
     }
-    config
+    if let Some(family) = smufl_font {
+        config = config.with_smufl_font(family);
+    }
+    Ok((options, Some(config)))
 }
 
 fn render_svg_from_json(score: &Score, options_json: &str) -> Result<String, JsValue> {
-    let (options, staff_gap, auto_beam_unmarked) = svg_render_options(options_json)?;
-    if staff_gap.is_some() || auto_beam_unmarked {
+    let (options, config) = svg_render_options(options_json)?;
+    if let Some(config) = config {
         acorde_render_svg::render_svg_with_config(
             score,
-            &svg_render_config(options, staff_gap, auto_beam_unmarked),
+            &config,
         )
         .map_err(js_err)
     } else {
@@ -825,12 +838,12 @@ pub fn render_score_svg_with_layout(
     let score = score_from_json(score_json)?;
     let layout: acorde_layout::LayoutResult =
         parse_json(layout_json, "layout", MAX_LAYOUT_JSON_BYTES)?;
-    let (options, staff_gap, auto_beam_unmarked) = svg_render_options(options_json)?;
-    if staff_gap.is_some() || auto_beam_unmarked {
+    let (options, config) = svg_render_options(options_json)?;
+    if let Some(config) = config {
         acorde_render_svg::render_svg_with_layout_config(
             &score,
             &layout,
-            &svg_render_config(options, staff_gap, auto_beam_unmarked),
+            &config,
         )
         .map_err(js_err)
     } else {
@@ -849,8 +862,8 @@ pub fn render_score_svg_row(
     let score = score_from_json(score_json)?;
     let layout: acorde_layout::LayoutResult =
         parse_json(layout_json, "layout", MAX_LAYOUT_JSON_BYTES)?;
-    let (options, staff_gap, auto_beam_unmarked) = svg_render_options(options_json)?;
-    if staff_gap.is_some() || auto_beam_unmarked {
+    let (options, config) = svg_render_options(options_json)?;
+    if let Some(config) = config {
             let mut subset = layout.clone();
             subset.rows = vec![
                 layout
@@ -862,7 +875,7 @@ pub fn render_score_svg_row(
             acorde_render_svg::render_svg_with_layout_config(
                 &score,
                 &subset,
-                &svg_render_config(options, staff_gap, auto_beam_unmarked),
+                &config,
             )
             .map_err(js_err)
     } else {
@@ -880,12 +893,12 @@ pub fn render_score_metadata(
     let score = score_from_json(score_json)?;
     let layout: acorde_layout::LayoutResult =
         parse_json(layout_json, "layout", MAX_LAYOUT_JSON_BYTES)?;
-    let (options, staff_gap, auto_beam_unmarked) = svg_render_options(options_json)?;
-    let metadata = if staff_gap.is_some() || auto_beam_unmarked {
+    let (options, config) = svg_render_options(options_json)?;
+    let metadata = if let Some(config) = config {
         acorde_render_svg::render_svg_metadata_with_config(
             &score,
             &layout,
-            &svg_render_config(options, staff_gap, auto_beam_unmarked),
+            &config,
         )
         .map_err(js_err)?
     } else {

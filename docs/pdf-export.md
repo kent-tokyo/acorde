@@ -24,6 +24,13 @@ not change the score model, access the filesystem, or access printer APIs.
 - SVG is limited to 16 MiB. Harumi receives it unchanged, so Bézier paths, elliptical arcs, and
   ellipses remain native vector geometry rather than being approximated into polylines.
 
+- SMuFL music-font glyphs (`SvgRenderConfig::with_smufl_font`) are not supported in PDF.
+  Harumi's SVG converter draws every `<text>` with the one caller-supplied font and ignores
+  `font-family`. Its page-text API could add a second font, but it rejects OpenType/CFF fonts, and
+  Bravura, Leipzig and Petaluma ship as CFF `.otf`. SVG containing Private Use Area text therefore
+  fails with `PdfError::MusicFontText` rather than printing missing glyphs. Render PDF input with
+  the default vector glyphs.
+
 ## Deliberate limits
 
 This is not a claim of publication-ready engraving or parity with Verovio. The page SVG path

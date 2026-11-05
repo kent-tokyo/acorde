@@ -18,6 +18,31 @@ let svg = render_svg(&Score::default(), &SvgRenderOptions::default())?;
 # Ok::<(), acorde_render_svg::RenderError>(())
 ```
 
+## SMuFL music fonts (opt-in)
+
+`SvgRenderConfig::new(options).with_smufl_font("Bravura")` draws music symbols as SMuFL code
+points in `<text font-family="Bravura" font-size="…">` elements instead of vector paths. No font
+is bundled: the host loads the family (for example with CSS `@font-face`). Without the setting the
+output is byte-identical to the vector renderer.
+
+- Mapped: G/F/C/percussion clefs; black, half, whole and breve noteheads plus X, plus, diamond,
+  triangle and slash heads; whole to 128th and breve rests; flats, naturals, sharps, double sharps
+  and double flats; combined 8th–128th flags; time-signature digits and common/cut time; dynamic
+  letters; staccato, accent, tenuto, marcato, fermata; trill, mordent, inverted mordent, turn and
+  inverted turn.
+- Everything else stays vector: stems, beams, barlines, ledger lines, slurs, ties, the longa,
+  longa rests, microtone markers, tuplet numbers and the remaining articulations.
+- Each glyph sits on its SMuFL origin: baseline on the staff line or pitch, one em equal to four
+  staff spaces. Articulations and ornaments are centred on the vector anchor using Bravura's
+  bounding boxes, so other fonts may sit slightly higher or lower.
+- Layout is unchanged: spacing still uses the vector glyph widths, so a wider or narrower font
+  glyph can crowd or leave extra space next to its neighbour.
+- `glyph_coverage_for(&SvgGlyphSource::Smufl { .. })` reports the resource id
+  `smufl:<family>`. `render_print_page_svgs_with_glyphs` accepts the source for print pages. A page
+  may then declare `GlyphResourcePolicy::HostProvided("smufl:<family>")`.
+- PDF export does not support SMuFL text yet. `acorde-pdf` rejects such SVG with
+  `PdfError::MusicFontText` instead of printing missing glyphs (see `docs/pdf-export.md`).
+
 For source files with unspecified eighth-note beams, use
 `render_svg_with_config(&score, &SvgRenderConfig::new(options).with_auto_beams())`.
 This groups short notes by the active meter for display only. Authored beams and explicit

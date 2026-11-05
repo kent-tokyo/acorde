@@ -33,7 +33,9 @@ OS printing belong to the consuming host.
   used in interactive and print SVGs. The text font supplied to the PDF backend can still
   differ from those estimates.
 - Built-in print export rejects host glyphs, image resources, frames, preserved colors,
-  crop marks, and unpositioned score text explicitly.
+  crop marks, and unpositioned score text explicitly. The one resolvable host glyph resource is
+  `smufl:<family>`, accepted only by `render_print_page_svgs_with_glyphs` with that same SMuFL
+  source; its glyphs are `<text>` in the host font, which PDF export does not yet support.
 - No caller-provided SVG/XML fragments are accepted as annotations.
 
 ## Metadata and colors

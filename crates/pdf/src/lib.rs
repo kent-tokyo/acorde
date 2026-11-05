@@ -44,6 +44,11 @@ pub enum PdfError {
     Render(#[from] RenderError),
     #[error("Harumi PDF rendering failed: {0}")]
     Harumi(#[from] harumi::Error),
+    /// The SVG contains Private Use Area text such as SMuFL music-font code points. Harumi draws
+    /// every `<text>` with the single caller-supplied text font, so they would print as missing
+    /// glyphs; render PDF input with the default vector glyph source instead.
+    #[error("SVG contains SMuFL/Private Use Area text that the PDF text font cannot draw")]
+    MusicFontText,
 }
 
 /// A typed failure while flattening a generated SVG path into Harumi's portable subset.
@@ -280,6 +285,14 @@ pub fn normalize_svg_for_harumi(svg: &str) -> Result<String, PdfError> {
 
 fn normalize_svg_rotated_ellipses(svg: &str) -> Result<String, PdfError> {
     let document = Document::parse(svg)?;
+    if document.descendants().any(|node| {
+        node.is_text()
+            && node
+                .text()
+                .is_some_and(|text| text.chars().any(|c| ('\u{E000}'..='\u{F8FF}').contains(&c)))
+    }) {
+        return Err(PdfError::MusicFontText);
+    }
     let mut output = String::with_capacity(svg.len());
     serialize_children(document.root(), &mut output, false)?;
     Ok(output)
@@ -928,6 +941,19 @@ mod tests {
         SvgPdfPage, export_print_layout_pdf, export_score_pdf, export_score_print_pdf,
         export_svg_pages_pdf, normalize_svg_for_harumi,
     };
+
+    #[test]
+    fn smufl_text_is_rejected_instead_of_printing_missing_glyphs() {
+        let score = Score::new("", 120, 4, 4, 0, 1);
+        let config = acorde_render_svg::SvgRenderConfig::new(SvgRenderOptions::default())
+            .with_smufl_font("Bravura");
+        let svg = acorde_render_svg::render_svg_with_config(&score, &config).unwrap();
+        let font = include_bytes!("../tests/fixtures/Tuffy.ttf");
+        assert!(matches!(
+            super::export_svg_pdf(&svg, &PdfRenderOptions::new(font)),
+            Err(PdfError::MusicFontText)
+        ));
+    }
 
     #[test]
     fn adjacent_triplets_remain_separate_in_pdf_source() {

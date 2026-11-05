@@ -170,6 +170,9 @@ fn json_bindings_share_layout_print_and_edit_contracts() {
     let svg = bindings::render_score_svg(&score_json, "{}").unwrap();
     let with_layout = bindings::render_score_svg_with_layout(&score_json, &layout, "{}").unwrap();
     assert_eq!(svg, with_layout);
+    let smufl = bindings::render_score_svg(&score_json, r#"{"smufl_font":"Bravura"}"#).unwrap();
+    assert!(smufl.contains(r#"font-family="Bravura""#) && smufl.contains("&#xE050;"));
+    assert!(!svg.contains("&#xE"));
     let custom = r#"{"staff_gap":9.0,"auto_beam_unmarked":true}"#;
     assert!(
         bindings::render_score_svg_with_layout(&score_json, &layout, custom)

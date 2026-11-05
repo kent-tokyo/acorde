@@ -11,7 +11,7 @@ use acorde_layout::{
 };
 
 use crate::render::{self, PrintRowPlacement};
-use crate::{RenderError, SvgRenderConfig, SvgRenderOptions, is_valid_xml_char};
+use crate::{RenderError, SvgGlyphSource, SvgRenderConfig, SvgRenderOptions, is_valid_xml_char};
 
 const PX_PER_MM: f32 = 4.0;
 const PRINT_STAFF_GAP: f32 = 6.0;
@@ -108,6 +108,17 @@ pub fn render_print_page_svgs(
     score: &Score,
     layout: &PrintLayoutResult,
 ) -> Result<Vec<String>, PrintRenderError> {
+    render_print_page_svgs_with_glyphs(score, layout, &SvgGlyphSource::Vector)
+}
+
+/// [`render_print_page_svgs`] with a selected glyph source. With
+/// [`SvgGlyphSource::Smufl`], pages may declare `GlyphResourcePolicy::HostProvided` with exactly
+/// the source's resource id (`smufl:<family>`); any other host resource is still rejected.
+pub fn render_print_page_svgs_with_glyphs(
+    score: &Score,
+    layout: &PrintLayoutResult,
+    glyphs: &SvgGlyphSource,
+) -> Result<Vec<String>, PrintRenderError> {
     layout.validate()?;
     // Match the staff-aware layout's extra page reservation for an additional
     // lyric lane. A fixed-height layout may instead fail the legibility preflight.
@@ -161,7 +172,13 @@ pub fn render_print_page_svgs(
                 page_index: page.page_index,
             });
         }
-        if !matches!(page.glyph_resources, GlyphResourcePolicy::BuiltInVector) {
+        let resolved = match &page.glyph_resources {
+            GlyphResourcePolicy::BuiltInVector => true,
+            GlyphResourcePolicy::HostProvided(id) => {
+                glyphs.smufl_family().is_some() && *id == glyphs.resource_id()
+            }
+        };
+        if !resolved {
             return Err(PrintRenderError::UnsupportedResource {
                 page_index: page.page_index,
                 kind: "glyph resource",
@@ -281,7 +298,8 @@ pub fn render_print_page_svgs(
     };
     let config = SvgRenderConfig::new(options)
         .with_staff_gap(staff_gap)
-        .with_measure_text_scale(3.0);
+        .with_measure_text_scale(3.0)
+        .with_glyph_source(glyphs.clone());
     let row_tops_px = row_tops_mm
         .iter()
         .map(|top| top * PX_PER_MM + top_u * space_px)
