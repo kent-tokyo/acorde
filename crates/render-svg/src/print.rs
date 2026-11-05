@@ -273,6 +273,7 @@ pub fn render_print_page_svgs_with_glyphs(
     }
     score_layout.rows = rows;
     let staff_gap = render::required_hairpin_staff_gap(score, &score_layout, staff_gap);
+    let staff_gap = render::required_lyric_staff_gap(score, staff_gap);
     let (top_u, system_u, bottom_u) = render::print_row_metrics(score, &score_layout, staff_gap)?;
     let required_u = top_u + system_u + bottom_u;
     let minimum_mm = required_u * MIN_STAFF_SPACE_MM;

@@ -4662,9 +4662,14 @@ mod wasm_tests {
         .unwrap()
         .export_page_render_trees(&Score::default())
         .unwrap();
+        // Compare both through JSON text: f32 fields print shortest-form there, while
+        // `to_value` widens them to f64 (38.4 vs 38.400001525878906).
         assert_eq!(
             serde_json::from_str::<serde_json::Value>(&page_trees).unwrap(),
-            serde_json::to_value(native_trees).unwrap()
+            serde_json::from_str::<serde_json::Value>(
+                &serde_json::to_string(&native_trees).unwrap()
+            )
+            .unwrap()
         );
         assert!(compute_print_layout(&score_json, "not-json").is_err());
         assert!(render_score_svg_with_layout("{}", &layout_json, "{}").is_err());
