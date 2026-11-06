@@ -70,7 +70,8 @@ first candidate selected 44. [PR #403](https://github.com/kent-tokyo/acorde/pull
 adds an opt-in tonal-profile ranking;
 its development-corpus result must not be treated as holdout accuracy.
 
-First resolve Acorde's eight additional parse failures and four paired
+First resolve Acorde's eight additional parse failures
+([PR #405](https://github.com/kent-tokyo/acorde/pull/405)) and four paired
 note-count differences. Freeze a different labeled key corpus before tuning
 further, and compare a single selected key per score with parse coverage shown.
 Next add independently annotated harmony, cadence and voice-leading fixtures;
