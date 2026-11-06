@@ -56,3 +56,9 @@ labels, music21's single estimate matched 74 labels and Acorde's first
 candidate matched 44. Acorde included the label among tied candidates in 76,
 which is not single-key accuracy. The result is limited to this corpus and
 does not cover harmony or cadence analysis.
+
+An [opt-in tonal-profile ranking](archive/analysis-bcmh-key-profile.md) orders
+the same tied candidates. Its first choice matched 74 of the same 80 labels,
+equal to music21 on this development corpus. This is not an independent
+holdout result; parser coverage and other analysis categories remain separate
+gates.
