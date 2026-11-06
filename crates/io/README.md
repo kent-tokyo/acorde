@@ -11,6 +11,8 @@ or bytes; this crate never opens files. The CLI owns paths and file handles.
 | `mei` | no | Bounded MEI import/export |
 | `mscz` | no | MSCX/MSCZ canonical-subset import/export |
 | `gp` | no | Guitar Pro 3–8 import only |
+| `humdrum` | no | Humdrum `**kern` import only (`parse_kern`), bounded subset |
+| `pae` | no | Plaine & Easie incipit import only (`parse_pae`), bounded subset |
 
 The default calls are `parse_musicxml`, `parse_mxl`, `serialize_musicxml`, `parse_midi`,
 `serialize_midi`, and `serialize_midi_region`. Optional formats follow the same naming pattern.
@@ -38,7 +40,7 @@ let output = serialize_musicxml(&score)?;
 ## Interchange policy
 
 MusicXML/MXL is the broadest path. MIDI projects timed events into a score and is not a notation
-round-trip format. ABC, MEI, MSCX/MSCZ, and Guitar Pro use documented subsets. Preserve the source
+round-trip format. ABC, MEI, MSCX/MSCZ, Guitar Pro, Humdrum `**kern`, and PAE use documented subsets. Preserve the source
 file and inspect typed reports whenever vendor extensions, exact placement, complex TAB semantics,
 or byte identity matter.
 

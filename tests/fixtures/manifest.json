@@ -267,6 +267,30 @@
       "expected_losses": ["unsupported ABC header and decoration extensions"]
     },
     {
+      "path": "chorale_excerpt.krn",
+      "format": "humdrum",
+      "license": "self-authored (CC0-1.0)",
+      "sha256": "8232341a8cdc4c3e88300c4916f41641cd40618226865b15bf7fddbc207f1df4",
+      "round_trip": "semantic",
+      "expected_losses": []
+    },
+    {
+      "path": "incipit_compact.pae",
+      "format": "pae",
+      "license": "self-authored (CC0-1.0)",
+      "sha256": "bb41daf9db0b85924258a003878b3ae23c008cb912b0530555c3cd489b9bed0e",
+      "round_trip": "semantic",
+      "expected_losses": []
+    },
+    {
+      "path": "incipit_fields.pae",
+      "format": "pae",
+      "license": "self-authored (CC0-1.0)",
+      "sha256": "1485354756e46c476399d353ca23b996a81d578f4659eb9499d9a07e3057f5f7",
+      "round_trip": "semantic",
+      "expected_losses": []
+    },
+    {
       "path": "program_change_piano_violin.mid",
       "format": "midi",
       "license": "self-authored",

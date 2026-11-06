@@ -1,4 +1,4 @@
-//! MusicXML, MIDI, ABC notation, and MuseScore (.mscz/.mscx) parsers and serializer for
+//! MusicXML, MIDI, ABC notation, Humdrum **kern, Plaine & Easie, and MuseScore (.mscz/.mscx) parsers and serializer for
 //! [`acorde-core`](https://docs.rs/acorde-core) [`Score`](https://docs.rs/acorde-core/latest/acorde_core/struct.Score.html)
 //! values. Feature-gated per format; accepts `&str`/`&[u8]`, never touches the filesystem.
 
@@ -11,6 +11,8 @@ mod error;
 mod gap;
 #[cfg(feature = "gp")]
 pub mod gp;
+#[cfg(feature = "humdrum")]
+pub mod humdrum;
 #[cfg(feature = "mei")]
 pub mod mei;
 #[cfg(feature = "midi")]
@@ -19,6 +21,8 @@ pub mod midi;
 pub mod mscz;
 #[cfg(feature = "musicxml")]
 pub mod musicxml;
+#[cfg(feature = "pae")]
+pub mod pae;
 mod report;
 
 /// Baseline limit for uncompressed non-archive parser inputs.
@@ -197,6 +201,12 @@ pub fn serialize_abc_with_report(
     })
 }
 
+#[cfg(feature = "humdrum")]
+pub use humdrum::{parse_kern, parse_kern_with_report};
+
+#[cfg(feature = "pae")]
+pub use pae::{parse_pae, parse_pae_with_report};
+
 #[cfg(feature = "mscz")]
 pub use mscz::{parse_mscx, parse_mscz, serialize_mscx, serialize_mscz};
 
@@ -248,6 +258,76 @@ pub fn parse_mscz_with_report(data: &[u8]) -> Result<ImportReport, Error> {
         score,
         diagnostics,
     })
+}
+
+/// Diagnostic cap shared by the Humdrum and PAE importers, so garbage input cannot grow the
+/// report without bound.
+#[cfg(any(feature = "humdrum", feature = "pae"))]
+pub(crate) const MAX_TEXT_DIAGNOSTICS: usize = 1_024;
+
+/// Push a located import diagnostic unless the cap is reached.
+#[cfg(any(feature = "humdrum", feature = "pae"))]
+pub(crate) fn push_text_diagnostic(
+    diagnostics: &mut Vec<Diagnostic>,
+    code: &str,
+    reason: &str,
+    location: String,
+    value: &str,
+) {
+    if diagnostics.len() >= MAX_TEXT_DIAGNOSTICS {
+        return;
+    }
+    let mut diagnostic = Diagnostic::warning(code, reason);
+    diagnostic.source_location = Some(location);
+    diagnostic.preserved_value = Some(value.to_string());
+    diagnostics.push(diagnostic);
+}
+
+/// Sum of the timed beats in one voice.
+#[cfg(any(feature = "humdrum", feature = "pae"))]
+pub(crate) fn voice_beats(voice: &[acorde_core::Note]) -> f64 {
+    voice.iter().map(acorde_core::Note::beats).sum()
+}
+
+/// Pad `voice` with rests up to `target` beats (never overfilling past a sixty-fourth).
+#[cfg(any(feature = "humdrum", feature = "pae"))]
+pub(crate) fn pad_voice_to(voice: &mut Vec<acorde_core::Note>, target: f64, hidden: bool) {
+    use acorde_core::{Duration, Note};
+    let mut used = voice_beats(voice);
+    while target - used >= Duration::SixtyFourth.beats(0) - 1e-9 {
+        let mut rest = Note::rest(Duration::whole_filling_beats(target - used));
+        rest.hidden = hidden;
+        used += rest.beats();
+        voice.push(rest);
+    }
+}
+
+/// Close a bar of a line-oriented text format: an empty first voice gets visible rests for
+/// `length` beats, other short voices get hidden spacer rests, and a bar whose length differs
+/// from the meter (or has no meter) records it as `actual_length`.
+#[cfg(any(feature = "humdrum", feature = "pae"))]
+pub(crate) fn finish_text_measure(
+    measure: &mut acorde_core::Measure,
+    length: f64,
+    meter_beats: Option<f64>,
+) {
+    for (index, voice) in measure.voices.iter_mut().enumerate() {
+        if index == 0 || !voice.is_empty() {
+            let hidden = !voice.is_empty();
+            pad_voice_to(voice, length, hidden);
+        }
+    }
+    if meter_beats.is_none_or(|meter| (meter - length).abs() > 1e-6) {
+        measure.actual_length = acorde_core::MeasureLength::from_beats(length);
+    }
+}
+
+/// A bar with no notes, ready for a text importer to fill.
+#[cfg(any(feature = "humdrum", feature = "pae"))]
+pub(crate) fn blank_measure() -> acorde_core::Measure {
+    let mut measure = acorde_core::Measure::empty(4, 4);
+    measure.voices[0].clear();
+    measure
 }
 
 /// Place a note's imported lyrics by verse number: verse 1 becomes `Note.lyric` and higher verses
