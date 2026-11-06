@@ -273,7 +273,10 @@ jobs:
           # Print quality (#391): numbered wedges, justified systems, lyric staff
           # gaps, slur/tie-aware text and column-wide lyric spacing measured
           # 7,082,526 bytes on Linux CI (+63,083); keep about 6.5 KB headroom.
-          test "$size" -le 7089000
+          # Opt-in SMuFL glyph text (#393) adds 5,335 bytes on macOS
+          # (6,987,726 -> 6,993,061). Merged with #391 it measured 7,087,815
+          # bytes on Linux CI (+5,289); keep about 7 KB headroom.
+          test "$size" -le 7095000
 
   renderer-benchmark:
     name: Renderer performance budget

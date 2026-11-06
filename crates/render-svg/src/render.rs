@@ -20,6 +20,7 @@ use crate::beams;
 use crate::collision;
 use crate::geometry;
 use crate::glyphs::{self, f};
+use crate::smufl;
 use crate::tuplets;
 use crate::{
     AddressBounds, HarmonyRangeMetadata, NoteSemanticMetadata, RenderAnnotation,
@@ -413,6 +414,20 @@ pub(crate) fn build_svg_with_metadata_placement(
             reason: "measure_text_scale must be finite and positive".into(),
         });
     }
+    let music_font = config.glyph_source().smufl_family();
+    if music_font.is_some_and(|family| {
+        family.trim().is_empty()
+            || family.len() > 256
+            || family
+                .chars()
+                .any(|c| !crate::is_valid_xml_char(c) || c.is_control())
+    }) {
+        return Err(RenderError::InvalidOptions {
+            reason: "SMuFL font family must be non-empty printable text of at most 256 bytes"
+                .into(),
+        });
+    }
+    let _music_font = smufl::scope(music_font);
     if options.measures_per_system == 0 {
         return Err(RenderError::InvalidOptions {
             reason: "measures_per_system must be positive".into(),
@@ -3541,6 +3556,14 @@ fn write_time_signature(
         (Some(TimeSymbol::Common), 4, 4) | (Some(TimeSymbol::Cut), 2, 2)
     ) {
         let cut = symbol == Some(TimeSymbol::Cut);
+        if let Some(glyph) = smufl::time_symbol(cut, x, top_y + 2.0 * space, space) {
+            let _ = write!(
+                body,
+                r#"<g class="acorde-time-sig acorde-time-symbol" data-symbol="{}">{glyph}</g>"#,
+                if cut { "cut" } else { "common" }
+            );
+            return;
+        }
         let _ = write!(
             body,
             r#"<g class="acorde-time-sig acorde-time-symbol" data-symbol="{}"><path d="M {} {} C {} {} {} {} {} {} C {} {} {} {} {} {} C {} {} {} {} {} {} C {} {} {} {} {} {}" fill="none" stroke="black" stroke-width="{}" stroke-linecap="round"/>"#,
@@ -3627,7 +3650,10 @@ fn write_number(body: &mut String, n: u8, x: f32, top_y: f32, space: f32) {
     };
     let mut dx = x;
     for d in digits {
-        body.push_str(&glyphs::digit(d, dx, top_y, space));
+        body.push_str(
+            &smufl::time_digit(d, dx, top_y, space)
+                .unwrap_or_else(|| glyphs::digit(d, dx, top_y, space)),
+        );
         dx += glyphs::DIGIT_WIDTH_U * space;
     }
 }
@@ -9077,13 +9103,17 @@ fn render_tab_rhythm(
         } else {
             -glyphs::NOTEHEAD_RX_U * space * 0.92
         };
-        for flag in 0..flag_count {
-            body.push_str(&glyphs::flag(
-                x + stem_x_offset,
-                tip_y + direction * flag as f32 * 0.45 * space,
-                space,
-                stem_up,
-            ));
+        if let Some(glyph) = smufl::flags(x + stem_x_offset, tip_y, space, stem_up, flag_count) {
+            body.push_str(&glyph);
+        } else {
+            for flag in 0..flag_count {
+                body.push_str(&glyphs::flag(
+                    x + stem_x_offset,
+                    tip_y + direction * flag as f32 * 0.45 * space,
+                    space,
+                    stem_up,
+                ));
+            }
         }
         body.push_str("</g>");
     }
@@ -9883,6 +9913,10 @@ pub(crate) fn render_articulation(
     dir: f32,
     space: f32,
 ) {
+    if let Some(glyph) = smufl::articulation(articulation, x, y, dir, space) {
+        body.push_str(&glyph);
+        return;
+    }
     match articulation {
         // Slides into and out of the note are drawn at the notehead (`render_chord_lines`).
         acorde_core::Articulation::Scoop
@@ -10536,7 +10570,10 @@ fn render_rest(
         ),
     };
     let _ = flags;
-    body.push_str(&glyph);
+    match smufl::rest(duration, x, mid_y, space) {
+        Some(smufl_glyph) => body.push_str(&smufl_glyph),
+        None => body.push_str(&glyph),
+    }
     for d in 0..dot_count {
         body.push_str(&glyphs::augmentation_dot(
             x + (0.55 + 0.25 * d as f32) * space,
@@ -10733,6 +10770,22 @@ fn render_pitched_note_stem_and_flags(context: &mut PitchedNoteStemContext<'_>) 
     );
     let stem_svg = glyphs::stem_to(context.x, notehead_y, tip_y, context.space, context.stem_up);
     context.body.push_str(&stem_svg);
+    let x_off = glyphs::NOTEHEAD_RX_U * context.space * 0.92;
+    let stem_x = if context.stem_up {
+        context.x + x_off
+    } else {
+        context.x - x_off
+    };
+    if let Some(glyph) = smufl::flags(
+        stem_x,
+        tip_y,
+        context.space,
+        context.stem_up,
+        usize::from(context.flag_count),
+    ) {
+        context.body.push_str(&glyph);
+        return;
+    }
     for i in 0..context.flag_count {
         let fy = tip_y
             + if context.stem_up {
@@ -10858,17 +10911,19 @@ fn render_pitched_note_heads(
     // Noteheads.
     for (pitch_index, &p) in positions.iter().enumerate() {
         let y = staff_bottom_y + geometry::position_y(p, space);
-        body.push_str(&glyphs::notehead_shape(
-            &note.note_head,
-            x + notehead_offsets[pitch_index] * space,
-            y,
-            space,
-            filled,
-        ));
+        let head_x = x + notehead_offsets[pitch_index] * space;
+        let smufl_head = smufl::notehead(&note.note_head, &note.duration, filled, head_x, y, space);
+        let drew_smufl_head = smufl_head.is_some();
+        body.push_str(
+            &smufl_head.unwrap_or_else(|| {
+                glyphs::notehead_shape(&note.note_head, head_x, y, space, filled)
+            }),
+        );
         if pitch_index == 0 {
             render_chord_lines(body, note, x + notehead_offsets[0] * space, y, space);
         }
-        if matches!(note.duration, Duration::Breve | Duration::Longa) {
+        // SMuFL's `noteheadDoubleWhole` already carries the breve's bars.
+        if !drew_smufl_head && matches!(note.duration, Duration::Breve | Duration::Longa) {
             // A longa uses the same bounded fallback as a breve: a whole-note head between bars.
             let cx = x + notehead_offsets[pitch_index] * space;
             for side in [-1.0_f32, 1.0] {

@@ -57,6 +57,12 @@ short notes whose beam state was unspecified. The option applies to full-score, 
 and row rendering without changing Score JSON, playback, or export data. Explicit beams and
 explicitly unbeamed notes are preserved. The default is `false`.
 
+Pass `"smufl_font": "Bravura"` to draw clefs, noteheads, rests, accidentals, flags, time
+signatures, dynamics, articulations and ornaments as SMuFL code points in that font family. The
+host must load the font itself (for example with `@font-face`); none is bundled. Unmapped symbols
+stay vector, spacing still follows the vector glyphs, and an empty family returns an error. See
+the `acorde-render-svg` README for the mapped set.
+
 `to_playback_events_ex` produces the expected score schedule; it does not synthesize audio.
 `compute_playback_position` maps elapsed time to a typed musical position using the same tempo-ramp
 calculation. A host can compare its scheduler trace through `compare_playback_timing`; the default

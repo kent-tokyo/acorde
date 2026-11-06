@@ -32,6 +32,7 @@ mod geometry;
 mod glyphs;
 mod print;
 mod render;
+mod smufl;
 mod spans;
 mod tab_technique;
 mod tuplets;
@@ -48,7 +49,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::ops::Deref;
 
-pub use print::{PrintRenderError, render_print_page_svgs};
+pub use print::{PrintRenderError, render_print_page_svgs, render_print_page_svgs_with_glyphs};
 
 /// Version of the browser-facing [`RenderMetadata`] contract.
 pub const SVG_CONTRACT_VERSION: u32 = 22;
@@ -137,6 +138,41 @@ pub struct SvgRenderConfig {
     measure_text_scale: f32,
     system_breaking: SvgSystemBreakStrategy,
     auto_beam_unmarked: bool,
+    glyph_source: SvgGlyphSource,
+}
+
+/// Where music symbols (clefs, noteheads, rests, accidentals, flags, time-signature digits,
+/// dynamics, articulations, ornaments) come from.
+///
+/// [`Vector`](Self::Vector) is the default, font-independent glyph set. [`Smufl`](Self::Smufl)
+/// emits SMuFL code points as `<text font-family="…">` so a host-supplied music font (Bravura,
+/// Leipzig, Petaluma, …) draws them. No font is bundled: the host must make the family available
+/// (CSS `@font-face` in a browser). Symbols without a SMuFL mapping, plus stems, beams, barlines,
+/// ledger lines and slurs, stay vector. Spacing still uses the vector glyph metrics.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub enum SvgGlyphSource {
+    #[default]
+    Vector,
+    Smufl {
+        family: String,
+    },
+}
+
+impl SvgGlyphSource {
+    /// Stable resource id: [`BUILTIN_GLYPH_RESOURCE_ID`] or `smufl:<family>`.
+    pub fn resource_id(&self) -> String {
+        match self {
+            Self::Vector => BUILTIN_GLYPH_RESOURCE_ID.to_owned(),
+            Self::Smufl { family } => format!("smufl:{family}"),
+        }
+    }
+
+    pub(crate) fn smufl_family(&self) -> Option<&str> {
+        match self {
+            Self::Vector => None,
+            Self::Smufl { family } => Some(family),
+        }
+    }
 }
 
 /// Strategy used when SVG rendering computes system breaks itself.
@@ -161,7 +197,24 @@ impl SvgRenderConfig {
             measure_text_scale: 1.0,
             system_breaking: SvgSystemBreakStrategy::FixedMeasureCount,
             auto_beam_unmarked: false,
+            glyph_source: SvgGlyphSource::Vector,
         }
+    }
+
+    /// Draw music symbols with SMuFL code points in the host-supplied font `family`.
+    pub fn with_smufl_font(self, family: impl Into<String>) -> Self {
+        self.with_glyph_source(SvgGlyphSource::Smufl {
+            family: family.into(),
+        })
+    }
+
+    pub fn with_glyph_source(mut self, source: SvgGlyphSource) -> Self {
+        self.glyph_source = source;
+        self
+    }
+
+    pub fn glyph_source(&self) -> &SvgGlyphSource {
+        &self.glyph_source
     }
 
     /// Set the clear distance between consecutive staves, in staff spaces.
@@ -499,9 +552,15 @@ pub struct GlyphCoverage {
 
 /// Describe the deterministic, font-independent glyphs shipped by this renderer.
 pub fn glyph_coverage() -> GlyphCoverage {
+    glyph_coverage_for(&SvgGlyphSource::Vector)
+}
+
+/// [`glyph_coverage`] for a selected glyph source; only `resource_id` differs. Vector glyphs
+/// remain the fallback for symbols without a SMuFL mapping, so the coverage is unchanged.
+pub fn glyph_coverage_for(source: &SvgGlyphSource) -> GlyphCoverage {
     GlyphCoverage {
         contract_version: GLYPH_COVERAGE_CONTRACT_VERSION,
-        resource_id: BUILTIN_GLYPH_RESOURCE_ID.to_owned(),
+        resource_id: source.resource_id(),
         vector_glyphs: true,
         supported_clefs: vec![
             "treble".to_owned(),

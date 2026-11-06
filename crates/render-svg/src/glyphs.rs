@@ -13,6 +13,8 @@ use std::fmt::Write as _;
 
 use acorde_core::NoteHead;
 
+use crate::smufl;
+
 /// Format a coordinate/length with fixed precision — keeps `sin`/`cos`-derived glyph
 /// geometry stable across platforms (ULP-level differences vanish at 2 decimals).
 pub(crate) fn f(v: f32) -> String {
@@ -42,6 +44,9 @@ fn stroked(
 /// the bottom line), a spine rising to a loop above the staff, and a tail ending in a ball
 /// below it. `ox,oy` = the staff's bottom-line origin (px); `space` = staff_size.
 pub(crate) fn clef_treble(ox: f32, oy: f32, space: f32) -> String {
+    if let Some(svg) = smufl::clef_treble(ox, oy, space) {
+        return svg;
+    }
     let path = stroked(
         "acorde-clef acorde-clef-treble",
         &[
@@ -88,6 +93,9 @@ pub(crate) fn clef_treble(ox: f32, oy: f32, space: f32) -> String {
 /// Bass (F) clef: a ball on the F3 line (the fourth line), a hook sweeping right and down,
 /// and two dots either side of the F line.
 pub(crate) fn clef_bass(ox: f32, oy: f32, space: f32) -> String {
+    if let Some(svg) = smufl::clef_bass(ox, oy, space) {
+        return svg;
+    }
     let path = stroked(
         "acorde-clef-bass-hook",
         &[
@@ -124,6 +132,9 @@ pub(crate) fn clef_bass(ox: f32, oy: f32, space: f32) -> String {
 /// meeting at the reference line. `mid_position_u` is that line's height in staff spaces
 /// above the bottom line (2.0 alto, 3.0 tenor).
 pub(crate) fn clef_c(ox: f32, oy: f32, space: f32, mid_position_u: f32) -> String {
+    if let Some(svg) = smufl::clef_c(ox, oy, space, mid_position_u) {
+        return svg;
+    }
     let m = -mid_position_u;
     let upper = [
         (0.62, m),
@@ -170,6 +181,9 @@ pub(crate) fn clef_c(ox: f32, oy: f32, space: f32, mid_position_u: f32) -> Strin
 
 /// Percussion clef: two deterministic vertical bars spanning the five-line staff.
 pub(crate) fn clef_percussion(ox: f32, oy: f32, space: f32) -> String {
+    if let Some(svg) = smufl::clef_percussion(ox, oy, space) {
+        return svg;
+    }
     let top_y = oy - 4.0 * space;
     let x1 = ox + 0.35 * space;
     let x2 = ox + 0.85 * space;
@@ -406,6 +420,20 @@ pub(crate) fn beam_segment(x1: f32, y1: f32, x2: f32, y2: f32, thickness: f32) -
 /// Returns `None` for `alter == 0` when no explicit natural is being drawn by the caller
 /// (callers decide whether alter=0 means "draw a natural sign" or "draw nothing").
 pub(crate) fn accidental(alter: i8, cx: f32, cy: f32, space: f32) -> String {
+    if let Some(glyph) = smufl::accidental(alter, cx, cy, space) {
+        let kind = match alter {
+            -2 => "double-flat",
+            -1 => "flat",
+            0 => "natural",
+            1 => "sharp",
+            _ => "double-sharp",
+        };
+        return format!(
+            r#"<g class="acorde-accidental acorde-{kind}" data-x="{}" data-y="{}">{glyph}</g>"#,
+            f(cx),
+            f(cy)
+        );
+    }
     match alter {
         1 => sharp(cx, cy, space),
         -1 => flat(cx, cy, space),
@@ -999,13 +1027,17 @@ pub(crate) fn dynamic_mark(
     if letters.is_empty() {
         return None;
     }
-    let total: f32 = letters.iter().map(|(_, advance)| advance).sum();
-    let mut x = cx - total * space / 2.0;
-    let mut out = format!(
+    let open = format!(
         r#"<g class="{class}" data-text="{text}" data-x="{}" data-baseline="{}">"#,
         f(cx),
         f(baseline)
     );
+    if let Some(glyphs) = smufl::dynamic_letters(text, cx, baseline, space) {
+        return Some(format!("{open}{glyphs}</g>"));
+    }
+    let total: f32 = letters.iter().map(|(_, advance)| advance).sum();
+    let mut x = cx - total * space / 2.0;
+    let mut out = open;
     for (strokes, advance) in &letters {
         let borrowed: Vec<(char, &[(f32, f32)])> = strokes
             .iter()
