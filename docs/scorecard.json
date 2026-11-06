@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "release": "1.3.9",
-  "base_release": "1.3.8",
+  "release": "1.3.10",
+  "base_release": "1.3.9",
   "contracts": {
     "svg_render_metadata": 22,
     "analysis_result": 13,
@@ -40,6 +40,8 @@
     "headless_transpose": "yes",
     "headless_extract_part": "yes",
     "headless_export_report": "yes",
+    "mcp_local_stdio": "yes",
+    "mcp_reviewed_editing": "yes",
     "print_pagination": "yes",
     "print_layout_wasm": "yes",
     "pdf_export": "partial",

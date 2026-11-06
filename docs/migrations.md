@@ -11,7 +11,30 @@ struct literals must still update for added variants and fields.
 > longer compile in 1.2.19 or 1.2.20, despite the patch version. Pin `=1.2.18` or migrate the
 > literal before updating; do not assume a later 1.2 patch restores the old literal form.
 
-## Unreleased: positioned figured-bass groups
+## v1.3.10: Rust source compatibility and saved arrangements
+
+The minimum supported Rust version remains 1.89. This patch release adds public fields to
+`Measure` (`figured_bass_groups`), `Note` (`pitch_incoming_partial_ties`,
+`pitch_tie_sources`), `ScoreFragmentMeasureAttributes` (`figured_bass_groups`),
+`PrintConfig` (`system_spacing`), `StandardBassCandidate` (`label`, `realization`),
+and standard-bass arrangement options/results (`harmony_source`, `edition_kinds`).
+Complete Rust struct literals need the new fields. `ScoreChange::FiguredBassGroupsChanged`,
+`ScorePatch::SetFiguredBassGroups`, `SvgGlyphSource::Smufl`, and
+`PdfError::MusicFontText` require updates to exhaustive matches. Serde defaults let newer
+versions read older score JSON; they do not preserve Rust source compatibility or make
+new values readable by older consumers.
+
+`PrintConfig.system_spacing` defaults to `Justified`, so page geometry can change even
+without a caller option. Set `SystemSpacing::Packed` to retain packed placement.
+SMuFL SVG output needs a host-supplied music font; the current PDF adapter rejects it
+with `MusicFontText`. The default vector SVG glyphs remain unchanged.
+
+Preset and free-layer engine markers include the workspace version. Reselect saved chords,
+presets, and layer options to create 1.3.10 configurations before replaying them. The
+local `acorde mcp` server is available through the CLI; hosts that depended on the old
+CLI subcommand set should account for its additional `mcp` command.
+
+## v1.3.10: positioned figured-bass groups
 
 `Measure::figured_bass_groups` retains separate MusicXML figure groups, their beat positions,
 explicit durations, following-note voice slots, and per-figure extender types. Older JSON defaults
@@ -24,7 +47,7 @@ report warns when MSCX, MEI, or ABC cannot preserve these positions or extender 
 must be ordered by voice and beat for export. Continuation across measures and full engraving
 validation remain open.
 
-## Unreleased: incoming MuseScore partial ties
+## v1.3.10: incoming MuseScore partial ties
 
 `Note::pitch_incoming_partial_ties` and `Note::pitch_tie_sources` are serde-defaulted vectors
 parallel to the chord's pitches. Rust code using complete `Note` struct literals must initialize

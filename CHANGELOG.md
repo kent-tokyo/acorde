@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 1.3.10 - 2026-11-06
+
+- **Rust source compatibility:** New public fields on `Measure`, `Note`, `ScoreFragmentMeasureAttributes`, `PrintConfig`, `StandardBassCandidate`, and the standard-bass arrangement options/results require updates to complete struct literals. `ScoreChange`, `ScorePatch`, `SvgGlyphSource`, and `PdfError` add variants that require updates to exhaustive matches. Serde defaults help read older score JSON; they do not preserve Rust source compatibility. Saved preset/layer engine markers must be reselected for 1.3.10. See the migration notes.
+
 ### Fixed
 - MusicXML wedges pair by their `number` and in time order per staff, so a crescendo that ends where a numbered diminuendo begins no longer draws a zero-length tick and a wedge running to the system edge. A wedge that would end on its own start note is drawn to the next note or the measure end (#391).
 - Two-staff parts named "Pianoforte", "Klavier", "Πιάνο", "ピアノ" and other localized piano names, or with a piano instrument id, get the implicit piano brace (#391).
