@@ -13,6 +13,9 @@
     "acorde_parsed": 90,
     "parsed_by_both": 90,
     "equal_note_counts": 88,
+    "equal_pitch_bags": 88,
+    "equal_pitch_duration_bags": 88,
+    "acorde_projection_counts_match_info": 90,
     "music21_exact_on_both": 78,
     "acorde_first_exact_on_both": 51,
     "acorde_contains_gold_on_both": 84,
@@ -48,10 +51,13 @@
           "E minor"
         ],
         "notes": 228,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor002_rev.krn",
@@ -70,10 +76,13 @@
           "F# minor"
         ],
         "notes": 212,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor003_rev.krn",
@@ -107,10 +116,13 @@
           "C# minor"
         ],
         "notes": 180,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor005_rev.krn",
@@ -129,10 +141,13 @@
           "E minor"
         ],
         "notes": 288,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor006_rev.krn",
@@ -151,10 +166,13 @@
           "D minor"
         ],
         "notes": 124,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor007_rev.krn",
@@ -173,10 +191,13 @@
           "F# minor"
         ],
         "notes": 344,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor008_rev.krn",
@@ -210,10 +231,13 @@
           "E minor"
         ],
         "notes": 220,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor010_rev.krn",
@@ -232,10 +256,13 @@
           "A minor"
         ],
         "notes": 176,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor011_rev.krn",
@@ -271,10 +298,13 @@
           "E minor"
         ],
         "notes": 156,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor013_rev.krn",
@@ -308,10 +338,13 @@
           "E minor"
         ],
         "notes": 220,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor015_rev.krn",
@@ -330,10 +363,13 @@
           "D minor"
         ],
         "notes": 224,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": false
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor016_rev.krn",
@@ -352,10 +388,13 @@
           "B minor"
         ],
         "notes": 280,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor017_rev.krn",
@@ -374,10 +413,13 @@
           "B minor"
         ],
         "notes": 180,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": false
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor018_rev.krn",
@@ -396,10 +438,13 @@
           "E minor"
         ],
         "notes": 188,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor019_rev.krn",
@@ -418,10 +463,13 @@
           "G minor"
         ],
         "notes": 172,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor020_rev.krn",
@@ -440,10 +488,13 @@
           "B minor"
         ],
         "notes": 212,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor021_rev.krn",
@@ -462,10 +513,13 @@
           "A minor"
         ],
         "notes": 180,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor022_rev.krn",
@@ -484,10 +538,13 @@
           "C minor"
         ],
         "notes": 216,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor023_rev.krn",
@@ -506,10 +563,13 @@
           "A minor"
         ],
         "notes": 176,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor024_rev.krn",
@@ -528,10 +588,13 @@
           "B minor"
         ],
         "notes": 192,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor025_rev.krn",
@@ -550,10 +613,13 @@
           "F minor"
         ],
         "notes": 192,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor026_rev.krn",
@@ -572,10 +638,13 @@
           "D minor"
         ],
         "notes": 168,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor027_rev.krn",
@@ -594,10 +663,13 @@
           "G minor"
         ],
         "notes": 180,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor028_rev.krn",
@@ -631,10 +703,13 @@
           "E minor"
         ],
         "notes": 204,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor030_rev.krn",
@@ -653,10 +728,13 @@
           "E minor"
         ],
         "notes": 212,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor031_rev.krn",
@@ -675,10 +753,13 @@
           "A minor"
         ],
         "notes": 176,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor032_rev.krn",
@@ -697,10 +778,13 @@
           "F# minor"
         ],
         "notes": 168,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor033_rev.krn",
@@ -734,10 +818,13 @@
           "A minor"
         ],
         "notes": 280,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor035_rev.krn",
@@ -756,10 +843,13 @@
           "F# minor"
         ],
         "notes": 160,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor036_rev.krn",
@@ -778,10 +868,13 @@
           "F# minor"
         ],
         "notes": 220,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor037_rev.krn",
@@ -800,10 +893,13 @@
           "A minor"
         ],
         "notes": 208,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor038_rev.krn",
@@ -822,10 +918,13 @@
           "C minor"
         ],
         "notes": 144,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor039_rev.krn",
@@ -844,10 +943,13 @@
           "E minor"
         ],
         "notes": 212,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor040_rev.krn",
@@ -866,10 +968,13 @@
           "E minor"
         ],
         "notes": 136,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": false
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor041_rev.krn",
@@ -888,10 +993,13 @@
           "A minor"
         ],
         "notes": 232,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor042_rev.krn",
@@ -910,10 +1018,13 @@
           "F# minor"
         ],
         "notes": 128,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor043_rev.krn",
@@ -932,10 +1043,13 @@
           "C# minor"
         ],
         "notes": 174,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor044_rev.krn",
@@ -954,10 +1068,13 @@
           "B minor"
         ],
         "notes": 144,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor045_rev.krn",
@@ -976,10 +1093,13 @@
           "B minor"
         ],
         "notes": 240,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor046_rev.krn",
@@ -998,10 +1118,13 @@
           "B minor"
         ],
         "notes": 172,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor047_rev.krn",
@@ -1020,10 +1143,13 @@
           "A minor"
         ],
         "notes": 200,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": false
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor048_rev.krn",
@@ -1042,10 +1168,13 @@
           "A minor"
         ],
         "notes": 168,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor049_rev.krn",
@@ -1064,10 +1193,13 @@
           "A minor"
         ],
         "notes": 220,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor050_rev.krn",
@@ -1086,10 +1218,13 @@
           "D minor"
         ],
         "notes": 188,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor051_rev.krn",
@@ -1108,10 +1243,13 @@
           "E minor"
         ],
         "notes": 168,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor052_rev.krn",
@@ -1130,10 +1268,13 @@
           "F# minor"
         ],
         "notes": 255,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": false
+      "note_counts_equal": false,
+      "pitch_bag_equal": false,
+      "pitch_duration_bag_equal": false
     },
     {
       "score": "chor053_rev.krn",
@@ -1154,10 +1295,13 @@
           "D minor"
         ],
         "notes": 156,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor054_rev.krn",
@@ -1176,10 +1320,13 @@
           "E minor"
         ],
         "notes": 152,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor055_rev.krn",
@@ -1198,10 +1345,13 @@
           "F# minor"
         ],
         "notes": 168,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": false
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor056_rev.krn",
@@ -1235,10 +1385,13 @@
           "A minor"
         ],
         "notes": 124,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor058_rev.krn",
@@ -1257,10 +1410,13 @@
           "B minor"
         ],
         "notes": 324,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor059_rev.krn",
@@ -1279,10 +1435,13 @@
           "G minor"
         ],
         "notes": 164,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor060_rev.krn",
@@ -1301,10 +1460,13 @@
           "B minor"
         ],
         "notes": 156,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor061_rev.krn",
@@ -1323,10 +1485,13 @@
           "C minor"
         ],
         "notes": 276,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor062_rev.krn",
@@ -1345,10 +1510,13 @@
           "B minor"
         ],
         "notes": 140,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor063_rev.krn",
@@ -1367,10 +1535,13 @@
           "F# minor"
         ],
         "notes": 204,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor064_rev.krn",
@@ -1389,10 +1560,13 @@
           "E minor"
         ],
         "notes": 204,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor065_rev.krn",
@@ -1411,10 +1585,13 @@
           "E minor"
         ],
         "notes": 176,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor066_rev.krn",
@@ -1433,10 +1610,13 @@
           "A minor"
         ],
         "notes": 240,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor067_rev.krn",
@@ -1455,10 +1635,13 @@
           "E minor"
         ],
         "notes": 200,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor068_rev.krn",
@@ -1477,10 +1660,13 @@
           "D minor"
         ],
         "notes": 172,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor069_rev.krn",
@@ -1499,10 +1685,13 @@
           "E minor"
         ],
         "notes": 380,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor071_rev.krn",
@@ -1521,10 +1710,13 @@
           "E minor"
         ],
         "notes": 243,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor072_rev.krn",
@@ -1543,10 +1735,13 @@
           "G minor"
         ],
         "notes": 148,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor073_rev.krn",
@@ -1565,10 +1760,13 @@
           "G minor"
         ],
         "notes": 192,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor074_rev.krn",
@@ -1587,10 +1785,13 @@
           "D minor"
         ],
         "notes": 172,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor075_rev.krn",
@@ -1609,10 +1810,13 @@
           "D minor"
         ],
         "notes": 172,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor076_rev.krn",
@@ -1631,10 +1835,13 @@
           "E minor"
         ],
         "notes": 216,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor077_rev.krn",
@@ -1653,10 +1860,13 @@
           "F# minor"
         ],
         "notes": 183,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": false
+      "note_counts_equal": false,
+      "pitch_bag_equal": false,
+      "pitch_duration_bag_equal": false
     },
     {
       "score": "chor078_rev.krn",
@@ -1675,10 +1885,13 @@
           "B minor"
         ],
         "notes": 172,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor079_rev.krn",
@@ -1697,10 +1910,13 @@
           "A minor"
         ],
         "notes": 220,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor080_rev.krn",
@@ -1719,10 +1935,13 @@
           "B minor"
         ],
         "notes": 172,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor081_rev.krn",
@@ -1756,10 +1975,13 @@
           "G minor"
         ],
         "notes": 232,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor083_rev.krn",
@@ -1778,10 +2000,13 @@
           "F# minor"
         ],
         "notes": 228,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor084_rev.krn",
@@ -1800,10 +2025,13 @@
           "F# minor"
         ],
         "notes": 256,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor085_rev.krn",
@@ -1822,10 +2050,13 @@
           "C# minor"
         ],
         "notes": 212,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor086_rev.krn",
@@ -1857,10 +2088,13 @@
           "C minor"
         ],
         "notes": 160,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": false
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor088_rev.krn",
@@ -1879,10 +2113,13 @@
           "A minor"
         ],
         "notes": 175,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor089_rev.krn",
@@ -1901,10 +2138,13 @@
           "B minor"
         ],
         "notes": 192,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor090_rev.krn",
@@ -1923,10 +2163,13 @@
           "G minor"
         ],
         "notes": 136,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor091_rev.krn",
@@ -1945,10 +2188,13 @@
           "F# minor"
         ],
         "notes": 404,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor092_rev.krn",
@@ -1967,10 +2213,13 @@
           "B minor"
         ],
         "notes": 172,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor093_rev.krn",
@@ -1989,10 +2238,13 @@
           "G minor"
         ],
         "notes": 144,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor094_rev.krn",
@@ -2011,10 +2263,13 @@
           "G minor"
         ],
         "notes": 156,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor095_rev.krn",
@@ -2033,10 +2288,13 @@
           "G minor"
         ],
         "notes": 180,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor096_rev.krn",
@@ -2055,10 +2313,13 @@
           "D minor"
         ],
         "notes": 176,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor097_rev.krn",
@@ -2077,10 +2338,13 @@
           "F# minor"
         ],
         "notes": 216,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor098_rev.krn",
@@ -2099,10 +2363,13 @@
           "B minor"
         ],
         "notes": 172,
+        "projection_event_count_matches_info": true,
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor099_rev.krn",
@@ -2121,10 +2388,13 @@
           "A minor"
         ],
         "notes": 168,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor100_rev.krn",
@@ -2143,10 +2413,13 @@
           "G minor"
         ],
         "notes": 196,
+        "projection_event_count_matches_info": true,
         "first_exact": false,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": true
+      "note_counts_equal": true,
+      "pitch_bag_equal": true,
+      "pitch_duration_bag_equal": true
     },
     {
       "score": "chor101_rev.krn",

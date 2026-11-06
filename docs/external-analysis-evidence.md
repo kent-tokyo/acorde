@@ -56,3 +56,5 @@ explicit key labels, music21's single estimate matched 76 labels and Acorde's
 first candidate matched 46. Acorde included the label among tied candidates in 78,
 which is not single-key accuracy. The result is limited to this corpus and
 does not cover harmony or cadence analysis.
+The unordered pitch/duration event bag matches on 88 of the 90 paired parses;
+this does not check event order, placement, rests or ties.

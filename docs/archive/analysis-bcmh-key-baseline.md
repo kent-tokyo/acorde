@@ -17,7 +17,8 @@ of notes without written accidentals. Both estimators operate on the notes;
 neither receives the corpus's tonic/mode label. The script records source and
 cleaned-input hashes, both tools' note/chord event counts, all Acorde tied
 candidates, and each tool's parse error separately. A chord counts as one event
-in both tools. The [full result JSON](analysis-bcmh-key-baseline.json)
+in both tools. It also compares unordered bags of sounding MIDI pitches and of
+note/chord events paired with quarter-note durations. The [full result JSON](analysis-bcmh-key-baseline.json)
 also records the exact Acorde binary hash.
 
 ## Result
@@ -28,6 +29,7 @@ also records the exact Acorde binary hash.
 | Parsed by music21 / Acorde | 98 / 90 |
 | Parsed by both | 90 |
 | Same imported note/chord event count | 88 of 90 |
+| Same unordered pitch and duration event bag | 88 of 90 |
 | Same event count and explicit global-key interpretation | 82 |
 | music21 single key equals annotation on those 82 | 76 |
 | Acorde first key candidate equals annotation on those 82 | 46 |
@@ -43,6 +45,13 @@ two parsed in neither tool after the minimal annotation removal. Two of the
 from the primary 82-score comparison. Nine corpus scores lack a plain
 tonic/mode interpretation; their first harmony key was recorded separately
 and excluded from the primary comparison.
+
+The pitch/duration bag check counts every pitched note or chord once, including
+every chord tone, but ignores event order, part/staff/voice/measure assignment,
+rests, pitch spelling and ties. Matching bags are a screening result, not a
+complete semantic round trip. [The bounded parser recovery in PR #405](https://github.com/kent-tokyo/acorde/pull/405)
+raises paired parse, event-count and pitch/duration bag agreement to 98/98 on
+this corpus; the v1.3.10 baseline figures above remain pinned to its source.
 
 This corpus measures global-key estimation on Bach chorales only. It does not
 measure harmony, cadence, voice leading, calibrated confidence, or general
