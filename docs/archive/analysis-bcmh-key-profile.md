@@ -19,6 +19,8 @@ Acorde parsed 90/100 inputs; music21 parsed 98/100. Only 88 of the 90 paired
 parses had equal event counts, and only 82 of those had an explicit global-key
 interpretation. Gold was present somewhere in Acorde's tied candidates for
 78/82, which is a different measure from first-candidate agreement.
+The unordered pitch/duration event bags match on the same 88 paired parses;
+order, placement, rests, pitch spelling and ties are not compared.
 
 This is an **in-sample result**: the 82 scores exposed the relative-major/
 minor tie and informed this ranking method. An independently fixed holdout is

@@ -18,6 +18,7 @@ import re
 import subprocess
 import tempfile
 import zipfile
+from collections import Counter
 from pathlib import Path
 
 
@@ -28,6 +29,13 @@ KEY_TOKEN = re.compile(r"^\*([A-Ga-g][#-]?):$")
 TONAL_INTERPRETATION = re.compile(r"^\*[A-Ga-g][#-]?:[a-z]*$")
 HARM_KEY = re.compile(r"^([A-Ga-g][#-]?):[^\t]*$")
 NOTE_COUNT = re.compile(r"^notes:\s+(\d+)", re.MULTILINE)
+STEP_SEMITONES = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
+DURATION_BEATS = {
+    "Longa": 16, "Breve": 8, "Whole": 4, "Half": 2,
+    "Quarter": 1, "Eighth": 0.5, "Sixteenth": 0.25,
+    "ThirtySecond": 0.125, "SixtyFourth": 0.0625,
+    "HundredTwentyEighth": 0.03125,
+}
 
 
 def sha256(data):
@@ -105,6 +113,49 @@ def acorde_output(acorde, command, score_path, *extra_args):
     return result.stdout
 
 
+def music21_events(score, note, chord):
+    """One normalized event for each pitched note or chord, ignoring order."""
+    events = []
+    for event in score.recurse().notes:
+        if isinstance(event, note.Note):
+            pitches = (round(event.pitch.midi, 6),)
+        elif isinstance(event, chord.Chord):
+            pitches = tuple(sorted(round(pitch.midi, 6) for pitch in event.pitches))
+        else:
+            continue
+        events.append((pitches, round(float(event.duration.quarterLength), 6)))
+    return events
+
+
+def acorde_events(score):
+    events = []
+    for part in score["parts"]:
+        for staff in part["staves"]:
+            for measure in staff["measures"]:
+                for voice in measure["voices"]:
+                    for event in voice:
+                        if event["is_rest"]:
+                            continue
+                        pitches = tuple(sorted(round(
+                            (pitch["octave"] + 1) * 12
+                            + STEP_SEMITONES[pitch["step"]]
+                            + pitch["alter"] + pitch["microtone_cents"] / 100, 6
+                        ) for pitch in event["pitches"]))
+                        beats = DURATION_BEATS[event["duration"]]
+                        beats *= 2 - 0.5 ** event["dot_count"]
+                        if event["tuplet"]:
+                            beats *= (event["tuplet"]["normal_notes"]
+                                      / event["tuplet"]["actual_notes"])
+                        if event["is_grace"]:
+                            beats = 0
+                        events.append((pitches, round(beats, 6)))
+    return events
+
+
+def pitch_bag(events):
+    return Counter(pitch for pitches, _ in events for pitch in pitches)
+
+
 def compare_one(archive, name, temporary_dir, acorde, converter, note, chord, rank_tied_keys):
     source = archive.read(name)
     lines = source.decode("utf-8-sig").splitlines()
@@ -119,17 +170,15 @@ def compare_one(archive, name, temporary_dir, acorde, converter, note, chord, ra
         "gold": gold,
         "gold_source": gold_source,
     }
+    music21_projection = None
     try:
         score = converter.parse(str(score_path), forceSource=True)
         music21_key = score.analyze("key")
         music21_name = key_name(music21_key.tonic.name, music21_key.mode)
+        music21_projection = music21_events(score, note, chord)
         row["music21"] = {
             "key": music21_name,
-            # Acorde info counts one score Note per chord event, not each pitch.
-            "notes": (
-                len(list(score.recurse().getElementsByClass(note.Note)))
-                + len(list(score.recurse().getElementsByClass(chord.Chord)))
-            ),
+            "notes": len(music21_projection),
             "exact": music21_name == gold,
         }
     except Exception as error:
@@ -141,10 +190,13 @@ def compare_one(archive, name, temporary_dir, acorde, converter, note, chord, ra
             raise ValueError("Acorde info did not report a note count")
         extra_args = ("--rank-tied-keys",) if rank_tied_keys else ()
         analysis = json.loads(acorde_output(acorde, "analyze", score_path, *extra_args))
+        import_report = json.loads(acorde_output(acorde, "report", score_path))
+        acorde_projection = acorde_events(import_report["score"])
         candidates = [acorde_key_name(candidate) for candidate in analysis["key_estimates"]]
         row["acorde"] = {
             "candidates": candidates,
             "notes": int(match.group(1)),
+            "projection_event_count_matches_info": len(acorde_projection) == int(match.group(1)),
             "first_exact": bool(candidates) and candidates[0] == gold,
             "candidate_contains_gold": gold in candidates,
         }
@@ -152,6 +204,10 @@ def compare_one(archive, name, temporary_dir, acorde, converter, note, chord, ra
         row["acorde"] = {"error": f"{type(error).__name__}: {error}"}
     if "error" not in row["music21"] and "error" not in row["acorde"]:
         row["note_counts_equal"] = row["music21"]["notes"] == row["acorde"]["notes"]
+        row["pitch_bag_equal"] = pitch_bag(music21_projection) == pitch_bag(acorde_projection)
+        row["pitch_duration_bag_equal"] = (
+            Counter(music21_projection) == Counter(acorde_projection)
+        )
     return row
 
 
@@ -211,6 +267,11 @@ def main():
             "acorde_parsed": len(acorde_valid),
             "parsed_by_both": len(both),
             "equal_note_counts": sum(row["note_counts_equal"] for row in both),
+            "equal_pitch_bags": sum(row["pitch_bag_equal"] for row in both),
+            "equal_pitch_duration_bags": sum(row["pitch_duration_bag_equal"] for row in both),
+            "acorde_projection_counts_match_info": sum(
+                row["acorde"]["projection_event_count_matches_info"] for row in acorde_valid
+            ),
             "music21_exact_on_both": sum(row["music21"]["exact"] for row in both),
             "acorde_first_exact_on_both": sum(row["acorde"]["first_exact"] for row in both),
             "acorde_contains_gold_on_both": sum(row["acorde"]["candidate_contains_gold"] for row in both),
