@@ -19,6 +19,9 @@
 //! Everything else (other spine types, `*+`, rational `%` durations, unknown signifiers and
 //! interpretations, other reference records, mid-bar clef/key/meter changes) is reported as an
 //! import diagnostic with a `/line/N/spine/M` location.
+//! Extra trailing empty tab fields, missing trailing null interpretations, and
+//! missing trailing identical barline fields are recovered with line diagnostics.
+//! Missing data fields and ambiguous spine operations remain errors.
 //!
 //! Reference: <https://www.humdrum.org/rep/kern/>
 
@@ -118,7 +121,7 @@ pub fn parse_kern_with_report(text: &str) -> Result<ImportReport, Error> {
         if line.starts_with('!') {
             continue;
         }
-        let tokens: Vec<&str> = line.split('\t').collect();
+        let mut tokens: Vec<&str> = line.split('\t').collect();
         if !started {
             if !tokens.iter().all(|token| token.starts_with("**")) {
                 return Err(malformed(format!(
@@ -165,10 +168,50 @@ pub fn parse_kern_with_report(text: &str) -> Result<ImportReport, Error> {
             );
             break;
         }
+        let original_count = tokens.len();
+        if tokens.len() > spines.len()
+            && tokens[spines.len()..].iter().all(|token| token.is_empty())
+        {
+            tokens.truncate(spines.len());
+            push_text_diagnostic(
+                &mut diagnostics,
+                "humdrum.trailing-empty-field",
+                "trailing empty tab fields were ignored",
+                format!("/line/{line_number}"),
+                line,
+            );
+        } else if tokens.len() < spines.len()
+            && line.starts_with('*')
+            && tokens.iter().all(|token| {
+                token.starts_with('*') && !matches!(*token, "*^" | "*v" | "*x" | "*+" | "*-")
+            })
+        {
+            tokens.resize(spines.len(), "*");
+            push_text_diagnostic(
+                &mut diagnostics,
+                "humdrum.missing-null-interpretation",
+                "missing trailing interpretation fields were treated as null interpretations",
+                format!("/line/{line_number}"),
+                line,
+            );
+        } else if tokens.len() < spines.len()
+            && tokens.len() >= 2
+            && line.starts_with('=')
+            && tokens.iter().all(|token| *token == tokens[0])
+        {
+            tokens.resize(spines.len(), tokens[0]);
+            push_text_diagnostic(
+                &mut diagnostics,
+                "humdrum.missing-barline-field",
+                "missing trailing barline fields were copied from identical barlines",
+                format!("/line/{line_number}"),
+                line,
+            );
+        }
         if tokens.len() != spines.len() {
             return Err(malformed(format!(
                 "line {line_number} has {} tokens for {} active spines",
-                tokens.len(),
+                original_count,
                 spines.len()
             )));
         }
@@ -793,10 +836,6 @@ mod tests {
 
     #[test]
     fn tokens_parse_pitch_octave_dots_chords_and_ties() {
-        let kern = "**kern\n*M4/4\n=1-\n4.cc#L\t\n";
-        // A trailing tab adds a column: malformed.
-        assert!(parse_kern(kern).is_err());
-
         let kern = "**kern\n*M4/4\n4.cc#\n8BB-\n[2C E G\n=\n1C E G]\n*-\n";
         let score = parse_kern(kern).expect("kern parses");
         let bar = notes(&score, 0, 0, 0);
@@ -808,6 +847,45 @@ mod tests {
         assert!(bar[2].tie_start);
         assert!(notes(&score, 0, 1, 0)[0].tie_end);
         assert_eq!(score.parts[0].staves[0].measures.len(), 2);
+    }
+
+    #[test]
+    fn recover_only_unambiguous_missing_and_empty_fields_with_diagnostics() {
+        let kern = "**kern\t**kern\t**kern\t**kern\n\
+                    *clefF4\t*clefG2\t*clefG2\n\
+                    4C\t4e\t4g\t4cc\t\t\n\
+                    =1\t=1\t=1\n\
+                    4D\t4f\t4a\t4dd\n\
+                    ==\t==\t==\t==\n";
+        let report = parse_kern_with_report(kern).expect("recoverable record parses");
+        assert_eq!(report.score.parts.len(), 4);
+        assert!(report.score.parts.iter().all(|part| {
+            part.staves[0].measures.len() == 2
+                && part.staves[0].measures[0].voices[0].len() == 1
+                && part.staves[0].measures[1].voices[0].len() == 1
+        }));
+        let codes: Vec<_> = report.diagnostics.iter().map(|d| d.code.as_str()).collect();
+        for code in [
+            "humdrum.missing-null-interpretation",
+            "humdrum.trailing-empty-field",
+            "humdrum.missing-barline-field",
+        ] {
+            assert!(codes.contains(&code), "missing {code} in {codes:?}");
+        }
+        assert!(
+            report
+                .diagnostics
+                .iter()
+                .all(|d| d.source_location.is_some())
+        );
+    }
+
+    #[test]
+    fn reject_ambiguous_missing_spine_fields() {
+        assert!(parse_kern("**kern\t**kern\n4c\n4d\t4e\n").is_err());
+        assert!(parse_kern("**kern\t**kern\n*^\n4c\t4e\n").is_err());
+        assert!(parse_kern("**kern\t**kern\n=1\t=2\n4c\t4e\n=1\n").is_err());
+        assert!(parse_kern("**kern\t**kern\n4c\t4e\t4g\n").is_err());
     }
 
     #[test]
