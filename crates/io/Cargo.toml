@@ -18,6 +18,10 @@ default = ["musicxml", "midi"]
 musicxml = ["dep:quick-xml", "dep:zip", "dep:flate2"]
 midi = ["dep:midly"]
 abc = []
+# Humdrum **kern import (subset).
+humdrum = []
+# Plaine & Easie (RISM incipit) import (subset).
+pae = []
 mscz = ["dep:quick-xml", "dep:zip", "dep:flate2"]
 mei = ["dep:quick-xml"]
 # Guitar Pro 6/7/8 (.gpx/.gp) import.

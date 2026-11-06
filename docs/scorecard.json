@@ -21,6 +21,8 @@
     "midi_import": "partial",
     "midi_export": "yes",
     "abc_import": "partial",
+    "humdrum_kern_import": "partial",
+    "pae_import": "partial",
     "mei_supported_subset": "partial",
     "mscz_import": "partial",
     "mscz_export": "partial",
