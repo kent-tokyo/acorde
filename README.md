@@ -38,7 +38,7 @@ input bytes/text → acorde-io → Score → acorde-layout → LayoutResult
 | `acorde-analysis` | Deterministic explainable harmony and SATB analysis |
 | `acorde-soundfont` | Optional bounded SF2/SF3/provider integration and SF2 WAV rendering |
 | `acorde-wasm` | JavaScript bindings |
-| `acorde-cli` | File-based conversion and inspection |
+| `acorde-cli` | File-based conversion, inspection, and local MCP server |
 | `acorde` | Umbrella re-export of core, I/O, and layout |
 
 `acorde-render-svg` is intentionally not re-exported by the umbrella crate; add it directly when
@@ -48,14 +48,14 @@ rendering SVG.
 
 ```toml
 [dependencies]
-acorde = "=1.3.9"
-acorde-render-svg = "=1.3.9"
+acorde = "=1.3.10"
+acorde-render-svg = "=1.3.10"
 ```
 
 Default I/O features are MusicXML and MIDI. Enable optional formats explicitly:
 
 ```toml
-acorde = { version = "=1.3.9", features = ["abc", "mei", "mscz", "gp"] }
+acorde = { version = "=1.3.10", features = ["abc", "mei", "mscz", "gp"] }
 ```
 
 ```rust
@@ -95,6 +95,7 @@ acorde render input.musicxml output.svg
 acorde render-report input.musicxml output.svg --fail-on-issues
 acorde print-report input.musicxml --preset a4-score --fail-on-issues
 acorde validate input.musicxml
+acorde mcp --root ./scores
 acorde compatibility-report source.musicxml candidate.musicxml --fail-on-differences
 acorde playback-report input.musicxml --bpm 120
 acorde audio-render input.musicxml licensed.sf2 output.wav --full-sf2

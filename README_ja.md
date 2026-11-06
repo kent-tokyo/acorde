@@ -30,7 +30,7 @@
 | クレート | 役割 |
 |---|---|
 | `acorde-core` | スコアモデル、コマンド、検証、再生、理論ヘルパー |
-| `acorde-io` | MusicXML/MXL、MIDI、任意機能のABC・MEI・MSCZ/MSCX・Guitar Pro 3〜8入力 |
+| `acorde-io` | MusicXML/MXL、MIDI、任意機能のABC・MEI・MSCZ/MSCX・Humdrum kern・PAE・Guitar Pro 3〜8入力 |
 | `acorde-layout` | ピクセル非依存の論理配置と印刷ページメタデータ |
 | `acorde-render-svg` | 決定的なRust/WASM SVGレンダラー |
 | `acorde-pdf` | Harumiによる任意のベクターPDF出力（Rust 1.89以上） |
@@ -38,7 +38,7 @@
 | `acorde-analysis` | 決定的で説明可能な和声・SATB分析 |
 | `acorde-soundfont` | 任意機能のSF2/SF3/プロバイダ連携とSF2 WAV生成 |
 | `acorde-wasm` | JavaScriptバインディング |
-| `acorde-cli` | ファイル変換・検査CLI |
+| `acorde-cli` | ファイル変換・検査CLIとローカルMCPサーバー |
 | `acorde` | core、I/O、layoutのアンブレラクレート |
 
 SVG が必要な場合は `acorde-render-svg` を直接依存に追加します。アンブレラクレートは再エクスポートしません。
@@ -47,14 +47,14 @@ SVG が必要な場合は `acorde-render-svg` を直接依存に追加します�
 
 ```toml
 [dependencies]
-acorde = "=1.3.9"
-acorde-render-svg = "=1.3.9"
+acorde = "=1.3.10"
+acorde-render-svg = "=1.3.10"
 ```
 
 標準では MusicXML と MIDI が有効です。ABC、MEI、MSCZ/MSCX、Guitar Pro 3〜8入力は明示的に有効化します。
 
 ```toml
-acorde = { version = "=1.3.9", features = ["abc", "mei", "mscz", "gp"] }
+acorde = { version = "=1.3.10", features = ["abc", "mei", "mscz", "gp"] }
 ```
 
 ```rust
@@ -92,6 +92,7 @@ acorde render input.musicxml output.svg
 acorde render-report input.musicxml output.svg --fail-on-issues
 acorde print-report input.musicxml --preset a4-score --fail-on-issues
 acorde validate input.musicxml
+acorde mcp --root ./scores
 acorde compatibility-report source.musicxml candidate.musicxml --fail-on-differences
 acorde playback-report input.musicxml --bpm 120
 acorde audio-render input.musicxml licensed.sf2 output.wav --full-sf2
