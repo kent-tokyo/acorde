@@ -64,15 +64,16 @@ and expressive playback before a broader claim.
 ### 3. Music analysis: music21 10.5.2
 
 The [BCMH global-key baseline in PR #402](https://github.com/kent-tokyo/acorde/pull/402)
-has 80 chorales with explicit labels, equal imported note counts and successful
-parses in both tools: music21 selected 74 correct keys, while Acorde's legacy
-first candidate selected 44. [PR #403](https://github.com/kent-tokyo/acorde/pull/403)
+has 82 chorales with explicit labels, equal imported note/chord event counts
+and successful parses in both tools: music21 selected 76 correct keys, while
+Acorde's legacy first candidate selected 46.
+[PR #403](https://github.com/kent-tokyo/acorde/pull/403)
 adds an opt-in tonal-profile ranking;
 its development-corpus result must not be treated as holdout accuracy.
 
 First resolve Acorde's eight additional parse failures
-([PR #405](https://github.com/kent-tokyo/acorde/pull/405)) and four paired
-note-count differences. Freeze a different labeled key corpus before tuning
+([PR #405](https://github.com/kent-tokyo/acorde/pull/405)) and two paired
+event-count differences. Freeze a different labeled key corpus before tuning
 further, and compare a single selected key per score with parse coverage shown.
 Next add independently annotated harmony, cadence and voice-leading fixtures;
 report precision, recall and error cases per task against music21 under the
