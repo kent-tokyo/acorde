@@ -71,10 +71,12 @@ Acorde's legacy first candidate selected 46.
 adds an opt-in tonal-profile ranking;
 its development-corpus result must not be treated as holdout accuracy.
 
-First resolve Acorde's eight additional parse failures
-([PR #405](https://github.com/kent-tokyo/acorde/pull/405)) and two paired
-event-count differences. Freeze a different labeled key corpus before tuning
-further, and compare a single selected key per score with parse coverage shown.
+First land [PR #405](https://github.com/kent-tokyo/acorde/pull/405), which
+raises paired parse and note/chord event-count agreement to 98/100 and 98/98
+respectively on this development corpus. Audit pitch and duration agreement
+before treating those event counts as semantic equality. Freeze a different
+labeled key corpus before further tuning, and compare a single selected key
+per score with parse coverage shown.
 Next add independently annotated harmony, cadence and voice-leading fixtures;
 report precision, recall and error cases per task against music21 under the
 same input notes. Task-scoped parity requires Acorde to match or exceed
