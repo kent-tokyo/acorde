@@ -307,6 +307,9 @@ enum Commands {
     Analyze {
         /// Input file (.musicxml, .mxl, .mid, .midi, .abc, .mei, .mscz, .mscx, .gp, .gpx, .gp3, .gp4, .gp5, .krn, .pae)
         input: PathBuf,
+        /// Rank tied key candidates by a duration-weighted tonal profile
+        #[arg(long)]
+        rank_tied_keys: bool,
     },
     /// Run a local analysis benchmark manifest and print its JSON report
     Benchmark {
@@ -667,7 +670,10 @@ fn run(cli: &Cli) -> Result<(), String> {
             input,
             fail_on_issues,
         } => cmd_preflight(input, *fail_on_issues),
-        Commands::Analyze { input } => cmd_analyze(input),
+        Commands::Analyze {
+            input,
+            rank_tied_keys,
+        } => cmd_analyze(input, *rank_tied_keys),
         Commands::Benchmark {
             manifest,
             fail_on_mismatch,
@@ -1102,9 +1108,12 @@ fn build_print_config(
     Ok(config)
 }
 
-fn cmd_analyze(input: &Path) -> Result<(), String> {
+fn cmd_analyze(input: &Path, rank_tied_keys: bool) -> Result<(), String> {
     let score = parse_score(input)?;
-    let analysis = acorde_analysis::analyze_score(&score);
+    let mut analysis = acorde_analysis::analyze_score(&score);
+    if rank_tied_keys {
+        analysis.key_estimates = acorde_analysis::estimate_keys_with_tonal_profile(&score);
+    }
     let json = serde_json::to_string_pretty(&analysis)
         .map_err(|e| format!("analysis serialization failed: {e}"))?;
     println!("{json}");

@@ -1933,6 +1933,92 @@ pub fn estimate_keys(score: &Score) -> Vec<KeyEstimate> {
         .collect()
 }
 
+/// Rank the equal-coverage candidates from [`estimate_keys`] by tonal profile.
+///
+/// This opt-in ranking preserves the candidate set and the legacy coverage
+/// `confidence` value. The first candidate is a profile preference, not a
+/// probability or a claim that a score has one unambiguous tonal center.
+/// Microtonal input leaves the original order unchanged.
+pub fn estimate_keys_with_tonal_profile(score: &Score) -> Vec<KeyEstimate> {
+    let mut estimates = estimate_keys(score);
+    rank_key_estimates_by_tonal_profile(score, &mut estimates);
+    estimates
+}
+
+fn rank_key_estimates_by_tonal_profile(score: &Score, estimates: &mut [KeyEstimate]) {
+    if estimates.len() < 2 {
+        return;
+    }
+    // Krumhansl-Kessler major/minor probe-tone profiles, indexed from the tonic.
+    // See https://music21.org/music21docs/moduleReference/moduleAnalysisDiscrete.html
+    const MAJOR: [f64; 12] = [
+        6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88,
+    ];
+    const MINOR: [f64; 12] = [
+        6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17,
+    ];
+
+    let mut pitch_classes = [0.0_f64; 12];
+    for part in &score.parts {
+        for staff in &part.staves {
+            for measure in &staff.measures {
+                for voice in &measure.voices {
+                    for note in voice {
+                        if note.is_rest {
+                            continue;
+                        }
+                        let beats = note.beats();
+                        if !beats.is_finite() || beats <= 0.0 {
+                            continue;
+                        }
+                        for pitch in &note.pitches {
+                            if pitch.microtone_cents != 0 {
+                                return;
+                            }
+                            pitch_classes[pitch.to_midi().rem_euclid(12) as usize] += beats;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    let observed_mean = pitch_classes.iter().sum::<f64>() / 12.0;
+    let observed_variance = pitch_classes
+        .iter()
+        .map(|value| (value - observed_mean).powi(2))
+        .sum::<f64>();
+    if observed_variance <= 0.0 {
+        return;
+    }
+    let correlation = |estimate: &KeyEstimate| {
+        let weights = if estimate.key.mode == "minor" {
+            &MINOR
+        } else {
+            &MAJOR
+        };
+        let tonic = (estimate.key.fifths * 7 + if estimate.key.mode == "minor" { 9 } else { 0 })
+            .rem_euclid(12) as usize;
+        let profile_mean = weights.iter().sum::<f64>() / 12.0;
+        let profile_variance = weights
+            .iter()
+            .map(|value| (value - profile_mean).powi(2))
+            .sum::<f64>();
+        let covariance = pitch_classes
+            .iter()
+            .enumerate()
+            .map(|(class, value)| {
+                (value - observed_mean) * (weights[(class + 12 - tonic) % 12] - profile_mean)
+            })
+            .sum::<f64>();
+        covariance / (observed_variance * profile_variance).sqrt()
+    };
+    estimates.sort_by(|left, right| correlation(right).total_cmp(&correlation(left)));
+    for estimate in estimates {
+        estimate.rule_id =
+            "duration-weighted-diatonic-pitch-coverage+krumhansl-profile-ranking".to_string();
+    }
+}
+
 /// Analyze adjacent pitched notes in every voice without inferring missing events.
 pub fn analyze_intervals(score: &Score) -> Vec<IntervalObservation> {
     analyze_intervals_in_region(score, None)
@@ -2698,6 +2784,51 @@ mod tests {
                 .any(|estimate| estimate.key.display_name() == "A minor")
         );
         assert!(estimates.iter().all(|estimate| estimate.confidence == 100));
+    }
+
+    #[test]
+    fn tonal_profile_ranks_minor_center_without_discarding_legacy_candidates() {
+        let mut score = Score::default();
+        let voice = &mut score.parts[0].staves[0].measures[0].voices[0];
+        voice.clear();
+        for (step, duration) in [
+            (Step::A, Duration::Whole),
+            (Step::C, Duration::Quarter),
+            (Step::E, Duration::Quarter),
+            (Step::A, Duration::Whole),
+        ] {
+            voice.push(Note::new(Pitch::new(step, 4), duration));
+        }
+
+        let estimates = estimate_keys(&score);
+        let original_keys: Vec<_> = estimates
+            .iter()
+            .map(|estimate| estimate.key.display_name())
+            .collect();
+        assert!(original_keys.contains(&"C major".to_string()));
+        assert!(original_keys.contains(&"A minor".to_string()));
+        let ranked = estimate_keys_with_tonal_profile(&score);
+        assert_eq!(ranked[0].key.display_name(), "A minor");
+        assert_eq!(ranked.len(), original_keys.len());
+        assert!(
+            ranked
+                .iter()
+                .all(|estimate| estimate.rule_id.ends_with("krumhansl-profile-ranking"))
+        );
+    }
+
+    #[test]
+    fn tonal_profile_does_not_round_microtones_into_key_evidence() {
+        let mut score = Score::default();
+        let voice = &mut score.parts[0].staves[0].measures[0].voices[0];
+        voice.clear();
+        voice.push(Note::new(Pitch::new(Step::A, 4), Duration::Quarter));
+        voice.push(Note::new(
+            Pitch::with_microtone(Step::C, 5, 0, 25),
+            Duration::Quarter,
+        ));
+        let original = estimate_keys(&score);
+        assert_eq!(estimate_keys_with_tonal_profile(&score), original);
     }
 
     #[test]
