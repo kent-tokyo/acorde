@@ -490,14 +490,13 @@ pub(crate) fn build_svg_with_metadata_placement(
     );
 
     let staff_gaps = config.staff_gaps();
-    if let Some(gaps) = staff_gaps {
-        if gaps.len() != staff_refs.len().saturating_sub(1)
-            || gaps.iter().any(|gap| !gap.is_finite() || *gap <= 0.0)
-        {
-            return Err(RenderError::InvalidOptions {
-                reason: "staff_gaps must contain one positive finite value per staff pair".into(),
-            });
-        }
+    if let Some(gaps) = staff_gaps
+        && (gaps.len() != staff_refs.len().saturating_sub(1)
+            || gaps.iter().any(|gap| !gap.is_finite() || *gap <= 0.0))
+    {
+        return Err(RenderError::InvalidOptions {
+            reason: "staff_gaps must contain one positive finite value per staff pair".into(),
+        });
     }
     let staff_gap = if staff_gaps.is_some() {
         config.staff_gap()
