@@ -51,14 +51,14 @@ environment details, and explicit expected agreements/disagreements before treat
 
 The [BCMH Bach chorale baseline](archive/analysis-bcmh-key-baseline.md) compares
 Acorde v1.3.10 with music21 10.5.2 against independently annotated keys.
-On the 80 mutually parsed scores with matching note counts and explicit key
-labels, music21's single estimate matched 74 labels and Acorde's first
-candidate matched 44. Acorde included the label among tied candidates in 76,
+On the 82 mutually parsed scores with matching note/chord event counts and
+explicit key labels, music21's single estimate matched 76 labels and Acorde's
+first candidate matched 46. Acorde included the label among tied candidates in 78,
 which is not single-key accuracy. The result is limited to this corpus and
 does not cover harmony or cadence analysis.
 
 An [opt-in tonal-profile ranking](archive/analysis-bcmh-key-profile.md) orders
-the same tied candidates. Its first choice matched 74 of the same 80 labels,
+the same tied candidates. Its first choice matched 76 of the same 82 labels,
 equal to music21 on this development corpus. This is not an independent
 holdout result; parser coverage and other analysis categories remain separate
 gates.

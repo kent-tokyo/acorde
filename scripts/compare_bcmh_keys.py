@@ -105,7 +105,7 @@ def acorde_output(acorde, command, score_path, *extra_args):
     return result.stdout
 
 
-def compare_one(archive, name, temporary_dir, acorde, converter, note, rank_tied_keys):
+def compare_one(archive, name, temporary_dir, acorde, converter, note, chord, rank_tied_keys):
     source = archive.read(name)
     lines = source.decode("utf-8-sig").splitlines()
     gold, gold_source = gold_key(lines)
@@ -125,7 +125,11 @@ def compare_one(archive, name, temporary_dir, acorde, converter, note, rank_tied
         music21_name = key_name(music21_key.tonic.name, music21_key.mode)
         row["music21"] = {
             "key": music21_name,
-            "notes": len(list(score.recurse().getElementsByClass(note.Note))),
+            # Acorde info counts one score Note per chord event, not each pitch.
+            "notes": (
+                len(list(score.recurse().getElementsByClass(note.Note)))
+                + len(list(score.recurse().getElementsByClass(chord.Chord)))
+            ),
             "exact": music21_name == gold,
         }
     except Exception as error:
@@ -159,7 +163,7 @@ def main():
     parser.add_argument("--rank-tied-keys", action="store_true",
                         help="pass the opt-in tonal-profile ranking flag to Acorde")
     args = parser.parse_args()
-    from music21 import converter, note
+    from music21 import chord, converter, note
     import music21
 
     if music21.__version__ != "10.5.2":
@@ -178,7 +182,7 @@ def main():
             for name in names:
                 try:
                     rows.append(compare_one(
-                        archive, name, Path(tmp), args.acorde, converter, note,
+                        archive, name, Path(tmp), args.acorde, converter, note, chord,
                         args.rank_tied_keys,
                     ))
                 except Exception as error:

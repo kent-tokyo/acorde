@@ -2,7 +2,7 @@
   "corpus": "MusicCogCompLab/BCMH@97dfc249b90a8739457d83a2702644173c7eb4a8",
   "license": "CC BY 4.0",
   "archive_sha256": "9aa8ac78052156932a04431fd56d7a217fe4cd07d0dc726dac1b9dbf85870b1c",
-  "acorde_binary_sha256": "9fe9e5db56ce3eb2d9f7f2611ac9ea75783fd1eb7162e0c33b197ad076017195",
+  "acorde_binary_sha256": "08ce60f2e56c92c50582eb7dd96739e10f514b84b51b04c3aea9e5894ba26387",
   "music21_version": "10.5.2",
   "input": "annotated **kern notes with leading annotation spine and tonic/mode interpretations removed",
   "summary": {
@@ -12,22 +12,22 @@
     "music21_parsed": 98,
     "acorde_parsed": 90,
     "parsed_by_both": 90,
-    "equal_note_counts": 86,
+    "equal_note_counts": 88,
     "music21_exact_on_both": 78,
     "acorde_first_exact_on_both": 79,
     "acorde_contains_gold_on_both": 84,
     "acorde_tied_on_both": 90,
     "same_note_subset": {
-      "count": 86,
-      "music21_exact": 74,
-      "acorde_first_exact": 75,
-      "acorde_contains_gold": 80
+      "count": 88,
+      "music21_exact": 76,
+      "acorde_first_exact": 77,
+      "acorde_contains_gold": 82
     },
     "explicit_key_same_note_subset": {
-      "count": 80,
-      "music21_exact": 74,
-      "acorde_first_exact": 74,
-      "acorde_contains_gold": 76
+      "count": 82,
+      "music21_exact": 76,
+      "acorde_first_exact": 76,
+      "acorde_contains_gold": 78
     }
   },
   "rows": [
@@ -387,7 +387,7 @@
       "gold_source": "key_interpretation",
       "music21": {
         "key": "G major",
-        "notes": 182,
+        "notes": 188,
         "exact": true
       },
       "acorde": {
@@ -399,7 +399,7 @@
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": false
+      "note_counts_equal": true
     },
     {
       "score": "chor019_rev.krn",
@@ -1490,7 +1490,7 @@
       "gold_source": "key_interpretation",
       "music21": {
         "key": "G major",
-        "notes": 363,
+        "notes": 380,
         "exact": true
       },
       "acorde": {
@@ -1502,7 +1502,7 @@
         "first_exact": true,
         "candidate_contains_gold": true
       },
-      "note_counts_equal": false
+      "note_counts_equal": true
     },
     {
       "score": "chor071_rev.krn",

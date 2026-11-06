@@ -9,18 +9,18 @@ counts and Krumhansl-Kessler major/minor profiles. The default analysis result
 and candidate set remain unchanged. The existing `confidence` is still
 diatonic coverage, not the correlation or a calibrated probability.
 
-| Explicit-key scores parsed by both with equal note count | Baseline Acorde first | Profile-ranked Acorde first | music21 single key |
+| Explicit-key scores parsed by both with equal note/chord event count | Baseline Acorde first | Profile-ranked Acorde first | music21 single key |
 | --- | ---: | ---: | ---: |
-| 80 | 44 correct | 74 correct | 74 correct |
+| 82 | 46 correct | 76 correct | 76 correct |
 
 The [per-score JSON](analysis-bcmh-key-profile.json) records input and Acorde
-binary hashes, parser failures, note counts, and every ordered candidate.
-Acorde parsed 90/100 inputs; music21 parsed 98/100. Only 86 of the 90 paired
-parses had equal note counts, and only 80 of those had an explicit global-key
+binary hashes, parser failures, note/chord event counts, and every ordered candidate.
+Acorde parsed 90/100 inputs; music21 parsed 98/100. Only 88 of the 90 paired
+parses had equal event counts, and only 82 of those had an explicit global-key
 interpretation. Gold was present somewhere in Acorde's tied candidates for
-76/80, which is a different measure from first-candidate agreement.
+78/82, which is a different measure from first-candidate agreement.
 
-This is an **in-sample result**: the 80 scores exposed the relative-major/
+This is an **in-sample result**: the 82 scores exposed the relative-major/
 minor tie and informed this ranking method. An independently fixed holdout is
 required before claiming general global-key parity. This experiment does not
 compare harmony, cadence, voice leading, or other analysis tasks. Import
