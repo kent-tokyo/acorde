@@ -1843,6 +1843,24 @@ pub fn insert_melodic_notes(score_json: &str, options_json: &str) -> Result<Stri
     serde_json::to_string(&acorde_core::insert_melodic_notes(&score, options)).map_err(|error| js_err(format!("melodic insertion result serialization failed: {error}")))
 }
 
+/// Evaluate explicit harmony and local keys, then apply the selected melodic insertions.
+#[wasm_bindgen]
+pub fn insert_melodic_notes_with_context(
+    score_json: &str,
+    options_json: &str,
+    context_json: &str,
+) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let options: acorde_core::MelodicInsertionOptions =
+        parse_json(options_json, "melodic insertion options", MAX_OPTIONS_JSON_BYTES)?;
+    let context: acorde_core::MelodicInsertionContext =
+        parse_json(context_json, "melodic insertion context", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::insert_melodic_notes_with_context(
+        &score, options, &context,
+    ))
+    .map_err(|error| js_err(format!("contextual melodic insertion serialization failed: {error}")))
+}
+
 #[wasm_bindgen]
 pub fn arrange_accordion_preset(
     score_json: &str,
