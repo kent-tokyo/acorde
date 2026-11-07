@@ -127,6 +127,20 @@ def music21_events(score, note, chord):
     return events
 
 
+def music21_spelling_and_ties(event, note):
+    """Written pitch and per-note tie state, independent of sounding MIDI pitch."""
+    notes = [event] if isinstance(event, note.Note) else event.notes
+    result = []
+    for item in notes:
+        pitch = item.pitch
+        alter = float(pitch.accidental.alter) if pitch.accidental else 0.0
+        tie_type = item.tie.type if item.tie else None
+        result.append((pitch.step, pitch.octave, round(alter, 6),
+                       tie_type in {"start", "continue"},
+                       tie_type in {"stop", "continue"}))
+    return tuple(sorted(result))
+
+
 def music21_measure_timeline(score, note, chord):
     """Preserve each part, measure, onset and rest in the parsed score."""
     parts = []
@@ -138,11 +152,14 @@ def music21_measure_timeline(score, note, chord):
                 if isinstance(event, note.Rest):
                     kind = "hidden_rest" if event.style.hideObjectOnPrint else "rest"
                     pitches = ()
+                    spelling_and_ties = ()
                 elif isinstance(event, note.Note):
                     kind, pitches = "pitched", (round(event.pitch.midi, 6),)
+                    spelling_and_ties = music21_spelling_and_ties(event, note)
                 elif isinstance(event, chord.Chord):
                     kind = "pitched"
                     pitches = tuple(sorted(round(p.midi, 6) for p in event.pitches))
+                    spelling_and_ties = music21_spelling_and_ties(event, note)
                 else:
                     continue
                 events.append((
@@ -150,6 +167,7 @@ def music21_measure_timeline(score, note, chord):
                     kind,
                     pitches,
                     round(float(event.duration.quarterLength), 6),
+                    spelling_and_ties,
                 ))
             measures.append(events)
         parts.append(measures)
@@ -182,10 +200,16 @@ def acorde_measure_timeline(score):
                         + STEP_SEMITONES[pitch["step"]]
                         + pitch["alter"] + pitch["microtone_cents"] / 100, 6
                     ) for pitch in event["pitches"]))
+                    spelling_and_ties = () if event["is_rest"] else tuple(sorted(
+                        (pitch["step"], pitch["octave"],
+                         round(pitch["alter"] + pitch["microtone_cents"] / 100, 6),
+                         event["tie_start"], event["tie_end"])
+                        for pitch in event["pitches"]
+                    ))
                     events.append((round(onset, 6),
                                    ("hidden_rest" if event.get("hidden", False) else "rest")
                                    if event["is_rest"] else "pitched",
-                                   pitches, beats))
+                                   pitches, beats, spelling_and_ties))
                     onset += beats
             measures.append(events)
         parts.append(measures)
@@ -200,8 +224,26 @@ def same_measure_events(left, right, kind, *, with_onset):
         for left_measure, right_measure in zip(left_part, right_part):
             project = lambda events: Counter(
                 (onset, pitches, duration) if with_onset else (pitches, duration)
-                for onset, event_kind, pitches, duration in events if event_kind in kinds
+                for onset, event_kind, pitches, duration, _ in events if event_kind in kinds
             )
+            if project(left_measure) != project(right_measure):
+                return False
+    return True
+
+
+def same_measure_spelling_and_ties(left, right, *, include_ties):
+    if len(left) != len(right) or any(len(a) != len(b) for a, b in zip(left, right)):
+        return False
+    for left_part, right_part in zip(left, right):
+        for left_measure, right_measure in zip(left_part, right_part):
+            def project(events):
+                return Counter(
+                    (onset, duration, tuple(
+                        pitch if include_ties else pitch[:3] for pitch in spelling_and_ties
+                    ))
+                    for onset, kind, _, duration, spelling_and_ties in events
+                    if kind == "pitched"
+                )
             if project(left_measure) != project(right_measure):
                 return False
     return True
@@ -301,6 +343,12 @@ def compare_one(archive, name, temporary_dir, acorde, converter, note, chord, ke
         row["part_measure_all_rest_timeline_equal"] = same_measure_events(
             music21_timeline, acorde_timeline, {"rest", "hidden_rest"}, with_onset=True
         )
+        row["part_measure_spelling_timeline_equal"] = same_measure_spelling_and_ties(
+            music21_timeline, acorde_timeline, include_ties=False
+        )
+        row["part_measure_tie_timeline_equal"] = same_measure_spelling_and_ties(
+            music21_timeline, acorde_timeline, include_ties=True
+        )
     return row
 
 
@@ -379,6 +427,12 @@ def main():
             ),
             "equal_part_measure_all_rest_timelines": sum(
                 row["part_measure_all_rest_timeline_equal"] for row in both
+            ),
+            "equal_part_measure_spelling_timelines": sum(
+                row["part_measure_spelling_timeline_equal"] for row in both
+            ),
+            "equal_part_measure_tie_timelines": sum(
+                row["part_measure_tie_timeline_equal"] for row in both
             ),
             "acorde_projection_counts_match_info": sum(
                 row["acorde"]["projection_event_count_matches_info"] for row in acorde_valid
