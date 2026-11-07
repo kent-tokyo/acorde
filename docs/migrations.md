@@ -11,7 +11,19 @@ struct literals must still update for added variants and fields.
 > longer compile in 1.2.19 or 1.2.20, despite the patch version. Pin `=1.2.18` or migrate the
 > literal before updating; do not assume a later 1.2 patch restores the old literal form.
 
-## Unreleased: opt-in ensemble print density
+## v1.3.11: saved arrangements and analysis output
+
+The minimum supported Rust version remains 1.89. Preset and free-layer engine
+markers include the workspace version, so reselect saved inputs to create
+1.3.11 configurations before replay. New vertical-sonority and contextual
+melodic-insertion APIs are opt-in. The existing melodic-insertion signature is
+unchanged, but insertion into a score with supported typed references now
+remaps their note addresses.
+
+`roman_numeral` and figured analysis now label diminished chords on the raised
+seventh in minor keys as leading-tone chords. Consumers comparing serialized
+analysis results or exact Roman labels should review those results after
+upgrading; other chromatic roots are still unsupported.
 
 `PrintSystemBreakStrategy::NotationDensity` with staff-aware height and a
 `measures_per_system` cap above four can produce different system breaks and
