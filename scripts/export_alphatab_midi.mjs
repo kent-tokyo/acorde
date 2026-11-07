@@ -1,19 +1,19 @@
 #!/usr/bin/env node
 // Generate an SMF1.0 playback projection from an independently pinned alphaTab install.
-// Usage: node scripts/export_alphatab_midi.mjs PREFIX INPUT.mxl OUTPUT.mid
+// Usage: node scripts/export_alphatab_midi.mjs PREFIX INPUT.mxl OUTPUT.mid [EXPECTED_VERSION]
 
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-const [prefix, inputPath, outputPath] = process.argv.slice(2);
+const [prefix, inputPath, outputPath, expectedVersion = '1.8.4'] = process.argv.slice(2);
 if (!prefix || !inputPath || !outputPath) {
-    throw new Error('expected PREFIX INPUT.mxl OUTPUT.mid');
+    throw new Error('expected PREFIX INPUT.mxl OUTPUT.mid [EXPECTED_VERSION]');
 }
 const packageDir = path.join(prefix, 'node_modules', '@coderline', 'alphatab');
 const packageInfo = JSON.parse(fs.readFileSync(path.join(packageDir, 'package.json'), 'utf8'));
-if (packageInfo.version !== '1.8.4') {
-    throw new Error(`expected alphaTab 1.8.4, got ${packageInfo.version}`);
+if (packageInfo.version !== expectedVersion) {
+    throw new Error(`expected alphaTab ${expectedVersion}, got ${packageInfo.version}`);
 }
 const alphaTab = await import(pathToFileURL(path.join(packageDir, 'dist', 'alphaTab.mjs')).href);
 const settings = new alphaTab.Settings();

@@ -97,6 +97,12 @@ preserved in the records below.
 
 [Full record](archive/playback-audio-corpus.md).
 
+## Written note onsets against alphaTab 1.9.0 (2026-11-07)
+
+[Full record](archive/playback-alpha19-source-onsets.md). The comparison uses
+written beat positions with fermata stretching disabled; the record also
+documents a corrected whole-measure-rest fermata hold in default playback.
+
 ## Evidence boundary
 
 [Full record](archive/playback-corpus-and-controls.md#evidence-boundary).
