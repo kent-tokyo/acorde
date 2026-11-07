@@ -1,5 +1,8 @@
 # Ten-score print corpus against Verovio 6.3.0 (2026-11-05)
 
+The [6.4.1 rerun](print-corpus-verovio-6-4-1.md) uses the same licensed inputs
+and A4 measurement protocol, with a separate versioned result.
+
 Issue #183 asks for a licensed piano/chamber corpus, a same-input Verovio 6.3.0 comparison,
 and checks for clipping, missing marks, collisions, legibility, page count and typography, with
 import losses recorded separately. This record covers those checks on ten committed fixtures.
