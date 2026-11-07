@@ -1,7 +1,8 @@
 //! Deterministic, explainable music analysis over [`acorde_core::Score`].
 
 use acorde_core::{
-    ChangeHint, ChordSymbol, KeySignature, NoteAddr, Score, detect_chord, roman_numeral,
+    ChangeHint, ChordSymbol, KeySignature, NoteAddr, Pitch, Score, detect_chord, roman_numeral,
+    roman_numeral_figured,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, VecDeque};
@@ -680,6 +681,176 @@ pub fn analyze_score(score: &Score) -> AnalysisResult {
 
 fn analyze_chords_only(score: &Score) -> Vec<ChordLabel> {
     analyze_chords_in_region(score, None)
+}
+
+/// One chord heard at a written beat, using notes active across all parts and voices.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct VerticalSonority {
+    pub measure: usize,
+    pub beat: f64,
+    pub label: ChordLabel,
+}
+
+struct SoundingPitchEvent {
+    start: f64,
+    end: f64,
+    address: NoteAddr,
+    pitches: Vec<Pitch>,
+}
+
+/// Infer chords from simultaneous sounding notes, retaining authored chord symbols.
+///
+/// This opt-in pass groups all parts, staves and voices at each written pitched
+/// onset. It avoids treating consecutive notes of a melody as one chord. It does
+/// not expand repeats or infer a harmonic rhythm where no note starts. Physical
+/// measure indices must align across parts for the vertical grouping to be valid.
+pub fn analyze_vertical_sonorities(score: &Score) -> Vec<VerticalSonority> {
+    analyze_vertical_sonorities_with_key(score, None)
+}
+
+/// Infer vertical chords in an independently chosen global key.
+///
+/// Use this when a corpus has a known or separately estimated global key;
+/// local key-signature changes in the score are ignored for this pass.
+pub fn analyze_vertical_sonorities_in_key(
+    score: &Score,
+    key: &KeySignature,
+) -> Vec<VerticalSonority> {
+    analyze_vertical_sonorities_with_key(score, Some(key))
+}
+
+fn analyze_vertical_sonorities_with_key(
+    score: &Score,
+    key_override: Option<&KeySignature>,
+) -> Vec<VerticalSonority> {
+    const EPSILON: f64 = 1e-7;
+    let measure_count = score
+        .parts
+        .iter()
+        .flat_map(|part| part.staves.iter())
+        .map(|staff| staff.measures.len())
+        .max()
+        .unwrap_or(0);
+    let mut key = key_override
+        .cloned()
+        .unwrap_or_else(|| score.settings.key_signature.clone());
+    let mut result = Vec::new();
+
+    for measure_index in 0..measure_count {
+        if key_override.is_none()
+            && let Some(next_key) = score
+                .parts
+                .iter()
+                .flat_map(|part| part.staves.iter())
+                .filter_map(|staff| staff.measures.get(measure_index))
+                .find_map(|measure| measure.key_sig.as_ref())
+        {
+            key = next_key.clone();
+        }
+        let mut sounding = Vec::new();
+        let mut authored = Vec::new();
+        let mut onsets = Vec::new();
+        for (part_index, part) in score.parts.iter().enumerate() {
+            for (staff_index, staff) in part.staves.iter().enumerate() {
+                let Some(measure) = staff.measures.get(measure_index) else {
+                    continue;
+                };
+                for (voice_index, voice) in measure.voices.iter().enumerate() {
+                    let mut beat = 0.0;
+                    for (note_index, note) in voice.iter().enumerate() {
+                        let duration = note.beats();
+                        let address = NoteAddr {
+                            part: part_index,
+                            staff: staff_index,
+                            measure: measure_index,
+                            voice: voice_index,
+                            note: note_index,
+                        };
+                        if let Some(chord) = &note.chord_symbol {
+                            authored.push((
+                                beat,
+                                ChordLabel {
+                                    address: address.clone(),
+                                    chord: chord.clone(),
+                                    name: chord_name(chord),
+                                    roman_numeral: roman_numeral_figured(chord, &key),
+                                    confidence: 100,
+                                    rule_id: "authored-chord-symbol".to_string(),
+                                    evidence: vec![address.clone()],
+                                },
+                            ));
+                            onsets.push(beat);
+                        }
+                        if !note.is_rest
+                            && !note.is_unpitched
+                            && !note.pitches.is_empty()
+                            && duration > EPSILON
+                        {
+                            sounding.push(SoundingPitchEvent {
+                                start: beat,
+                                end: beat + duration,
+                                address,
+                                pitches: note.pitches.clone(),
+                            });
+                            onsets.push(beat);
+                        }
+                        beat += duration;
+                    }
+                }
+            }
+        }
+        onsets.sort_by(f64::total_cmp);
+        onsets.dedup_by(|left, right| (*left - *right).abs() < EPSILON);
+        for beat in onsets {
+            let authored_here: Vec<_> = authored
+                .iter()
+                .filter(|(onset, _)| (*onset - beat).abs() < EPSILON)
+                .collect();
+            if !authored_here.is_empty() {
+                result.extend(
+                    authored_here
+                        .into_iter()
+                        .map(|(_, label)| VerticalSonority {
+                            measure: measure_index,
+                            beat,
+                            label: label.clone(),
+                        }),
+                );
+                continue;
+            }
+            let active: Vec<_> = sounding
+                .iter()
+                .filter(|event| event.start <= beat + EPSILON && event.end > beat + EPSILON)
+                .collect();
+            let pitches: Vec<_> = active
+                .iter()
+                .flat_map(|event| event.pitches.iter().cloned())
+                .collect();
+            let Some(chord) = detect_chord(&pitches) else {
+                continue;
+            };
+            let Some(anchor) = active
+                .iter()
+                .find(|event| (event.start - beat).abs() < EPSILON)
+            else {
+                continue;
+            };
+            result.push(VerticalSonority {
+                measure: measure_index,
+                beat,
+                label: ChordLabel {
+                    address: anchor.address.clone(),
+                    name: chord_name(&chord),
+                    roman_numeral: roman_numeral_figured(&chord, &key),
+                    chord,
+                    confidence: 70,
+                    rule_id: "vertical-sonority-template".to_string(),
+                    evidence: active.iter().map(|event| event.address.clone()).collect(),
+                },
+            });
+        }
+    }
+    result
 }
 
 /// Analyze chord labels only inside an optional part/staff measure region.
@@ -2173,6 +2344,112 @@ mod tests {
         assert_eq!(result.chords[0].roman_numeral.as_deref(), Some("I"));
         assert_eq!(chord_name(&result.chords[0].chord), "C");
         assert_eq!(result.chords[0].name, "C");
+    }
+
+    #[test]
+    fn vertical_sonorities_do_not_turn_a_sequential_melody_into_a_chord() {
+        let mut score = Score::new("melody", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] = [Step::C, Step::E, Step::G]
+            .into_iter()
+            .map(|step| Note::new(Pitch::new(step, 4), Duration::Quarter))
+            .collect();
+
+        assert!(analyze_vertical_sonorities(&score).is_empty());
+        // The legacy pass still has its original behavior for existing callers.
+        assert_eq!(analyze_chords(&score).chords.len(), 1);
+    }
+
+    #[test]
+    fn vertical_sonorities_include_held_notes_across_parts() {
+        let mut score = Score::new("vertical", 120, 4, 4, 0, 1);
+        let part = score.parts[0].clone();
+        score.parts.push(part.clone());
+        score.parts.push(part);
+        score.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::C, 3), Duration::Whole)];
+        score.parts[1].staves[0].measures[0].voices[0] = vec![
+            Note::new(Pitch::new(Step::E, 4), Duration::Half),
+            Note::new(Pitch::new(Step::F, 4), Duration::Half),
+        ];
+        score.parts[2].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::G, 4), Duration::Whole)];
+
+        let sonorities = analyze_vertical_sonorities(&score);
+        assert_eq!(sonorities.len(), 2);
+        assert_eq!((sonorities[0].measure, sonorities[0].beat), (0, 0.0));
+        assert_eq!((sonorities[1].measure, sonorities[1].beat), (0, 2.0));
+        assert_eq!(sonorities[0].label.chord.root, "C");
+        assert_eq!(sonorities[0].label.chord.kind, "major");
+        assert_eq!(sonorities[1].label.chord.kind, "suspended-fourth");
+        assert!(sonorities.iter().all(|item| item.label.evidence.len() == 3));
+    }
+
+    #[test]
+    fn vertical_sonorities_preserve_authored_chord_at_its_beat() {
+        let mut score = Score::new("authored", 120, 4, 4, 0, 1);
+        let part = score.parts[0].clone();
+        score.parts.push(part.clone());
+        score.parts.push(part);
+        let mut bass = Note::new(Pitch::new(Step::C, 3), Duration::Quarter);
+        bass.chord_symbol = Some(ChordSymbol {
+            root: "D".to_string(),
+            kind: "minor".to_string(),
+            bass: None,
+            placement: None,
+            extender: false,
+            harmonic_degree: None,
+            harmony_function: None,
+            harmony_type: None,
+            chord_ref: None,
+            range_end: None,
+            degrees: Vec::new(),
+        });
+        score.parts[0].staves[0].measures[0].voices[0] = vec![bass];
+        score.parts[1].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::E, 4), Duration::Quarter)];
+        score.parts[2].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::G, 4), Duration::Quarter)];
+
+        let sonorities = analyze_vertical_sonorities(&score);
+        assert_eq!(sonorities.len(), 1);
+        assert_eq!(sonorities[0].label.rule_id, "authored-chord-symbol");
+        assert_eq!(sonorities[0].label.chord.root, "D");
+        assert_eq!(sonorities[0].label.confidence, 100);
+    }
+
+    #[test]
+    fn vertical_sonorities_can_use_an_independently_estimated_minor_key() {
+        let mut score = Score::new("minor", 120, 4, 4, -3, 1);
+        let part = score.parts[0].clone();
+        score.parts.push(part.clone());
+        score.parts.push(part);
+        for (part_index, (step, alter)) in [(Step::C, 0), (Step::E, -1), (Step::G, 0)]
+            .into_iter()
+            .enumerate()
+        {
+            score.parts[part_index].staves[0].measures[0].voices[0] = vec![Note::new(
+                Pitch::with_alter(step, 4, alter),
+                Duration::Quarter,
+            )];
+        }
+        let c_minor = KeySignature {
+            fifths: -3,
+            mode: "minor".to_string(),
+        };
+        assert_eq!(
+            analyze_vertical_sonorities(&score)[0]
+                .label
+                .roman_numeral
+                .as_deref(),
+            Some("vi")
+        );
+        assert_eq!(
+            analyze_vertical_sonorities_in_key(&score, &c_minor)[0]
+                .label
+                .roman_numeral
+                .as_deref(),
+            Some("i")
+        );
     }
 
     #[test]

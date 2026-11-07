@@ -22,6 +22,16 @@ let result = analyze_score(&Score::default());
 assert!(result.chords.is_empty());
 ```
 
+`analyze_vertical_sonorities(score)` is an opt-in harmony pass that groups
+simultaneously sounding notes across parts and voices instead of treating a
+melodic sequence as a chord. It reports measure/beat and source addresses,
+and preserves authored chord symbols. `analyze_vertical_sonorities_in_key`
+accepts a separately chosen global key; the default pass follows written key
+changes. Its Roman numerals use common figured-bass inversion suffixes.
+The [BCMH development screening](../../docs/archive/analysis-bcmh-vertical-harmony.md)
+records current coverage and errors. The legacy `analyze_score` chord result
+is unchanged for existing callers.
+
 `analyze_batch` preserves input order for finite collections, while `analyze_stream` returns a
 lazy iterator for host-side streaming. Both use the same deterministic result contract.
 

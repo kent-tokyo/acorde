@@ -79,7 +79,7 @@ pub use model::free_bass::{
     split_for_free_bass,
 };
 pub use model::gm::{drum_name, program_name};
-pub use model::harmony::{detect_chord, roman_numeral};
+pub use model::harmony::{detect_chord, roman_numeral, roman_numeral_figured};
 pub use model::interval::{Interval, IntervalQuality};
 pub use model::melodic_insert::{
     MelodicInsertion, MelodicInsertionDiagnostic, MelodicInsertionKind, MelodicInsertionOptions,

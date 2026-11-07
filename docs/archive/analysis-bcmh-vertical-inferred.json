@@ -1,0 +1,8209 @@
+{
+  "contract_version": 1,
+  "corpus": "MusicCogCompLab/BCMH@97dfc249b90a8739457d83a2702644173c7eb4a8",
+  "archive_sha256": "9aa8ac78052156932a04431fd56d7a217fe4cd07d0dc726dac1b9dbf85870b1c",
+  "acorde_binary_sha256": "a1448224bddf79fba69b0e14fbb85de45274a62b4019d239271c53704c22307e",
+  "selection": "source rows in measures with equal sonority and data-row counts",
+  "key_source": "aarden-essen-first-candidate",
+  "summary": {
+    "total_scores": 100,
+    "parsed_scores": 98,
+    "source_rows": 4988,
+    "source_labeled_rows": 4937,
+    "predicted_sonorities": 4728,
+    "aligned_measures": 1150,
+    "unaligned_measures": 266,
+    "labeled_rows_in_aligned_measures": 3943,
+    "exact_labels_in_aligned_measures": 1916
+  },
+  "rows": [
+    {
+      "score": "chor001_rev.krn",
+      "source_sha256": "5d4de759e6cb58fe1fcc743fe7abb14d12e133255bf3bdcb479044081ed2b334",
+      "notes_only_sha256": "ed611caf3fa4116e3ce408063f5daed27d28fb38605688ac5839d19e16e17cda",
+      "source_rows": 57,
+      "source_labeled_rows": 57,
+      "predicted_sonorities": 56,
+      "aligned_measures": 22,
+      "unaligned_measures": 1,
+      "labeled_rows": 55,
+      "exact_labels": 54,
+      "errors": [
+        {
+          "measure": 13,
+          "reason": "row_count",
+          "source_rows": 2,
+          "predicted_sonorities": 1
+        },
+        {
+          "measure": 14,
+          "row": 2,
+          "gold": "V7/IV",
+          "acorde": "I7"
+        }
+      ]
+    },
+    {
+      "score": "chor002_rev.krn",
+      "source_sha256": "fabb719f8110f409ca10ce0313d2f329b1ff2df755dda6c040fc45a347a4590b",
+      "notes_only_sha256": "d9cc29ef0db1d6578a53ede3aae5ac1dd2374d939ad5ba00846e63a681d1f45a",
+      "source_rows": 53,
+      "source_labeled_rows": 53,
+      "predicted_sonorities": 50,
+      "aligned_measures": 13,
+      "unaligned_measures": 2,
+      "labeled_rows": 42,
+      "exact_labels": 19,
+      "errors": [
+        {
+          "measure": 1,
+          "row": 3,
+          "gold": "E:V6",
+          "acorde": "II6"
+        },
+        {
+          "measure": 2,
+          "row": 0,
+          "gold": "i",
+          "acorde": "v"
+        },
+        {
+          "measure": 2,
+          "row": 1,
+          "gold": "V7",
+          "acorde": "II7"
+        },
+        {
+          "measure": 2,
+          "row": 2,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 2,
+          "row": 3,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 3,
+          "row": 0,
+          "gold": "IV",
+          "acorde": "I"
+        },
+        {
+          "measure": 3,
+          "row": 1,
+          "gold": "V",
+          "acorde": "II"
+        },
+        {
+          "measure": 3,
+          "row": 2,
+          "gold": "IV6",
+          "acorde": "I6"
+        },
+        {
+          "measure": 3,
+          "row": 3,
+          "gold": "ii65",
+          "acorde": "vi65"
+        },
+        {
+          "measure": 4,
+          "row": 0,
+          "gold": "V(64)",
+          "acorde": "V64"
+        },
+        {
+          "measure": 4,
+          "row": 1,
+          "gold": "V7",
+          "acorde": "II7"
+        },
+        {
+          "measure": 4,
+          "row": 2,
+          "gold": "I",
+          "acorde": "V"
+        }
+      ]
+    },
+    {
+      "score": "chor003_rev.krn",
+      "source_sha256": "43bb973095fd411194336117981168f7275a4cc30dc664936f04d833945a1e43",
+      "notes_only_sha256": "1c57673c23845dd56c670fec55c4b4453fe2d9657df4c0b151b5690b0233f4ec",
+      "source_rows": 44,
+      "source_labeled_rows": 44,
+      "predicted_sonorities": 46,
+      "aligned_measures": 11,
+      "unaligned_measures": 1,
+      "labeled_rows": 40,
+      "exact_labels": 24,
+      "errors": [
+        {
+          "measure": 0,
+          "row": 0,
+          "gold": "a:V",
+          "acorde": "V"
+        },
+        {
+          "measure": 1,
+          "row": 1,
+          "gold": "viio6",
+          "acorde": null
+        },
+        {
+          "measure": 2,
+          "row": 0,
+          "gold": "V65",
+          "acorde": null
+        },
+        {
+          "measure": 2,
+          "row": 3,
+          "gold": "viio65",
+          "acorde": "ivo2"
+        },
+        {
+          "measure": 3,
+          "row": 1,
+          "gold": "V",
+          "acorde": "V7"
+        },
+        {
+          "measure": 4,
+          "row": 0,
+          "gold": "V(64)",
+          "acorde": "i64"
+        },
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "G:V6",
+          "acorde": "IV6"
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "I",
+          "acorde": "VII"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "e:viio6",
+          "acorde": null
+        },
+        {
+          "measure": 6,
+          "row": 2,
+          "gold": "i",
+          "acorde": "v"
+        },
+        {
+          "measure": 6,
+          "row": 3,
+          "gold": "V",
+          "acorde": "II"
+        },
+        {
+          "measure": 6,
+          "row": 4,
+          "gold": "V2",
+          "acorde": "II2"
+        }
+      ]
+    },
+    {
+      "score": "chor004_rev.krn",
+      "source_sha256": "721e997403c87a9f56f20391d68f1d0948478c8864009f215aa8cb879dc569f4",
+      "notes_only_sha256": "0320fbbacb82e6b920c7dfca38f2c02cce8aa6eeb64aae07a145ba1248d02580",
+      "source_rows": 45,
+      "source_labeled_rows": 45,
+      "predicted_sonorities": 43,
+      "aligned_measures": 10,
+      "unaligned_measures": 2,
+      "labeled_rows": 36,
+      "exact_labels": 14,
+      "errors": [
+        {
+          "measure": 1,
+          "reason": "row_count",
+          "source_rows": 5,
+          "predicted_sonorities": 4
+        },
+        {
+          "measure": 2,
+          "row": 0,
+          "gold": "I",
+          "acorde": "IV"
+        },
+        {
+          "measure": 2,
+          "row": 1,
+          "gold": "V7",
+          "acorde": "I7"
+        },
+        {
+          "measure": 2,
+          "row": 2,
+          "gold": "I",
+          "acorde": "IV"
+        },
+        {
+          "measure": 2,
+          "row": 3,
+          "gold": "E:V6",
+          "acorde": "V6"
+        },
+        {
+          "measure": 3,
+          "row": 3,
+          "gold": "B:V",
+          "acorde": "II"
+        },
+        {
+          "measure": 3,
+          "row": 4,
+          "gold": "V2",
+          "acorde": "II2"
+        },
+        {
+          "measure": 4,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "IV",
+          "acorde": "I"
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "ii",
+          "acorde": "vi"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "viio6",
+          "acorde": null
+        },
+        {
+          "measure": 6,
+          "row": 2,
+          "gold": "I6",
+          "acorde": "V6"
+        }
+      ]
+    },
+    {
+      "score": "chor005_rev.krn",
+      "source_sha256": "929e7568429a97d599158c65a7b835f739394feca62f0d7b989ceb7f648e08bf",
+      "notes_only_sha256": "cd81e27f563859992b8c7d944e054facfba8f20eef1036bf2195a47e1144c8a6",
+      "source_rows": 72,
+      "source_labeled_rows": 72,
+      "predicted_sonorities": 66,
+      "aligned_measures": 13,
+      "unaligned_measures": 6,
+      "labeled_rows": 48,
+      "exact_labels": 27,
+      "errors": [
+        {
+          "measure": 2,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 7,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 8,
+          "row": 0,
+          "gold": "C:V",
+          "acorde": "I"
+        },
+        {
+          "measure": 8,
+          "row": 1,
+          "gold": "V2",
+          "acorde": "I2"
+        },
+        {
+          "measure": 8,
+          "row": 2,
+          "gold": "I6",
+          "acorde": "IV6"
+        },
+        {
+          "measure": 8,
+          "row": 3,
+          "gold": "V65",
+          "acorde": "I65"
+        },
+        {
+          "measure": 8,
+          "row": 4,
+          "gold": "I",
+          "acorde": "IV"
+        },
+        {
+          "measure": 9,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 10,
+          "row": 3,
+          "gold": "a:V6",
+          "acorde": "VI6"
+        },
+        {
+          "measure": 11,
+          "row": 0,
+          "gold": "i",
+          "acorde": "ii"
+        },
+        {
+          "measure": 11,
+          "row": 1,
+          "gold": "i",
+          "acorde": "ii"
+        },
+        {
+          "measure": 11,
+          "row": 2,
+          "gold": "V",
+          "acorde": "VI"
+        }
+      ]
+    },
+    {
+      "score": "chor006_rev.krn",
+      "source_sha256": "4bcf2c4a1a9744246c235255c19091716d8d8deb444c151903ba9c13fad18f7e",
+      "notes_only_sha256": "883cf41c6e47235710a1c00a8bdc56256b7d16b6ff308df77fb798b3af2c0d2d",
+      "source_rows": 32,
+      "source_labeled_rows": 31,
+      "predicted_sonorities": 30,
+      "aligned_measures": 7,
+      "unaligned_measures": 2,
+      "labeled_rows": 23,
+      "exact_labels": 16,
+      "errors": [
+        {
+          "measure": 1,
+          "row": 2,
+          "gold": "V2/IV",
+          "acorde": "I2"
+        },
+        {
+          "measure": 3,
+          "row": 1,
+          "gold": "ii7",
+          "acorde": "IV6/II"
+        },
+        {
+          "measure": 4,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 5,
+          "reason": "row_count",
+          "source_rows": 6,
+          "predicted_sonorities": 5
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "ii65",
+          "acorde": "vi65"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "V",
+          "acorde": "II"
+        },
+        {
+          "measure": 6,
+          "row": 2,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 6,
+          "row": 3,
+          "gold": "F:I",
+          "acorde": "I"
+        },
+        {
+          "measure": 7,
+          "row": 2,
+          "gold": "ii%65",
+          "acorde": "ii\u00f865"
+        }
+      ]
+    },
+    {
+      "score": "chor007_rev.krn",
+      "source_sha256": "95214702faa54439f21ace85a840bb717b9a2b48a3b1c9365247da803fdc30c6",
+      "notes_only_sha256": "5a28c78dca387f381a728733ca12c58d12de7bbfedb5fc7c3aa5356f0740e0ec",
+      "source_rows": 86,
+      "source_labeled_rows": 86,
+      "predicted_sonorities": 83,
+      "aligned_measures": 36,
+      "unaligned_measures": 3,
+      "labeled_rows": 79,
+      "exact_labels": 34,
+      "errors": [
+        {
+          "measure": 5,
+          "reason": "row_count",
+          "source_rows": 2,
+          "predicted_sonorities": 1
+        },
+        {
+          "measure": 11,
+          "row": 0,
+          "gold": "f#:viio6",
+          "acorde": null
+        },
+        {
+          "measure": 11,
+          "row": 1,
+          "gold": "V6",
+          "acorde": "III6"
+        },
+        {
+          "measure": 12,
+          "row": 0,
+          "gold": "i",
+          "acorde": "vi"
+        },
+        {
+          "measure": 12,
+          "row": 1,
+          "gold": "ii%65",
+          "acorde": "vii\u00f865"
+        },
+        {
+          "measure": 12,
+          "row": 2,
+          "gold": "V",
+          "acorde": "III"
+        },
+        {
+          "measure": 13,
+          "row": 0,
+          "gold": "i",
+          "acorde": "vi"
+        },
+        {
+          "measure": 13,
+          "row": 1,
+          "gold": "E:V65",
+          "acorde": "II65"
+        },
+        {
+          "measure": 14,
+          "row": 0,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 14,
+          "row": 1,
+          "gold": "IV64",
+          "acorde": "I5/V"
+        },
+        {
+          "measure": 14,
+          "row": 2,
+          "gold": "V2/IV",
+          "acorde": "V2"
+        },
+        {
+          "measure": 15,
+          "row": 0,
+          "gold": "IV6",
+          "acorde": "I6"
+        }
+      ]
+    },
+    {
+      "score": "chor008_rev.krn",
+      "source_sha256": "7d46ce6a9570b61bf8cf3079d052a9a7a5406065f8e1cff78aea1745a5d47ef9",
+      "notes_only_sha256": "cb8d388c39ade3297ca80b9ff0496877ac5c65c175efc1e2091b432d62b8fe43",
+      "source_rows": 78,
+      "source_labeled_rows": 78,
+      "predicted_sonorities": 73,
+      "aligned_measures": 15,
+      "unaligned_measures": 5,
+      "labeled_rows": 58,
+      "exact_labels": 19,
+      "errors": [
+        {
+          "measure": 0,
+          "row": 1,
+          "gold": "V2/IV",
+          "acorde": "I2"
+        },
+        {
+          "measure": 1,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 2,
+          "row": 1,
+          "gold": "A-:viio64",
+          "acorde": "iio64"
+        },
+        {
+          "measure": 2,
+          "row": 2,
+          "gold": "I6",
+          "acorde": "III6"
+        },
+        {
+          "measure": 2,
+          "row": 3,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 3,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 4,
+          "row": 0,
+          "gold": "f:VI",
+          "acorde": "VI"
+        },
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "ii%65",
+          "acorde": "ii\u00f865"
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "b-:V",
+          "acorde": "I"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "V6",
+          "acorde": "I6"
+        },
+        {
+          "measure": 6,
+          "row": 2,
+          "gold": "i",
+          "acorde": "iv"
+        },
+        {
+          "measure": 6,
+          "row": 3,
+          "gold": "i6",
+          "acorde": "iv6"
+        }
+      ]
+    },
+    {
+      "score": "chor009_rev.krn",
+      "source_sha256": "adb69765046a6915b8c700e39437a27ec5dfa1f8aa84300b9259acce366018a7",
+      "notes_only_sha256": "dfc8ebba2aa8f2b0ed9395059a83b73449a98c2077594e25300bc6d58fb4d789",
+      "source_rows": 55,
+      "source_labeled_rows": 55,
+      "predicted_sonorities": 47,
+      "aligned_measures": 8,
+      "unaligned_measures": 6,
+      "labeled_rows": 25,
+      "exact_labels": 11,
+      "errors": [
+        {
+          "measure": 1,
+          "row": 3,
+          "gold": "D:V2",
+          "acorde": "II2"
+        },
+        {
+          "measure": 1,
+          "row": 4,
+          "gold": "I6",
+          "acorde": "V6"
+        },
+        {
+          "measure": 2,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 3,
+          "reason": "row_count",
+          "source_rows": 6,
+          "predicted_sonorities": 5
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "a:viio6",
+          "acorde": null
+        },
+        {
+          "measure": 6,
+          "row": 2,
+          "gold": "i",
+          "acorde": "ii"
+        },
+        {
+          "measure": 6,
+          "row": 3,
+          "gold": "viio7/V",
+          "acorde": "ivo65"
+        },
+        {
+          "measure": 7,
+          "row": 0,
+          "gold": "V",
+          "acorde": "VI"
+        },
+        {
+          "measure": 7,
+          "row": 1,
+          "gold": "V7",
+          "acorde": "VI7"
+        },
+        {
+          "measure": 7,
+          "row": 2,
+          "gold": "i",
+          "acorde": "ii"
+        },
+        {
+          "measure": 7,
+          "row": 3,
+          "gold": "e:i",
+          "acorde": "vi"
+        },
+        {
+          "measure": 7,
+          "row": 4,
+          "gold": "V43",
+          "acorde": "III43"
+        }
+      ]
+    },
+    {
+      "score": "chor010_rev.krn",
+      "source_sha256": "bf87942407982c710c280e21c1764ad352389034b72c3c1e931a0fe19d9a0b3e",
+      "notes_only_sha256": "7f4cf0073299f6354edbd001ed08143903ad91c6b565cf75309cab2d70ec54f5",
+      "source_rows": 44,
+      "source_labeled_rows": 44,
+      "predicted_sonorities": 43,
+      "aligned_measures": 12,
+      "unaligned_measures": 1,
+      "labeled_rows": 41,
+      "exact_labels": 25,
+      "errors": [
+        {
+          "measure": 0,
+          "row": 2,
+          "gold": "viio6",
+          "acorde": null
+        },
+        {
+          "measure": 1,
+          "row": 3,
+          "gold": "viio6/VII",
+          "acorde": null
+        },
+        {
+          "measure": 3,
+          "row": 1,
+          "gold": "C:V7",
+          "acorde": "VII7"
+        },
+        {
+          "measure": 3,
+          "row": 2,
+          "gold": "V2",
+          "acorde": "iio64"
+        },
+        {
+          "measure": 3,
+          "row": 3,
+          "gold": "I6",
+          "acorde": "III6"
+        },
+        {
+          "measure": 3,
+          "row": 4,
+          "gold": "IV",
+          "acorde": "VI"
+        },
+        {
+          "measure": 4,
+          "row": 0,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 4,
+          "row": 1,
+          "gold": "ii",
+          "acorde": "iv"
+        },
+        {
+          "measure": 4,
+          "row": 2,
+          "gold": "a:V",
+          "acorde": "V"
+        },
+        {
+          "measure": 5,
+          "row": 3,
+          "gold": "viio6/VII",
+          "acorde": null
+        },
+        {
+          "measure": 8,
+          "row": 2,
+          "gold": "C:V65",
+          "acorde": "iio"
+        },
+        {
+          "measure": 8,
+          "row": 3,
+          "gold": "I",
+          "acorde": "III"
+        }
+      ]
+    },
+    {
+      "score": "chor011_rev.krn",
+      "source_sha256": "1b641da8bc03aad5715a2bd4993a39384fba409d790753c779a029ea0751f4d4",
+      "notes_only_sha256": "09dfbb0c827c02c527882f5f51db4329c6858eb49bf17666a2c74f2f4b938162",
+      "source_rows": 96,
+      "source_labeled_rows": 95,
+      "predicted_sonorities": 93,
+      "aligned_measures": 31,
+      "unaligned_measures": 5,
+      "labeled_rows": 81,
+      "exact_labels": 35,
+      "errors": [
+        {
+          "measure": 1,
+          "row": 3,
+          "gold": "V2/IV",
+          "acorde": "I2"
+        },
+        {
+          "measure": 2,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 3,
+          "row": 2,
+          "gold": "I6",
+          "acorde": "Iadd9/III"
+        },
+        {
+          "measure": 3,
+          "row": 4,
+          "gold": "V",
+          "acorde": "I/V"
+        },
+        {
+          "measure": 4,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 5,
+          "row": 1,
+          "gold": "V43",
+          "acorde": "II43"
+        },
+        {
+          "measure": 5,
+          "row": 2,
+          "gold": "I6",
+          "acorde": "V6"
+        },
+        {
+          "measure": 5,
+          "row": 3,
+          "gold": "F:V7",
+          "acorde": "I2"
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "I",
+          "acorde": "IV"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "I",
+          "acorde": "IV"
+        },
+        {
+          "measure": 6,
+          "row": 2,
+          "gold": "I",
+          "acorde": "IV"
+        }
+      ]
+    },
+    {
+      "score": "chor012_rev.krn",
+      "source_sha256": "0ab3eae84e4dcbdd35892fa1f423d113bcf2e6852bca90b4df947bbc2ae2c8ca",
+      "notes_only_sha256": "7c1b4da4fbf54687d2bd75101ddc6d63a5ab06d13795ee12d670a40cd491717e",
+      "source_rows": 39,
+      "source_labeled_rows": 39,
+      "predicted_sonorities": 37,
+      "aligned_measures": 15,
+      "unaligned_measures": 2,
+      "labeled_rows": 33,
+      "exact_labels": 7,
+      "errors": [
+        {
+          "measure": 1,
+          "row": 1,
+          "gold": "C:V6/V",
+          "acorde": "IV6"
+        },
+        {
+          "measure": 2,
+          "row": 0,
+          "gold": "V",
+          "acorde": "VII"
+        },
+        {
+          "measure": 2,
+          "row": 1,
+          "gold": "V2",
+          "acorde": "VII2"
+        },
+        {
+          "measure": 3,
+          "row": 0,
+          "gold": "I6",
+          "acorde": "III6"
+        },
+        {
+          "measure": 3,
+          "row": 1,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 3,
+          "row": 2,
+          "gold": "IV",
+          "acorde": "VI"
+        },
+        {
+          "measure": 4,
+          "row": 0,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 5,
+          "row": 1,
+          "gold": "V43/vi",
+          "acorde": "V43"
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "vi",
+          "acorde": "i"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "V65/V",
+          "acorde": "IV65"
+        },
+        {
+          "measure": 6,
+          "row": 2,
+          "gold": "V",
+          "acorde": "VII"
+        }
+      ]
+    },
+    {
+      "score": "chor013_rev.krn",
+      "source_sha256": "f45c77b06516c90f4c22cc1d5e3c6262f475de22ac100a472eaec4abb2ff6466",
+      "notes_only_sha256": "c1b2ffc03c43fd19532e4e63e76875a7758a9da9204dd9f55dbd09bc01a1a9aa",
+      "source_rows": 65,
+      "source_labeled_rows": 64,
+      "predicted_sonorities": 63,
+      "aligned_measures": 16,
+      "unaligned_measures": 2,
+      "labeled_rows": 57,
+      "exact_labels": 25,
+      "errors": [
+        {
+          "measure": 1,
+          "row": 0,
+          "gold": "C:I6",
+          "acorde": "III6"
+        },
+        {
+          "measure": 1,
+          "row": 1,
+          "gold": "IV",
+          "acorde": "VI"
+        },
+        {
+          "measure": 1,
+          "row": 2,
+          "gold": "I6",
+          "acorde": "III6"
+        },
+        {
+          "measure": 1,
+          "row": 3,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 2,
+          "reason": "row_count",
+          "source_rows": 5,
+          "predicted_sonorities": 4
+        },
+        {
+          "measure": 3,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 4,
+          "row": 0,
+          "gold": "V7",
+          "acorde": "VII7"
+        },
+        {
+          "measure": 4,
+          "row": 1,
+          "gold": "vi",
+          "acorde": "i"
+        },
+        {
+          "measure": 4,
+          "row": 2,
+          "gold": "a:v",
+          "acorde": "v"
+        },
+        {
+          "measure": 4,
+          "row": 3,
+          "gold": "v2",
+          "acorde": "VII6/IV"
+        },
+        {
+          "measure": 5,
+          "row": 1,
+          "gold": "viio6",
+          "acorde": null
+        },
+        {
+          "measure": 5,
+          "row": 3,
+          "gold": "viio7",
+          "acorde": "ivo43"
+        }
+      ]
+    },
+    {
+      "score": "chor014_rev.krn",
+      "source_sha256": "2eb3fa7746b0c4cc11dba2b8f0a7f9484ad73bb344f26435c8de3563999ba067",
+      "notes_only_sha256": "cd9de17fb22d29f6f894b657fe8982740f772f5812343fc21ce67c18b14513db",
+      "source_rows": 55,
+      "source_labeled_rows": 55,
+      "predicted_sonorities": 53,
+      "aligned_measures": 14,
+      "unaligned_measures": 2,
+      "labeled_rows": 47,
+      "exact_labels": 32,
+      "errors": [
+        {
+          "measure": 1,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 3,
+          "row": 2,
+          "gold": "vii%7",
+          "acorde": "ii6/VII"
+        },
+        {
+          "measure": 8,
+          "row": 0,
+          "gold": "V65/V",
+          "acorde": "II65"
+        },
+        {
+          "measure": 8,
+          "row": 1,
+          "gold": "e:V6",
+          "acorde": "III6"
+        },
+        {
+          "measure": 8,
+          "row": 2,
+          "gold": "i",
+          "acorde": "vi"
+        },
+        {
+          "measure": 8,
+          "row": 3,
+          "gold": "i",
+          "acorde": "vi"
+        },
+        {
+          "measure": 9,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 10,
+          "row": 0,
+          "gold": "ii65",
+          "acorde": "vi65"
+        },
+        {
+          "measure": 10,
+          "row": 1,
+          "gold": "V7",
+          "acorde": "II7"
+        },
+        {
+          "measure": 10,
+          "row": 2,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 10,
+          "row": 3,
+          "gold": "vi",
+          "acorde": "iii"
+        },
+        {
+          "measure": 11,
+          "row": 0,
+          "gold": "ii",
+          "acorde": "vi"
+        }
+      ]
+    },
+    {
+      "score": "chor015_rev.krn",
+      "source_sha256": "7da1408a325eb76c0811e37db2d57a0f634312e9aaf4e82b5e320c304b523213",
+      "notes_only_sha256": "2906f77cd11e5b83fe9ebcb476a0688af4d73dbe174a30158725fd1d0da07861",
+      "source_rows": 56,
+      "source_labeled_rows": 56,
+      "predicted_sonorities": 54,
+      "aligned_measures": 11,
+      "unaligned_measures": 2,
+      "labeled_rows": 45,
+      "exact_labels": 18,
+      "errors": [
+        {
+          "measure": 1,
+          "row": 0,
+          "gold": "a:V2",
+          "acorde": "II2"
+        },
+        {
+          "measure": 1,
+          "row": 1,
+          "gold": "i6",
+          "acorde": "v6"
+        },
+        {
+          "measure": 1,
+          "row": 2,
+          "gold": "viio6",
+          "acorde": null
+        },
+        {
+          "measure": 1,
+          "row": 3,
+          "gold": "i",
+          "acorde": "v"
+        },
+        {
+          "measure": 1,
+          "row": 4,
+          "gold": "ii%2",
+          "acorde": "i6/V"
+        },
+        {
+          "measure": 1,
+          "row": 5,
+          "gold": "V65",
+          "acorde": "II65"
+        },
+        {
+          "measure": 2,
+          "reason": "row_count",
+          "source_rows": 6,
+          "predicted_sonorities": 5
+        },
+        {
+          "measure": 3,
+          "row": 1,
+          "gold": "viio65",
+          "acorde": "ivo2"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "F:ii65",
+          "acorde": "iv65"
+        },
+        {
+          "measure": 6,
+          "row": 2,
+          "gold": "V",
+          "acorde": "VII"
+        },
+        {
+          "measure": 6,
+          "row": 3,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 6,
+          "row": 4,
+          "gold": "I",
+          "acorde": "III"
+        }
+      ]
+    },
+    {
+      "score": "chor016_rev.krn",
+      "source_sha256": "434f1e1cb7feb9d86a25999965a149b52281c49e5a02f6ffa92a22800e1927ad",
+      "notes_only_sha256": "40f80b1ffcaef3f07e436cd2f9d84eedcdb5649bb110063b877716dc7060454b",
+      "source_rows": 71,
+      "source_labeled_rows": 70,
+      "predicted_sonorities": 68,
+      "aligned_measures": 16,
+      "unaligned_measures": 3,
+      "labeled_rows": 59,
+      "exact_labels": 23,
+      "errors": [
+        {
+          "measure": 2,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 3,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 4,
+          "row": 2,
+          "gold": "D:I6",
+          "acorde": "III6"
+        },
+        {
+          "measure": 4,
+          "row": 3,
+          "gold": "IV",
+          "acorde": "VI"
+        },
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "V6",
+          "acorde": "VII6"
+        },
+        {
+          "measure": 5,
+          "row": 1,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 5,
+          "row": 2,
+          "gold": "b:viio7/iv",
+          "acorde": "viio43"
+        },
+        {
+          "measure": 8,
+          "row": 1,
+          "gold": "D:I",
+          "acorde": "III"
+        },
+        {
+          "measure": 8,
+          "row": 2,
+          "gold": "V7",
+          "acorde": "VII7"
+        },
+        {
+          "measure": 8,
+          "row": 3,
+          "gold": "b:V6",
+          "acorde": "V6"
+        },
+        {
+          "measure": 10,
+          "reason": "row_count",
+          "source_rows": 5,
+          "predicted_sonorities": 4
+        },
+        {
+          "measure": 11,
+          "row": 3,
+          "gold": "V65/iv",
+          "acorde": "I65"
+        }
+      ]
+    },
+    {
+      "score": "chor017_rev.krn",
+      "source_sha256": "ed4327c802bb150258af155e097d44cc2cbeab6414041a9e5054ec6597e8a8fd",
+      "notes_only_sha256": "397acb570b57cbf94a61011717dd71733e9d1c3832804cb34f214f37db9e03bd",
+      "source_rows": 45,
+      "source_labeled_rows": 45,
+      "predicted_sonorities": 45,
+      "aligned_measures": 18,
+      "unaligned_measures": 0,
+      "labeled_rows": 45,
+      "exact_labels": 15,
+      "errors": [
+        {
+          "measure": 1,
+          "row": 0,
+          "gold": "A:ii2",
+          "acorde": "v43"
+        },
+        {
+          "measure": 1,
+          "row": 1,
+          "gold": "V6",
+          "acorde": "I6"
+        },
+        {
+          "measure": 1,
+          "row": 2,
+          "gold": "I",
+          "acorde": "IV"
+        },
+        {
+          "measure": 2,
+          "row": 0,
+          "gold": "IV6",
+          "acorde": "VII6"
+        },
+        {
+          "measure": 2,
+          "row": 1,
+          "gold": "IV7",
+          "acorde": "VII7"
+        },
+        {
+          "measure": 2,
+          "row": 2,
+          "gold": "V",
+          "acorde": "I"
+        },
+        {
+          "measure": 3,
+          "row": 0,
+          "gold": "I",
+          "acorde": "IV"
+        },
+        {
+          "measure": 4,
+          "row": 0,
+          "gold": "V6",
+          "acorde": "I6"
+        },
+        {
+          "measure": 4,
+          "row": 1,
+          "gold": "I",
+          "acorde": "IV"
+        },
+        {
+          "measure": 4,
+          "row": 2,
+          "gold": "e:viio6",
+          "acorde": null
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "b:V(64)",
+          "acorde": "v64"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "ii%65",
+          "acorde": null
+        }
+      ]
+    },
+    {
+      "score": "chor018_rev.krn",
+      "source_sha256": "6686f1b13066b1fec7930554af65ea60e72b0d18c43aea8d0e0c629b11adb2d8",
+      "notes_only_sha256": "f31d7b529127715d3016a84bb9dafe2b38804e802f5fda78ac1fd34bfe1332ed",
+      "source_rows": 47,
+      "source_labeled_rows": 47,
+      "predicted_sonorities": 42,
+      "aligned_measures": 9,
+      "unaligned_measures": 4,
+      "labeled_rows": 32,
+      "exact_labels": 21,
+      "errors": [
+        {
+          "measure": 1,
+          "reason": "row_count",
+          "source_rows": 5,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 2,
+          "row": 0,
+          "gold": "G:ii",
+          "acorde": "ii"
+        },
+        {
+          "measure": 3,
+          "row": 1,
+          "gold": "V/V",
+          "acorde": "II"
+        },
+        {
+          "measure": 5,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "D:I",
+          "acorde": "V"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "viio6",
+          "acorde": null
+        },
+        {
+          "measure": 6,
+          "row": 2,
+          "gold": "I6",
+          "acorde": "V6"
+        },
+        {
+          "measure": 6,
+          "row": 3,
+          "gold": "IV",
+          "acorde": "I"
+        },
+        {
+          "measure": 7,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 8,
+          "row": 0,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 9,
+          "row": 0,
+          "gold": "G:I6",
+          "acorde": "I6"
+        },
+        {
+          "measure": 10,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        }
+      ]
+    },
+    {
+      "score": "chor019_rev.krn",
+      "source_sha256": "f1c79ee4dcb370c35c27d206e087d363c998a02f690b3b6a00b24c09e3ec8369",
+      "notes_only_sha256": "3e75748edd3e231f69b7195e8d328a77f8d27d7162d097abc8b4e341a9782da2",
+      "source_rows": 43,
+      "source_labeled_rows": 43,
+      "predicted_sonorities": 39,
+      "aligned_measures": 6,
+      "unaligned_measures": 4,
+      "labeled_rows": 26,
+      "exact_labels": 10,
+      "errors": [
+        {
+          "measure": 1,
+          "reason": "row_count",
+          "source_rows": 5,
+          "predicted_sonorities": 4
+        },
+        {
+          "measure": 2,
+          "row": 1,
+          "gold": "viio7/V",
+          "acorde": "io43"
+        },
+        {
+          "measure": 3,
+          "row": 2,
+          "gold": "V6/IV",
+          "acorde": "I6"
+        },
+        {
+          "measure": 4,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "V",
+          "acorde": "VII"
+        },
+        {
+          "measure": 5,
+          "row": 1,
+          "gold": "V6/V",
+          "acorde": "IV6"
+        },
+        {
+          "measure": 5,
+          "row": 2,
+          "gold": "V2",
+          "acorde": "VII2"
+        },
+        {
+          "measure": 5,
+          "row": 3,
+          "gold": "I6",
+          "acorde": "III6"
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "IV",
+          "acorde": "VI"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "vii%7/V",
+          "acorde": null
+        },
+        {
+          "measure": 6,
+          "row": 2,
+          "gold": "V",
+          "acorde": "VII"
+        },
+        {
+          "measure": 6,
+          "row": 3,
+          "gold": "viio7/vi",
+          "acorde": "iio2"
+        }
+      ]
+    },
+    {
+      "score": "chor020_rev.krn",
+      "source_sha256": "62628923d622084f5357bd2c77f8101b6e42f6c8a965af8b2e053f9d3b31eee4",
+      "notes_only_sha256": "7a2116577376cbb5540c59116b658b6b0136aced755c3c06bdb5e64b5740807b",
+      "source_rows": 53,
+      "source_labeled_rows": 53,
+      "predicted_sonorities": 50,
+      "aligned_measures": 9,
+      "unaligned_measures": 5,
+      "labeled_rows": 37,
+      "exact_labels": 17,
+      "errors": [
+        {
+          "measure": 2,
+          "row": 1,
+          "gold": "V7/V",
+          "acorde": "II7"
+        },
+        {
+          "measure": 3,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 4,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 5,
+          "reason": "row_count",
+          "source_rows": 1,
+          "predicted_sonorities": 0
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "A:V7",
+          "acorde": "II7"
+        },
+        {
+          "measure": 6,
+          "row": 2,
+          "gold": "V2",
+          "acorde": null
+        },
+        {
+          "measure": 6,
+          "row": 3,
+          "gold": "I6",
+          "acorde": "V6"
+        },
+        {
+          "measure": 6,
+          "row": 4,
+          "gold": "IV",
+          "acorde": "I"
+        },
+        {
+          "measure": 6,
+          "row": 5,
+          "gold": "V",
+          "acorde": "II"
+        },
+        {
+          "measure": 7,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 4
+        },
+        {
+          "measure": 8,
+          "row": 3,
+          "gold": "A:vi",
+          "acorde": "iii"
+        },
+        {
+          "measure": 9,
+          "row": 0,
+          "gold": "ii",
+          "acorde": "vi"
+        }
+      ]
+    },
+    {
+      "score": "chor021_rev.krn",
+      "source_sha256": "c37a37e9722b216f309cd9aaa8c00a489e27553f4889e39285d1a96aef23500a",
+      "notes_only_sha256": "da8209f6dd18c5b95b18772e325acb0a0fe1ef980afe1135e9d276499b07a5c0",
+      "source_rows": 45,
+      "source_labeled_rows": 45,
+      "predicted_sonorities": 43,
+      "aligned_measures": 12,
+      "unaligned_measures": 2,
+      "labeled_rows": 40,
+      "exact_labels": 7,
+      "errors": [
+        {
+          "measure": 1,
+          "row": 1,
+          "gold": "viio6/iv",
+          "acorde": "viio43"
+        },
+        {
+          "measure": 1,
+          "row": 3,
+          "gold": "d:viio6",
+          "acorde": null
+        },
+        {
+          "measure": 2,
+          "row": 0,
+          "gold": "i6",
+          "acorde": "iv6"
+        },
+        {
+          "measure": 2,
+          "row": 1,
+          "gold": "iv6",
+          "acorde": "vii6"
+        },
+        {
+          "measure": 2,
+          "row": 2,
+          "gold": "V",
+          "acorde": "I"
+        },
+        {
+          "measure": 2,
+          "row": 3,
+          "gold": "a:v6",
+          "acorde": "v6"
+        },
+        {
+          "measure": 3,
+          "row": 0,
+          "gold": "viio65/V",
+          "acorde": "iiio43"
+        },
+        {
+          "measure": 3,
+          "row": 2,
+          "gold": "V65/V",
+          "acorde": "II65"
+        },
+        {
+          "measure": 4,
+          "reason": "row_count",
+          "source_rows": 1,
+          "predicted_sonorities": 0
+        },
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "viio6/VII",
+          "acorde": null
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "C:V",
+          "acorde": "VII"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "V2",
+          "acorde": "VII2"
+        }
+      ]
+    },
+    {
+      "score": "chor022_rev.krn",
+      "source_sha256": "f18faeabe1208c06812c0f2ee9f7d3c0e608ecc5ac853448ec4602e8658c8816",
+      "notes_only_sha256": "de7c718fdead1ccfee8c024350dfa2f577940e058193e51e8c76d638e544bda6",
+      "source_rows": 54,
+      "source_labeled_rows": 54,
+      "predicted_sonorities": 48,
+      "aligned_measures": 9,
+      "unaligned_measures": 6,
+      "labeled_rows": 32,
+      "exact_labels": 26,
+      "errors": [
+        {
+          "measure": 2,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 5,
+          "reason": "row_count",
+          "source_rows": 5,
+          "predicted_sonorities": 4
+        },
+        {
+          "measure": 6,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 7,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 8,
+          "row": 2,
+          "gold": "B-:I",
+          "acorde": "V"
+        },
+        {
+          "measure": 8,
+          "row": 3,
+          "gold": "I6",
+          "acorde": "V6"
+        },
+        {
+          "measure": 8,
+          "row": 4,
+          "gold": "ii65",
+          "acorde": "vi65"
+        },
+        {
+          "measure": 9,
+          "reason": "row_count",
+          "source_rows": 2,
+          "predicted_sonorities": 1
+        },
+        {
+          "measure": 10,
+          "row": 0,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 10,
+          "row": 1,
+          "gold": "E-:I6",
+          "acorde": "I6"
+        },
+        {
+          "measure": 12,
+          "reason": "row_count",
+          "source_rows": 5,
+          "predicted_sonorities": 4
+        },
+        {
+          "measure": 13,
+          "row": 2,
+          "gold": "V(54)",
+          "acorde": "I/V"
+        }
+      ]
+    },
+    {
+      "score": "chor023_rev.krn",
+      "source_sha256": "80f8633fc18f95428dc481fba6ab8c347b22776103f08d83a9622db29218cda3",
+      "notes_only_sha256": "e6ebdf77fc9412d7aaa5b315548734e9dc4f59faafa6b5d62b2b76c0b9906c35",
+      "source_rows": 45,
+      "source_labeled_rows": 44,
+      "predicted_sonorities": 41,
+      "aligned_measures": 10,
+      "unaligned_measures": 4,
+      "labeled_rows": 29,
+      "exact_labels": 18,
+      "errors": [
+        {
+          "measure": 2,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 3,
+          "row": 2,
+          "gold": "ii%65",
+          "acorde": "ii\u00f865"
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "viio6",
+          "acorde": null
+        },
+        {
+          "measure": 6,
+          "row": 2,
+          "gold": "ii%65",
+          "acorde": "ii\u00f865"
+        },
+        {
+          "measure": 7,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 8,
+          "row": 1,
+          "gold": "C:V6",
+          "acorde": "VII6"
+        },
+        {
+          "measure": 8,
+          "row": 2,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 8,
+          "row": 3,
+          "gold": "vi",
+          "acorde": "i"
+        },
+        {
+          "measure": 9,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 10,
+          "reason": "row_count",
+          "source_rows": 5,
+          "predicted_sonorities": 4
+        },
+        {
+          "measure": 11,
+          "row": 0,
+          "gold": "V6",
+          "acorde": "VII6"
+        },
+        {
+          "measure": 11,
+          "row": 1,
+          "gold": "V7/V",
+          "acorde": "IV7"
+        }
+      ]
+    },
+    {
+      "score": "chor024_rev.krn",
+      "source_sha256": "eaf6697c84e8d3f4659fde4c6f59e7ffaa224c73afd85da3e90ab0f56eca2c9c",
+      "notes_only_sha256": "bbe6efa4b60072e053718d9a41cab582eaafa22f0876f486ff6b2c52bb28f739",
+      "source_rows": 48,
+      "source_labeled_rows": 48,
+      "predicted_sonorities": 46,
+      "aligned_measures": 12,
+      "unaligned_measures": 2,
+      "labeled_rows": 35,
+      "exact_labels": 16,
+      "errors": [
+        {
+          "measure": 3,
+          "row": 0,
+          "gold": "viio7/vi",
+          "acorde": "iio43"
+        },
+        {
+          "measure": 3,
+          "row": 2,
+          "gold": "viio7/V",
+          "acorde": "io43"
+        },
+        {
+          "measure": 6,
+          "reason": "row_count",
+          "source_rows": 6,
+          "predicted_sonorities": 5
+        },
+        {
+          "measure": 7,
+          "row": 0,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 7,
+          "row": 1,
+          "gold": "V6/vi",
+          "acorde": "VII6"
+        },
+        {
+          "measure": 7,
+          "row": 2,
+          "gold": "vi",
+          "acorde": "iii"
+        },
+        {
+          "measure": 7,
+          "row": 3,
+          "gold": "vi",
+          "acorde": "iii"
+        },
+        {
+          "measure": 8,
+          "row": 0,
+          "gold": "viio6",
+          "acorde": null
+        },
+        {
+          "measure": 8,
+          "row": 1,
+          "gold": "I6",
+          "acorde": "V6"
+        },
+        {
+          "measure": 8,
+          "row": 2,
+          "gold": "V",
+          "acorde": "II"
+        },
+        {
+          "measure": 8,
+          "row": 3,
+          "gold": "V7",
+          "acorde": "II7"
+        },
+        {
+          "measure": 9,
+          "row": 0,
+          "gold": "I",
+          "acorde": "V"
+        }
+      ]
+    },
+    {
+      "score": "chor025_rev.krn",
+      "source_sha256": "3906e67cbdd6aa84e20f3099c692fd2e11b5141bdd638d2eb04ded539e51af66",
+      "notes_only_sha256": "bc5bc34442db98d78bc3260e04cb5a72fbf9a34dc94c773449b0e5ba32619ad4",
+      "source_rows": 50,
+      "source_labeled_rows": 48,
+      "predicted_sonorities": 47,
+      "aligned_measures": 10,
+      "unaligned_measures": 3,
+      "labeled_rows": 40,
+      "exact_labels": 10,
+      "errors": [
+        {
+          "measure": 1,
+          "row": 2,
+          "gold": "viio6",
+          "acorde": null
+        },
+        {
+          "measure": 2,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 3,
+          "row": 1,
+          "gold": "vi%7",
+          "acorde": null
+        },
+        {
+          "measure": 3,
+          "row": 2,
+          "gold": "V65",
+          "acorde": null
+        },
+        {
+          "measure": 3,
+          "row": 4,
+          "gold": "IV",
+          "acorde": "iv"
+        },
+        {
+          "measure": 4,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 5,
+          "row": 1,
+          "gold": "A-:V6",
+          "acorde": "VII6"
+        },
+        {
+          "measure": 5,
+          "row": 2,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 5,
+          "row": 3,
+          "gold": "vi",
+          "acorde": "i"
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "ii65",
+          "acorde": "iv65"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "V",
+          "acorde": "VII"
+        },
+        {
+          "measure": 6,
+          "row": 2,
+          "gold": "I",
+          "acorde": "III"
+        }
+      ]
+    },
+    {
+      "score": "chor026_rev.krn",
+      "source_sha256": "966471436aca8c3ed04d70395bd2b4dae43f7f5f9b963929c88a63f802c04df4",
+      "notes_only_sha256": "5ba725a7b9c76e3b8835b4273b302d07a2166288fbf081c38ec7a88e886859be",
+      "source_rows": 42,
+      "source_labeled_rows": 42,
+      "predicted_sonorities": 40,
+      "aligned_measures": 10,
+      "unaligned_measures": 2,
+      "labeled_rows": 33,
+      "exact_labels": 24,
+      "errors": [
+        {
+          "measure": 3,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 4,
+          "row": 3,
+          "gold": "V6/vi",
+          "acorde": "III6"
+        },
+        {
+          "measure": 8,
+          "row": 1,
+          "gold": "g:ii%43",
+          "acorde": "iii\u00f843"
+        },
+        {
+          "measure": 8,
+          "row": 2,
+          "gold": "III+",
+          "acorde": "IV+6"
+        },
+        {
+          "measure": 8,
+          "row": 3,
+          "gold": "viio7/V",
+          "acorde": "ivo65"
+        },
+        {
+          "measure": 9,
+          "row": 0,
+          "gold": "V",
+          "acorde": "VI"
+        },
+        {
+          "measure": 9,
+          "row": 1,
+          "gold": "V7",
+          "acorde": "VI7"
+        },
+        {
+          "measure": 9,
+          "row": 2,
+          "gold": "i",
+          "acorde": "ii"
+        },
+        {
+          "measure": 9,
+          "row": 3,
+          "gold": "F:I6",
+          "acorde": "I6"
+        },
+        {
+          "measure": 10,
+          "reason": "row_count",
+          "source_rows": 5,
+          "predicted_sonorities": 4
+        },
+        {
+          "measure": 11,
+          "row": 0,
+          "gold": "V(54)",
+          "acorde": "I/V"
+        }
+      ]
+    },
+    {
+      "score": "chor027_rev.krn",
+      "source_sha256": "262415fc737de5f63646d4cc58924d8434b13fdd82ad83e8a533dda3ef5db953",
+      "notes_only_sha256": "daaaaa1bd01fbd633b0133990206444c8d6b5f3baaf03fccfbdd6433c87e37b0",
+      "source_rows": 45,
+      "source_labeled_rows": 45,
+      "predicted_sonorities": 44,
+      "aligned_measures": 11,
+      "unaligned_measures": 1,
+      "labeled_rows": 40,
+      "exact_labels": 29,
+      "errors": [
+        {
+          "measure": 2,
+          "row": 0,
+          "gold": "V",
+          "acorde": "V7"
+        },
+        {
+          "measure": 2,
+          "row": 2,
+          "gold": "V7/IV",
+          "acorde": "I7"
+        },
+        {
+          "measure": 4,
+          "row": 0,
+          "gold": "V(64)",
+          "acorde": "I5/V"
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "F:V2",
+          "acorde": "II2"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "I6",
+          "acorde": "V6"
+        },
+        {
+          "measure": 6,
+          "row": 2,
+          "gold": "ii7",
+          "acorde": "I6/VI"
+        },
+        {
+          "measure": 6,
+          "row": 3,
+          "gold": "V",
+          "acorde": "II"
+        },
+        {
+          "measure": 6,
+          "row": 4,
+          "gold": "V2",
+          "acorde": "vi6"
+        },
+        {
+          "measure": 7,
+          "reason": "row_count",
+          "source_rows": 5,
+          "predicted_sonorities": 4
+        },
+        {
+          "measure": 8,
+          "row": 4,
+          "gold": "ii2",
+          "acorde": "IV6/I"
+        },
+        {
+          "measure": 10,
+          "row": 1,
+          "gold": "IV",
+          "acorde": "IV6"
+        },
+        {
+          "measure": 11,
+          "row": 0,
+          "gold": "V(64)",
+          "acorde": "I5/V"
+        }
+      ]
+    },
+    {
+      "score": "chor028_rev.krn",
+      "source_sha256": "deec94dd7b27c024d11262ba88845cae2ef3afe5021475b7130d064ec0b83fd6",
+      "notes_only_sha256": "b1bf028960aa4a0aa8dd8c5d6602de2b5acc82f769e9011e7b349de268f23623",
+      "source_rows": 35,
+      "source_labeled_rows": 35,
+      "predicted_sonorities": 33,
+      "aligned_measures": 6,
+      "unaligned_measures": 2,
+      "labeled_rows": 26,
+      "exact_labels": 14,
+      "errors": [
+        {
+          "measure": 1,
+          "row": 0,
+          "gold": "ii%65",
+          "acorde": "ii\u00f865"
+        },
+        {
+          "measure": 2,
+          "row": 2,
+          "gold": "viio6/VII",
+          "acorde": null
+        },
+        {
+          "measure": 2,
+          "row": 3,
+          "gold": "D:V",
+          "acorde": "VII"
+        },
+        {
+          "measure": 2,
+          "row": 4,
+          "gold": "V2",
+          "acorde": "VII2"
+        },
+        {
+          "measure": 2,
+          "row": 5,
+          "gold": "I6",
+          "acorde": "III6"
+        },
+        {
+          "measure": 3,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 4,
+          "row": 0,
+          "gold": "I6",
+          "acorde": "III6"
+        },
+        {
+          "measure": 4,
+          "row": 1,
+          "gold": "V6",
+          "acorde": "VII6"
+        },
+        {
+          "measure": 4,
+          "row": 2,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 4,
+          "row": 3,
+          "gold": "IV",
+          "acorde": "VI"
+        },
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "b:iio6",
+          "acorde": "iio6"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "V43/V",
+          "acorde": "II43"
+        }
+      ]
+    },
+    {
+      "score": "chor029_rev.krn",
+      "source_sha256": "1d337ca5a19c63ec6119280c9d06953c6d2ea6f11e4ed3bbc6654fb940eec16d",
+      "notes_only_sha256": "3d42c2a3fa0314ac9b336b37426374e80c88bfe55537d8e829eaf90d84084a30",
+      "source_rows": 51,
+      "source_labeled_rows": 51,
+      "predicted_sonorities": 51,
+      "aligned_measures": 13,
+      "unaligned_measures": 0,
+      "labeled_rows": 51,
+      "exact_labels": 42,
+      "errors": [
+        {
+          "measure": 1,
+          "row": 0,
+          "gold": "D:viio6",
+          "acorde": null
+        },
+        {
+          "measure": 1,
+          "row": 1,
+          "gold": "I6",
+          "acorde": "V6"
+        },
+        {
+          "measure": 1,
+          "row": 2,
+          "gold": "V7",
+          "acorde": "II2"
+        },
+        {
+          "measure": 1,
+          "row": 3,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 2,
+          "row": 0,
+          "gold": "G:vi",
+          "acorde": "vi"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "V65/IV",
+          "acorde": "I64"
+        },
+        {
+          "measure": 7,
+          "row": 1,
+          "gold": "vii%7",
+          "acorde": "ii6/VII"
+        },
+        {
+          "measure": 7,
+          "row": 3,
+          "gold": "vii%43/V",
+          "acorde": "vi6/I"
+        },
+        {
+          "measure": 12,
+          "row": 0,
+          "gold": "V(54)",
+          "acorde": "I/V"
+        }
+      ]
+    },
+    {
+      "score": "chor030_rev.krn",
+      "source_sha256": "b7a1df69a34a2067a565095d25bccd96e8686c4f65f2ed195abc33993249daed",
+      "notes_only_sha256": "0687cf00f017bc3f3911a0ab96ef9dd44a44276ab59b96e1b03d43fb63958127",
+      "source_rows": 55,
+      "source_labeled_rows": 53,
+      "predicted_sonorities": 50,
+      "aligned_measures": 8,
+      "unaligned_measures": 4,
+      "labeled_rows": 37,
+      "exact_labels": 17,
+      "errors": [
+        {
+          "measure": 0,
+          "row": 1,
+          "gold": "v",
+          "acorde": "v6"
+        },
+        {
+          "measure": 1,
+          "row": 1,
+          "gold": "V2",
+          "acorde": "V43"
+        },
+        {
+          "measure": 1,
+          "row": 3,
+          "gold": "viio6",
+          "acorde": null
+        },
+        {
+          "measure": 2,
+          "row": 0,
+          "gold": "viio7/V",
+          "acorde": "iiio65"
+        },
+        {
+          "measure": 3,
+          "row": 2,
+          "gold": "G:I6",
+          "acorde": "III6"
+        },
+        {
+          "measure": 3,
+          "row": 3,
+          "gold": "IV",
+          "acorde": "VI"
+        },
+        {
+          "measure": 4,
+          "reason": "row_count",
+          "source_rows": 6,
+          "predicted_sonorities": 5
+        },
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "e:V(64)",
+          "acorde": "i64"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "G:I6",
+          "acorde": "III6"
+        },
+        {
+          "measure": 6,
+          "row": 2,
+          "gold": "IV",
+          "acorde": "VI"
+        },
+        {
+          "measure": 6,
+          "row": 3,
+          "gold": "IV6",
+          "acorde": "VI6"
+        },
+        {
+          "measure": 7,
+          "row": 0,
+          "gold": "IV",
+          "acorde": "VI"
+        }
+      ]
+    },
+    {
+      "score": "chor031_rev.krn",
+      "source_sha256": "4615c9eabe233d246eefa50b0e7a31ff01cd9c9e08fc958010bf8c7d3fd19371",
+      "notes_only_sha256": "26d9c12cbc4405bc44837bab6e9c9eaad75380cf57a427de58a299d03c7cd0ff",
+      "source_rows": 44,
+      "source_labeled_rows": 44,
+      "predicted_sonorities": 43,
+      "aligned_measures": 11,
+      "unaligned_measures": 1,
+      "labeled_rows": 40,
+      "exact_labels": 14,
+      "errors": [
+        {
+          "measure": 1,
+          "row": 0,
+          "gold": "C:I6",
+          "acorde": "III6"
+        },
+        {
+          "measure": 1,
+          "row": 1,
+          "gold": "IV",
+          "acorde": "VI"
+        },
+        {
+          "measure": 1,
+          "row": 2,
+          "gold": "I6",
+          "acorde": "III6"
+        },
+        {
+          "measure": 1,
+          "row": 3,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 2,
+          "row": 0,
+          "gold": "ii65",
+          "acorde": "iv65"
+        },
+        {
+          "measure": 2,
+          "row": 1,
+          "gold": "V7",
+          "acorde": "VII7"
+        },
+        {
+          "measure": 2,
+          "row": 2,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 2,
+          "row": 3,
+          "gold": "viio6/V",
+          "acorde": null
+        },
+        {
+          "measure": 3,
+          "row": 0,
+          "gold": "V",
+          "acorde": "VII"
+        },
+        {
+          "measure": 3,
+          "row": 1,
+          "gold": "a:iv",
+          "acorde": "iv"
+        },
+        {
+          "measure": 4,
+          "row": 0,
+          "gold": "ii%65",
+          "acorde": "ii\u00f865"
+        },
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "C:V",
+          "acorde": "VII"
+        }
+      ]
+    },
+    {
+      "score": "chor032_rev.krn",
+      "source_sha256": "a5ced06543361e095a360f1a3ed81fe0d98d86bdfe7f35e5c4613d7741104955",
+      "notes_only_sha256": "d305b7ee49e50d9337010ebec7fbdd43d2f92e7da17ca775d50016ea084c7699",
+      "source_rows": 46,
+      "source_labeled_rows": 42,
+      "predicted_sonorities": 42,
+      "aligned_measures": 10,
+      "unaligned_measures": 4,
+      "labeled_rows": 34,
+      "exact_labels": 26,
+      "errors": [
+        {
+          "measure": 2,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 7,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 8,
+          "row": 2,
+          "gold": "E:vi64",
+          "acorde": "V6"
+        },
+        {
+          "measure": 8,
+          "row": 3,
+          "gold": "ii65",
+          "acorde": "vi65"
+        },
+        {
+          "measure": 8,
+          "row": 4,
+          "gold": "V",
+          "acorde": "II"
+        },
+        {
+          "measure": 9,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 10,
+          "row": 1,
+          "gold": "viio/ii",
+          "acorde": null
+        },
+        {
+          "measure": 10,
+          "row": 2,
+          "gold": "b:i",
+          "acorde": "ii"
+        },
+        {
+          "measure": 10,
+          "row": 3,
+          "gold": "i6",
+          "acorde": "ii6"
+        },
+        {
+          "measure": 10,
+          "row": 4,
+          "gold": "ii%65",
+          "acorde": "iii\u00f865"
+        },
+        {
+          "measure": 10,
+          "row": 5,
+          "gold": "V",
+          "acorde": "VI"
+        },
+        {
+          "measure": 11,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        }
+      ]
+    },
+    {
+      "score": "chor033_rev.krn",
+      "source_sha256": "af4ba3f42495da71962cae8f6f8e9dea152893e17d71f9eac0dd4c485cfcefec",
+      "notes_only_sha256": "4dd6210f9be4ebf6eec182490dc58bad835ee1782d233ad9025f99b77e7d5f58",
+      "source_rows": 43,
+      "source_labeled_rows": 42,
+      "predicted_sonorities": 40,
+      "aligned_measures": 7,
+      "unaligned_measures": 2,
+      "labeled_rows": 36,
+      "exact_labels": 23,
+      "errors": [
+        {
+          "measure": 1,
+          "row": 2,
+          "gold": "ii%65",
+          "acorde": "ii\u00f865"
+        },
+        {
+          "measure": 2,
+          "row": 1,
+          "gold": "ii%2",
+          "acorde": "ii\u00f82"
+        },
+        {
+          "measure": 2,
+          "row": 5,
+          "gold": "ii%65",
+          "acorde": "ii\u00f865"
+        },
+        {
+          "measure": 4,
+          "row": 2,
+          "gold": "C:I6",
+          "acorde": "III6"
+        },
+        {
+          "measure": 4,
+          "row": 3,
+          "gold": "IV",
+          "acorde": "VI"
+        },
+        {
+          "measure": 4,
+          "row": 4,
+          "gold": "I6",
+          "acorde": "III6"
+        },
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "ii7",
+          "acorde": "VI6/IV"
+        },
+        {
+          "measure": 5,
+          "row": 1,
+          "gold": "viio6",
+          "acorde": "iio6"
+        },
+        {
+          "measure": 5,
+          "row": 2,
+          "gold": "I6",
+          "acorde": "III6"
+        },
+        {
+          "measure": 5,
+          "row": 3,
+          "gold": "V7",
+          "acorde": "VII7"
+        },
+        {
+          "measure": 5,
+          "row": 4,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 6,
+          "reason": "row_count",
+          "source_rows": 5,
+          "predicted_sonorities": 3
+        }
+      ]
+    },
+    {
+      "score": "chor034_rev.krn",
+      "source_sha256": "63f6a2e93fa1162df6809762ec4e8cd86ca3796990df655783c3102b2201ad07",
+      "notes_only_sha256": "2c65ef80a1941b68c9c76a358cfefd7c6b8874ef7c76c9a64f7ac59f7242c59a",
+      "source_rows": 70,
+      "source_labeled_rows": 70,
+      "predicted_sonorities": 69,
+      "aligned_measures": 14,
+      "unaligned_measures": 1,
+      "labeled_rows": 65,
+      "exact_labels": 13,
+      "errors": [
+        {
+          "measure": 1,
+          "row": 1,
+          "gold": "v2",
+          "acorde": "VII6/IV"
+        },
+        {
+          "measure": 1,
+          "row": 3,
+          "gold": "ii%2",
+          "acorde": "ii\u00f82"
+        },
+        {
+          "measure": 2,
+          "row": 2,
+          "gold": "ii%65",
+          "acorde": "ii\u00f865"
+        },
+        {
+          "measure": 3,
+          "row": 0,
+          "gold": "C:I",
+          "acorde": "III"
+        },
+        {
+          "measure": 3,
+          "row": 1,
+          "gold": "vi6",
+          "acorde": "i6"
+        },
+        {
+          "measure": 3,
+          "row": 2,
+          "gold": "vii%65",
+          "acorde": "ii\u00f865"
+        },
+        {
+          "measure": 3,
+          "row": 3,
+          "gold": "V",
+          "acorde": "VII"
+        },
+        {
+          "measure": 3,
+          "row": 4,
+          "gold": "I6",
+          "acorde": "III6"
+        },
+        {
+          "measure": 3,
+          "row": 5,
+          "gold": "I",
+          "acorde": "III5"
+        },
+        {
+          "measure": 3,
+          "row": 6,
+          "gold": "IV",
+          "acorde": "VI"
+        },
+        {
+          "measure": 4,
+          "row": 0,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 4,
+          "row": 1,
+          "gold": "V7/IV",
+          "acorde": "III7"
+        }
+      ]
+    },
+    {
+      "score": "chor035_rev.krn",
+      "source_sha256": "6dd06b5ebcf0119c6b2da86070c1a5a761c3e1ec5ca6c68f6f6164bff80c521a",
+      "notes_only_sha256": "accc3f19e306e216601f7082a2f59dc5fb30be6a516b553de57311bb30e68466",
+      "source_rows": 40,
+      "source_labeled_rows": 40,
+      "predicted_sonorities": 40,
+      "aligned_measures": 6,
+      "unaligned_measures": 2,
+      "labeled_rows": 31,
+      "exact_labels": 23,
+      "errors": [
+        {
+          "measure": 1,
+          "reason": "row_count",
+          "source_rows": 5,
+          "predicted_sonorities": 6
+        },
+        {
+          "measure": 2,
+          "row": 0,
+          "gold": "A:ii",
+          "acorde": "ii"
+        },
+        {
+          "measure": 2,
+          "row": 3,
+          "gold": "I6",
+          "acorde": "I"
+        },
+        {
+          "measure": 2,
+          "row": 4,
+          "gold": "V6",
+          "acorde": "V"
+        },
+        {
+          "measure": 4,
+          "row": 1,
+          "gold": "vi",
+          "acorde": "I6/VI"
+        },
+        {
+          "measure": 4,
+          "row": 2,
+          "gold": "vii%65",
+          "acorde": null
+        },
+        {
+          "measure": 5,
+          "row": 1,
+          "gold": "vii%7",
+          "acorde": "ii6/VII"
+        },
+        {
+          "measure": 5,
+          "row": 3,
+          "gold": "V2/V",
+          "acorde": "II2"
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "V2/ii",
+          "acorde": "VI2"
+        },
+        {
+          "measure": 7,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        }
+      ]
+    },
+    {
+      "score": "chor036_rev.krn",
+      "source_sha256": "87e573dd13bf7efec9b2f4c039493af650f4f3358ec0126773894e729718511b",
+      "notes_only_sha256": "ea522ff4ebd131264d0abd27815aadc2cdd69225bcb5c09ed9c5221048b897f9",
+      "source_rows": 56,
+      "source_labeled_rows": 55,
+      "predicted_sonorities": 51,
+      "aligned_measures": 11,
+      "unaligned_measures": 4,
+      "labeled_rows": 41,
+      "exact_labels": 29,
+      "errors": [
+        {
+          "measure": 2,
+          "row": 4,
+          "gold": "I",
+          "acorde": "I5"
+        },
+        {
+          "measure": 4,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 6,
+          "row": 2,
+          "gold": "f#:V65",
+          "acorde": "III65"
+        },
+        {
+          "measure": 7,
+          "row": 0,
+          "gold": "i",
+          "acorde": "vi"
+        },
+        {
+          "measure": 7,
+          "row": 1,
+          "gold": "iv6",
+          "acorde": "ii6"
+        },
+        {
+          "measure": 7,
+          "row": 2,
+          "gold": "ii%43",
+          "acorde": "ii6/IV"
+        },
+        {
+          "measure": 7,
+          "row": 3,
+          "gold": "V(64)",
+          "acorde": "vi64"
+        },
+        {
+          "measure": 7,
+          "row": 4,
+          "gold": "V",
+          "acorde": "III"
+        },
+        {
+          "measure": 8,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 9,
+          "row": 0,
+          "gold": "A:V",
+          "acorde": "V"
+        },
+        {
+          "measure": 9,
+          "row": 3,
+          "gold": "V7/IV",
+          "acorde": "I7"
+        },
+        {
+          "measure": 11,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        }
+      ]
+    },
+    {
+      "score": "chor037_rev.krn",
+      "source_sha256": "bf852a4d1560ca240d91f60730c3bc61c740e7e73ba83e5d02b5994e779b3d2e",
+      "notes_only_sha256": "fa1a48a2e2fb84fb166d673a6c2e41b6aed86d7361e60097382b7983e4bc4bbb",
+      "source_rows": 52,
+      "source_labeled_rows": 52,
+      "predicted_sonorities": 50,
+      "aligned_measures": 10,
+      "unaligned_measures": 2,
+      "labeled_rows": 41,
+      "exact_labels": 15,
+      "errors": [
+        {
+          "measure": 0,
+          "row": 3,
+          "gold": "vi%7",
+          "acorde": null
+        },
+        {
+          "measure": 1,
+          "reason": "row_count",
+          "source_rows": 5,
+          "predicted_sonorities": 4
+        },
+        {
+          "measure": 2,
+          "row": 2,
+          "gold": "ii%65",
+          "acorde": "ii\u00f865"
+        },
+        {
+          "measure": 3,
+          "row": 0,
+          "gold": "viio65",
+          "acorde": null
+        },
+        {
+          "measure": 3,
+          "row": 2,
+          "gold": "viio64/V",
+          "acorde": null
+        },
+        {
+          "measure": 4,
+          "row": 3,
+          "gold": "G:I",
+          "acorde": "VII"
+        },
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "IV6",
+          "acorde": "III6"
+        },
+        {
+          "measure": 5,
+          "row": 1,
+          "gold": "ii65",
+          "acorde": "i65"
+        },
+        {
+          "measure": 5,
+          "row": 2,
+          "gold": "V7",
+          "acorde": "IV7"
+        },
+        {
+          "measure": 5,
+          "row": 3,
+          "gold": "I",
+          "acorde": "VII"
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "C:vi",
+          "acorde": "i"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "V",
+          "acorde": "VII"
+        }
+      ]
+    },
+    {
+      "score": "chor038_rev.krn",
+      "source_sha256": "d500d2991831a1bc15ecec0a4e387926d9e6e1c5b8ba65531d876590e5341a59",
+      "notes_only_sha256": "63f0bbbd5e742f2a5c4617d95780a01777b09e66270b66741f16bd7febdeb03e",
+      "source_rows": 36,
+      "source_labeled_rows": 36,
+      "predicted_sonorities": 36,
+      "aligned_measures": 10,
+      "unaligned_measures": 0,
+      "labeled_rows": 36,
+      "exact_labels": 24,
+      "errors": [
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "F:V6",
+          "acorde": "VI6"
+        },
+        {
+          "measure": 5,
+          "row": 1,
+          "gold": "V65",
+          "acorde": "VI65"
+        },
+        {
+          "measure": 5,
+          "row": 2,
+          "gold": "I",
+          "acorde": "II"
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "B-:I6",
+          "acorde": "V6"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 6,
+          "row": 2,
+          "gold": "ii6",
+          "acorde": "vi6"
+        },
+        {
+          "measure": 6,
+          "row": 3,
+          "gold": "V7",
+          "acorde": "II7"
+        },
+        {
+          "measure": 6,
+          "row": 4,
+          "gold": "vi",
+          "acorde": "iii"
+        },
+        {
+          "measure": 7,
+          "row": 0,
+          "gold": "ii65",
+          "acorde": "vi65"
+        },
+        {
+          "measure": 7,
+          "row": 1,
+          "gold": "V",
+          "acorde": "II"
+        },
+        {
+          "measure": 7,
+          "row": 2,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 8,
+          "row": 0,
+          "gold": "E-:ii",
+          "acorde": "ii"
+        }
+      ]
+    },
+    {
+      "score": "chor039_rev.krn",
+      "source_sha256": "84f272460213bd0fed25da785f358af9ae6342e61a54fcc7864cbfe32e63db1f",
+      "notes_only_sha256": "03ea2bb964a4739cb76ef492fe02cdd396a257c466be0d8c9f1d111a6fb242ae",
+      "source_rows": 53,
+      "source_labeled_rows": 53,
+      "predicted_sonorities": 50,
+      "aligned_measures": 10,
+      "unaligned_measures": 2,
+      "labeled_rows": 41,
+      "exact_labels": 13,
+      "errors": [
+        {
+          "measure": 1,
+          "row": 1,
+          "gold": "G:V6",
+          "acorde": "VII6"
+        },
+        {
+          "measure": 1,
+          "row": 2,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 1,
+          "row": 3,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 2,
+          "reason": "row_count",
+          "source_rows": 6,
+          "predicted_sonorities": 4
+        },
+        {
+          "measure": 3,
+          "row": 0,
+          "gold": "ii65",
+          "acorde": "iv65"
+        },
+        {
+          "measure": 3,
+          "row": 1,
+          "gold": "V7",
+          "acorde": "VII7"
+        },
+        {
+          "measure": 3,
+          "row": 2,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 4,
+          "reason": "row_count",
+          "source_rows": 6,
+          "predicted_sonorities": 5
+        },
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "ii%65",
+          "acorde": "ii\u00f865"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "b:iv6",
+          "acorde": "i6"
+        },
+        {
+          "measure": 6,
+          "row": 2,
+          "gold": "i",
+          "acorde": "v"
+        },
+        {
+          "measure": 6,
+          "row": 3,
+          "gold": "i6",
+          "acorde": "v6"
+        }
+      ]
+    },
+    {
+      "score": "chor040_rev.krn",
+      "source_sha256": "845a2be32758268ec253fd2fcd5081c0d6cc53bcc46016a93cd58093b9b40f01",
+      "notes_only_sha256": "40c0dbd7c6d4bda5c0931b91b5b81c2f9614379a2e8d62a06f6591e98517afc0",
+      "source_rows": 34,
+      "source_labeled_rows": 34,
+      "predicted_sonorities": 34,
+      "aligned_measures": 9,
+      "unaligned_measures": 0,
+      "labeled_rows": 34,
+      "exact_labels": 17,
+      "errors": [
+        {
+          "measure": 1,
+          "row": 1,
+          "gold": "V7/V",
+          "acorde": "II7"
+        },
+        {
+          "measure": 1,
+          "row": 4,
+          "gold": "V7/IV",
+          "acorde": "I7"
+        },
+        {
+          "measure": 3,
+          "row": 0,
+          "gold": "G:viio6",
+          "acorde": null
+        },
+        {
+          "measure": 3,
+          "row": 1,
+          "gold": "I6",
+          "acorde": "V6"
+        },
+        {
+          "measure": 3,
+          "row": 2,
+          "gold": "V",
+          "acorde": "II"
+        },
+        {
+          "measure": 3,
+          "row": 3,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 4,
+          "row": 0,
+          "gold": "ii65",
+          "acorde": "vi65"
+        },
+        {
+          "measure": 4,
+          "row": 1,
+          "gold": "V7",
+          "acorde": "II7"
+        },
+        {
+          "measure": 4,
+          "row": 2,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 4,
+          "row": 3,
+          "gold": "IV6",
+          "acorde": "I6"
+        },
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "C:viio6",
+          "acorde": "viio6"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "viio6/V",
+          "acorde": null
+        }
+      ]
+    },
+    {
+      "score": "chor041_rev.krn",
+      "source_sha256": "92c549fc1594d7067faaf4c5d2293e37ed6f0da29ae593f129040bdd14d97043",
+      "notes_only_sha256": "2b1d223060e814e3f33de1cbd28400b5ca221e8f4bf78f3580de8f3ffdfa9e12",
+      "source_rows": 58,
+      "source_labeled_rows": 58,
+      "predicted_sonorities": 57,
+      "aligned_measures": 15,
+      "unaligned_measures": 1,
+      "labeled_rows": 52,
+      "exact_labels": 20,
+      "errors": [
+        {
+          "measure": 1,
+          "row": 2,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 1,
+          "row": 3,
+          "gold": "I6",
+          "acorde": "III6"
+        },
+        {
+          "measure": 2,
+          "row": 0,
+          "gold": "V(64)",
+          "acorde": "III64"
+        },
+        {
+          "measure": 2,
+          "row": 1,
+          "gold": "V",
+          "acorde": "VII"
+        },
+        {
+          "measure": 2,
+          "row": 2,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 2,
+          "row": 3,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 3,
+          "row": 0,
+          "gold": "V",
+          "acorde": "VII"
+        },
+        {
+          "measure": 3,
+          "row": 1,
+          "gold": "a:iv",
+          "acorde": "iv"
+        },
+        {
+          "measure": 4,
+          "row": 4,
+          "gold": "V7",
+          "acorde": "V"
+        },
+        {
+          "measure": 7,
+          "row": 0,
+          "gold": "G:V6",
+          "acorde": "IV6"
+        },
+        {
+          "measure": 7,
+          "row": 1,
+          "gold": "V",
+          "acorde": "IV"
+        },
+        {
+          "measure": 7,
+          "row": 2,
+          "gold": "I",
+          "acorde": "VII"
+        }
+      ]
+    },
+    {
+      "score": "chor042_rev.krn",
+      "source_sha256": "6bbf8c58510454bb6af253648365cfc103064bd0f39a100a632bb308d1cc6dfc",
+      "notes_only_sha256": "4081f21bdba41b242f07642dd2d3d9cbeb900b4495452e9cefdf3f37f729a8b2",
+      "source_rows": 32,
+      "source_labeled_rows": 32,
+      "predicted_sonorities": 32,
+      "aligned_measures": 11,
+      "unaligned_measures": 0,
+      "labeled_rows": 32,
+      "exact_labels": 28,
+      "errors": [
+        {
+          "measure": 7,
+          "row": 2,
+          "gold": "f#:V",
+          "acorde": "III"
+        },
+        {
+          "measure": 7,
+          "row": 3,
+          "gold": "V",
+          "acorde": "III"
+        },
+        {
+          "measure": 8,
+          "row": 0,
+          "gold": "i",
+          "acorde": "vi"
+        },
+        {
+          "measure": 8,
+          "row": 1,
+          "gold": "A:V",
+          "acorde": "V"
+        }
+      ]
+    },
+    {
+      "score": "chor043_rev.krn",
+      "source_sha256": "df7f51cd8f4fdcd3d5fdf3ffd40571662ceab37efb3789f91f88776c732c7a0b",
+      "notes_only_sha256": "6b7a771d4e937a8d11df172cc35f68e4318599e169dda3f2a836e46bf192dc88",
+      "source_rows": 51,
+      "source_labeled_rows": 44,
+      "predicted_sonorities": 40,
+      "aligned_measures": 7,
+      "unaligned_measures": 8,
+      "labeled_rows": 24,
+      "exact_labels": 11,
+      "errors": [
+        {
+          "measure": 0,
+          "reason": "row_count",
+          "source_rows": 2,
+          "predicted_sonorities": 1
+        },
+        {
+          "measure": 2,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 3,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 4,
+          "row": 0,
+          "gold": "V",
+          "acorde": "II"
+        },
+        {
+          "measure": 4,
+          "row": 1,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 5,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 1
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "i6",
+          "acorde": "vi6"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "iio6",
+          "acorde": "viio6"
+        },
+        {
+          "measure": 6,
+          "row": 2,
+          "gold": "V",
+          "acorde": "III"
+        },
+        {
+          "measure": 6,
+          "row": 3,
+          "gold": "V2",
+          "acorde": "III2"
+        },
+        {
+          "measure": 7,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 8,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        }
+      ]
+    },
+    {
+      "score": "chor044_rev.krn",
+      "source_sha256": "cffbcaf9742885b0b235e4b54749f3c3e1cb4de209de888be05a92cab675a2b4",
+      "notes_only_sha256": "809f6e2e2e2457f641c7042f9f56274e5f875d85dd8dc2bfbc753b556359a994",
+      "source_rows": 36,
+      "source_labeled_rows": 36,
+      "predicted_sonorities": 36,
+      "aligned_measures": 10,
+      "unaligned_measures": 0,
+      "labeled_rows": 36,
+      "exact_labels": 21,
+      "errors": [
+        {
+          "measure": 2,
+          "row": 3,
+          "gold": "V6",
+          "acorde": "V"
+        },
+        {
+          "measure": 3,
+          "row": 0,
+          "gold": "A:ii",
+          "acorde": "vi"
+        },
+        {
+          "measure": 3,
+          "row": 1,
+          "gold": "viio6",
+          "acorde": null
+        },
+        {
+          "measure": 3,
+          "row": 2,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 3,
+          "row": 3,
+          "gold": "V65",
+          "acorde": "II65"
+        },
+        {
+          "measure": 3,
+          "row": 4,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 4,
+          "row": 0,
+          "gold": "ii65",
+          "acorde": "vi65"
+        },
+        {
+          "measure": 4,
+          "row": 1,
+          "gold": "V7",
+          "acorde": "II7"
+        },
+        {
+          "measure": 4,
+          "row": 2,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "D:I6",
+          "acorde": "I6"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "iii7",
+          "acorde": "V6/III"
+        }
+      ]
+    },
+    {
+      "score": "chor045_rev.krn",
+      "source_sha256": "cbf89aafb1d3c483f52cd1b57250daac8da75626e0f9e60e938c947ad36098e5",
+      "notes_only_sha256": "fa03e80633ce932f0fde7a94274bf49f2c176b138e0b1ba38156b72e36fe3680",
+      "source_rows": 60,
+      "source_labeled_rows": 60,
+      "predicted_sonorities": 59,
+      "aligned_measures": 13,
+      "unaligned_measures": 1,
+      "labeled_rows": 55,
+      "exact_labels": 29,
+      "errors": [
+        {
+          "measure": 1,
+          "row": 3,
+          "gold": "viio6",
+          "acorde": "ivo2"
+        },
+        {
+          "measure": 2,
+          "reason": "row_count",
+          "source_rows": 5,
+          "predicted_sonorities": 4
+        },
+        {
+          "measure": 3,
+          "row": 3,
+          "gold": "i6",
+          "acorde": "i"
+        },
+        {
+          "measure": 4,
+          "row": 1,
+          "gold": "viio",
+          "acorde": null
+        },
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "A:ii",
+          "acorde": "i"
+        },
+        {
+          "measure": 5,
+          "row": 1,
+          "gold": "V6",
+          "acorde": "IV6"
+        },
+        {
+          "measure": 5,
+          "row": 2,
+          "gold": "V",
+          "acorde": "IV"
+        },
+        {
+          "measure": 5,
+          "row": 3,
+          "gold": "viio6",
+          "acorde": null
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "I",
+          "acorde": "VII"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "IV6",
+          "acorde": "III6"
+        },
+        {
+          "measure": 6,
+          "row": 2,
+          "gold": "ii65",
+          "acorde": "i65"
+        },
+        {
+          "measure": 6,
+          "row": 3,
+          "gold": "V7",
+          "acorde": "IV7"
+        }
+      ]
+    },
+    {
+      "score": "chor046_rev.krn",
+      "source_sha256": "e0018899e2735982fedd2986b1936d56293cd85690d338a3b8b882f1c9c181ac",
+      "notes_only_sha256": "764add3ff718d8c224072222c1b21f86654246ee24c521b0e3d7a499e384e3dd",
+      "source_rows": 43,
+      "source_labeled_rows": 43,
+      "predicted_sonorities": 39,
+      "aligned_measures": 6,
+      "unaligned_measures": 3,
+      "labeled_rows": 22,
+      "exact_labels": 17,
+      "errors": [
+        {
+          "measure": 1,
+          "row": 1,
+          "gold": "vii%7/V",
+          "acorde": null
+        },
+        {
+          "measure": 1,
+          "row": 3,
+          "gold": "V2",
+          "acorde": "viio64"
+        },
+        {
+          "measure": 3,
+          "row": 3,
+          "gold": "V43/IV",
+          "acorde": "I43"
+        },
+        {
+          "measure": 5,
+          "reason": "row_count",
+          "source_rows": 6,
+          "predicted_sonorities": 5
+        },
+        {
+          "measure": 6,
+          "reason": "row_count",
+          "source_rows": 7,
+          "predicted_sonorities": 6
+        },
+        {
+          "measure": 7,
+          "reason": "row_count",
+          "source_rows": 8,
+          "predicted_sonorities": 6
+        },
+        {
+          "measure": 8,
+          "row": 0,
+          "gold": "IV",
+          "acorde": "IV5/I"
+        },
+        {
+          "measure": 8,
+          "row": 1,
+          "gold": "V7",
+          "acorde": "V2"
+        }
+      ]
+    },
+    {
+      "score": "chor047_rev.krn",
+      "source_sha256": "498594738de19933a66d026c9c2bb8f4f0f5c9ea9798ea940858784b40a6e229",
+      "notes_only_sha256": "641885cbf6af11c7f5816cea5e07ca889a4dbe6e507f9fc57d05ef8ca8bd0ae8",
+      "source_rows": 50,
+      "source_labeled_rows": 50,
+      "predicted_sonorities": 49,
+      "aligned_measures": 12,
+      "unaligned_measures": 1,
+      "labeled_rows": 45,
+      "exact_labels": 20,
+      "errors": [
+        {
+          "measure": 1,
+          "row": 2,
+          "gold": "viio6",
+          "acorde": null
+        },
+        {
+          "measure": 2,
+          "row": 0,
+          "gold": "V(64)",
+          "acorde": "i64"
+        },
+        {
+          "measure": 4,
+          "row": 1,
+          "gold": "ii%43",
+          "acorde": "iv6/VI"
+        },
+        {
+          "measure": 5,
+          "reason": "row_count",
+          "source_rows": 5,
+          "predicted_sonorities": 4
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "viio/V",
+          "acorde": "io43"
+        },
+        {
+          "measure": 6,
+          "row": 3,
+          "gold": "C:V7",
+          "acorde": "IV7"
+        },
+        {
+          "measure": 7,
+          "row": 0,
+          "gold": "vi6",
+          "acorde": "v6"
+        },
+        {
+          "measure": 7,
+          "row": 1,
+          "gold": "a:viio6",
+          "acorde": null
+        },
+        {
+          "measure": 7,
+          "row": 2,
+          "gold": "i",
+          "acorde": "v"
+        },
+        {
+          "measure": 7,
+          "row": 3,
+          "gold": "V7",
+          "acorde": "II7"
+        },
+        {
+          "measure": 8,
+          "row": 0,
+          "gold": "VI",
+          "acorde": "III"
+        },
+        {
+          "measure": 8,
+          "row": 1,
+          "gold": "V",
+          "acorde": "II"
+        }
+      ]
+    },
+    {
+      "score": "chor048_rev.krn",
+      "source_sha256": "682f6ead0b11f2165720a2c6937ded02154a963376bff86a8ed25676cd55177c",
+      "notes_only_sha256": "6c97c113bb141edc3f7d12c5fe3997a55b27fb1e7a87e0b7d84f0632fe1d35e8",
+      "source_rows": 42,
+      "source_labeled_rows": 42,
+      "predicted_sonorities": 37,
+      "aligned_measures": 6,
+      "unaligned_measures": 4,
+      "labeled_rows": 25,
+      "exact_labels": 9,
+      "errors": [
+        {
+          "measure": 0,
+          "row": 3,
+          "gold": "V",
+          "acorde": "i"
+        },
+        {
+          "measure": 1,
+          "row": 1,
+          "gold": "C:V",
+          "acorde": "VII"
+        },
+        {
+          "measure": 1,
+          "row": 2,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 1,
+          "row": 3,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 2,
+          "reason": "row_count",
+          "source_rows": 5,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 3,
+          "row": 0,
+          "gold": "ii%65",
+          "acorde": "ii\u00f865"
+        },
+        {
+          "measure": 4,
+          "row": 0,
+          "gold": "d:V",
+          "acorde": "I"
+        },
+        {
+          "measure": 4,
+          "row": 1,
+          "gold": "V6",
+          "acorde": "I6"
+        },
+        {
+          "measure": 4,
+          "row": 2,
+          "gold": "V",
+          "acorde": "I"
+        },
+        {
+          "measure": 4,
+          "row": 3,
+          "gold": "i",
+          "acorde": "iv"
+        },
+        {
+          "measure": 4,
+          "row": 4,
+          "gold": "VI",
+          "acorde": null
+        },
+        {
+          "measure": 5,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        }
+      ]
+    },
+    {
+      "score": "chor049_rev.krn",
+      "source_sha256": "815f0c275f71803c2167247e482d6e2cc4558f36d56a3b022122f5f3a64ac8ad",
+      "notes_only_sha256": "2e7a5ab997f1ba9809c77da62624ae939ed05c667a7719f8f30145a00b01f720",
+      "source_rows": 55,
+      "source_labeled_rows": 55,
+      "predicted_sonorities": 51,
+      "aligned_measures": 9,
+      "unaligned_measures": 4,
+      "labeled_rows": 36,
+      "exact_labels": 14,
+      "errors": [
+        {
+          "measure": 1,
+          "row": 0,
+          "gold": "a:iv6",
+          "acorde": "i6"
+        },
+        {
+          "measure": 1,
+          "row": 1,
+          "gold": "iv6",
+          "acorde": "i6"
+        },
+        {
+          "measure": 1,
+          "row": 2,
+          "gold": "v",
+          "acorde": "ii"
+        },
+        {
+          "measure": 1,
+          "row": 3,
+          "gold": "IV2",
+          "acorde": "I2"
+        },
+        {
+          "measure": 1,
+          "row": 4,
+          "gold": "viio6",
+          "acorde": null
+        },
+        {
+          "measure": 2,
+          "reason": "row_count",
+          "source_rows": 6,
+          "predicted_sonorities": 5
+        },
+        {
+          "measure": 3,
+          "row": 0,
+          "gold": "ii%65",
+          "acorde": null
+        },
+        {
+          "measure": 3,
+          "row": 1,
+          "gold": "V7",
+          "acorde": "II7"
+        },
+        {
+          "measure": 3,
+          "row": 2,
+          "gold": "VI",
+          "acorde": "III"
+        },
+        {
+          "measure": 3,
+          "row": 3,
+          "gold": "ii%65",
+          "acorde": null
+        },
+        {
+          "measure": 3,
+          "row": 4,
+          "gold": "V7",
+          "acorde": "II7"
+        },
+        {
+          "measure": 4,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        }
+      ]
+    },
+    {
+      "score": "chor050_rev.krn",
+      "source_sha256": "02ae28400a80b2f45f8cdb0efc09a1e919d8b0aebe9dbfc98f84aefadc10664f",
+      "notes_only_sha256": "81c6dbff8334949dbe3c348a588aeac95bc75dd159594ed32aef5dcbfeae487f",
+      "source_rows": 47,
+      "source_labeled_rows": 47,
+      "predicted_sonorities": 41,
+      "aligned_measures": 7,
+      "unaligned_measures": 6,
+      "labeled_rows": 22,
+      "exact_labels": 19,
+      "errors": [
+        {
+          "measure": 1,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 3,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 4,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "V6/vi",
+          "acorde": "III6"
+        },
+        {
+          "measure": 7,
+          "row": 3,
+          "gold": "g:V65",
+          "acorde": "VI65"
+        },
+        {
+          "measure": 8,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 10,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 11,
+          "reason": "row_count",
+          "source_rows": 5,
+          "predicted_sonorities": 4
+        },
+        {
+          "measure": 12,
+          "row": 0,
+          "gold": "V(64)",
+          "acorde": "I64"
+        }
+      ]
+    },
+    {
+      "score": "chor051_rev.krn",
+      "source_sha256": "a0e7277ce2a5e6cb07e8c9a546d056e61045eb8b41edb457fe49382968896850",
+      "notes_only_sha256": "a1e2e96b0c15ec055ceb48383566fbbc5f045522b9cbab1017d594f4f7ee7bbb",
+      "source_rows": 42,
+      "source_labeled_rows": 42,
+      "predicted_sonorities": 40,
+      "aligned_measures": 9,
+      "unaligned_measures": 2,
+      "labeled_rows": 34,
+      "exact_labels": 25,
+      "errors": [
+        {
+          "measure": 2,
+          "row": 1,
+          "gold": "C:V7",
+          "acorde": "I7"
+        },
+        {
+          "measure": 2,
+          "row": 2,
+          "gold": "I",
+          "acorde": "IV"
+        },
+        {
+          "measure": 3,
+          "row": 0,
+          "gold": "iii",
+          "acorde": "vi"
+        },
+        {
+          "measure": 3,
+          "row": 1,
+          "gold": "viio6",
+          "acorde": "iiio6"
+        },
+        {
+          "measure": 3,
+          "row": 2,
+          "gold": "I",
+          "acorde": "IV"
+        },
+        {
+          "measure": 3,
+          "row": 3,
+          "gold": "G:V65",
+          "acorde": "V65"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "D:V7",
+          "acorde": "II7"
+        },
+        {
+          "measure": 6,
+          "row": 2,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 6,
+          "row": 3,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 7,
+          "reason": "row_count",
+          "source_rows": 5,
+          "predicted_sonorities": 4
+        },
+        {
+          "measure": 9,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        }
+      ]
+    },
+    {
+      "score": "chor052_rev.krn",
+      "source_sha256": "848dccba554a62a3ea4f368f047eff1d4fcd39dbe23d2a1c5c116be003ff5013",
+      "notes_only_sha256": "97eba31dd7ed3c380e878c5b4efa92b385853d8514aa49c2e8c8e9f5aec3a5d3",
+      "source_rows": 64,
+      "source_labeled_rows": 64,
+      "predicted_sonorities": 63,
+      "aligned_measures": 13,
+      "unaligned_measures": 3,
+      "labeled_rows": 51,
+      "exact_labels": 23,
+      "errors": [
+        {
+          "measure": 1,
+          "reason": "row_count",
+          "source_rows": 5,
+          "predicted_sonorities": 4
+        },
+        {
+          "measure": 2,
+          "row": 1,
+          "gold": "f#:V65",
+          "acorde": "III65"
+        },
+        {
+          "measure": 2,
+          "row": 2,
+          "gold": "i",
+          "acorde": "vi"
+        },
+        {
+          "measure": 2,
+          "row": 3,
+          "gold": "i",
+          "acorde": "vi"
+        },
+        {
+          "measure": 3,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 5
+        },
+        {
+          "measure": 4,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "V7/IV",
+          "acorde": "I7"
+        },
+        {
+          "measure": 7,
+          "row": 3,
+          "gold": "b:V65",
+          "acorde": "VI65"
+        },
+        {
+          "measure": 8,
+          "row": 0,
+          "gold": "i",
+          "acorde": "ii"
+        },
+        {
+          "measure": 8,
+          "row": 1,
+          "gold": "viio43/V",
+          "acorde": "iio"
+        },
+        {
+          "measure": 8,
+          "row": 2,
+          "gold": "V",
+          "acorde": "VI"
+        },
+        {
+          "measure": 8,
+          "row": 3,
+          "gold": "f#:V65",
+          "acorde": "III65"
+        }
+      ]
+    },
+    {
+      "score": "chor053_rev.krn",
+      "source_sha256": "c361b6aab419f89ad9ee421147410a42ee389744cee1b7f0bbf6c49f782ef98f",
+      "notes_only_sha256": "551779f0b142b4995945476feab3fe31656a685a14a2868e596402fdc9ecc70a",
+      "source_rows": 39,
+      "source_labeled_rows": 39,
+      "predicted_sonorities": 38,
+      "aligned_measures": 15,
+      "unaligned_measures": 1,
+      "labeled_rows": 37,
+      "exact_labels": 17,
+      "errors": [
+        {
+          "measure": 2,
+          "row": 1,
+          "gold": "viio6",
+          "acorde": null
+        },
+        {
+          "measure": 4,
+          "row": 2,
+          "gold": "viio7/V",
+          "acorde": null
+        },
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "d:i",
+          "acorde": "v"
+        },
+        {
+          "measure": 5,
+          "row": 1,
+          "gold": "vi%65",
+          "acorde": null
+        },
+        {
+          "measure": 5,
+          "row": 2,
+          "gold": "viio6",
+          "acorde": null
+        },
+        {
+          "measure": 6,
+          "reason": "row_count",
+          "source_rows": 2,
+          "predicted_sonorities": 1
+        },
+        {
+          "measure": 7,
+          "row": 0,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 8,
+          "row": 0,
+          "gold": "g:i",
+          "acorde": "i"
+        },
+        {
+          "measure": 8,
+          "row": 1,
+          "gold": "ii%2",
+          "acorde": "iv6/I"
+        },
+        {
+          "measure": 9,
+          "row": 2,
+          "gold": "B-:vii%7",
+          "acorde": "IV6/II"
+        },
+        {
+          "measure": 9,
+          "row": 3,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 10,
+          "row": 0,
+          "gold": "ii6",
+          "acorde": "iv6"
+        }
+      ]
+    },
+    {
+      "score": "chor054_rev.krn",
+      "source_sha256": "a69c8fa2c383b8d0b9b3302db3f91a3c945b76ef54634b0b7698737234845186",
+      "notes_only_sha256": "5dac30a78b600eb34ba60c0069d6989e8c643e9dce6a062dc8f4fd2890735b0c",
+      "source_rows": 39,
+      "source_labeled_rows": 38,
+      "predicted_sonorities": 38,
+      "aligned_measures": 8,
+      "unaligned_measures": 3,
+      "labeled_rows": 27,
+      "exact_labels": 18,
+      "errors": [
+        {
+          "measure": 1,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 3,
+          "row": 1,
+          "gold": "D:viio6",
+          "acorde": null
+        },
+        {
+          "measure": 3,
+          "row": 2,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 3,
+          "row": 3,
+          "gold": "ii6",
+          "acorde": "vi6"
+        },
+        {
+          "measure": 3,
+          "row": 4,
+          "gold": "V7",
+          "acorde": "II7"
+        },
+        {
+          "measure": 4,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 7,
+          "reason": "row_count",
+          "source_rows": 5,
+          "predicted_sonorities": 6
+        },
+        {
+          "measure": 8,
+          "row": 0,
+          "gold": "i",
+          "acorde": "vi"
+        },
+        {
+          "measure": 8,
+          "row": 1,
+          "gold": "i6",
+          "acorde": "vi6"
+        },
+        {
+          "measure": 8,
+          "row": 2,
+          "gold": "v",
+          "acorde": "iii"
+        },
+        {
+          "measure": 8,
+          "row": 3,
+          "gold": "G:I",
+          "acorde": "I"
+        },
+        {
+          "measure": 9,
+          "row": 2,
+          "gold": "V(64)",
+          "acorde": "I64"
+        }
+      ]
+    },
+    {
+      "score": "chor055_rev.krn",
+      "source_sha256": "60307faa6156ed391e02ac50b74f7a70ddddde339f6326c0b56a472b6577747e",
+      "notes_only_sha256": "15fd2c2d23235ae9574d95a595ed021f27291b119cbc7689cdb60378aee7ee08",
+      "source_rows": 42,
+      "source_labeled_rows": 42,
+      "predicted_sonorities": 41,
+      "aligned_measures": 11,
+      "unaligned_measures": 1,
+      "labeled_rows": 38,
+      "exact_labels": 18,
+      "errors": [
+        {
+          "measure": 2,
+          "row": 0,
+          "gold": "D:I",
+          "acorde": "III"
+        },
+        {
+          "measure": 3,
+          "row": 0,
+          "gold": "V",
+          "acorde": "VII"
+        },
+        {
+          "measure": 3,
+          "row": 1,
+          "gold": "vi",
+          "acorde": "i"
+        },
+        {
+          "measure": 3,
+          "row": 2,
+          "gold": "b:V",
+          "acorde": "V"
+        },
+        {
+          "measure": 4,
+          "row": 3,
+          "gold": "D:V",
+          "acorde": "VII"
+        },
+        {
+          "measure": 4,
+          "row": 4,
+          "gold": "V2",
+          "acorde": "VII2"
+        },
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "I6",
+          "acorde": "III6"
+        },
+        {
+          "measure": 5,
+          "row": 1,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 5,
+          "row": 2,
+          "gold": "b:viio",
+          "acorde": null
+        },
+        {
+          "measure": 7,
+          "row": 0,
+          "gold": "viio6",
+          "acorde": null
+        },
+        {
+          "measure": 8,
+          "row": 0,
+          "gold": "A:V",
+          "acorde": "IV"
+        },
+        {
+          "measure": 8,
+          "row": 1,
+          "gold": "IV6",
+          "acorde": "III6"
+        }
+      ]
+    },
+    {
+      "score": "chor056_rev.krn",
+      "source_sha256": "37cc94c0176561663c29ef1729c5186240512007bcd8a1b663b4faeeb11806a0",
+      "notes_only_sha256": "176bac0f1dcfaa4c3a7a418e475e8d80660a4d60b34d64d15a5b46cc569acdf0",
+      "source_rows": 61,
+      "source_labeled_rows": 61,
+      "predicted_sonorities": 58,
+      "aligned_measures": 14,
+      "unaligned_measures": 3,
+      "labeled_rows": 48,
+      "exact_labels": 7,
+      "errors": [
+        {
+          "measure": 0,
+          "row": 0,
+          "gold": "i",
+          "acorde": "iv"
+        },
+        {
+          "measure": 1,
+          "row": 0,
+          "gold": "i",
+          "acorde": "iv"
+        },
+        {
+          "measure": 1,
+          "row": 1,
+          "gold": "i",
+          "acorde": "iv"
+        },
+        {
+          "measure": 1,
+          "row": 2,
+          "gold": "IV6",
+          "acorde": "VII6"
+        },
+        {
+          "measure": 1,
+          "row": 3,
+          "gold": "V65",
+          "acorde": "I65"
+        },
+        {
+          "measure": 2,
+          "row": 0,
+          "gold": "i",
+          "acorde": "iv"
+        },
+        {
+          "measure": 2,
+          "row": 1,
+          "gold": "i6",
+          "acorde": "iv6"
+        },
+        {
+          "measure": 2,
+          "row": 2,
+          "gold": "viio6",
+          "acorde": null
+        },
+        {
+          "measure": 2,
+          "row": 3,
+          "gold": "i",
+          "acorde": "iv"
+        },
+        {
+          "measure": 3,
+          "row": 0,
+          "gold": "V",
+          "acorde": "I"
+        },
+        {
+          "measure": 3,
+          "row": 1,
+          "gold": "D:I6",
+          "acorde": "III6"
+        },
+        {
+          "measure": 4,
+          "row": 0,
+          "gold": "ii",
+          "acorde": "iv"
+        }
+      ]
+    },
+    {
+      "score": "chor057_rev.krn",
+      "source_sha256": "18b7d0f7cb4a462501afa0dcada45ca41d361a3d5b659f2b9e368e1e361b8a60",
+      "notes_only_sha256": "c19e3468832052a1c0c317f011a57c2ad45f5ebc35f8cda004a6ffd5954fca4f",
+      "source_rows": 31,
+      "source_labeled_rows": 31,
+      "predicted_sonorities": 29,
+      "aligned_measures": 7,
+      "unaligned_measures": 2,
+      "labeled_rows": 24,
+      "exact_labels": 15,
+      "errors": [
+        {
+          "measure": 1,
+          "row": 1,
+          "gold": "viio43/V",
+          "acorde": "iiio2"
+        },
+        {
+          "measure": 3,
+          "row": 3,
+          "gold": "C:vii%7",
+          "acorde": "iv6/II"
+        },
+        {
+          "measure": 3,
+          "row": 4,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 4,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "V",
+          "acorde": "VII"
+        },
+        {
+          "measure": 5,
+          "row": 1,
+          "gold": "IV6",
+          "acorde": "VI6"
+        },
+        {
+          "measure": 5,
+          "row": 2,
+          "gold": "V6",
+          "acorde": "VII6"
+        },
+        {
+          "measure": 5,
+          "row": 3,
+          "gold": "I",
+          "acorde": "III64"
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "a:V65",
+          "acorde": null
+        },
+        {
+          "measure": 7,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 8,
+          "row": 0,
+          "gold": "ii%65",
+          "acorde": "ii\u00f865"
+        }
+      ]
+    },
+    {
+      "score": "chor058_rev.krn",
+      "source_sha256": "a376959cfabea0501241f54414e4b0d4d2553622544cd158f1c16806a2feede4",
+      "notes_only_sha256": "1193d21a3e3a9294d87648e8cf924efbdeabf981603e95bfecda7b5c6dcee5ea",
+      "source_rows": 81,
+      "source_labeled_rows": 81,
+      "predicted_sonorities": 79,
+      "aligned_measures": 18,
+      "unaligned_measures": 3,
+      "labeled_rows": 69,
+      "exact_labels": 5,
+      "errors": [
+        {
+          "measure": 0,
+          "row": 0,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 1,
+          "row": 0,
+          "gold": "V",
+          "acorde": "VII"
+        },
+        {
+          "measure": 1,
+          "row": 1,
+          "gold": "IV6",
+          "acorde": "VI6"
+        },
+        {
+          "measure": 1,
+          "row": 2,
+          "gold": "V6",
+          "acorde": "VII6"
+        },
+        {
+          "measure": 1,
+          "row": 3,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 2,
+          "row": 0,
+          "gold": "IV",
+          "acorde": "VI"
+        },
+        {
+          "measure": 2,
+          "row": 1,
+          "gold": "IV6",
+          "acorde": "VI6"
+        },
+        {
+          "measure": 2,
+          "row": 2,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 2,
+          "row": 3,
+          "gold": "vi",
+          "acorde": "i"
+        },
+        {
+          "measure": 2,
+          "row": 4,
+          "gold": "f#:viio43",
+          "acorde": "iiio2"
+        },
+        {
+          "measure": 3,
+          "row": 0,
+          "gold": "i",
+          "acorde": "v"
+        },
+        {
+          "measure": 3,
+          "row": 1,
+          "gold": "bII",
+          "acorde": "VI"
+        }
+      ]
+    },
+    {
+      "score": "chor059_rev.krn",
+      "source_sha256": "6240ae20d86e80ef419c9f316b4cce70a4014b86f7442f4ede5eccb4bdb2730b",
+      "notes_only_sha256": "2d11ccf1e6a0942d4aa72a73722632926e151b08e69f593aec553bc14a43c57b",
+      "source_rows": 41,
+      "source_labeled_rows": 41,
+      "predicted_sonorities": 40,
+      "aligned_measures": 11,
+      "unaligned_measures": 1,
+      "labeled_rows": 37,
+      "exact_labels": 17,
+      "errors": [
+        {
+          "measure": 1,
+          "row": 0,
+          "gold": "iv7",
+          "acorde": "VI6/IV"
+        },
+        {
+          "measure": 2,
+          "row": 1,
+          "gold": "viio6",
+          "acorde": null
+        },
+        {
+          "measure": 3,
+          "row": 0,
+          "gold": "viio7",
+          "acorde": "ivo43"
+        },
+        {
+          "measure": 4,
+          "row": 2,
+          "gold": "B-:I",
+          "acorde": "III"
+        },
+        {
+          "measure": 4,
+          "row": 3,
+          "gold": "V2/IV",
+          "acorde": "III2"
+        },
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "IV6",
+          "acorde": "VI6"
+        },
+        {
+          "measure": 5,
+          "row": 1,
+          "gold": "ii%43",
+          "acorde": null
+        },
+        {
+          "measure": 5,
+          "row": 2,
+          "gold": "I64",
+          "acorde": "III64"
+        },
+        {
+          "measure": 5,
+          "row": 3,
+          "gold": "viio7/V",
+          "acorde": null
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "V7",
+          "acorde": "VII7"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 6,
+          "row": 2,
+          "gold": "g:i",
+          "acorde": "i"
+        }
+      ]
+    },
+    {
+      "score": "chor060_rev.krn",
+      "source_sha256": "e3b5116fb64812140cd3cb59b44f9d74a10bc77665da17559ce3db3da5270d37",
+      "notes_only_sha256": "4b6c3448ffceffb3af0764377ea5bc2990c4c0ba4c541b80ca1a2eab93f10d84",
+      "source_rows": 41,
+      "source_labeled_rows": 39,
+      "predicted_sonorities": 36,
+      "aligned_measures": 9,
+      "unaligned_measures": 5,
+      "labeled_rows": 24,
+      "exact_labels": 7,
+      "errors": [
+        {
+          "measure": 1,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 2,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 3,
+          "row": 0,
+          "gold": "b:IV2",
+          "acorde": "II2"
+        },
+        {
+          "measure": 3,
+          "row": 1,
+          "gold": "viio6",
+          "acorde": null
+        },
+        {
+          "measure": 3,
+          "row": 2,
+          "gold": "i",
+          "acorde": "vi"
+        },
+        {
+          "measure": 3,
+          "row": 3,
+          "gold": "i6",
+          "acorde": "vi6"
+        },
+        {
+          "measure": 4,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "A:V65",
+          "acorde": "II65"
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "IV6",
+          "acorde": "I6"
+        },
+        {
+          "measure": 6,
+          "row": 2,
+          "gold": "ii65",
+          "acorde": "vi65"
+        },
+        {
+          "measure": 6,
+          "row": 3,
+          "gold": "V",
+          "acorde": "II"
+        }
+      ]
+    },
+    {
+      "score": "chor061_rev.krn",
+      "source_sha256": "b8339e980db327576b2189c62fbe4c3bf8342dd71885d6961fbd225b45a1ae26",
+      "notes_only_sha256": "1c336cb1a8f3b8039c82d2ebe67d73c57b97c4492d3a1d4e47ab540c52fb14f9",
+      "source_rows": 69,
+      "source_labeled_rows": 69,
+      "predicted_sonorities": 69,
+      "aligned_measures": 12,
+      "unaligned_measures": 4,
+      "labeled_rows": 51,
+      "exact_labels": 25,
+      "errors": [
+        {
+          "measure": 1,
+          "row": 1,
+          "gold": "A-:IV6",
+          "acorde": null
+        },
+        {
+          "measure": 1,
+          "row": 2,
+          "gold": "V65",
+          "acorde": "I65"
+        },
+        {
+          "measure": 2,
+          "reason": "row_count",
+          "source_rows": 7,
+          "predicted_sonorities": 6
+        },
+        {
+          "measure": 3,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 4
+        },
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "c:ii%2",
+          "acorde": "ii6/VI"
+        },
+        {
+          "measure": 5,
+          "row": 1,
+          "gold": "V65",
+          "acorde": "III65"
+        },
+        {
+          "measure": 5,
+          "row": 2,
+          "gold": "i",
+          "acorde": "vi"
+        },
+        {
+          "measure": 5,
+          "row": 3,
+          "gold": "V",
+          "acorde": "III"
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "i",
+          "acorde": "vi"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "E-:V",
+          "acorde": "V"
+        },
+        {
+          "measure": 7,
+          "reason": "row_count",
+          "source_rows": 5,
+          "predicted_sonorities": 4
+        },
+        {
+          "measure": 8,
+          "row": 2,
+          "gold": "f:viio6",
+          "acorde": null
+        }
+      ]
+    },
+    {
+      "score": "chor062_rev.krn",
+      "source_sha256": "f0d419e2b15317a2ef52e6e6e8cdfddbcd184e011e0417576d6e107bb08c9e50",
+      "notes_only_sha256": "d2cd0fd35dba8868b1353a7778e75d211bbcab0b4dd8b738109890eb39e2f089",
+      "source_rows": 36,
+      "source_labeled_rows": 35,
+      "predicted_sonorities": 34,
+      "aligned_measures": 9,
+      "unaligned_measures": 2,
+      "labeled_rows": 28,
+      "exact_labels": 17,
+      "errors": [
+        {
+          "measure": 3,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 4,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 7,
+          "row": 1,
+          "gold": "D:V",
+          "acorde": "VII"
+        },
+        {
+          "measure": 7,
+          "row": 2,
+          "gold": "V2",
+          "acorde": "VII2"
+        },
+        {
+          "measure": 7,
+          "row": 3,
+          "gold": "I6",
+          "acorde": "III6"
+        },
+        {
+          "measure": 7,
+          "row": 4,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 8,
+          "row": 0,
+          "gold": "ii65",
+          "acorde": "iv65"
+        },
+        {
+          "measure": 8,
+          "row": 1,
+          "gold": "V",
+          "acorde": "VII"
+        },
+        {
+          "measure": 8,
+          "row": 2,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 8,
+          "row": 3,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 9,
+          "row": 0,
+          "gold": "b:viio6",
+          "acorde": null
+        },
+        {
+          "measure": 9,
+          "row": 2,
+          "gold": "ii%65",
+          "acorde": "ii\u00f865"
+        }
+      ]
+    },
+    {
+      "score": "chor063_rev.krn",
+      "source_sha256": "971ca38f906ed5d92c832790456e273c9a36362275a161e86056e269f622914f",
+      "notes_only_sha256": "77293906590ad078d19372099128607001d5f4066bf9ed56d4e42a72f56063fa",
+      "source_rows": 51,
+      "source_labeled_rows": 51,
+      "predicted_sonorities": 49,
+      "aligned_measures": 11,
+      "unaligned_measures": 2,
+      "labeled_rows": 41,
+      "exact_labels": 25,
+      "errors": [
+        {
+          "measure": 1,
+          "row": 4,
+          "gold": "V2/IV",
+          "acorde": "I2"
+        },
+        {
+          "measure": 2,
+          "row": 2,
+          "gold": "V6/vi",
+          "acorde": "III6"
+        },
+        {
+          "measure": 4,
+          "row": 0,
+          "gold": "ii7",
+          "acorde": "IV6/II"
+        },
+        {
+          "measure": 4,
+          "row": 1,
+          "gold": "viio7/iii",
+          "acorde": "io65"
+        },
+        {
+          "measure": 5,
+          "reason": "row_count",
+          "source_rows": 6,
+          "predicted_sonorities": 5
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "V6/vi",
+          "acorde": "III6"
+        },
+        {
+          "measure": 7,
+          "row": 3,
+          "gold": "b:V65",
+          "acorde": "VI65"
+        },
+        {
+          "measure": 8,
+          "row": 0,
+          "gold": "i",
+          "acorde": "ii"
+        },
+        {
+          "measure": 8,
+          "row": 1,
+          "gold": "viio43/V",
+          "acorde": "ivo43"
+        },
+        {
+          "measure": 8,
+          "row": 2,
+          "gold": "V",
+          "acorde": "VI"
+        },
+        {
+          "measure": 8,
+          "row": 3,
+          "gold": "v",
+          "acorde": "vi"
+        },
+        {
+          "measure": 9,
+          "row": 0,
+          "gold": "A:I6",
+          "acorde": "I6"
+        }
+      ]
+    },
+    {
+      "score": "chor064_rev.krn",
+      "source_sha256": "ea805569078f6024ee0f83afd86ff46329aa790c68cdc8e9b4cb6c6ff215a9c0",
+      "notes_only_sha256": "b88fb42d2460427c24ca10e8bff3ba6b1ba41b9fb5c073f1a56185cc88c1e8c3",
+      "source_rows": 51,
+      "source_labeled_rows": 51,
+      "predicted_sonorities": 50,
+      "aligned_measures": 12,
+      "unaligned_measures": 1,
+      "labeled_rows": 46,
+      "exact_labels": 31,
+      "errors": [
+        {
+          "measure": 0,
+          "row": 3,
+          "gold": "V/V",
+          "acorde": "II"
+        },
+        {
+          "measure": 1,
+          "reason": "row_count",
+          "source_rows": 5,
+          "predicted_sonorities": 4
+        },
+        {
+          "measure": 2,
+          "row": 0,
+          "gold": "G:vi",
+          "acorde": "vi"
+        },
+        {
+          "measure": 8,
+          "row": 2,
+          "gold": "C:V7",
+          "acorde": "I7"
+        },
+        {
+          "measure": 8,
+          "row": 3,
+          "gold": "vi",
+          "acorde": "ii"
+        },
+        {
+          "measure": 8,
+          "row": 4,
+          "gold": "V6",
+          "acorde": "I6"
+        },
+        {
+          "measure": 9,
+          "row": 0,
+          "gold": "I",
+          "acorde": "IV"
+        },
+        {
+          "measure": 9,
+          "row": 1,
+          "gold": "e:iv6",
+          "acorde": "ii6"
+        },
+        {
+          "measure": 9,
+          "row": 2,
+          "gold": "V(64)",
+          "acorde": "vi64"
+        },
+        {
+          "measure": 9,
+          "row": 3,
+          "gold": "V",
+          "acorde": "III"
+        },
+        {
+          "measure": 10,
+          "row": 0,
+          "gold": "i",
+          "acorde": "vi"
+        },
+        {
+          "measure": 10,
+          "row": 1,
+          "gold": "i",
+          "acorde": "vi"
+        }
+      ]
+    },
+    {
+      "score": "chor065_rev.krn",
+      "source_sha256": "1319a10e8c4c6027c9dc2ccdf7fbed9d1d26373fca682ba6bae87ffe10365bc7",
+      "notes_only_sha256": "6a1a4b967d29362164c9a97de63848fac1b9aeed6dad7d4f007f44eb0ca26fdf",
+      "source_rows": 44,
+      "source_labeled_rows": 44,
+      "predicted_sonorities": 42,
+      "aligned_measures": 10,
+      "unaligned_measures": 2,
+      "labeled_rows": 36,
+      "exact_labels": 25,
+      "errors": [
+        {
+          "measure": 1,
+          "row": 4,
+          "gold": "vii%43",
+          "acorde": "vii\u00f843"
+        },
+        {
+          "measure": 3,
+          "row": 2,
+          "gold": "vii%7",
+          "acorde": "ii6/VII"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "D:V65",
+          "acorde": "II65"
+        },
+        {
+          "measure": 6,
+          "row": 2,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 6,
+          "row": 3,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 7,
+          "row": 0,
+          "gold": "I6",
+          "acorde": "V6"
+        },
+        {
+          "measure": 7,
+          "row": 1,
+          "gold": "vi",
+          "acorde": "iii"
+        },
+        {
+          "measure": 7,
+          "row": 2,
+          "gold": "ii",
+          "acorde": "vi"
+        },
+        {
+          "measure": 7,
+          "row": 3,
+          "gold": "ii",
+          "acorde": "vi"
+        },
+        {
+          "measure": 8,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 9,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 10,
+          "row": 1,
+          "gold": "vii%7",
+          "acorde": "ii6/VII"
+        }
+      ]
+    },
+    {
+      "score": "chor066_rev.krn",
+      "source_sha256": "6c65bfbb7e5d67d55f28070462cf62b7f128c7040301aa27f8f216cd19904188",
+      "notes_only_sha256": "62d3bef87b1a519000a48b7c33dd65745c3caceb9a57b402973ee41378a7cf28",
+      "source_rows": 60,
+      "source_labeled_rows": 60,
+      "predicted_sonorities": 58,
+      "aligned_measures": 14,
+      "unaligned_measures": 2,
+      "labeled_rows": 51,
+      "exact_labels": 20,
+      "errors": [
+        {
+          "measure": 3,
+          "row": 2,
+          "gold": "d:viio43",
+          "acorde": "v6/VII"
+        },
+        {
+          "measure": 3,
+          "row": 3,
+          "gold": "i6",
+          "acorde": "iv6"
+        },
+        {
+          "measure": 3,
+          "row": 4,
+          "gold": "IV6",
+          "acorde": "VII6"
+        },
+        {
+          "measure": 4,
+          "row": 0,
+          "gold": "i",
+          "acorde": "iv"
+        },
+        {
+          "measure": 4,
+          "row": 1,
+          "gold": "V",
+          "acorde": "I"
+        },
+        {
+          "measure": 4,
+          "row": 2,
+          "gold": "i",
+          "acorde": "iv"
+        },
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "i",
+          "acorde": "iv"
+        },
+        {
+          "measure": 6,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 7,
+          "row": 0,
+          "gold": "a:V",
+          "acorde": "V"
+        },
+        {
+          "measure": 8,
+          "row": 0,
+          "gold": "C:V65/V",
+          "acorde": "IV65"
+        },
+        {
+          "measure": 8,
+          "row": 1,
+          "gold": "V",
+          "acorde": "VII"
+        },
+        {
+          "measure": 8,
+          "row": 2,
+          "gold": "I",
+          "acorde": "III"
+        }
+      ]
+    },
+    {
+      "score": "chor067_rev.krn",
+      "source_sha256": "07e3b63d3eebc97ebc060c083bd1d57d05123afe274e7f52ce40fa8009a1c7da",
+      "notes_only_sha256": "7a86ed68461668209e24a654e0a7f954d95e05b86c92d37ddec78a620ad27fb1",
+      "source_rows": 50,
+      "source_labeled_rows": 50,
+      "predicted_sonorities": 48,
+      "aligned_measures": 11,
+      "unaligned_measures": 2,
+      "labeled_rows": 43,
+      "exact_labels": 24,
+      "errors": [
+        {
+          "measure": 1,
+          "row": 0,
+          "gold": "D:viio6",
+          "acorde": null
+        },
+        {
+          "measure": 1,
+          "row": 1,
+          "gold": "I6",
+          "acorde": "V6"
+        },
+        {
+          "measure": 1,
+          "row": 2,
+          "gold": "V7",
+          "acorde": "II2"
+        },
+        {
+          "measure": 1,
+          "row": 3,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 2,
+          "row": 0,
+          "gold": "G:vi",
+          "acorde": "vi"
+        },
+        {
+          "measure": 3,
+          "row": 0,
+          "gold": "V(64)",
+          "acorde": "I64"
+        },
+        {
+          "measure": 4,
+          "row": 1,
+          "gold": "e:iv",
+          "acorde": "ii"
+        },
+        {
+          "measure": 4,
+          "row": 2,
+          "gold": "V43/iv",
+          "acorde": "VI43"
+        },
+        {
+          "measure": 4,
+          "row": 3,
+          "gold": "iv6",
+          "acorde": "ii6"
+        },
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "i",
+          "acorde": "vi"
+        },
+        {
+          "measure": 5,
+          "row": 1,
+          "gold": "iv6",
+          "acorde": "ii6"
+        },
+        {
+          "measure": 5,
+          "row": 2,
+          "gold": "V",
+          "acorde": "III"
+        }
+      ]
+    },
+    {
+      "score": "chor068_rev.krn",
+      "source_sha256": "ba2aa024019a74698d36fb79975b3ac4e670d89a905f291f5b60ffc785982395",
+      "notes_only_sha256": "e2740873578f43e20f61de922931e039e75665daad3f481e9f4957c09f1aeddf",
+      "source_rows": 44,
+      "source_labeled_rows": 43,
+      "predicted_sonorities": 43,
+      "aligned_measures": 9,
+      "unaligned_measures": 1,
+      "labeled_rows": 40,
+      "exact_labels": 20,
+      "errors": [
+        {
+          "measure": 1,
+          "row": 0,
+          "gold": "viio6/V",
+          "acorde": null
+        },
+        {
+          "measure": 3,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 4,
+          "row": 3,
+          "gold": "C:V65",
+          "acorde": "II65"
+        },
+        {
+          "measure": 4,
+          "row": 4,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 4,
+          "row": 5,
+          "gold": "viio6",
+          "acorde": null
+        },
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 5,
+          "row": 1,
+          "gold": "V2/IV",
+          "acorde": "V2"
+        },
+        {
+          "measure": 5,
+          "row": 2,
+          "gold": "IV6",
+          "acorde": "I6"
+        },
+        {
+          "measure": 5,
+          "row": 3,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 5,
+          "row": 4,
+          "gold": "vi",
+          "acorde": "iii"
+        },
+        {
+          "measure": 5,
+          "row": 5,
+          "gold": "g:viio6",
+          "acorde": null
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "i",
+          "acorde": "ii"
+        }
+      ]
+    },
+    {
+      "score": "chor069_rev.krn",
+      "source_sha256": "1b295f1aa0bc644d7784cfb040f17639b0ae1913ef75261e1a0ff93a2d0c1878",
+      "notes_only_sha256": "506b8c2fd2dc920deb7cce5676e1e4a467b4930fe9bfda5639d8aa6f7a4dc8f7",
+      "source_rows": 99,
+      "source_labeled_rows": 95,
+      "predicted_sonorities": 91,
+      "aligned_measures": 17,
+      "unaligned_measures": 8,
+      "labeled_rows": 66,
+      "exact_labels": 46,
+      "errors": [
+        {
+          "measure": 2,
+          "row": 2,
+          "gold": "viio6/V",
+          "acorde": null
+        },
+        {
+          "measure": 3,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 6,
+          "row": 2,
+          "gold": "vii%7",
+          "acorde": "ii6/VII"
+        },
+        {
+          "measure": 7,
+          "row": 2,
+          "gold": "D:IV6",
+          "acorde": "I6"
+        },
+        {
+          "measure": 7,
+          "row": 3,
+          "gold": "V7",
+          "acorde": "II7"
+        },
+        {
+          "measure": 8,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 9,
+          "row": 4,
+          "gold": "a:iv6",
+          "acorde": "v6"
+        },
+        {
+          "measure": 10,
+          "row": 0,
+          "gold": "V7",
+          "acorde": "VI7"
+        },
+        {
+          "measure": 10,
+          "row": 1,
+          "gold": "i",
+          "acorde": "ii"
+        },
+        {
+          "measure": 10,
+          "row": 2,
+          "gold": "e:V",
+          "acorde": "III"
+        },
+        {
+          "measure": 10,
+          "row": 3,
+          "gold": "iv6",
+          "acorde": "ii6"
+        },
+        {
+          "measure": 11,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        }
+      ]
+    },
+    {
+      "score": "chor071_rev.krn",
+      "source_sha256": "c84771ccd1870908784a87124a81d8a0f3b060e6cdb11c8e4c1166464c3322c5",
+      "notes_only_sha256": "bbff1308bff47879b7de971b8a3a68d137ed73af8d72bd9f915d80a5f4bc46a0",
+      "source_rows": 61,
+      "source_labeled_rows": 61,
+      "predicted_sonorities": 59,
+      "aligned_measures": 13,
+      "unaligned_measures": 2,
+      "labeled_rows": 53,
+      "exact_labels": 15,
+      "errors": [
+        {
+          "measure": 1,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 2,
+          "row": 2,
+          "gold": "ii%43",
+          "acorde": "iv6/VI"
+        },
+        {
+          "measure": 3,
+          "row": 0,
+          "gold": "G:V65",
+          "acorde": "VII65"
+        },
+        {
+          "measure": 3,
+          "row": 1,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 3,
+          "row": 2,
+          "gold": "V7/IV",
+          "acorde": "III7"
+        },
+        {
+          "measure": 3,
+          "row": 3,
+          "gold": "IV",
+          "acorde": "VI"
+        },
+        {
+          "measure": 3,
+          "row": 4,
+          "gold": "V2",
+          "acorde": "VII2"
+        },
+        {
+          "measure": 3,
+          "row": 5,
+          "gold": "a:viio6",
+          "acorde": null
+        },
+        {
+          "measure": 4,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "G:I6",
+          "acorde": "III6"
+        },
+        {
+          "measure": 5,
+          "row": 1,
+          "gold": "V65/IV",
+          "acorde": "III65"
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "IV",
+          "acorde": "VI"
+        }
+      ]
+    },
+    {
+      "score": "chor072_rev.krn",
+      "source_sha256": "8af76c7300f0db3aafe022c33700ee36f6c01d1a030b5cbee7f7e4028c74bad5",
+      "notes_only_sha256": "c1e965e7396d776c6439e46c5474af771975fc884a5a0245dc935e4f734d2938",
+      "source_rows": 37,
+      "source_labeled_rows": 37,
+      "predicted_sonorities": 36,
+      "aligned_measures": 8,
+      "unaligned_measures": 1,
+      "labeled_rows": 33,
+      "exact_labels": 13,
+      "errors": [
+        {
+          "measure": 1,
+          "row": 3,
+          "gold": "V2",
+          "acorde": "V43"
+        },
+        {
+          "measure": 1,
+          "row": 5,
+          "gold": "viio6",
+          "acorde": null
+        },
+        {
+          "measure": 2,
+          "row": 1,
+          "gold": "iv7",
+          "acorde": "VI6/IV"
+        },
+        {
+          "measure": 3,
+          "row": 0,
+          "gold": "B-:V6",
+          "acorde": "VII6"
+        },
+        {
+          "measure": 3,
+          "row": 1,
+          "gold": "V",
+          "acorde": "VII"
+        },
+        {
+          "measure": 3,
+          "row": 2,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 3,
+          "row": 3,
+          "gold": "vi",
+          "acorde": "i"
+        },
+        {
+          "measure": 4,
+          "row": 0,
+          "gold": "ii65",
+          "acorde": "iv65"
+        },
+        {
+          "measure": 4,
+          "row": 1,
+          "gold": "ii",
+          "acorde": "iv6"
+        },
+        {
+          "measure": 4,
+          "row": 2,
+          "gold": "g:V",
+          "acorde": "V"
+        },
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "B-:ii",
+          "acorde": "iv"
+        },
+        {
+          "measure": 5,
+          "row": 1,
+          "gold": "viio6",
+          "acorde": "iio6"
+        }
+      ]
+    },
+    {
+      "score": "chor073_rev.krn",
+      "source_sha256": "85e38e2aa1e85435349062cd235ced526ea144e866ba7e9ee4b87513e3ff221a",
+      "notes_only_sha256": "c66d846aed01b235e00c37cd68177865fbbbb03b1f7b8758cebdad602b09dc54",
+      "source_rows": 48,
+      "source_labeled_rows": 48,
+      "predicted_sonorities": 48,
+      "aligned_measures": 13,
+      "unaligned_measures": 0,
+      "labeled_rows": 48,
+      "exact_labels": 20,
+      "errors": [
+        {
+          "measure": 1,
+          "row": 0,
+          "gold": "ii%65",
+          "acorde": "ii\u00f865"
+        },
+        {
+          "measure": 2,
+          "row": 0,
+          "gold": "V(64)",
+          "acorde": "i64"
+        },
+        {
+          "measure": 3,
+          "row": 0,
+          "gold": "ii%2",
+          "acorde": "ii\u00f82"
+        },
+        {
+          "measure": 3,
+          "row": 2,
+          "gold": "viio64/iv",
+          "acorde": null
+        },
+        {
+          "measure": 4,
+          "row": 1,
+          "gold": "viio7/V",
+          "acorde": "iiio65"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "B-:V6",
+          "acorde": "VII6"
+        },
+        {
+          "measure": 6,
+          "row": 2,
+          "gold": "IV6",
+          "acorde": "VI6"
+        },
+        {
+          "measure": 6,
+          "row": 3,
+          "gold": "vii%2",
+          "acorde": "ii\u00f82"
+        },
+        {
+          "measure": 6,
+          "row": 4,
+          "gold": "I64",
+          "acorde": "III64"
+        },
+        {
+          "measure": 6,
+          "row": 5,
+          "gold": "ii6",
+          "acorde": "iv6"
+        },
+        {
+          "measure": 6,
+          "row": 6,
+          "gold": "g:iio64",
+          "acorde": "iio64"
+        },
+        {
+          "measure": 7,
+          "row": 0,
+          "gold": "V(64)",
+          "acorde": "i64"
+        }
+      ]
+    },
+    {
+      "score": "chor074_rev.krn",
+      "source_sha256": "0586ee018d699f78cb8d5acd4138aa8283b3dc00325313fde1fa5e9fb8f75d6b",
+      "notes_only_sha256": "4954a341119168811e3c28a8ec977e1c751d4cb2693abfcff39a0dd89b038b53",
+      "source_rows": 43,
+      "source_labeled_rows": 43,
+      "predicted_sonorities": 42,
+      "aligned_measures": 13,
+      "unaligned_measures": 1,
+      "labeled_rows": 39,
+      "exact_labels": 6,
+      "errors": [
+        {
+          "measure": 0,
+          "row": 0,
+          "gold": "vi",
+          "acorde": "i"
+        },
+        {
+          "measure": 1,
+          "row": 0,
+          "gold": "IV",
+          "acorde": "VI"
+        },
+        {
+          "measure": 1,
+          "row": 1,
+          "gold": "I6",
+          "acorde": "III6"
+        },
+        {
+          "measure": 1,
+          "row": 2,
+          "gold": "ii",
+          "acorde": "iv"
+        },
+        {
+          "measure": 1,
+          "row": 3,
+          "gold": "viio6",
+          "acorde": "iio6"
+        },
+        {
+          "measure": 1,
+          "row": 4,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 2,
+          "row": 0,
+          "gold": "ii65",
+          "acorde": "iv65"
+        },
+        {
+          "measure": 2,
+          "row": 1,
+          "gold": "V",
+          "acorde": "VII"
+        },
+        {
+          "measure": 2,
+          "row": 2,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 2,
+          "row": 3,
+          "gold": "d:V6",
+          "acorde": "V6"
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "F:viio6",
+          "acorde": "iio6"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "I6",
+          "acorde": "III6"
+        }
+      ]
+    },
+    {
+      "score": "chor075_rev.krn",
+      "source_sha256": "4dc857761c597379c5c58802613e4b61c4925fdd6b838b9fc2c687e76da7fc1f",
+      "notes_only_sha256": "ec1ad9469dc192b13e0ffb2e8e761f0585bf846208736796edb2b2678a9a94d2",
+      "source_rows": 44,
+      "source_labeled_rows": 43,
+      "predicted_sonorities": 40,
+      "aligned_measures": 8,
+      "unaligned_measures": 4,
+      "labeled_rows": 28,
+      "exact_labels": 14,
+      "errors": [
+        {
+          "measure": 0,
+          "row": 0,
+          "gold": "i",
+          "acorde": "vi"
+        },
+        {
+          "measure": 1,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 3,
+          "row": 1,
+          "gold": "V65/V",
+          "acorde": "II65"
+        },
+        {
+          "measure": 4,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 5,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 7,
+          "row": 2,
+          "gold": "C:V65",
+          "acorde": "II65"
+        },
+        {
+          "measure": 8,
+          "row": 0,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 8,
+          "row": 1,
+          "gold": "V",
+          "acorde": "II"
+        },
+        {
+          "measure": 8,
+          "row": 2,
+          "gold": "V2",
+          "acorde": "II2"
+        },
+        {
+          "measure": 8,
+          "row": 3,
+          "gold": "I6",
+          "acorde": "V6"
+        },
+        {
+          "measure": 8,
+          "row": 4,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 8,
+          "row": 5,
+          "gold": "V2/IV",
+          "acorde": "V2"
+        }
+      ]
+    },
+    {
+      "score": "chor076_rev.krn",
+      "source_sha256": "426bff43b2f74ec0a45bf98b9d990f2e8a217f3f9bb7d2bcad500f82d8bcf8e0",
+      "notes_only_sha256": "b8e4c7b3c0f027aefeb1e2e723695bc5d8d471cae72dcb04392757299b2e600b",
+      "source_rows": 54,
+      "source_labeled_rows": 54,
+      "predicted_sonorities": 54,
+      "aligned_measures": 14,
+      "unaligned_measures": 0,
+      "labeled_rows": 54,
+      "exact_labels": 22,
+      "errors": [
+        {
+          "measure": 0,
+          "row": 3,
+          "gold": "D:V",
+          "acorde": "II"
+        },
+        {
+          "measure": 1,
+          "row": 0,
+          "gold": "IV6",
+          "acorde": "I6"
+        },
+        {
+          "measure": 1,
+          "row": 1,
+          "gold": "V65",
+          "acorde": "II65"
+        },
+        {
+          "measure": 1,
+          "row": 2,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 1,
+          "row": 3,
+          "gold": "ii65",
+          "acorde": "vi65"
+        },
+        {
+          "measure": 1,
+          "row": 4,
+          "gold": "V7",
+          "acorde": "II7"
+        },
+        {
+          "measure": 2,
+          "row": 0,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 2,
+          "row": 1,
+          "gold": "G:vi",
+          "acorde": "vi"
+        },
+        {
+          "measure": 5,
+          "row": 1,
+          "gold": "a:VI6",
+          "acorde": null
+        },
+        {
+          "measure": 5,
+          "row": 2,
+          "gold": "viio65",
+          "acorde": "vo2"
+        },
+        {
+          "measure": 5,
+          "row": 3,
+          "gold": "i6",
+          "acorde": "ii6"
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "V",
+          "acorde": "VI"
+        }
+      ]
+    },
+    {
+      "score": "chor077_rev.krn",
+      "source_sha256": "84213036cf34550026dbf5aeb3bd6c21d311ad2668f1a2bfb383fa57df7142a2",
+      "notes_only_sha256": "752312c25449dd93d0dc6393fc931a04dfcd81d8de23c46f9eb3dba7e1d9dbf8",
+      "source_rows": 47,
+      "source_labeled_rows": 46,
+      "predicted_sonorities": 41,
+      "aligned_measures": 7,
+      "unaligned_measures": 6,
+      "labeled_rows": 25,
+      "exact_labels": 16,
+      "errors": [
+        {
+          "measure": 2,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 3,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 4,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 5,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "A:vi",
+          "acorde": "vi"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "V43/ii",
+          "acorde": "VI43"
+        },
+        {
+          "measure": 7,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 8,
+          "row": 2,
+          "gold": "b:viio6",
+          "acorde": null
+        },
+        {
+          "measure": 8,
+          "row": 3,
+          "gold": "i",
+          "acorde": "ii"
+        },
+        {
+          "measure": 8,
+          "row": 4,
+          "gold": "V7",
+          "acorde": "VI7"
+        },
+        {
+          "measure": 9,
+          "row": 0,
+          "gold": "VI",
+          "acorde": null
+        },
+        {
+          "measure": 9,
+          "row": 1,
+          "gold": "D:viio6",
+          "acorde": "iiio6"
+        }
+      ]
+    },
+    {
+      "score": "chor078_rev.krn",
+      "source_sha256": "c3fbb67ed7c24e7661909d4e1f5cba7cd1fee1fdb02907b628b1a8c0cf35e0b8",
+      "notes_only_sha256": "a359213f57ac11febcee461e17a346f6d440968918e7f0f70c4aca7a6f8f370b",
+      "source_rows": 43,
+      "source_labeled_rows": 43,
+      "predicted_sonorities": 42,
+      "aligned_measures": 11,
+      "unaligned_measures": 1,
+      "labeled_rows": 39,
+      "exact_labels": 17,
+      "errors": [
+        {
+          "measure": 4,
+          "row": 1,
+          "gold": "D:V",
+          "acorde": "VII"
+        },
+        {
+          "measure": 4,
+          "row": 2,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 4,
+          "row": 3,
+          "gold": "IV",
+          "acorde": "VI"
+        },
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "IV6",
+          "acorde": "VI6"
+        },
+        {
+          "measure": 5,
+          "row": 1,
+          "gold": "V65",
+          "acorde": "VII65"
+        },
+        {
+          "measure": 5,
+          "row": 2,
+          "gold": "V",
+          "acorde": "VII6"
+        },
+        {
+          "measure": 5,
+          "row": 3,
+          "gold": "vi",
+          "acorde": "i"
+        },
+        {
+          "measure": 6,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 7,
+          "row": 0,
+          "gold": "viio6",
+          "acorde": "iio6"
+        },
+        {
+          "measure": 7,
+          "row": 1,
+          "gold": "IV",
+          "acorde": "VI"
+        },
+        {
+          "measure": 7,
+          "row": 2,
+          "gold": "V6",
+          "acorde": "VII6"
+        },
+        {
+          "measure": 7,
+          "row": 3,
+          "gold": "I",
+          "acorde": "III"
+        }
+      ]
+    },
+    {
+      "score": "chor079_rev.krn",
+      "source_sha256": "3a34b4a2cae9ac81abf080fee63aeaa22cb2e6b75acf49d6f2bb655062e4ac66",
+      "notes_only_sha256": "8c1275f5c7ac86608a72b214eff5b1f869e8f8f4bbc3f49e6b6634bb38c8b8e5",
+      "source_rows": 55,
+      "source_labeled_rows": 55,
+      "predicted_sonorities": 54,
+      "aligned_measures": 21,
+      "unaligned_measures": 3,
+      "labeled_rows": 47,
+      "exact_labels": 27,
+      "errors": [
+        {
+          "measure": 0,
+          "row": 1,
+          "gold": "C:I6",
+          "acorde": "III6"
+        },
+        {
+          "measure": 0,
+          "row": 2,
+          "gold": "V",
+          "acorde": "VII"
+        },
+        {
+          "measure": 1,
+          "row": 0,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 1,
+          "row": 1,
+          "gold": "ii",
+          "acorde": "iv"
+        },
+        {
+          "measure": 2,
+          "row": 0,
+          "gold": "I6",
+          "acorde": "III6"
+        },
+        {
+          "measure": 2,
+          "row": 1,
+          "gold": "ii65",
+          "acorde": "iv65"
+        },
+        {
+          "measure": 2,
+          "row": 2,
+          "gold": "V",
+          "acorde": "VII"
+        },
+        {
+          "measure": 3,
+          "row": 0,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 4,
+          "row": 0,
+          "gold": "IV",
+          "acorde": "VI"
+        },
+        {
+          "measure": 4,
+          "row": 1,
+          "gold": "V6",
+          "acorde": "III6"
+        },
+        {
+          "measure": 4,
+          "row": 2,
+          "gold": "IV",
+          "acorde": "VI"
+        },
+        {
+          "measure": 5,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        }
+      ]
+    },
+    {
+      "score": "chor080_rev.krn",
+      "source_sha256": "32b50d105dc9aaadbd3dca1a1184a187f18af84c5361d06dcbbaba433f14828f",
+      "notes_only_sha256": "1b52b96d669565e5e18ab4223a3d88e537bc30caf538f52610ba30ebde4669a7",
+      "source_rows": 43,
+      "source_labeled_rows": 43,
+      "predicted_sonorities": 40,
+      "aligned_measures": 11,
+      "unaligned_measures": 3,
+      "labeled_rows": 33,
+      "exact_labels": 1,
+      "errors": [
+        {
+          "measure": 0,
+          "row": 0,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 1,
+          "row": 0,
+          "gold": "IV",
+          "acorde": "VI"
+        },
+        {
+          "measure": 1,
+          "row": 1,
+          "gold": "I6",
+          "acorde": "III6"
+        },
+        {
+          "measure": 1,
+          "row": 2,
+          "gold": "IV6",
+          "acorde": "VI6"
+        },
+        {
+          "measure": 1,
+          "row": 3,
+          "gold": "V65",
+          "acorde": "VII65"
+        },
+        {
+          "measure": 1,
+          "row": 4,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 2,
+          "row": 0,
+          "gold": "ii65",
+          "acorde": "iv65"
+        },
+        {
+          "measure": 2,
+          "row": 1,
+          "gold": "V",
+          "acorde": "VII"
+        },
+        {
+          "measure": 2,
+          "row": 2,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 2,
+          "row": 3,
+          "gold": "b:viio6",
+          "acorde": null
+        },
+        {
+          "measure": 3,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 4,
+          "reason": "row_count",
+          "source_rows": 1,
+          "predicted_sonorities": 0
+        }
+      ]
+    },
+    {
+      "score": "chor081_rev.krn",
+      "source_sha256": "8e3fecf9526a1eb1762d416e297023c0805f900fd3a7f642351f693c4c06ba8c",
+      "notes_only_sha256": "87810a01a8d3dea7a19259a83063dc7a939598d853b62e17c1ea7d878183553c",
+      "source_rows": 62,
+      "source_labeled_rows": 62,
+      "predicted_sonorities": 61,
+      "aligned_measures": 16,
+      "unaligned_measures": 1,
+      "labeled_rows": 58,
+      "exact_labels": 20,
+      "errors": [
+        {
+          "measure": 1,
+          "row": 1,
+          "gold": "iv7",
+          "acorde": "VI6/IV"
+        },
+        {
+          "measure": 2,
+          "row": 1,
+          "gold": "d:viio6/iv",
+          "acorde": null
+        },
+        {
+          "measure": 2,
+          "row": 2,
+          "gold": "iv",
+          "acorde": "vii"
+        },
+        {
+          "measure": 2,
+          "row": 3,
+          "gold": "viio7",
+          "acorde": "vo2"
+        },
+        {
+          "measure": 2,
+          "row": 4,
+          "gold": "V6",
+          "acorde": "I6"
+        },
+        {
+          "measure": 3,
+          "row": 0,
+          "gold": "i",
+          "acorde": "iv"
+        },
+        {
+          "measure": 3,
+          "row": 1,
+          "gold": "a:i",
+          "acorde": "i"
+        },
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "d:V6",
+          "acorde": "I6"
+        },
+        {
+          "measure": 5,
+          "row": 1,
+          "gold": "i",
+          "acorde": "iv"
+        },
+        {
+          "measure": 5,
+          "row": 2,
+          "gold": "V",
+          "acorde": "I"
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "i",
+          "acorde": "iv"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "F:V",
+          "acorde": "III"
+        }
+      ]
+    },
+    {
+      "score": "chor082_rev.krn",
+      "source_sha256": "b386385adef55fbf81d56af64b13965cd8c88a83d7090efdb7b2d17a02745e34",
+      "notes_only_sha256": "a9c866511d698cb974b70c7d825cb76b3b7aac04e837a293388b5ede62e72cdd",
+      "source_rows": 65,
+      "source_labeled_rows": 58,
+      "predicted_sonorities": 57,
+      "aligned_measures": 11,
+      "unaligned_measures": 8,
+      "labeled_rows": 38,
+      "exact_labels": 17,
+      "errors": [
+        {
+          "measure": 1,
+          "row": 1,
+          "gold": "V6/III",
+          "acorde": "VII6"
+        },
+        {
+          "measure": 1,
+          "row": 4,
+          "gold": "viio6/iv",
+          "acorde": null
+        },
+        {
+          "measure": 2,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 3,
+          "row": 1,
+          "gold": "viio6",
+          "acorde": null
+        },
+        {
+          "measure": 4,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "B-:I",
+          "acorde": "III"
+        },
+        {
+          "measure": 5,
+          "row": 1,
+          "gold": "viio6/V",
+          "acorde": null
+        },
+        {
+          "measure": 5,
+          "row": 2,
+          "gold": "V",
+          "acorde": "VII"
+        },
+        {
+          "measure": 5,
+          "row": 3,
+          "gold": "IV6",
+          "acorde": "VI6"
+        },
+        {
+          "measure": 6,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 7,
+          "row": 0,
+          "gold": "IV",
+          "acorde": "VI"
+        },
+        {
+          "measure": 7,
+          "row": 1,
+          "gold": "I6",
+          "acorde": "III6"
+        }
+      ]
+    },
+    {
+      "score": "chor083_rev.krn",
+      "source_sha256": "d4a74773ce386ba2fdecd3c6bae47738caaca94056d87666cb91ff80a07e2475",
+      "notes_only_sha256": "00db87b4c96a9083c47a3ee97fe4661a9059343d6d80700c4d84eb5b2007da0d",
+      "source_rows": 57,
+      "source_labeled_rows": 57,
+      "predicted_sonorities": 54,
+      "aligned_measures": 13,
+      "unaligned_measures": 3,
+      "labeled_rows": 46,
+      "exact_labels": 16,
+      "errors": [
+        {
+          "measure": 0,
+          "row": 0,
+          "gold": "i",
+          "acorde": "vi"
+        },
+        {
+          "measure": 0,
+          "row": 1,
+          "gold": "V6",
+          "acorde": "III65"
+        },
+        {
+          "measure": 0,
+          "row": 2,
+          "gold": "i",
+          "acorde": "vi"
+        },
+        {
+          "measure": 0,
+          "row": 3,
+          "gold": "A:V6",
+          "acorde": "V6"
+        },
+        {
+          "measure": 1,
+          "row": 2,
+          "gold": "V65/IV",
+          "acorde": "I65"
+        },
+        {
+          "measure": 2,
+          "reason": "row_count",
+          "source_rows": 5,
+          "predicted_sonorities": 4
+        },
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "f#:viio7",
+          "acorde": "iio43"
+        },
+        {
+          "measure": 5,
+          "row": 1,
+          "gold": "i",
+          "acorde": "vi"
+        },
+        {
+          "measure": 5,
+          "row": 2,
+          "gold": "V",
+          "acorde": "III"
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "i",
+          "acorde": "vi"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "V6/III",
+          "acorde": "V6"
+        },
+        {
+          "measure": 6,
+          "row": 2,
+          "gold": "III",
+          "acorde": "I"
+        }
+      ]
+    },
+    {
+      "score": "chor084_rev.krn",
+      "source_sha256": "f51df7b3a482982d0e2740e843f3e26cbda673fa1f9010cb505073f279b270c8",
+      "notes_only_sha256": "f4f98bebb511c8d9f6ae2c0dbbe20c3aef34f08e0a0e90331a137654b8a9b0f4",
+      "source_rows": 64,
+      "source_labeled_rows": 64,
+      "predicted_sonorities": 57,
+      "aligned_measures": 10,
+      "unaligned_measures": 5,
+      "labeled_rows": 42,
+      "exact_labels": 29,
+      "errors": [
+        {
+          "measure": 1,
+          "row": 4,
+          "gold": "viio6",
+          "acorde": "viio64"
+        },
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "V6/vi",
+          "acorde": "III6"
+        },
+        {
+          "measure": 5,
+          "row": 1,
+          "gold": "V7/vi",
+          "acorde": "III7"
+        },
+        {
+          "measure": 7,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 8,
+          "reason": "row_count",
+          "source_rows": 6,
+          "predicted_sonorities": 4
+        },
+        {
+          "measure": 9,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 10,
+          "reason": "row_count",
+          "source_rows": 6,
+          "predicted_sonorities": 5
+        },
+        {
+          "measure": 11,
+          "row": 0,
+          "gold": "V2",
+          "acorde": "II2"
+        },
+        {
+          "measure": 11,
+          "row": 1,
+          "gold": "I6",
+          "acorde": "V6"
+        },
+        {
+          "measure": 11,
+          "row": 2,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 11,
+          "row": 3,
+          "gold": "vi7",
+          "acorde": "V6/III"
+        },
+        {
+          "measure": 11,
+          "row": 4,
+          "gold": "V65",
+          "acorde": "II65"
+        }
+      ]
+    },
+    {
+      "score": "chor085_rev.krn",
+      "source_sha256": "0c89f3efef4c18129c5124d90e80390f3eee2e41f982526bf1f8d62af558fb29",
+      "notes_only_sha256": "8299cc3b33ebd604df1406a6a3bfb94d38a05b8f36979c5f7cc5e34120454ffd",
+      "source_rows": 58,
+      "source_labeled_rows": 53,
+      "predicted_sonorities": 50,
+      "aligned_measures": 9,
+      "unaligned_measures": 8,
+      "labeled_rows": 31,
+      "exact_labels": 24,
+      "errors": [
+        {
+          "measure": 2,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 5,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 6,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 7,
+          "row": 1,
+          "gold": "B:viio6",
+          "acorde": null
+        },
+        {
+          "measure": 7,
+          "row": 2,
+          "gold": "I6",
+          "acorde": "V6"
+        },
+        {
+          "measure": 7,
+          "row": 3,
+          "gold": "ii65",
+          "acorde": "vi65"
+        },
+        {
+          "measure": 8,
+          "row": 0,
+          "gold": "V(64)",
+          "acorde": "V64"
+        },
+        {
+          "measure": 8,
+          "row": 1,
+          "gold": "V",
+          "acorde": "II"
+        },
+        {
+          "measure": 8,
+          "row": 2,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 8,
+          "row": 3,
+          "gold": "E:V65",
+          "acorde": "V65"
+        },
+        {
+          "measure": 9,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 10,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        }
+      ]
+    },
+    {
+      "score": "chor086_rev.krn",
+      "source_sha256": "bd1bcee1032c17ef6d9da24e917cb887470ad19fd9d21a60e3b670544e8abf6c",
+      "notes_only_sha256": "8a34b6ca49169a4a346b7aaaee42ee66b9748bb20c11c6edc9fc8b63404c80d8",
+      "error": "RuntimeError: error: XML parse error: Humdrum: line 8: expected exclusive interpretations (**kern)"
+    },
+    {
+      "score": "chor087_rev.krn",
+      "source_sha256": "35b3ae7f006d74f89e7b2ec0146a8433f6401dda9b3cf4692e261bcc7c8b7239",
+      "notes_only_sha256": "199623453d1825710d14574a6e1cfb340309f510ff411d1936481aa379d2d414",
+      "source_rows": 42,
+      "source_labeled_rows": 40,
+      "predicted_sonorities": 40,
+      "aligned_measures": 11,
+      "unaligned_measures": 2,
+      "labeled_rows": 36,
+      "exact_labels": 11,
+      "errors": [
+        {
+          "measure": 0,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 1,
+          "row": 0,
+          "gold": "g:viio6",
+          "acorde": null
+        },
+        {
+          "measure": 1,
+          "row": 1,
+          "gold": "viio7",
+          "acorde": "io43"
+        },
+        {
+          "measure": 1,
+          "row": 2,
+          "gold": "i",
+          "acorde": "v"
+        },
+        {
+          "measure": 1,
+          "row": 3,
+          "gold": "ii%65",
+          "acorde": null
+        },
+        {
+          "measure": 2,
+          "row": 0,
+          "gold": "V7",
+          "acorde": "II7"
+        },
+        {
+          "measure": 2,
+          "row": 1,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 3,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 4,
+          "row": 1,
+          "gold": "viio7/V",
+          "acorde": "iiio65"
+        },
+        {
+          "measure": 4,
+          "row": 2,
+          "gold": "V(64)",
+          "acorde": "i64"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "E-:V2",
+          "acorde": "VII2"
+        },
+        {
+          "measure": 6,
+          "row": 2,
+          "gold": "I6",
+          "acorde": "III6"
+        }
+      ]
+    },
+    {
+      "score": "chor088_rev.krn",
+      "source_sha256": "1db665e06c89a206e2d1e267e4fc2b09f435f22cf25ee37890d03a7060dfd760",
+      "notes_only_sha256": "c15f169fd5dfacce280cf07dc3f14df09b3e60889236fc068c531feee5ecbcb6",
+      "source_rows": 45,
+      "source_labeled_rows": 44,
+      "predicted_sonorities": 41,
+      "aligned_measures": 10,
+      "unaligned_measures": 4,
+      "labeled_rows": 29,
+      "exact_labels": 19,
+      "errors": [
+        {
+          "measure": 2,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 3,
+          "row": 2,
+          "gold": "ii%65",
+          "acorde": "ii\u00f865"
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "viio6",
+          "acorde": null
+        },
+        {
+          "measure": 6,
+          "row": 2,
+          "gold": "ii%65",
+          "acorde": "ii\u00f865"
+        },
+        {
+          "measure": 7,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 8,
+          "row": 1,
+          "gold": "V6/III",
+          "acorde": "VII6"
+        },
+        {
+          "measure": 8,
+          "row": 3,
+          "gold": "G:ii",
+          "acorde": "i"
+        },
+        {
+          "measure": 9,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 10,
+          "reason": "row_count",
+          "source_rows": 5,
+          "predicted_sonorities": 4
+        },
+        {
+          "measure": 11,
+          "row": 0,
+          "gold": "V6",
+          "acorde": "VII6"
+        },
+        {
+          "measure": 11,
+          "row": 1,
+          "gold": "G:V7",
+          "acorde": "IV7"
+        },
+        {
+          "measure": 11,
+          "row": 2,
+          "gold": "I",
+          "acorde": "VII"
+        }
+      ]
+    },
+    {
+      "score": "chor089_rev.krn",
+      "source_sha256": "8efb78ef4dd21dd9599045d9679cf04b651cd3f52a67bb304b8d292330cb0519",
+      "notes_only_sha256": "af67f49fe7310f4dd40e2a37aaffb4244e315e281f0a57c9ad4b1436a6052ab5",
+      "source_rows": 48,
+      "source_labeled_rows": 48,
+      "predicted_sonorities": 48,
+      "aligned_measures": 14,
+      "unaligned_measures": 0,
+      "labeled_rows": 48,
+      "exact_labels": 10,
+      "errors": [
+        {
+          "measure": 1,
+          "row": 1,
+          "gold": "D:vii%43",
+          "acorde": "iv6/VI"
+        },
+        {
+          "measure": 1,
+          "row": 2,
+          "gold": "I6",
+          "acorde": "III6"
+        },
+        {
+          "measure": 1,
+          "row": 3,
+          "gold": "ii",
+          "acorde": "iv"
+        },
+        {
+          "measure": 1,
+          "row": 4,
+          "gold": "viio6",
+          "acorde": "iio6"
+        },
+        {
+          "measure": 1,
+          "row": 5,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 2,
+          "row": 0,
+          "gold": "V65/V",
+          "acorde": "IV65"
+        },
+        {
+          "measure": 2,
+          "row": 1,
+          "gold": "V",
+          "acorde": "VII"
+        },
+        {
+          "measure": 2,
+          "row": 2,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 2,
+          "row": 3,
+          "gold": "b:V6",
+          "acorde": "V6"
+        },
+        {
+          "measure": 3,
+          "row": 1,
+          "gold": "ii%65",
+          "acorde": "ii\u00f865"
+        },
+        {
+          "measure": 3,
+          "row": 2,
+          "gold": "V(64)",
+          "acorde": "i64"
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "V6/V",
+          "acorde": "II6"
+        }
+      ]
+    },
+    {
+      "score": "chor090_rev.krn",
+      "source_sha256": "49ae263d22fb06623ce3f561cc87b581eafa35ea1207604f1fafef8c1adbcd19",
+      "notes_only_sha256": "5ec9e8bcfb80205a63ae63006d9707a079feca8f9b24c72cd59d44d5eee90f91",
+      "source_rows": 36,
+      "source_labeled_rows": 34,
+      "predicted_sonorities": 34,
+      "aligned_measures": 11,
+      "unaligned_measures": 2,
+      "labeled_rows": 32,
+      "exact_labels": 28,
+      "errors": [
+        {
+          "measure": 1,
+          "row": 2,
+          "gold": "viio6/V",
+          "acorde": null
+        },
+        {
+          "measure": 6,
+          "reason": "row_count",
+          "source_rows": 2,
+          "predicted_sonorities": 1
+        },
+        {
+          "measure": 9,
+          "reason": "row_count",
+          "source_rows": 2,
+          "predicted_sonorities": 1
+        },
+        {
+          "measure": 10,
+          "row": 1,
+          "gold": "IV6/vi",
+          "acorde": "II6"
+        },
+        {
+          "measure": 10,
+          "row": 2,
+          "gold": "viio7/vi",
+          "acorde": "viio2"
+        },
+        {
+          "measure": 12,
+          "row": 0,
+          "gold": "V(54)",
+          "acorde": "V"
+        }
+      ]
+    },
+    {
+      "score": "chor091_rev.krn",
+      "source_sha256": "755da64dd6dc0c33528abe673c400bc85310c252d01990b3499e9a28ce9cdfd6",
+      "notes_only_sha256": "9785b8c7d9eb0b4fff79d65423e3a73579980b394843a85d57e081c9f787f3b8",
+      "source_rows": 101,
+      "source_labeled_rows": 101,
+      "predicted_sonorities": 94,
+      "aligned_measures": 22,
+      "unaligned_measures": 6,
+      "labeled_rows": 74,
+      "exact_labels": 27,
+      "errors": [
+        {
+          "measure": 1,
+          "reason": "row_count",
+          "source_rows": 5,
+          "predicted_sonorities": 4
+        },
+        {
+          "measure": 3,
+          "row": 0,
+          "gold": "A:V6",
+          "acorde": "VII6"
+        },
+        {
+          "measure": 3,
+          "row": 1,
+          "gold": "V",
+          "acorde": "VII"
+        },
+        {
+          "measure": 3,
+          "row": 2,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 3,
+          "row": 3,
+          "gold": "I64",
+          "acorde": "III64"
+        },
+        {
+          "measure": 4,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "vi7",
+          "acorde": "III6/I"
+        },
+        {
+          "measure": 5,
+          "row": 1,
+          "gold": "f#:viio65",
+          "acorde": "ivo2"
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "E:V65",
+          "acorde": "IV65"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "I",
+          "acorde": "VII"
+        },
+        {
+          "measure": 6,
+          "row": 2,
+          "gold": "V",
+          "acorde": "IV"
+        },
+        {
+          "measure": 6,
+          "row": 3,
+          "gold": "I",
+          "acorde": "IV"
+        }
+      ]
+    },
+    {
+      "score": "chor092_rev.krn",
+      "source_sha256": "139b746ca3a59903ca59cbbf673277eeebda7ee25c555f19dd528e39fd5caca3",
+      "notes_only_sha256": "0583efa3957d522640288cb53fd4cda6efda9edbe09542c3cd1e9a674e81aa22",
+      "source_rows": 43,
+      "source_labeled_rows": 43,
+      "predicted_sonorities": 39,
+      "aligned_measures": 9,
+      "unaligned_measures": 4,
+      "labeled_rows": 26,
+      "exact_labels": 11,
+      "errors": [
+        {
+          "measure": 1,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 2,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 3,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "A:IV",
+          "acorde": "III"
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "V",
+          "acorde": "IV"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "IV6",
+          "acorde": "III6"
+        },
+        {
+          "measure": 6,
+          "row": 2,
+          "gold": "V65",
+          "acorde": "IV65"
+        },
+        {
+          "measure": 6,
+          "row": 3,
+          "gold": "I",
+          "acorde": "VII"
+        },
+        {
+          "measure": 6,
+          "row": 4,
+          "gold": "b:viio7",
+          "acorde": "ivo43"
+        },
+        {
+          "measure": 8,
+          "row": 0,
+          "gold": "A:I",
+          "acorde": "VII"
+        },
+        {
+          "measure": 8,
+          "row": 1,
+          "gold": "viio7/vi",
+          "acorde": "io43"
+        },
+        {
+          "measure": 8,
+          "row": 2,
+          "gold": "vi",
+          "acorde": "v"
+        }
+      ]
+    },
+    {
+      "score": "chor093_rev.krn",
+      "source_sha256": "c5d55ca19191e7fb8717c4d386b9b86961ccc3ae31d658692be00463904e1519",
+      "notes_only_sha256": "252f630977655a4534f60fbdb7d4a8bc287714f2b27299ca86953e8c54bfc8e8",
+      "source_rows": 36,
+      "source_labeled_rows": 36,
+      "predicted_sonorities": 33,
+      "aligned_measures": 15,
+      "unaligned_measures": 2,
+      "labeled_rows": 32,
+      "exact_labels": 20,
+      "errors": [
+        {
+          "measure": 5,
+          "row": 1,
+          "gold": "F:V6",
+          "acorde": "II6"
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "I6",
+          "acorde": "V6"
+        },
+        {
+          "measure": 7,
+          "row": 0,
+          "gold": "ii7",
+          "acorde": "I6/VI"
+        },
+        {
+          "measure": 7,
+          "row": 1,
+          "gold": "viio6",
+          "acorde": null
+        },
+        {
+          "measure": 8,
+          "row": 0,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 8,
+          "row": 1,
+          "gold": "g:V",
+          "acorde": "III"
+        },
+        {
+          "measure": 9,
+          "row": 0,
+          "gold": "i",
+          "acorde": "vi"
+        },
+        {
+          "measure": 9,
+          "row": 1,
+          "gold": "VI",
+          "acorde": "IV"
+        },
+        {
+          "measure": 10,
+          "reason": "row_count",
+          "source_rows": 2,
+          "predicted_sonorities": 1
+        },
+        {
+          "measure": 11,
+          "reason": "row_count",
+          "source_rows": 2,
+          "predicted_sonorities": 0
+        },
+        {
+          "measure": 12,
+          "row": 1,
+          "gold": "V6/vi",
+          "acorde": "III6"
+        }
+      ]
+    },
+    {
+      "score": "chor094_rev.krn",
+      "source_sha256": "48b3889dfd04235fc688c2773a94035050cf9e3d520e46855c65deca06ebade4",
+      "notes_only_sha256": "5de1f3806174ee06fff475e5fb6f60ea3e59b766d106cf2bcf77442d23820a59",
+      "source_rows": 40,
+      "source_labeled_rows": 39,
+      "predicted_sonorities": 38,
+      "aligned_measures": 9,
+      "unaligned_measures": 2,
+      "labeled_rows": 33,
+      "exact_labels": 18,
+      "errors": [
+        {
+          "measure": 0,
+          "row": 0,
+          "gold": "V6/iv",
+          "acorde": "I6"
+        },
+        {
+          "measure": 3,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 4,
+          "row": 0,
+          "gold": "i6",
+          "acorde": "iv6"
+        },
+        {
+          "measure": 4,
+          "row": 1,
+          "gold": "V",
+          "acorde": "I"
+        },
+        {
+          "measure": 4,
+          "row": 2,
+          "gold": "i",
+          "acorde": "iv"
+        },
+        {
+          "measure": 4,
+          "row": 3,
+          "gold": "g:i",
+          "acorde": "i"
+        },
+        {
+          "measure": 5,
+          "row": 3,
+          "gold": "viio6",
+          "acorde": null
+        },
+        {
+          "measure": 6,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 7,
+          "row": 1,
+          "gold": "E-:V7/IV",
+          "acorde": "VI7"
+        },
+        {
+          "measure": 7,
+          "row": 2,
+          "gold": "IV",
+          "acorde": null
+        },
+        {
+          "measure": 7,
+          "row": 3,
+          "gold": "ii",
+          "acorde": "vii"
+        },
+        {
+          "measure": 8,
+          "row": 0,
+          "gold": "V7",
+          "acorde": "III43"
+        }
+      ]
+    },
+    {
+      "score": "chor095_rev.krn",
+      "source_sha256": "61c008dcf25887b283aa48049b51013182a674b155884d5a4426f0253c8c612a",
+      "notes_only_sha256": "cc046cf2440e772c76d14ed40e2d161f110b14a3ee9e25f1d6e5de254cb146b0",
+      "source_rows": 45,
+      "source_labeled_rows": 45,
+      "predicted_sonorities": 41,
+      "aligned_measures": 8,
+      "unaligned_measures": 4,
+      "labeled_rows": 29,
+      "exact_labels": 14,
+      "errors": [
+        {
+          "measure": 0,
+          "row": 3,
+          "gold": "vi7",
+          "acorde": "I6/VI"
+        },
+        {
+          "measure": 1,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 2,
+          "row": 2,
+          "gold": "I6",
+          "acorde": "iii"
+        },
+        {
+          "measure": 4,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "ii%65",
+          "acorde": "iii\u00f865"
+        },
+        {
+          "measure": 5,
+          "row": 1,
+          "gold": "V7",
+          "acorde": "VI7"
+        },
+        {
+          "measure": 5,
+          "row": 2,
+          "gold": "i",
+          "acorde": "ii"
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "i",
+          "acorde": "ii"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "E-:V",
+          "acorde": "I"
+        },
+        {
+          "measure": 6,
+          "row": 2,
+          "gold": "V2",
+          "acorde": "I2"
+        },
+        {
+          "measure": 6,
+          "row": 3,
+          "gold": "I6",
+          "acorde": "IV6"
+        },
+        {
+          "measure": 6,
+          "row": 4,
+          "gold": "I",
+          "acorde": "IV"
+        }
+      ]
+    },
+    {
+      "score": "chor096_rev.krn",
+      "source_sha256": "4be20c23ba3f1d77e49915f2c6a8414f65f4f98d46de82750d14fec1e3fd256a",
+      "notes_only_sha256": "bad51d20bb2b266ed388a78ec677534019741f2bf6791b5d8cf4a0df08a304b0",
+      "source_rows": 44,
+      "source_labeled_rows": 44,
+      "predicted_sonorities": 45,
+      "aligned_measures": 11,
+      "unaligned_measures": 2,
+      "labeled_rows": 37,
+      "exact_labels": 18,
+      "errors": [
+        {
+          "measure": 0,
+          "row": 2,
+          "gold": "ii%43",
+          "acorde": "iv6/VI"
+        },
+        {
+          "measure": 2,
+          "row": 3,
+          "gold": "viio6",
+          "acorde": null
+        },
+        {
+          "measure": 3,
+          "row": 1,
+          "gold": "ii%43",
+          "acorde": "iv6/VI"
+        },
+        {
+          "measure": 4,
+          "row": 2,
+          "gold": "ii%65",
+          "acorde": "ii\u00f865"
+        },
+        {
+          "measure": 6,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 6
+        },
+        {
+          "measure": 7,
+          "row": 0,
+          "gold": "V",
+          "acorde": "VII"
+        },
+        {
+          "measure": 7,
+          "row": 1,
+          "gold": "V7",
+          "acorde": "VII7"
+        },
+        {
+          "measure": 7,
+          "row": 2,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 8,
+          "row": 0,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 8,
+          "row": 1,
+          "gold": "viio6/V",
+          "acorde": null
+        },
+        {
+          "measure": 8,
+          "row": 2,
+          "gold": "V6",
+          "acorde": "VII6"
+        },
+        {
+          "measure": 8,
+          "row": 3,
+          "gold": "a:V2/iv",
+          "acorde": "V2"
+        }
+      ]
+    },
+    {
+      "score": "chor097_rev.krn",
+      "source_sha256": "d9ef1e1a5489328b4459f077e6652681f8f1df880d30eb4355d74df008be2c51",
+      "notes_only_sha256": "e3fcefd5903394e975cc5f1e8bd617b15dde377774bdd24d9bf25c8fad6717ea",
+      "source_rows": 54,
+      "source_labeled_rows": 54,
+      "predicted_sonorities": 50,
+      "aligned_measures": 12,
+      "unaligned_measures": 4,
+      "labeled_rows": 40,
+      "exact_labels": 30,
+      "errors": [
+        {
+          "measure": 2,
+          "row": 2,
+          "gold": "ii7",
+          "acorde": "IV6/II"
+        },
+        {
+          "measure": 4,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 6,
+          "row": 2,
+          "gold": "f#:V6",
+          "acorde": "III6"
+        },
+        {
+          "measure": 7,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 8,
+          "row": 0,
+          "gold": "i",
+          "acorde": "vi"
+        },
+        {
+          "measure": 8,
+          "row": 1,
+          "gold": "A:IV",
+          "acorde": "IV"
+        },
+        {
+          "measure": 9,
+          "row": 1,
+          "gold": "V7/IV",
+          "acorde": "I7"
+        },
+        {
+          "measure": 10,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 12,
+          "row": 0,
+          "gold": "E:V6",
+          "acorde": "II6"
+        },
+        {
+          "measure": 12,
+          "row": 1,
+          "gold": "V65",
+          "acorde": "II65"
+        },
+        {
+          "measure": 12,
+          "row": 2,
+          "gold": "I",
+          "acorde": "V"
+        },
+        {
+          "measure": 12,
+          "row": 3,
+          "gold": "ii65",
+          "acorde": "vi65"
+        }
+      ]
+    },
+    {
+      "score": "chor098_rev.krn",
+      "source_sha256": "282a6b65b847cc18a8c13429220bc571e309e5e977abb14e588a368c16d9cad2",
+      "notes_only_sha256": "0a38e22e9d7087187c0f35c5e751ba1784739bb6c2086b36e36828345b781c15",
+      "source_rows": 43,
+      "source_labeled_rows": 43,
+      "predicted_sonorities": 42,
+      "aligned_measures": 13,
+      "unaligned_measures": 1,
+      "labeled_rows": 42,
+      "exact_labels": 8,
+      "errors": [
+        {
+          "measure": 0,
+          "row": 0,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 1,
+          "row": 0,
+          "gold": "IV",
+          "acorde": "VI"
+        },
+        {
+          "measure": 1,
+          "row": 1,
+          "gold": "I6",
+          "acorde": "III6"
+        },
+        {
+          "measure": 1,
+          "row": 2,
+          "gold": "IV6",
+          "acorde": "VI6"
+        },
+        {
+          "measure": 1,
+          "row": 3,
+          "gold": "V65",
+          "acorde": "VII65"
+        },
+        {
+          "measure": 1,
+          "row": 4,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 2,
+          "row": 0,
+          "gold": "ii65",
+          "acorde": "iv65"
+        },
+        {
+          "measure": 2,
+          "row": 1,
+          "gold": "V",
+          "acorde": "VII"
+        },
+        {
+          "measure": 2,
+          "row": 2,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 2,
+          "row": 3,
+          "gold": "b:viio6",
+          "acorde": null
+        },
+        {
+          "measure": 4,
+          "reason": "row_count",
+          "source_rows": 1,
+          "predicted_sonorities": 0
+        },
+        {
+          "measure": 6,
+          "row": 3,
+          "gold": "D:viio6",
+          "acorde": "iio6"
+        }
+      ]
+    },
+    {
+      "score": "chor099_rev.krn",
+      "source_sha256": "5f194bb3f7eeab100b5670814539b7df6327a915be16d2fea6e6d93a0e2c3520",
+      "notes_only_sha256": "42afa7e33db0280c09608f35a0490048dd1f613b6a5c99384c956286a2869d04",
+      "source_rows": 42,
+      "source_labeled_rows": 42,
+      "predicted_sonorities": 39,
+      "aligned_measures": 11,
+      "unaligned_measures": 3,
+      "labeled_rows": 30,
+      "exact_labels": 17,
+      "errors": [
+        {
+          "measure": 1,
+          "row": 1,
+          "gold": "viio6/III",
+          "acorde": "iio6"
+        },
+        {
+          "measure": 1,
+          "row": 3,
+          "gold": "G:V6",
+          "acorde": "IV6"
+        },
+        {
+          "measure": 2,
+          "row": 0,
+          "gold": "I",
+          "acorde": "VII"
+        },
+        {
+          "measure": 2,
+          "row": 1,
+          "gold": "vi",
+          "acorde": "v"
+        },
+        {
+          "measure": 2,
+          "row": 2,
+          "gold": "V6",
+          "acorde": "IV6"
+        },
+        {
+          "measure": 2,
+          "row": 3,
+          "gold": "a:V6",
+          "acorde": "V6"
+        },
+        {
+          "measure": 3,
+          "row": 2,
+          "gold": "ii%65",
+          "acorde": "ii\u00f865"
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "viio6",
+          "acorde": null
+        },
+        {
+          "measure": 6,
+          "row": 2,
+          "gold": "viio7",
+          "acorde": "iio2"
+        },
+        {
+          "measure": 8,
+          "row": 1,
+          "gold": "C:viio64",
+          "acorde": "iio64"
+        },
+        {
+          "measure": 8,
+          "row": 2,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 8,
+          "row": 3,
+          "gold": "I6",
+          "acorde": "III6"
+        }
+      ]
+    },
+    {
+      "score": "chor100_rev.krn",
+      "source_sha256": "0f9af859c23aba7aa6c7f9bf64e24fc30811647d215188c5abf2b367e6075260",
+      "notes_only_sha256": "3e6057051cc8e58289fb194f89cb1313c166ba977952b3239a4e09468d6578e3",
+      "source_rows": 49,
+      "source_labeled_rows": 49,
+      "predicted_sonorities": 43,
+      "aligned_measures": 9,
+      "unaligned_measures": 6,
+      "labeled_rows": 30,
+      "exact_labels": 9,
+      "errors": [
+        {
+          "measure": 0,
+          "row": 0,
+          "gold": "c:V6",
+          "acorde": "V6"
+        },
+        {
+          "measure": 1,
+          "row": 2,
+          "gold": "V65/V",
+          "acorde": "IV65"
+        },
+        {
+          "measure": 2,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 3,
+          "row": 3,
+          "gold": "g:iio",
+          "acorde": null
+        },
+        {
+          "measure": 4,
+          "reason": "row_count",
+          "source_rows": 3,
+          "predicted_sonorities": 2
+        },
+        {
+          "measure": 5,
+          "row": 0,
+          "gold": "i",
+          "acorde": "v"
+        },
+        {
+          "measure": 6,
+          "row": 0,
+          "gold": "E-:V6",
+          "acorde": "VII6"
+        },
+        {
+          "measure": 6,
+          "row": 1,
+          "gold": "V7",
+          "acorde": "VII7"
+        },
+        {
+          "measure": 6,
+          "row": 2,
+          "gold": "I",
+          "acorde": "III"
+        },
+        {
+          "measure": 6,
+          "row": 3,
+          "gold": "vi",
+          "acorde": "i"
+        },
+        {
+          "measure": 7,
+          "reason": "row_count",
+          "source_rows": 4,
+          "predicted_sonorities": 3
+        },
+        {
+          "measure": 8,
+          "row": 0,
+          "gold": "c:V65",
+          "acorde": "V65"
+        }
+      ]
+    },
+    {
+      "score": "chor101_rev.krn",
+      "source_sha256": "c2ad3a1ad2843d19d6a2e69051f09862ac6b61dd0a5534c510437ca6f05afb08",
+      "notes_only_sha256": "7d77206b72d08f7693528de1c2ca8f451d89b5b4cc1f839297203206b5aba8c4",
+      "error": "RuntimeError: error: XML parse error: Humdrum: line 7: expected exclusive interpretations (**kern)"
+    }
+  ]
+}

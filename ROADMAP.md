@@ -144,8 +144,13 @@ agree for 97/98, up from 81/98; the remaining source has a malformed barline.
 also agrees within part and measure for 97/98 paired parses; the sole difference
 is the same malformed barline. Audit absolute measure positions and voice
 placement, especially on polyphonic scores, before treating the event bags as
-semantic equality. This
-development-corpus tie is not holdout accuracy. The earlier
+semantic equality. This development-corpus tie is not holdout accuracy. A new
+[vertical-harmony screening](docs/archive/analysis-bcmh-vertical-harmony.md)
+uses an opt-in simultaneous-note pass and held-aside BCMH Roman labels. On
+equal-row-count measures it matches 1,916/3,943 labels with a separately
+inferred global key, versus 1,498/3,943 with the written key; 266 measures
+remain unaligned. Verify source-row timing and compare music21 on the same
+inputs before claiming analytical parity. The earlier
 [Mozart sonata observation](docs/archive/analysis-mozart-key-holdout.md) records
 53 primary movements and 52 common MusicXML inputs, 50 annotated keys
 selected by Acorde's ranked first choice
