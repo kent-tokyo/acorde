@@ -58,8 +58,8 @@ appending `:8` to each `NAME:SOURCE` argument. The Acorde CLI binary used for
 MuseScore conversion has SHA-256
 `e621c057ae7ca80e3a0690a5d519cd65cfe4bca492a8def514f9239a0d6176ca`.
 The final `print_mxl` example SHA-256 is
-`bf3fb26d78a7c50586c9116cf9d309002c32c88e89e574bb3bbca6fbb28c1552`.
+`2a674c525a5f2e4a2d2f47def057156b2eff391b8b185f8e4e389708f9578e68`.
 
-The optimized local full WASM artifact was 7,062,235 bytes, up 2,140 bytes
+The optimized local full WASM artifact was 7,062,229 bytes, up 2,134 bytes
 from the preceding local build and below the 7,117,000-byte CI limit. Linux
 CI remains the release-relevant size check.

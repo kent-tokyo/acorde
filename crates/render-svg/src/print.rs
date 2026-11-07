@@ -536,7 +536,7 @@ fn write_publication(
             for (index, line) in lines.iter().enumerate() {
                 // Non-ASCII glyphs can be much wider than the Latin average used for
                 // font sizing. Constrain those runs so they cannot cross the paper edge.
-                let width_limit = if line.chars().any(|ch| !ch.is_ascii())
+                let width_limit = if !line.is_ascii()
                     && size_mm * line.chars().count() as f32 * scale > available_width_px
                 {
                     format!(" textLength=\"{available_width_px:.3}\" lengthAdjust=\"spacing\"")
