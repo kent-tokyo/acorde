@@ -43,7 +43,9 @@ records source, exported and analysis-input hashes, tool output and errors.
 
 The Acorde ranking is **one movement below music21** on this holdout. In
 K331-2, annotated A major, music21 selected A major while Acorde selected D
-major. In K331-3, annotated A minor, both selected A major. These are
+major. Acorde's candidate list there is D major / B minor: the annotated A
+major is absent, so reordering tied candidates cannot correct this case.
+In K331-3, annotated A minor, both selected A major. These are
 comparisons with corpus labels, not adjudications of every local modulation.
 The input projection also matched on unordered notehead pitch-and-duration
 bags for all 52 paired parses. It does not test event order, voices, measure

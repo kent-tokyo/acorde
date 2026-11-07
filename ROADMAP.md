@@ -87,7 +87,8 @@ development-corpus tie is not holdout accuracy. The separately frozen
 selected by Acorde's ranked first choice
 versus 51 by music21. MuseScore failed to export K533-3, so first reproduce the
 full corpus with a stable converter and inspect the Acorde-only K331-2 error
-without tuning on this holdout. Then add independently annotated harmony,
+as a candidate-generation failure, without tuning on this holdout. Then add
+independently annotated harmony,
 cadence and voice-leading fixtures. Report precision, recall and error cases
 per task against music21 under the
 same input notes. Task-scoped parity requires Acorde to match or exceed
