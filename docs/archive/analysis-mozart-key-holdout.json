@@ -1,0 +1,2009 @@
+{
+  "corpus": "DCMLab/mozart_piano_sonatas@5337257a5318711e6302cfe85c3f1a6ade3c6271",
+  "license": "CC BY-NC-SA 4.0",
+  "archive_sha256": "32c9698aecc398a7a155c4b25c6da848e88d34ed6f0ade4cead3f6a2a0477101",
+  "mscore_version": "MuseScore4 4.7.5",
+  "mscore_command": [
+    "arch",
+    "-arm64",
+    "/Applications/MuseScore 4.app/Contents/MacOS/mscore"
+  ],
+  "acorde_binary_sha256": "08ce60f2e56c92c50582eb7dd96739e10f514b84b51b04c3aea9e5894ba26387",
+  "music21_version": "10.5.2",
+  "primary_selection": "all 54 annotated movements except K279-1 setup smoke, fixed before scoring",
+  "reuse_valid_musicxml": true,
+  "summary": {
+    "total": 54,
+    "smoke_excluded": "K279-1",
+    "primary": 53,
+    "exported": 52,
+    "reused_valid_musicxml": 52,
+    "harmony_elements_removed": 14598,
+    "fresh_exports_with_nonzero_exit": 0,
+    "music21_parsed": 52,
+    "acorde_parsed": 52,
+    "paired": 52,
+    "music21_exact_on_primary": 51,
+    "acorde_default_exact_on_primary": 45,
+    "acorde_ranked_exact_on_primary": 50,
+    "acorde_contains_gold_on_primary": 50,
+    "equal_event_counts_on_paired": 52,
+    "equal_pitch_bags_on_paired": 52,
+    "equal_notehead_pitch_duration_bags_on_paired": 52,
+    "equal_pitch_duration_bags_on_paired": 52
+  },
+  "rows": [
+    {
+      "piece": "K279-1",
+      "primary": false,
+      "gold": "C major",
+      "source_sha256": "4c62cf06d65cd76c5b600c1cb08da3c441d55a24046a8eef01af150737acf94f",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "a8c144144a19eeabc19491e346299ab6f018bf0856d987a71b74cfc3f94f4810",
+      "harmony_elements_removed": 251,
+      "analysis_xml_sha256": "097df17d6a67767b368e07a788d4bb07614606ca899e86a85a9aef0ca1221c08",
+      "music21": {
+        "key": "C major",
+        "exact": true,
+        "events": 1911
+      },
+      "acorde": {
+        "candidates": [
+          "C major",
+          "A minor"
+        ],
+        "ranked_candidates": [
+          "C major",
+          "A minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 1911,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 634,
+          "musicxml.unsupported-render-attribute": 18
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K279-2",
+      "primary": true,
+      "gold": "F major",
+      "source_sha256": "effa41cfe00ecbc7c8ccbc702afffb8dd24124ae95e48109e97a8f6147a89de6",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "b0ebfb07f65c79c64143097386d694a861edcb929857b26ff6132370ff5e243a",
+      "harmony_elements_removed": 156,
+      "analysis_xml_sha256": "002332138804ed7ee6c882036cc7ef7a73d1d4ee17a4d0967a19611fd2f44648",
+      "music21": {
+        "key": "F major",
+        "exact": true,
+        "events": 962
+      },
+      "acorde": {
+        "candidates": [
+          "F major",
+          "D minor"
+        ],
+        "ranked_candidates": [
+          "F major",
+          "D minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 962,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 526,
+          "musicxml.unsupported-render-attribute": 528
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K279-3",
+      "primary": true,
+      "gold": "C major",
+      "source_sha256": "05dd442d07fb56e1fc4e20eff87d32225f28dc8e6568825ceb9ad6b4d6b4dd39",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "05824375698d63e7bbf793f737fd3598e04254482b2bae4c56f8cf21f0835e61",
+      "harmony_elements_removed": 321,
+      "analysis_xml_sha256": "6555ea44a117061cc08f0d0a97bf38e23817bafc788a50402c6133c35c2d56d9",
+      "music21": {
+        "key": "C major",
+        "exact": true,
+        "events": 1235
+      },
+      "acorde": {
+        "candidates": [
+          "C major",
+          "A minor"
+        ],
+        "ranked_candidates": [
+          "C major",
+          "A minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 1235,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 536,
+          "musicxml.unsupported-render-attribute": 12
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K280-1",
+      "primary": true,
+      "gold": "F major",
+      "source_sha256": "790e5df29776813f83dae41c837773191f75e491c6d6b7a9c53d68ab5965dadc",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "6a231cce43020d3922ea0ec46af2d2a698afc075aa7a695e2a22ae264471cfbb",
+      "harmony_elements_removed": 225,
+      "analysis_xml_sha256": "c8ef95dc7f5a3f55f76dbf479ac3752216c3eadcaeed86b13e5a7dd6e3782202",
+      "music21": {
+        "key": "F major",
+        "exact": true,
+        "events": 1509
+      },
+      "acorde": {
+        "candidates": [
+          "F major",
+          "D minor"
+        ],
+        "ranked_candidates": [
+          "F major",
+          "D minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 1509,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 588,
+          "musicxml.unsupported-render-attribute": 27
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K280-2",
+      "primary": true,
+      "gold": "F minor",
+      "source_sha256": "7bd4cd2fa97faea24b5cc318e54759408456b612bdf8d9e58e17bfa56258d7ea",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "41fa00d16ef95158f9798605d78e17097328ca4a830985a39232889cd82b91d4",
+      "harmony_elements_removed": 124,
+      "analysis_xml_sha256": "b8bf1edd40f600e834ff5e685c89245afbd79b298a7419a2279b6237ba4fbfd3",
+      "music21": {
+        "key": "F minor",
+        "exact": true,
+        "events": 765
+      },
+      "acorde": {
+        "candidates": [
+          "Ab major",
+          "F minor"
+        ],
+        "ranked_candidates": [
+          "F minor",
+          "Ab major"
+        ],
+        "default_first_exact": false,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 765,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 465,
+          "musicxml.unsupported-render-attribute": 29
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K280-3",
+      "primary": true,
+      "gold": "F major",
+      "source_sha256": "a234fd5aa4aeab65266514eb835d4f27568f5d94dbc09908c6e4188281616bcf",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "4acb495c7829f37f1ecee6dc10d25b1f9925cb935b8223f71b5c08ea09a9c6c2",
+      "harmony_elements_removed": 199,
+      "analysis_xml_sha256": "a49776446a3b0e153ff6d573f89471aeae4b839dd925ad8f8e390cd084a02c1c",
+      "music21": {
+        "key": "F major",
+        "exact": true,
+        "events": 1058
+      },
+      "acorde": {
+        "candidates": [
+          "F major",
+          "D minor"
+        ],
+        "ranked_candidates": [
+          "F major",
+          "D minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 1058,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 605,
+          "musicxml.unsupported-render-attribute": 13
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K281-1",
+      "primary": true,
+      "gold": "Bb major",
+      "source_sha256": "525b66ab51b43613d2509cdfa97401ed10b76c3274b13f936bb4608ae99a66fc",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "5324317dedb2bfd0f0c64a6463ea728d8fad2d96c6c54b1d15790c79783b9701",
+      "harmony_elements_removed": 208,
+      "analysis_xml_sha256": "c2fe14a601c17525e7b9c901214467c9aa4c4a40232f63f2ef468085bcd5adb4",
+      "music21": {
+        "key": "Bb major",
+        "exact": true,
+        "events": 1691
+      },
+      "acorde": {
+        "candidates": [
+          "Bb major",
+          "G minor"
+        ],
+        "ranked_candidates": [
+          "Bb major",
+          "G minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 1691,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 660,
+          "musicxml.unsupported-render-attribute": 14
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K281-2",
+      "primary": true,
+      "gold": "Eb major",
+      "source_sha256": "bd84b4184e2b991a6f5f16cbbe8a96bcd84a1248a24977c6843f1c6f5403f8bd",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "86d156f2a52f75862a4bea48a5d004f623cb5a2d60bdc08485c0576502a5c9b4",
+      "harmony_elements_removed": 153,
+      "analysis_xml_sha256": "8729c347e2c4dd409fc93e5977c3b94023ecf6344f03788ed0fbd0eba39b4686",
+      "music21": {
+        "key": "Eb major",
+        "exact": true,
+        "events": 972
+      },
+      "acorde": {
+        "candidates": [
+          "Eb major",
+          "C minor"
+        ],
+        "ranked_candidates": [
+          "Eb major",
+          "C minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 972,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 358,
+          "musicxml.unsupported-render-attribute": 31
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K281-3",
+      "primary": true,
+      "gold": "Bb major",
+      "source_sha256": "22e5ff157f82b7372a8f6a8388dfd2698c95139ab410ea4afedfe7fb00e678a9",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "52775ab6be272518867c70292c63cc55301fab76767b69ecb5daf70ffb37a1d2",
+      "harmony_elements_removed": 384,
+      "analysis_xml_sha256": "750c0511ab2b998a245f654958705fbd0c82fe5d2501c0e945419844b432ea3d",
+      "music21": {
+        "key": "Bb major",
+        "exact": true,
+        "events": 1909
+      },
+      "acorde": {
+        "candidates": [
+          "Bb major",
+          "G minor"
+        ],
+        "ranked_candidates": [
+          "Bb major",
+          "G minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 1909,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 920,
+          "musicxml.unsupported-render-attribute": 54
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K282-1",
+      "primary": true,
+      "gold": "Eb major",
+      "source_sha256": "ae92dc6582d2f0e1de3b620f9952e02d57d4b6602935805363e5995ef30043c2",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "cb89ad8a0106467eb77b3d5631b1f38d786881160b283fbb28fcb8b0d2a85429",
+      "harmony_elements_removed": 104,
+      "analysis_xml_sha256": "cad3d95090efc37196e6b1c473c098ce25ca9743475c03425b425b4f33899dff",
+      "music21": {
+        "key": "Eb major",
+        "exact": true,
+        "events": 892
+      },
+      "acorde": {
+        "candidates": [
+          "Eb major",
+          "C minor"
+        ],
+        "ranked_candidates": [
+          "Eb major",
+          "C minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 892,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 324,
+          "musicxml.unsupported-render-attribute": 30
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K282-2",
+      "primary": true,
+      "gold": "Bb major",
+      "source_sha256": "db3a3719165a2b82b63f5ac1c11cd867da81e6e8f3c5ee384569e653ce8df53f",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "fb8937d44cf8536d83ef458977e4ba8ce6854fd08dfbc3ad2b6b6cff251116a2",
+      "harmony_elements_removed": 129,
+      "analysis_xml_sha256": "65318be2d4531da957a5c41787077c02e78203548137f1ada47896af275fa18b",
+      "music21": {
+        "key": "Bb major",
+        "exact": true,
+        "events": 676
+      },
+      "acorde": {
+        "candidates": [
+          "Bb major",
+          "G minor"
+        ],
+        "ranked_candidates": [
+          "Bb major",
+          "G minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 676,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 422,
+          "musicxml.unsupported-render-attribute": 37
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K282-3",
+      "primary": true,
+      "gold": "Eb major",
+      "source_sha256": "c88cd42026fff207c96aa6ee3154d88aa9b1e439a135494c119120fa969a711f",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "831f9c0b3a692f35b77163b06214e32f96cb5c083d3a3df8317019065c105792",
+      "harmony_elements_removed": 176,
+      "analysis_xml_sha256": "2f06bd347e6031e2aa3345a1651b15d32dbb7ede8ae6b7cfe0c67ade44e6a06e",
+      "music21": {
+        "key": "Eb major",
+        "exact": true,
+        "events": 880
+      },
+      "acorde": {
+        "candidates": [
+          "Eb major",
+          "C minor"
+        ],
+        "ranked_candidates": [
+          "Eb major",
+          "C minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 880,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 434,
+          "musicxml.unsupported-render-attribute": 25
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K283-1",
+      "primary": true,
+      "gold": "G major",
+      "source_sha256": "53f22c67bd08a94b4a8f5b838ae71ca5b071553682de6fe83a98d2fb93f53f5e",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "1b9d12b3456841bbd39a1d13cd0e1e0777eaf98450c239fa2b661bcd4ea76bc1",
+      "harmony_elements_removed": 326,
+      "analysis_xml_sha256": "f0b6543c0736dd3e76e25a98619b6c2f6b7d4db2cb6f8639b14b11e143126457",
+      "music21": {
+        "key": "G major",
+        "exact": true,
+        "events": 1450
+      },
+      "acorde": {
+        "candidates": [
+          "G major",
+          "E minor"
+        ],
+        "ranked_candidates": [
+          "G major",
+          "E minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 1450,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 545,
+          "musicxml.unsupported-render-attribute": 29
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K283-2",
+      "primary": true,
+      "gold": "C major",
+      "source_sha256": "1b316a64e5bda2999a661e3d024a8a3a58584d1f5488ed60d6efb5dfd2646e65",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "585a7c2667df9481c5d7faaf95f50f6209b4e11f140bfd409ca9de3247488ee6",
+      "harmony_elements_removed": 169,
+      "analysis_xml_sha256": "854a129d72303977fe80074b9153d69917c2201982d0d7cc1d70c3cc0a62ac5d",
+      "music21": {
+        "key": "C major",
+        "exact": true,
+        "events": 1046
+      },
+      "acorde": {
+        "candidates": [
+          "C major",
+          "A minor"
+        ],
+        "ranked_candidates": [
+          "C major",
+          "A minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 1046,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 401,
+          "musicxml.unsupported-render-attribute": 21
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K283-3",
+      "primary": true,
+      "gold": "G major",
+      "source_sha256": "bf427498316a0d19e20a1b49a074a625eaf718c308f98008cd8ddde0c9c515bc",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "c4145958ae59983079928744f5386ff946d2d4531fdf3fe1eff6e907c34a78e2",
+      "harmony_elements_removed": 337,
+      "analysis_xml_sha256": "a458fef1e2ae3b21ad3e67b892426b8d2ba99ad24b640d36021c39ed9529c275",
+      "music21": {
+        "key": "G major",
+        "exact": true,
+        "events": 1565
+      },
+      "acorde": {
+        "candidates": [
+          "G major",
+          "E minor"
+        ],
+        "ranked_candidates": [
+          "G major",
+          "E minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 1565,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 878,
+          "musicxml.unsupported-render-attribute": 64
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K284-1",
+      "primary": true,
+      "gold": "D major",
+      "source_sha256": "3bf45125e04d29ca52b0bc444ca409e067c6766b04890f3687833f6a54c70957",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "3ccc98db049d92290c9a2ad4b2fd331819c029cc2aef23894cd12b5bc2ae329f",
+      "harmony_elements_removed": 330,
+      "analysis_xml_sha256": "510d2585a0f2191ff416051577efa8ef15ddd89996faaa525c079d87b4186924",
+      "music21": {
+        "key": "D major",
+        "exact": true,
+        "events": 2247
+      },
+      "acorde": {
+        "candidates": [
+          "D major",
+          "B minor"
+        ],
+        "ranked_candidates": [
+          "D major",
+          "B minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 2247,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 749,
+          "musicxml.unsupported-render-attribute": 32
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K284-2",
+      "primary": true,
+      "gold": "A major",
+      "source_sha256": "4e150184ca804a7b0c7da27592e3cac68ab63806b63749feb158bddacf21b330",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "1a61d4778666c19b63deb6766dafc4180fe98fef0ba9627b32a8a6e8c89ee11b",
+      "harmony_elements_removed": 228,
+      "analysis_xml_sha256": "77a502b0c3a2de6e32fe1f05179f7372a8842c1805eb09dee11a16ca7ff1d75b",
+      "music21": {
+        "key": "A major",
+        "exact": true,
+        "events": 1303
+      },
+      "acorde": {
+        "candidates": [
+          "A major",
+          "F# minor"
+        ],
+        "ranked_candidates": [
+          "A major",
+          "F# minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 1303,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 878,
+          "musicxml.unsupported-render-attribute": 62
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K284-3",
+      "primary": true,
+      "gold": "D major",
+      "source_sha256": "35cd6937d5391c8436227b177df946bb99bd8c2ec93409edf4ed62fb18625d82",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "87a06f2e7a1c10c2d44cb65672f4e9158565a0d5bf4767b3e6192bbac7d8ed46",
+      "harmony_elements_removed": 755,
+      "analysis_xml_sha256": "e0fd52fdfc2a620d3356ec8c0abace383604896ba5d4d08b79ccc1c4fdb6ce03",
+      "music21": {
+        "key": "D major",
+        "exact": true,
+        "events": 3783
+      },
+      "acorde": {
+        "candidates": [
+          "D major",
+          "B minor"
+        ],
+        "ranked_candidates": [
+          "D major",
+          "B minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 3783,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 1169,
+          "musicxml.unsupported-render-attribute": 69
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K309-1",
+      "primary": true,
+      "gold": "C major",
+      "source_sha256": "a8f73a60aa4ef59ab34e86cedd88139f71c2ed42eb43ab97ab39f04d0b2b743b",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "e964a3f8d5f3c74f21302d704c4a964a1286abffc5b4a19cdab26ba18f7e8c56",
+      "harmony_elements_removed": 307,
+      "analysis_xml_sha256": "532294c313c9ef6550b526f624bc4ac12d837cffa4163f41bce5450caedb52c8",
+      "music21": {
+        "key": "C major",
+        "exact": true,
+        "events": 2047
+      },
+      "acorde": {
+        "candidates": [
+          "C major",
+          "A minor"
+        ],
+        "ranked_candidates": [
+          "C major",
+          "A minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 2047,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 849,
+          "musicxml.unsupported-render-attribute": 26
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K309-2",
+      "primary": true,
+      "gold": "F major",
+      "source_sha256": "cd38460283d7578a6ae34cd4bde55cc8d3ca3c4240ed5ee86336f4e756fcf707",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "1db3030f0733a7856a66966b8d2e9ef7357c03e991ca77a1173635aff0e79f57",
+      "harmony_elements_removed": 259,
+      "analysis_xml_sha256": "09b37c9bbd7dec30e23d44df131c61ac418c6c2b201459d775d9b12078157131",
+      "music21": {
+        "key": "F major",
+        "exact": true,
+        "events": 1317
+      },
+      "acorde": {
+        "candidates": [
+          "F major",
+          "D minor"
+        ],
+        "ranked_candidates": [
+          "F major",
+          "D minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 1317,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 786,
+          "musicxml.unsupported-render-attribute": 48
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K309-3",
+      "primary": true,
+      "gold": "C major",
+      "source_sha256": "a196e0b2c0a1a4ccef5d5bc30d29ce3295355aae1254809667339635030474c7",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "59b1e31a6f852a17a0d09820b15ae2f87a97fc44c449d6e475416b397e7c31f8",
+      "harmony_elements_removed": 406,
+      "analysis_xml_sha256": "fa2b5604cf74e209b10313ddcff91214bc0e844b7bca3705c444d9e0acfb3402",
+      "music21": {
+        "key": "C major",
+        "exact": true,
+        "events": 3139
+      },
+      "acorde": {
+        "candidates": [
+          "C major",
+          "A minor"
+        ],
+        "ranked_candidates": [
+          "C major",
+          "A minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 3139,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 787,
+          "musicxml.unsupported-render-attribute": 386
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K310-1",
+      "primary": true,
+      "gold": "A minor",
+      "source_sha256": "c56119e3d702b1921ae20e73eae583380647eb94ed74c03a42e4c3d34b83a24a",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "24fc20f0e6d175cc86d491d6e90852b5ddcd704ab09512a201bb6c15741ce8f3",
+      "harmony_elements_removed": 292,
+      "analysis_xml_sha256": "ab06af86ab48e8873b332e311808cc9bceba79f191f20fbe6fc8c2d61c479182",
+      "music21": {
+        "key": "A minor",
+        "exact": true,
+        "events": 2604
+      },
+      "acorde": {
+        "candidates": [
+          "C major",
+          "A minor"
+        ],
+        "ranked_candidates": [
+          "A minor",
+          "C major"
+        ],
+        "default_first_exact": false,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 2604,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 601,
+          "musicxml.unsupported-render-attribute": 61
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K310-2",
+      "primary": true,
+      "gold": "F major",
+      "source_sha256": "6821473d685f2d034187e967e0eb9896e1a83e895ebdc79aec918b3da735a878",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "f26d2f8dedf3463272437bf50b39433c074c68f33af0321c1f00c57c8a8b313b",
+      "harmony_elements_removed": 252,
+      "analysis_xml_sha256": "e1d218f3a3155a7d2fa77a32e1ac16b1934c083d3e0d946b844dd1af8e2f6006",
+      "music21": {
+        "key": "F major",
+        "exact": true,
+        "events": 1794
+      },
+      "acorde": {
+        "candidates": [
+          "F major",
+          "D minor"
+        ],
+        "ranked_candidates": [
+          "F major",
+          "D minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 1794,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 1132,
+          "musicxml.unsupported-render-attribute": 158
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K310-3",
+      "primary": true,
+      "gold": "A minor",
+      "source_sha256": "b670f02222e9fd8ea1fd7709f387f347a5864973b9dfbdbdd3af9923c9c12494",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "134ec441dfeca69e81ee590832d255d6195837ea6402889ebf1add05ec76dc8a",
+      "harmony_elements_removed": 428,
+      "analysis_xml_sha256": "aebe45b2b6db983596da809adc367b2b39186fdb041470aae541b66a0e93189f",
+      "music21": {
+        "key": "A minor",
+        "exact": true,
+        "events": 1588
+      },
+      "acorde": {
+        "candidates": [
+          "C major",
+          "A minor"
+        ],
+        "ranked_candidates": [
+          "A minor",
+          "C major"
+        ],
+        "default_first_exact": false,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 1588,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 686,
+          "musicxml.unsupported-render-attribute": 39
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K311-1",
+      "primary": true,
+      "gold": "D major",
+      "source_sha256": "20d13012e2d0e6e54410c28d93fb5fc1effa0811a17acb93048495be82fd2b72",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "ea2d6e8431f328dd3d433cc01db3857cb1da6335ba3dee079fa4ea9b7c8d8ec4",
+      "harmony_elements_removed": 319,
+      "analysis_xml_sha256": "c6d59e618a7e6356c20a69add21a30409d0752a9fd656586043ad2e3183683bd",
+      "music21": {
+        "key": "D major",
+        "exact": true,
+        "events": 1929
+      },
+      "acorde": {
+        "candidates": [
+          "D major",
+          "B minor"
+        ],
+        "ranked_candidates": [
+          "D major",
+          "B minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 1929,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 455,
+          "musicxml.unsupported-render-attribute": 20
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K311-2",
+      "primary": true,
+      "gold": "G major",
+      "source_sha256": "b3ddc0da6fbf4ba1ba342a9da42ff60353f94f560cb64fd5c2166c396df501fb",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "993717299a138195263958e8ad1da36b99b4f7025c4dfa40ab09b84ddf86aef5",
+      "harmony_elements_removed": 241,
+      "analysis_xml_sha256": "123389f9e94fa3bb85a4e22fbd2d8556c9cf5ff70f43423e245c0cd4edd4d575",
+      "music21": {
+        "key": "G major",
+        "exact": true,
+        "events": 1061
+      },
+      "acorde": {
+        "candidates": [
+          "G major",
+          "E minor"
+        ],
+        "ranked_candidates": [
+          "G major",
+          "E minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 1061,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 399,
+          "musicxml.unsupported-render-attribute": 11
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K311-3",
+      "primary": true,
+      "gold": "D major",
+      "source_sha256": "630c19b67083ba4b899915c344f7922f8ed621701ab949c7b470dfdcb3e88493",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "4cb52c9608b2def170af08c7c8786443ca9b3a45db6dcd5e68d52888142ef2c4",
+      "harmony_elements_removed": 491,
+      "analysis_xml_sha256": "54415fc0652330b0d3619eb2932f303877e64d3fbfc5171479731c185c1d0646",
+      "music21": {
+        "key": "D major",
+        "exact": true,
+        "events": 2964
+      },
+      "acorde": {
+        "candidates": [
+          "D major",
+          "B minor"
+        ],
+        "ranked_candidates": [
+          "D major",
+          "B minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 2964,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 1560,
+          "musicxml.unsupported-render-attribute": 32
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K330-1",
+      "primary": true,
+      "gold": "C major",
+      "source_sha256": "35f1d9d6f2e2b44d120afe04e84e0aedb460dc203fe19e8ac7ee7d56cf67f666",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "13ff0776ed39563a0828f827cedb2a8a165466b6bded9ab62ec518db3b639e90",
+      "harmony_elements_removed": 293,
+      "analysis_xml_sha256": "f43b8cacfe5fd297f6ad3cdddac20a24aa909c40b878e67b0bbb733f4e526a1e",
+      "music21": {
+        "key": "C major",
+        "exact": true,
+        "events": 2165
+      },
+      "acorde": {
+        "candidates": [
+          "C major",
+          "A minor"
+        ],
+        "ranked_candidates": [
+          "C major",
+          "A minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 2165,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 940,
+          "musicxml.unsupported-render-attribute": 32
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K330-2",
+      "primary": true,
+      "gold": "F major",
+      "source_sha256": "3b23e8e4d92bd761edc0975b4dcbe1dc7373c0c56cf7f3c2a80275270e7482bf",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "57e63edbaa63d316026a28f92e61e1e34097508761aa4d70c1ed0058d5c0db75",
+      "harmony_elements_removed": 187,
+      "analysis_xml_sha256": "378d3ddb866ee34b39c4aac66a977d6a70311af366a16d61de996d7ad0900815",
+      "music21": {
+        "key": "F major",
+        "exact": true,
+        "events": 757
+      },
+      "acorde": {
+        "candidates": [
+          "F major",
+          "D minor"
+        ],
+        "ranked_candidates": [
+          "F major",
+          "D minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 757,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-element.non-arpeggiate": 2,
+          "musicxml.unsupported-placement-attribute": 554,
+          "musicxml.unsupported-render-attribute": 36
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K330-3",
+      "primary": true,
+      "gold": "C major",
+      "source_sha256": "c1430afea2a7541a0debde0f347a6b4a08aac2cbfc7c552208e208504db80dee",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "74fb9d22043c63d2cf607e0bbb87ad5e6f1b8745b2099e12ca3ebf8723cf816e",
+      "harmony_elements_removed": 365,
+      "analysis_xml_sha256": "1af1dd60a9588261e37d67c99fd75b47a5b487f63b7da226e4318002be80e8aa",
+      "music21": {
+        "key": "C major",
+        "exact": true,
+        "events": 1996
+      },
+      "acorde": {
+        "candidates": [
+          "C major",
+          "A minor"
+        ],
+        "ranked_candidates": [
+          "C major",
+          "A minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 1996,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-dynamic": 2,
+          "musicxml.unsupported-element.non-arpeggiate": 1,
+          "musicxml.unsupported-placement-attribute": 567,
+          "musicxml.unsupported-render-attribute": 23
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K331-1",
+      "primary": true,
+      "gold": "A major",
+      "source_sha256": "9fcd0d320edc61a508d913792d9ed17d820806f8997686ea95ba96d0c12a103a",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "48a9cd072097614aae8982e8a2c6ca043c8e2c4fda412bbf17672de9060f43c9",
+      "harmony_elements_removed": 399,
+      "analysis_xml_sha256": "dd6e202cb8f9e4e5824501aaa4b0bfa3e9448e3e86028db48999eff74e0d75ad",
+      "music21": {
+        "key": "A major",
+        "exact": true,
+        "events": 2772
+      },
+      "acorde": {
+        "candidates": [
+          "A major",
+          "F# minor"
+        ],
+        "ranked_candidates": [
+          "A major",
+          "F# minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 2772,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 515,
+          "musicxml.unsupported-render-attribute": 94
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K331-2",
+      "primary": true,
+      "gold": "A major",
+      "source_sha256": "f21f5344ec1e8350bb9eff410b4e1470b7c34c583a0703b2af8bfa6f9e934024",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "a688d0b6a7964c662b27a063dc1801abd666f5682c66beead398696f39a36884",
+      "harmony_elements_removed": 160,
+      "analysis_xml_sha256": "8777472f2380d5a78f69428c668487a8cf34464d140ae72d0026c14c55ef3e9d",
+      "music21": {
+        "key": "A major",
+        "exact": true,
+        "events": 929
+      },
+      "acorde": {
+        "candidates": [
+          "D major",
+          "B minor"
+        ],
+        "ranked_candidates": [
+          "D major",
+          "B minor"
+        ],
+        "default_first_exact": false,
+        "ranked_first_exact": false,
+        "candidate_contains_gold": false,
+        "events": 929,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 164,
+          "musicxml.unsupported-render-attribute": 17
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K331-3",
+      "primary": true,
+      "gold": "A minor",
+      "source_sha256": "384c42371b83277c4ccea937d24b094b2e988dcad8d78297e46c5429093e459b",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "e1340a1c664e4353ff513f3bb55839578d71e913f51b26e726306c43b8f310cd",
+      "harmony_elements_removed": 128,
+      "analysis_xml_sha256": "4aac388e8f40fb5a613d5d2dca1dfebe05e512361e25bbef7f86c9cd03b9d72b",
+      "music21": {
+        "key": "A major",
+        "exact": false,
+        "events": 1292
+      },
+      "acorde": {
+        "candidates": [
+          "A major",
+          "F# minor"
+        ],
+        "ranked_candidates": [
+          "A major",
+          "F# minor"
+        ],
+        "default_first_exact": false,
+        "ranked_first_exact": false,
+        "candidate_contains_gold": false,
+        "events": 1292,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 141,
+          "musicxml.unsupported-render-attribute": 9
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K332-1",
+      "primary": true,
+      "gold": "F major",
+      "source_sha256": "1f5094ea083c2edc64fa309981016d38c900280bd42e4e0c17cc441e6e8cb686",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "2ea730ae6c9f8c71f9ea52180a972ec0d915a5ec9c8077baea96a99015757978",
+      "harmony_elements_removed": 316,
+      "analysis_xml_sha256": "4e7dea1854c6c914849b25002772b7f5a93dbac7724abf8346495920a63d43ad",
+      "music21": {
+        "key": "F major",
+        "exact": true,
+        "events": 1891
+      },
+      "acorde": {
+        "candidates": [
+          "F major",
+          "D minor"
+        ],
+        "ranked_candidates": [
+          "F major",
+          "D minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 1891,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 892,
+          "musicxml.unsupported-render-attribute": 27
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K332-2",
+      "primary": true,
+      "gold": "Bb major",
+      "source_sha256": "335c8ee334f0d4b75b9c3626aa5fbdebbf6e3a46ff7c4b9bad29751a48c1172c",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "982efd39b5a956565a2b242928009a1d55b9c3561fd9bd42d6769d6ae7475071",
+      "harmony_elements_removed": 168,
+      "analysis_xml_sha256": "cb5ad865b7b6f3fc4163537c3066b40694979b27e7eec00defa5c584ae224b90",
+      "music21": {
+        "key": "Bb major",
+        "exact": true,
+        "events": 1106
+      },
+      "acorde": {
+        "candidates": [
+          "Bb major",
+          "G minor"
+        ],
+        "ranked_candidates": [
+          "Bb major",
+          "G minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 1106,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 381,
+          "musicxml.unsupported-render-attribute": 9
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K332-3",
+      "primary": true,
+      "gold": "F major",
+      "source_sha256": "3888cc3225fcb7d59472b71b994738526fafc3f3a99240a7924d85ca6070a17a",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "421cd72da496eb0168a5513e73682efbfa2c9b73020ad136af5e7895f1106f3d",
+      "harmony_elements_removed": 449,
+      "analysis_xml_sha256": "191fe787780e28e0f9c1e02fd0b161f8ad95f3b665facdbc62494fa8a73283ae",
+      "music21": {
+        "key": "F major",
+        "exact": true,
+        "events": 2660
+      },
+      "acorde": {
+        "candidates": [
+          "F major",
+          "D minor"
+        ],
+        "ranked_candidates": [
+          "F major",
+          "D minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 2660,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 1134,
+          "musicxml.unsupported-render-attribute": 51
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K333-1",
+      "primary": true,
+      "gold": "Bb major",
+      "source_sha256": "2822921745818df3d3194215b33ea0a46c72756a6468426ed22f575a056839f2",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "e5f30cf024e7ed559ff3f821038093f5f2645e5594c72abd409fa32c25896d32",
+      "harmony_elements_removed": 431,
+      "analysis_xml_sha256": "5bd611602a39c054aba7cd81edd7a7b6ac6c9160058a76ebe5d2a143c4415341",
+      "music21": {
+        "key": "Bb major",
+        "exact": true,
+        "events": 2588
+      },
+      "acorde": {
+        "candidates": [
+          "Bb major",
+          "G minor"
+        ],
+        "ranked_candidates": [
+          "Bb major",
+          "G minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 2588,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 488,
+          "musicxml.unsupported-render-attribute": 12
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K333-2",
+      "primary": true,
+      "gold": "Eb major",
+      "source_sha256": "55a6a66e6df2494000227cd89e23d3b4aa5f9ae7ed19ceb3129e016121c412d3",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "fd9309c12c006ab75582a5ea956da6e956e994211ef03a7273445b8fed924d9d",
+      "harmony_elements_removed": 217,
+      "analysis_xml_sha256": "6d87b190cb8208d1ed77326ddce080435eae83735598d404ce6d9ebeb1dde376",
+      "music21": {
+        "key": "Eb major",
+        "exact": true,
+        "events": 1253
+      },
+      "acorde": {
+        "candidates": [
+          "Eb major",
+          "C minor"
+        ],
+        "ranked_candidates": [
+          "Eb major",
+          "C minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 1253,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 400,
+          "musicxml.unsupported-render-attribute": 16
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K333-3",
+      "primary": true,
+      "gold": "Bb major",
+      "source_sha256": "e7915503d7d8755c92cfa8ab18a62df897763de280c7ddf93fb4402ec95a125b",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "8fe4dfe69e4213a0f0b7e83d06560bcbb4c8b2c2f3b96312b0ee7bf7d01862d2",
+      "harmony_elements_removed": 460,
+      "analysis_xml_sha256": "f521084fdbc73af4fe6b1d3af0d09b21a58e7295c8deb19c7b06842492294637",
+      "music21": {
+        "key": "Bb major",
+        "exact": true,
+        "events": 2753
+      },
+      "acorde": {
+        "candidates": [
+          "Bb major",
+          "G minor"
+        ],
+        "ranked_candidates": [
+          "Bb major",
+          "G minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 2753,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 663,
+          "musicxml.unsupported-render-attribute": 28
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K457-1",
+      "primary": true,
+      "gold": "C minor",
+      "source_sha256": "dffdf5f163d725a1bcc2900f350a4b6c94edcd9781be9b394fd91c9deec17b25",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "baef5e3740f4d234585e4f558d7737d685343f9c466547f4d513d68c02d23e14",
+      "harmony_elements_removed": 308,
+      "analysis_xml_sha256": "322ed6c8e0cba2a08c4cd8bdea3149615b14f328a41135bd9db7975c1335aef6",
+      "music21": {
+        "key": "C minor",
+        "exact": true,
+        "events": 1933
+      },
+      "acorde": {
+        "candidates": [
+          "Eb major",
+          "C minor"
+        ],
+        "ranked_candidates": [
+          "C minor",
+          "Eb major"
+        ],
+        "default_first_exact": false,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 1933,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 755,
+          "musicxml.unsupported-render-attribute": 91
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K457-2",
+      "primary": true,
+      "gold": "Eb major",
+      "source_sha256": "91dab72b44d16c1122dd6f76e5006e3e4713cbb10980fbb052e20eb31a5861ba",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "6fc74e8f5a1b2f3c83fbae540bfb12a6dc448526c925693e3bc88f6139a58039",
+      "harmony_elements_removed": 214,
+      "analysis_xml_sha256": "5e2a4aa2fce6e992fd2f71c0ebfa00715fc768484cceace76d494c8db1393dcf",
+      "music21": {
+        "key": "Eb major",
+        "exact": true,
+        "events": 1744
+      },
+      "acorde": {
+        "candidates": [
+          "Eb major",
+          "C minor"
+        ],
+        "ranked_candidates": [
+          "Eb major",
+          "C minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 1744,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 912,
+          "musicxml.unsupported-render-attribute": 205
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K457-3",
+      "primary": true,
+      "gold": "C minor",
+      "source_sha256": "20e4034ac053f0b4448bf3212e87db387cd2c29ebb1cce2084d809967d916056",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "78b7cd8bdbf3e7a5768b18ab1bc0d4b5bd206934ad9653f2c9ced6e3de3bfdbb",
+      "harmony_elements_removed": 328,
+      "analysis_xml_sha256": "ca9847bf8e569bcd51ae1de5c582ac4e23ae7943fa7e84be2a2918c4e4b27bac",
+      "music21": {
+        "key": "C minor",
+        "exact": true,
+        "events": 1906
+      },
+      "acorde": {
+        "candidates": [
+          "Eb major",
+          "C minor"
+        ],
+        "ranked_candidates": [
+          "C minor",
+          "Eb major"
+        ],
+        "default_first_exact": false,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 1906,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 1284,
+          "musicxml.unsupported-render-attribute": 30
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K533-1",
+      "primary": true,
+      "gold": "F major",
+      "source_sha256": "79a414b6506efc2a8237bc5c59111856f348051ecc0c1cda5ee25fadc85060bc",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "772b8ecf088387671341fe37decd1afe80cfbd12427d16eac00ec7c94d73cefb",
+      "harmony_elements_removed": 584,
+      "analysis_xml_sha256": "2d1547ebde5a488397edab9a6b72faa8b2d6ca44934a169fc7d25d1f52b63f4c",
+      "music21": {
+        "key": "F major",
+        "exact": true,
+        "events": 2919
+      },
+      "acorde": {
+        "candidates": [
+          "F major",
+          "D minor"
+        ],
+        "ranked_candidates": [
+          "F major",
+          "D minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 2919,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 661,
+          "musicxml.unsupported-render-attribute": 14
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K533-2",
+      "primary": true,
+      "gold": "Bb major",
+      "source_sha256": "63df639b9575f6210b96894ad0126385a3c87876e8627210899319e37fee53b5",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "2be9149e3d8513a8d57856d5eae6ee18a35aca28da86321b03f75d2cadaadafb",
+      "harmony_elements_removed": 261,
+      "analysis_xml_sha256": "5716a491273755b3333e8729a51a15b4bf1aaf326c900df50a47a876b840bcbd",
+      "music21": {
+        "key": "Bb major",
+        "exact": true,
+        "events": 1406
+      },
+      "acorde": {
+        "candidates": [
+          "Bb major",
+          "G minor"
+        ],
+        "ranked_candidates": [
+          "Bb major",
+          "G minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 1406,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 314,
+          "musicxml.unsupported-render-attribute": 10
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K533-3",
+      "primary": true,
+      "gold": "F major",
+      "source_sha256": "a00c16e9c710b247162b0a5fa861ba347b800b798b9fefddc12835fd5a626ee4",
+      "export_origin": "fresh_export",
+      "export_error": "RuntimeError: no MusicXML; exporter exit status -11; no MusicXML; exporter exit status -11; no MusicXML; exporter exit status -11"
+    },
+    {
+      "piece": "K545-1",
+      "primary": true,
+      "gold": "C major",
+      "source_sha256": "1d54af691e2b24be8f977b048d7417ff2abc79b69bdd484de82a85f4dcf33654",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "9f72b7ce5fb3ede43d07337e7c7acff698ea086854fc4e28e7e82962adc8415c",
+      "harmony_elements_removed": 119,
+      "analysis_xml_sha256": "96d0a0f1b4bf39a5aefa44735669e04762e91cd46dd6e12d88f5330350c11d55",
+      "music21": {
+        "key": "C major",
+        "exact": true,
+        "events": 1182
+      },
+      "acorde": {
+        "candidates": [
+          "C major",
+          "A minor"
+        ],
+        "ranked_candidates": [
+          "C major",
+          "A minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 1182,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 47,
+          "musicxml.unsupported-render-attribute": 9
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K545-2",
+      "primary": true,
+      "gold": "G major",
+      "source_sha256": "0b338f6d602592d59a57e230006fb4d803924b0680c25a659ed3da0eff1c4d93",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "4905f07089a9f22b5a68376490be1d461d4d5bb669b423465921fc5071ca203c",
+      "harmony_elements_removed": 146,
+      "analysis_xml_sha256": "3cf4b7a9c8ed6eacf2396abe1d0ad7658a0148869c4ebc8f8eefbc99643ab1e4",
+      "music21": {
+        "key": "G major",
+        "exact": true,
+        "events": 1331
+      },
+      "acorde": {
+        "candidates": [
+          "G major",
+          "E minor"
+        ],
+        "ranked_candidates": [
+          "G major",
+          "E minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 1331,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 142,
+          "musicxml.unsupported-render-attribute": 13
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K545-3",
+      "primary": true,
+      "gold": "C major",
+      "source_sha256": "aefbec14cfec48975604a6495cce9d8d85c58ca40855b6f0ebfb649f3d761af2",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "b4bb9cb2c52650c4c8676f89dfac80dcfeb1c8ddb946e495042bc53e8ccf30c5",
+      "harmony_elements_removed": 143,
+      "analysis_xml_sha256": "74ca1431cd0e548683ced53e76e8430f8e0ee35f6c0f5c05f30dc3d096e1d738",
+      "music21": {
+        "key": "C major",
+        "exact": true,
+        "events": 724
+      },
+      "acorde": {
+        "candidates": [
+          "C major",
+          "A minor"
+        ],
+        "ranked_candidates": [
+          "C major",
+          "A minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 724,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 220,
+          "musicxml.unsupported-render-attribute": 10
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K570-1",
+      "primary": true,
+      "gold": "Bb major",
+      "source_sha256": "326fecaedf12ebe933bb14b13aef62bd33127cf5df9f7946bb4d4af9bd0443a8",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "b6d33d4a22bc717d3a7f33a7adc166205b850f090e640a317eeabd08d8a4bcfe",
+      "harmony_elements_removed": 245,
+      "analysis_xml_sha256": "46ffa06398a52695757c76eac8801a93cbd6b2d9c16f80d339b56b3ac7c8138f",
+      "music21": {
+        "key": "Bb major",
+        "exact": true,
+        "events": 1909
+      },
+      "acorde": {
+        "candidates": [
+          "Bb major",
+          "G minor"
+        ],
+        "ranked_candidates": [
+          "Bb major",
+          "G minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 1909,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 349,
+          "musicxml.unsupported-render-attribute": 7
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K570-2",
+      "primary": true,
+      "gold": "Eb major",
+      "source_sha256": "486c340a244ddf946eed6cca4ad87454b5627c303bb1eaba189f8e7aa6a072b8",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "8a97cf77cc77c83d388d680192dd4af69e1844d26794edb73f515783fe5128c5",
+      "harmony_elements_removed": 250,
+      "analysis_xml_sha256": "34144675778e49dfb8c259ccc1a3359fa95d5ec13a3ed97355ac58e5bb1777d4",
+      "music21": {
+        "key": "Eb major",
+        "exact": true,
+        "events": 1051
+      },
+      "acorde": {
+        "candidates": [
+          "Eb major",
+          "C minor"
+        ],
+        "ranked_candidates": [
+          "Eb major",
+          "C minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 1051,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 159,
+          "musicxml.unsupported-render-attribute": 7
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K570-3",
+      "primary": true,
+      "gold": "Bb major",
+      "source_sha256": "592dbadf4598c7f0d0032d87a563b1c96e267b7afb6c48419352b9b8f1d0c1af",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "ace12cb2919001d144fe21b7295ae1db9f2fc16db176d9a737c650dd1fd4ad8b",
+      "harmony_elements_removed": 281,
+      "analysis_xml_sha256": "55ad49ed5efba71dd6d5ea16ac3e0703101de67a6fef7abc4378698d249ebfbc",
+      "music21": {
+        "key": "Bb major",
+        "exact": true,
+        "events": 1229
+      },
+      "acorde": {
+        "candidates": [
+          "Bb major",
+          "G minor"
+        ],
+        "ranked_candidates": [
+          "Bb major",
+          "G minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 1229,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 545,
+          "musicxml.unsupported-render-attribute": 8
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K576-1",
+      "primary": true,
+      "gold": "D major",
+      "source_sha256": "02344e831b8ffb5242b89448fe26177a87dab4da645df2cffd6b558f67f9ecd5",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "b82c6684759f9d4248e990b37aff21bf204c2d007567f6cfbc307af05e45a455",
+      "harmony_elements_removed": 295,
+      "analysis_xml_sha256": "168977c8236515bd19caafd6bd5180d83ec7ec87267f0bb2398c4ffcf29f7ca5",
+      "music21": {
+        "key": "D major",
+        "exact": true,
+        "events": 1942
+      },
+      "acorde": {
+        "candidates": [
+          "D major",
+          "B minor"
+        ],
+        "ranked_candidates": [
+          "D major",
+          "B minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 1942,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 324,
+          "musicxml.unsupported-render-attribute": 9
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K576-2",
+      "primary": true,
+      "gold": "A major",
+      "source_sha256": "d3c2dd74144b01a56749f48cf2934326ac0907bb636b4c29964d2dc89c006f20",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "e24be108fc454601bab3d6ae43f6db582a46920301c787f26e7f0076878e11cc",
+      "harmony_elements_removed": 151,
+      "analysis_xml_sha256": "92c6e3564bbeeac8fd991a74f0809256cd4facb810c230d6a59c59e3d38f1797",
+      "music21": {
+        "key": "A major",
+        "exact": true,
+        "events": 1211
+      },
+      "acorde": {
+        "candidates": [
+          "A major",
+          "F# minor"
+        ],
+        "ranked_candidates": [
+          "A major",
+          "F# minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 1211,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 144,
+          "musicxml.unsupported-render-attribute": 16
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    },
+    {
+      "piece": "K576-3",
+      "primary": true,
+      "gold": "D major",
+      "source_sha256": "a981d2c47bb2c06a59eb470d0831366c8d9bd167df281e27a70e5cbc08b6e869",
+      "export_origin": "existing_validated",
+      "musicxml_sha256": "432c639b75b3fc0377e6452d99a3b325c22916e97995ba258a91ef48c014788e",
+      "harmony_elements_removed": 381,
+      "analysis_xml_sha256": "dc4a430efc21dc01ccccbbefec9abe539ef9cce2ed3f2fff40b854e6896bc4c6",
+      "music21": {
+        "key": "D major",
+        "exact": true,
+        "events": 2281
+      },
+      "acorde": {
+        "candidates": [
+          "D major",
+          "B minor"
+        ],
+        "ranked_candidates": [
+          "D major",
+          "B minor"
+        ],
+        "default_first_exact": true,
+        "ranked_first_exact": true,
+        "candidate_contains_gold": true,
+        "events": 2281,
+        "import_diagnostic_codes": {
+          "musicxml.unsupported-placement-attribute": 446,
+          "musicxml.unsupported-render-attribute": 12
+        }
+      },
+      "event_counts_equal": true,
+      "pitch_bags_equal": true,
+      "notehead_pitch_duration_bags_equal": true,
+      "pitch_duration_bags_equal": true
+    }
+  ]
+}

@@ -64,3 +64,12 @@ the same tied candidates. Its first choice matched 76 of the same 82 labels,
 equal to music21 on this development corpus. This is not an independent
 holdout result; parser coverage and other analysis categories remain separate
 gates.
+
+The [Mozart sonata holdout](archive/analysis-mozart-key-holdout.md) fixes 53
+previously unseen annotated movements before scoring. MuseScore 4.7.5 produced
+52 valid common MusicXML inputs; one movement failed to export. After
+analyst-provided harmony labels were removed, music21 selected 51 annotated
+keys and Acorde's opt-in ranking selected 50, both over the original 53-score
+denominator. The 52 paired parses had equal pitched-event counts and unordered
+pitch/duration bags. Exporter instability and the narrow global-key task keep
+this a provisional, task-specific result rather than overall analysis parity.
