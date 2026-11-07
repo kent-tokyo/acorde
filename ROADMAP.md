@@ -140,8 +140,11 @@ and measure; the remaining score has a malformed barline. Visible-rest positions
 also agree for 97/98. After removing synthesized trailing rests from Humdrum
 imports, [all-rest onsets](docs/archive/analysis-bcmh-rest-preservation.md)
 agree for 97/98, up from 81/98; the remaining source has a malformed barline.
-Audit absolute measure positions, voice placement, spelling and ties before
-treating the event bags as semantic equality. This
+[A spelling and tie audit](docs/archive/analysis-bcmh-spelling-tie-audit.md)
+also agrees within part and measure for 97/98 paired parses; the sole difference
+is the same malformed barline. Audit absolute measure positions and voice
+placement, especially on polyphonic scores, before treating the event bags as
+semantic equality. This
 development-corpus tie is not holdout accuracy. The earlier
 [Mozart sonata observation](docs/archive/analysis-mozart-key-holdout.md) records
 53 primary movements and 52 common MusicXML inputs, 50 annotated keys
