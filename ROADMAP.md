@@ -50,10 +50,15 @@ holdout before claiming broader parity. Page count alone is not a quality score.
 
 The [eight-score 1.9.0 observation in PR #401](https://github.com/kent-tokyo/acorde/pull/401)
 uses the same scores, soundfont, sample rate and channel count. Its timing
-reference comes from Acorde, so first build an independent expected-event
-timeline from the source notation. Recheck note onset/release, tempo, repeats,
-pedal, ornaments and instrument changes on sparse diagnostic excerpts before
-using an audio onset detector on dense scores. Track import losses separately.
+reference comes from Acorde. The independent written-onset audit in
+[PR #407](https://github.com/kent-tokyo/acorde/pull/407) covers four source
+scores: Acorde matched 1,536/1,536 pitch/beat attacks and alphaTab 1.9.0
+matched 1,093/1,536; the 443 differences are split-bar timing in one score.
+The audit also corrects a whole-measure-rest fermata hold. Expand the source
+oracle beyond these simple forms, then recheck note onset/release, tempo,
+repeats, pedal, ornaments and instrument changes on sparse diagnostic excerpts
+before using an audio onset detector on dense scores. Track import losses
+separately.
 
 Then compare level-matched, complete audio outputs for clipping, truncation,
 stuck notes and audible quality. Complete the existing 1.8.4 blind-listening
