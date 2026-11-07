@@ -3062,7 +3062,12 @@ pub fn compute_print_layout(
     let staff_clearance_mm = if staff_count <= 1 {
         0.0
     } else {
-        (24.0 + staff_count.saturating_sub(1) as f32 * 16.0).max(if staff_count == 2 {
+        // Three-staff voice/piano systems need a larger physical lane to keep
+        // notation readable when a page holds several systems. Apply it only
+        // there: using the same gap for larger ensembles adds pages without
+        // improving their horizontal system breaks.
+        let gap_mm = if staff_count == 3 { 24.0 } else { 16.0 };
+        (24.0 + staff_count.saturating_sub(1) as f32 * gap_mm).max(if staff_count == 2 {
             TWO_STAFF_MIN_HEIGHT_MM
                 + if grand_staff_has_below_text {
                     10.0

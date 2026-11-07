@@ -60,9 +60,12 @@ The [ten-score 6.3.0 corpus](docs/archive/print-corpus-verovio.md) and
 [6.4.1 rerun](docs/archive/print-corpus-verovio-6-4-1.md) measure the same
 licensed inputs on A4. In the 6.4.1 screening, Acorde uses 18 pages and 57
 systems versus Verovio's 16 pages and 40 systems; Acorde's smallest measured
-staff space is 1.29 mm versus Verovio's 1.8 mm. The next implementation work
-is to raise the small staff and text sizes without introducing overlaps, then
-address remaining page-use and missing-mark cases. Raising the density-mode
+staff space was 1.29 mm versus Verovio's 1.8 mm. A
+[staff-size follow-up](docs/archive/print-staff-size-verovio-6-4-1.md) improves
+seven scores without changing the 18 pages or 57 systems; Acorde's smallest
+measured staff space is now 1.50 mm. The next implementation work is to raise
+the remaining small staff and text sizes without introducing overlaps, then
+address page-use and missing-mark cases. Raising the density-mode
 measure cap from four to eight changed only one of four probed scores, so
 inspect horizontal demand before changing that default.
 Compare each revision on the same A4 inputs and verify suspicious collision
