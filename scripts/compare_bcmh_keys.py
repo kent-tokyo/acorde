@@ -127,6 +127,86 @@ def music21_events(score, note, chord):
     return events
 
 
+def music21_measure_timeline(score, note, chord):
+    """Preserve each part, measure, onset and rest in the parsed score."""
+    parts = []
+    for part in score.parts:
+        measures = []
+        for measure in part.getElementsByClass("Measure"):
+            events = []
+            for event in measure.recurse().notesAndRests:
+                if isinstance(event, note.Rest):
+                    kind = "hidden_rest" if event.style.hideObjectOnPrint else "rest"
+                    pitches = ()
+                elif isinstance(event, note.Note):
+                    kind, pitches = "pitched", (round(event.pitch.midi, 6),)
+                elif isinstance(event, chord.Chord):
+                    kind = "pitched"
+                    pitches = tuple(sorted(round(p.midi, 6) for p in event.pitches))
+                else:
+                    continue
+                events.append((
+                    round(float(event.getOffsetInHierarchy(measure)), 6),
+                    kind,
+                    pitches,
+                    round(float(event.duration.quarterLength), 6),
+                ))
+            measures.append(events)
+        parts.append(measures)
+    return parts
+
+
+def acorde_duration_beats(event):
+    beats = DURATION_BEATS[event["duration"]]
+    beats *= 2 - 0.5 ** event["dot_count"]
+    if event["tuplet"]:
+        beats *= (event["tuplet"]["normal_notes"]
+                  / event["tuplet"]["actual_notes"])
+    return 0 if event["is_grace"] else round(beats, 6)
+
+
+def acorde_measure_timeline(score):
+    parts = []
+    for part in score["parts"]:
+        if len(part["staves"]) != 1:
+            raise ValueError("BCMH comparison expects one staff per part")
+        measures = []
+        for measure in part["staves"][0]["measures"]:
+            events = []
+            for voice in measure["voices"]:
+                onset = 0.0
+                for event in voice:
+                    beats = acorde_duration_beats(event)
+                    pitches = () if event["is_rest"] else tuple(sorted(round(
+                        (pitch["octave"] + 1) * 12
+                        + STEP_SEMITONES[pitch["step"]]
+                        + pitch["alter"] + pitch["microtone_cents"] / 100, 6
+                    ) for pitch in event["pitches"]))
+                    events.append((round(onset, 6),
+                                   ("hidden_rest" if event.get("hidden", False) else "rest")
+                                   if event["is_rest"] else "pitched",
+                                   pitches, beats))
+                    onset += beats
+            measures.append(events)
+        parts.append(measures)
+    return parts
+
+
+def same_measure_events(left, right, kind, *, with_onset):
+    kinds = {kind} if isinstance(kind, str) else set(kind)
+    if len(left) != len(right) or any(len(a) != len(b) for a, b in zip(left, right)):
+        return False
+    for left_part, right_part in zip(left, right):
+        for left_measure, right_measure in zip(left_part, right_part):
+            project = lambda events: Counter(
+                (onset, pitches, duration) if with_onset else (pitches, duration)
+                for onset, event_kind, pitches, duration in events if event_kind in kinds
+            )
+            if project(left_measure) != project(right_measure):
+                return False
+    return True
+
+
 def acorde_events(score):
     events = []
     for part in score["parts"]:
@@ -141,14 +221,7 @@ def acorde_events(score):
                             + STEP_SEMITONES[pitch["step"]]
                             + pitch["alter"] + pitch["microtone_cents"] / 100, 6
                         ) for pitch in event["pitches"]))
-                        beats = DURATION_BEATS[event["duration"]]
-                        beats *= 2 - 0.5 ** event["dot_count"]
-                        if event["tuplet"]:
-                            beats *= (event["tuplet"]["normal_notes"]
-                                      / event["tuplet"]["actual_notes"])
-                        if event["is_grace"]:
-                            beats = 0
-                        events.append((pitches, round(beats, 6)))
+                        events.append((pitches, acorde_duration_beats(event)))
     return events
 
 
@@ -171,11 +244,13 @@ def compare_one(archive, name, temporary_dir, acorde, converter, note, chord, ra
         "gold_source": gold_source,
     }
     music21_projection = None
+    music21_timeline = None
     try:
         score = converter.parse(str(score_path), forceSource=True)
         music21_key = score.analyze("key")
         music21_name = key_name(music21_key.tonic.name, music21_key.mode)
         music21_projection = music21_events(score, note, chord)
+        music21_timeline = music21_measure_timeline(score, note, chord)
         row["music21"] = {
             "key": music21_name,
             "notes": len(music21_projection),
@@ -192,6 +267,7 @@ def compare_one(archive, name, temporary_dir, acorde, converter, note, chord, ra
         analysis = json.loads(acorde_output(acorde, "analyze", score_path, *extra_args))
         import_report = json.loads(acorde_output(acorde, "report", score_path))
         acorde_projection = acorde_events(import_report["score"])
+        acorde_timeline = acorde_measure_timeline(import_report["score"])
         candidates = [acorde_key_name(candidate) for candidate in analysis["key_estimates"]]
         row["acorde"] = {
             "candidates": candidates,
@@ -207,6 +283,23 @@ def compare_one(archive, name, temporary_dir, acorde, converter, note, chord, ra
         row["pitch_bag_equal"] = pitch_bag(music21_projection) == pitch_bag(acorde_projection)
         row["pitch_duration_bag_equal"] = (
             Counter(music21_projection) == Counter(acorde_projection)
+        )
+        row["part_measure_counts_equal"] = (
+            len(music21_timeline) == len(acorde_timeline)
+            and all(len(left) == len(right)
+                    for left, right in zip(music21_timeline, acorde_timeline))
+        )
+        row["part_measure_pitched_events_equal"] = same_measure_events(
+            music21_timeline, acorde_timeline, "pitched", with_onset=False
+        )
+        row["part_measure_pitched_timeline_equal"] = same_measure_events(
+            music21_timeline, acorde_timeline, "pitched", with_onset=True
+        )
+        row["part_measure_visible_rest_timeline_equal"] = same_measure_events(
+            music21_timeline, acorde_timeline, "rest", with_onset=True
+        )
+        row["part_measure_all_rest_timeline_equal"] = same_measure_events(
+            music21_timeline, acorde_timeline, {"rest", "hidden_rest"}, with_onset=True
         )
     return row
 
@@ -269,6 +362,19 @@ def main():
             "equal_note_counts": sum(row["note_counts_equal"] for row in both),
             "equal_pitch_bags": sum(row["pitch_bag_equal"] for row in both),
             "equal_pitch_duration_bags": sum(row["pitch_duration_bag_equal"] for row in both),
+            "equal_part_measure_counts": sum(row["part_measure_counts_equal"] for row in both),
+            "equal_part_measure_pitched_events": sum(
+                row["part_measure_pitched_events_equal"] for row in both
+            ),
+            "equal_part_measure_pitched_timelines": sum(
+                row["part_measure_pitched_timeline_equal"] for row in both
+            ),
+            "equal_part_measure_visible_rest_timelines": sum(
+                row["part_measure_visible_rest_timeline_equal"] for row in both
+            ),
+            "equal_part_measure_all_rest_timelines": sum(
+                row["part_measure_all_rest_timeline_equal"] for row in both
+            ),
             "acorde_projection_counts_match_info": sum(
                 row["acorde"]["projection_event_count_matches_info"] for row in acorde_valid
             ),
