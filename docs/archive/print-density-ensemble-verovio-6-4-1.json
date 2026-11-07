@@ -1,0 +1,716 @@
+[
+  {
+    "score": "aloha",
+    "source": "tests/fixtures/openscore_lieder_aloha_oe.mxl",
+    "measures_per_system": 8,
+    "verovio_version": "6.4.1",
+    "source_sha256": "b195ae477a10cbaee281d9b728cac001ae1d50fe4527078ccae14092eee4936c",
+    "shared_input_sha256": "b195ae477a10cbaee281d9b728cac001ae1d50fe4527078ccae14092eee4936c",
+    "import_diagnostics": {
+      "total": 73,
+      "by_code": {
+        "musicxml.unsupported-dynamic": 1,
+        "musicxml.unsupported-render-attribute": 72
+      }
+    },
+    "source_marks": {
+      "rests": 53,
+      "lyrics": 146,
+      "noteheads": 646,
+      "slurs": 5,
+      "ties": 2,
+      "articulations": 0,
+      "dynamics": 6
+    },
+    "acorde": {
+      "pages": 3,
+      "marks": {
+        "noteheads": 646,
+        "rests": 53,
+        "slurs": 5,
+        "ties": 2,
+        "lyrics": 146,
+        "dynamics": 5,
+        "hairpins": 0,
+        "articulations": 0
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 15,
+      "text_over_notation": 0,
+      "text_over_text": 1,
+      "staff_space_mm": 1.65,
+      "lyric_font_mm": 2.63,
+      "text_font_mm": 2.63,
+      "min_text_font_mm": 1.98,
+      "systems": 5
+    },
+    "verovio": {
+      "pages": 3,
+      "marks": {
+        "noteheads": 646,
+        "rests": 28,
+        "slurs": 5,
+        "ties": 2,
+        "lyrics": 149,
+        "dynamics": 5,
+        "hairpins": 0,
+        "articulations": 0
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 35,
+      "text_over_notation": 2,
+      "text_over_text": 75,
+      "staff_space_mm": 1.8,
+      "lyric_font_mm": 4.05,
+      "text_font_mm": 4.05,
+      "min_text_font_mm": 3.24,
+      "systems": 6
+    },
+    "shortfalls": {
+      "acorde": {
+        "dynamics": 1
+      },
+      "verovio": {
+        "rests": 25,
+        "dynamics": 1
+      }
+    }
+  },
+  {
+    "score": "just-for-today",
+    "source": "tests/fixtures/openscore_lieder_just_for_today.mxl",
+    "measures_per_system": 8,
+    "verovio_version": "6.4.1",
+    "source_sha256": "79a19736fcce71c0acf4b39feff63723d2ff75e29285ea2ab594f9b2b6a835ff",
+    "shared_input_sha256": "79a19736fcce71c0acf4b39feff63723d2ff75e29285ea2ab594f9b2b6a835ff",
+    "import_diagnostics": {
+      "total": 32,
+      "by_code": {
+        "musicxml.unsupported-render-attribute": 32
+      }
+    },
+    "source_marks": {
+      "rests": 19,
+      "lyrics": 156,
+      "noteheads": 587,
+      "slurs": 16,
+      "ties": 2,
+      "articulations": 3,
+      "dynamics": 5,
+      "hairpins": 15
+    },
+    "acorde": {
+      "pages": 4,
+      "marks": {
+        "noteheads": 587,
+        "rests": 19,
+        "slurs": 16,
+        "ties": 2,
+        "lyrics": 156,
+        "dynamics": 5,
+        "hairpins": 15,
+        "articulations": 14
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 12,
+      "text_over_notation": 0,
+      "text_over_text": 0,
+      "staff_space_mm": 1.67,
+      "lyric_font_mm": 2.67,
+      "text_font_mm": 2.67,
+      "min_text_font_mm": 2.0,
+      "systems": 11
+    },
+    "verovio": {
+      "pages": 3,
+      "marks": {
+        "noteheads": 586,
+        "rests": 19,
+        "slurs": 16,
+        "ties": 2,
+        "lyrics": 157,
+        "dynamics": 5,
+        "hairpins": 15,
+        "articulations": 3
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 21,
+      "text_over_notation": 8,
+      "text_over_text": 61,
+      "staff_space_mm": 1.8,
+      "lyric_font_mm": 4.05,
+      "text_font_mm": 4.05,
+      "min_text_font_mm": 3.24,
+      "systems": 7
+    },
+    "shortfalls": {
+      "acorde": {},
+      "verovio": {
+        "noteheads": 1
+      }
+    }
+  },
+  {
+    "score": "quilter",
+    "source": "tests/fixtures/openscore_lieder_quilter_prelude.mxl",
+    "measures_per_system": 8,
+    "verovio_version": "6.4.1",
+    "source_sha256": "6b85a51cc92fc93f561fd07cbd553d2ac9d4e53bd403637e85bd888495af6aa4",
+    "shared_input_sha256": "6b85a51cc92fc93f561fd07cbd553d2ac9d4e53bd403637e85bd888495af6aa4",
+    "import_diagnostics": {
+      "total": 104,
+      "by_code": {
+        "musicxml.unsupported-placement-attribute": 82,
+        "musicxml.unsupported-render-attribute": 21,
+        "musicxml.unterminated-hairpin": 1
+      }
+    },
+    "source_marks": {
+      "noteheads": 189,
+      "lyrics": 0,
+      "slurs": 15,
+      "ties": 8,
+      "articulations": 1,
+      "rests": 13,
+      "dynamics": 2,
+      "hairpins": 2
+    },
+    "acorde": {
+      "pages": 1,
+      "marks": {
+        "noteheads": 189,
+        "rests": 13,
+        "slurs": 16,
+        "ties": 8,
+        "lyrics": 0,
+        "dynamics": 2,
+        "hairpins": 0,
+        "articulations": 1
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 2,
+      "text_over_notation": 0,
+      "text_over_text": 0,
+      "staff_space_mm": 1.72,
+      "lyric_font_mm": null,
+      "text_font_mm": 4.02,
+      "min_text_font_mm": 2.06,
+      "systems": 4
+    },
+    "verovio": {
+      "pages": 1,
+      "marks": {
+        "noteheads": 189,
+        "rests": 13,
+        "slurs": 16,
+        "ties": 8,
+        "lyrics": 0,
+        "dynamics": 2,
+        "hairpins": 2,
+        "articulations": 1
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 8,
+      "text_over_notation": 1,
+      "text_over_text": 1,
+      "staff_space_mm": 1.8,
+      "lyric_font_mm": null,
+      "text_font_mm": 4.05,
+      "min_text_font_mm": 3.24,
+      "systems": 3
+    },
+    "shortfalls": {
+      "acorde": {
+        "hairpins": 2
+      },
+      "verovio": {}
+    }
+  },
+  {
+    "score": "webern",
+    "source": "tests/fixtures/openscore_lieder_webern_so_ich_traurig_bin.mxl",
+    "measures_per_system": 8,
+    "verovio_version": "6.4.1",
+    "source_sha256": "609b32d0829c48ab9a134308d8694fd5b1ee7de89acba11f76084a32f56ca8a3",
+    "shared_input_sha256": "609b32d0829c48ab9a134308d8694fd5b1ee7de89acba11f76084a32f56ca8a3",
+    "import_diagnostics": {
+      "total": 23,
+      "by_code": {
+        "musicxml.orphan-spanner-stop": 1,
+        "musicxml.unsupported-dynamic": 1,
+        "musicxml.unsupported-metronome": 2,
+        "musicxml.unsupported-overlapping-hairpin": 1,
+        "musicxml.unsupported-render-attribute": 18
+      }
+    },
+    "source_marks": {
+      "rests": 41,
+      "lyrics": 43,
+      "noteheads": 165,
+      "slurs": 10,
+      "ties": 33,
+      "articulations": 20,
+      "dynamics": 14,
+      "hairpins": 21
+    },
+    "acorde": {
+      "pages": 2,
+      "marks": {
+        "noteheads": 165,
+        "rests": 41,
+        "slurs": 14,
+        "ties": 39,
+        "lyrics": 43,
+        "dynamics": 13,
+        "hairpins": 20,
+        "articulations": 23
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 11,
+      "text_over_notation": 0,
+      "text_over_text": 0,
+      "staff_space_mm": 1.72,
+      "lyric_font_mm": 2.75,
+      "text_font_mm": 2.75,
+      "min_text_font_mm": 2.06,
+      "systems": 5
+    },
+    "verovio": {
+      "pages": 2,
+      "marks": {
+        "noteheads": 165,
+        "rests": 41,
+        "slurs": 14,
+        "ties": 40,
+        "lyrics": 44,
+        "dynamics": 13,
+        "hairpins": 22,
+        "articulations": 20
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 14,
+      "text_over_notation": 0,
+      "text_over_text": 1,
+      "staff_space_mm": 1.8,
+      "lyric_font_mm": 4.05,
+      "text_font_mm": 4.05,
+      "min_text_font_mm": 3.24,
+      "systems": 4
+    },
+    "shortfalls": {
+      "acorde": {
+        "dynamics": 1,
+        "hairpins": 1
+      },
+      "verovio": {
+        "dynamics": 1
+      }
+    }
+  },
+  {
+    "score": "omr-1003",
+    "source": "tests/fixtures/openscore_omr_score_1003.mscz",
+    "measures_per_system": 8,
+    "verovio_version": "6.4.1",
+    "source_sha256": "77ec1090af66b21a726e29d9e36e119d4a4ef112d25a4f758b5d00e8bd865711",
+    "shared_input_sha256": "7b99e5ff1ec6731370594eeec67ffd8e049d97f3cfde7c455a368ca1baf52532",
+    "import_diagnostics": {
+      "total": 0,
+      "by_code": {}
+    },
+    "source_marks": {
+      "noteheads": 29,
+      "lyrics": 9,
+      "slurs": 5,
+      "ties": 0,
+      "articulations": 4,
+      "rests": 6,
+      "dynamics": 2
+    },
+    "acorde": {
+      "pages": 1,
+      "marks": {
+        "noteheads": 29,
+        "rests": 6,
+        "slurs": 6,
+        "ties": 0,
+        "lyrics": 9,
+        "dynamics": 2,
+        "hairpins": 0,
+        "articulations": 4
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 2,
+      "text_over_notation": 0,
+      "text_over_text": 0,
+      "staff_space_mm": 1.8,
+      "lyric_font_mm": 2.88,
+      "text_font_mm": 2.88,
+      "min_text_font_mm": 2.16,
+      "systems": 2
+    },
+    "verovio": {
+      "pages": 1,
+      "marks": {
+        "noteheads": 29,
+        "rests": 6,
+        "slurs": 5,
+        "ties": 0,
+        "lyrics": 9,
+        "dynamics": 2,
+        "hairpins": 0,
+        "articulations": 4
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 0,
+      "text_over_notation": 0,
+      "text_over_text": 0,
+      "staff_space_mm": 1.8,
+      "lyric_font_mm": 4.05,
+      "text_font_mm": 4.05,
+      "min_text_font_mm": 4.05,
+      "systems": 1
+    },
+    "shortfalls": {
+      "acorde": {},
+      "verovio": {}
+    }
+  },
+  {
+    "score": "omr-1016",
+    "source": "tests/fixtures/openscore_omr_score_1016.mscz",
+    "measures_per_system": 8,
+    "verovio_version": "6.4.1",
+    "source_sha256": "2cbfa80c4a2694b70d1646c214147e184a5baa8f2628bd7dee85b9547d062562",
+    "shared_input_sha256": "2331ebbf61c420909823417916ac7f1381a6731a27793483fd00f22403ad9e0f",
+    "import_diagnostics": {
+      "total": 0,
+      "by_code": {}
+    },
+    "source_marks": {
+      "rests": 37,
+      "lyrics": 0,
+      "noteheads": 104,
+      "slurs": 0,
+      "ties": 0,
+      "articulations": 1,
+      "dynamics": 6
+    },
+    "acorde": {
+      "pages": 2,
+      "marks": {
+        "noteheads": 104,
+        "rests": 37,
+        "slurs": 0,
+        "ties": 0,
+        "lyrics": 0,
+        "dynamics": 6,
+        "hairpins": 0,
+        "articulations": 1
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 4,
+      "text_over_notation": 0,
+      "text_over_text": 0,
+      "staff_space_mm": 1.8,
+      "lyric_font_mm": null,
+      "text_font_mm": 2.58,
+      "min_text_font_mm": 2.15,
+      "systems": 7
+    },
+    "verovio": {
+      "pages": 1,
+      "marks": {
+        "noteheads": 104,
+        "rests": 37,
+        "slurs": 0,
+        "ties": 0,
+        "lyrics": 0,
+        "dynamics": 6,
+        "hairpins": 0,
+        "articulations": 1
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 0,
+      "text_over_notation": 0,
+      "text_over_text": 0,
+      "staff_space_mm": 1.8,
+      "lyric_font_mm": null,
+      "text_font_mm": 4.05,
+      "min_text_font_mm": 3.24,
+      "systems": 4
+    },
+    "shortfalls": {
+      "acorde": {},
+      "verovio": {}
+    }
+  },
+  {
+    "score": "omr-1033",
+    "source": "tests/fixtures/openscore_omr_score_1033.mscz",
+    "measures_per_system": 8,
+    "verovio_version": "6.4.1",
+    "source_sha256": "5c863d3b3dd1d055aeb74e3dabe3343090277578c4b9dd14d94c988b8b1a6687",
+    "shared_input_sha256": "99b131a97cbeb665f9ec01fd2962a0f8eceab2997a99dda01fb26524bb4834bd",
+    "import_diagnostics": {
+      "total": 0,
+      "by_code": {}
+    },
+    "source_marks": {
+      "rests": 14,
+      "lyrics": 0,
+      "noteheads": 64
+    },
+    "acorde": {
+      "pages": 1,
+      "marks": {
+        "noteheads": 64,
+        "rests": 14,
+        "slurs": 0,
+        "ties": 0,
+        "lyrics": 0,
+        "dynamics": 0,
+        "hairpins": 0,
+        "articulations": 0
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 3,
+      "text_over_notation": 0,
+      "text_over_text": 0,
+      "staff_space_mm": 1.8,
+      "lyric_font_mm": null,
+      "text_font_mm": 1.8,
+      "min_text_font_mm": 1.8,
+      "systems": 5
+    },
+    "verovio": {
+      "pages": 1,
+      "marks": {
+        "noteheads": 64,
+        "rests": 14,
+        "slurs": 0,
+        "ties": 0,
+        "lyrics": 0,
+        "dynamics": 0,
+        "hairpins": 0,
+        "articulations": 0
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 0,
+      "text_over_notation": 0,
+      "text_over_text": 0,
+      "staff_space_mm": 1.8,
+      "lyric_font_mm": null,
+      "text_font_mm": 4.05,
+      "min_text_font_mm": 3.24,
+      "systems": 3
+    },
+    "shortfalls": {
+      "acorde": {},
+      "verovio": {}
+    }
+  },
+  {
+    "score": "omr-1035",
+    "source": "tests/fixtures/openscore_omr_score_1035.mscz",
+    "measures_per_system": 8,
+    "verovio_version": "6.4.1",
+    "source_sha256": "025ce7fac23a85b2b94beba67cac4005e24b5a93c10c5e78cbc7b7e4a307321f",
+    "shared_input_sha256": "113f1b5ce1e29ca34256a29eff674b88478a54c59ea54186141b2ccfd89d4290",
+    "import_diagnostics": {
+      "total": 1,
+      "by_code": {
+        "musicxml.unsupported-render-attribute": 1
+      }
+    },
+    "source_marks": {
+      "rests": 8,
+      "lyrics": 0,
+      "noteheads": 137,
+      "slurs": 0,
+      "ties": 10,
+      "articulations": 0
+    },
+    "acorde": {
+      "pages": 1,
+      "marks": {
+        "noteheads": 137,
+        "rests": 8,
+        "slurs": 0,
+        "ties": 12,
+        "lyrics": 0,
+        "dynamics": 0,
+        "hairpins": 0,
+        "articulations": 0
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 3,
+      "text_over_notation": 0,
+      "text_over_text": 0,
+      "staff_space_mm": 1.72,
+      "lyric_font_mm": null,
+      "text_font_mm": 2.07,
+      "min_text_font_mm": 1.44,
+      "systems": 5
+    },
+    "verovio": {
+      "pages": 1,
+      "marks": {
+        "noteheads": 137,
+        "rests": 8,
+        "slurs": 0,
+        "ties": 12,
+        "lyrics": 0,
+        "dynamics": 0,
+        "hairpins": 0,
+        "articulations": 0
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 2,
+      "text_over_notation": 0,
+      "text_over_text": 0,
+      "staff_space_mm": 1.8,
+      "lyric_font_mm": null,
+      "text_font_mm": 4.05,
+      "min_text_font_mm": 3.24,
+      "systems": 4
+    },
+    "shortfalls": {
+      "acorde": {},
+      "verovio": {}
+    }
+  },
+  {
+    "score": "omr-1036",
+    "source": "tests/fixtures/openscore_omr_score_1036.mscz",
+    "measures_per_system": 8,
+    "verovio_version": "6.4.1",
+    "source_sha256": "d8206afe80f76d6aa4d4a31c3158714edd848865aabfbe21a3917d7dbd2e005c",
+    "shared_input_sha256": "46d8cdc2b6473dddb318b5815c8b8d093161e884bc8c0ae081ec717956a16677",
+    "import_diagnostics": {
+      "total": 0,
+      "by_code": {}
+    },
+    "source_marks": {
+      "rests": 39,
+      "lyrics": 0,
+      "noteheads": 119
+    },
+    "acorde": {
+      "pages": 2,
+      "marks": {
+        "noteheads": 119,
+        "rests": 39,
+        "slurs": 0,
+        "ties": 0,
+        "lyrics": 0,
+        "dynamics": 0,
+        "hairpins": 0,
+        "articulations": 0
+      },
+      "elements_past_page_edge": 6,
+      "elements_past_margins": 5,
+      "text_over_notation": 0,
+      "text_over_text": 0,
+      "staff_space_mm": 1.8,
+      "lyric_font_mm": null,
+      "text_font_mm": 2.63,
+      "min_text_font_mm": 2.16,
+      "systems": 4
+    },
+    "verovio": {
+      "pages": 2,
+      "marks": {
+        "noteheads": 119,
+        "rests": 39,
+        "slurs": 0,
+        "ties": 0,
+        "lyrics": 0,
+        "dynamics": 0,
+        "hairpins": 0,
+        "articulations": 0
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 2,
+      "text_over_notation": 0,
+      "text_over_text": 0,
+      "staff_space_mm": 1.8,
+      "lyric_font_mm": null,
+      "text_font_mm": 4.05,
+      "min_text_font_mm": 3.24,
+      "systems": 4
+    },
+    "shortfalls": {
+      "acorde": {},
+      "verovio": {}
+    }
+  },
+  {
+    "score": "freilachs",
+    "source": "tests/fixtures/freilachs_no_17.mscz",
+    "measures_per_system": 8,
+    "verovio_version": "6.4.1",
+    "source_sha256": "35cb6480a7bb3df84995a1dc0829b24af19bf1d049a8a159eb4a52f4cc1ec696",
+    "shared_input_sha256": "73b42872d75fdb046aed22a39cecd12d38287b277e44a617d8d19b6c375bd8ec",
+    "import_diagnostics": {
+      "total": 0,
+      "by_code": {}
+    },
+    "source_marks": {
+      "noteheads": 119,
+      "lyrics": 0,
+      "slurs": 33,
+      "ties": 2,
+      "articulations": 0,
+      "rests": 6
+    },
+    "acorde": {
+      "pages": 1,
+      "marks": {
+        "noteheads": 119,
+        "rests": 6,
+        "slurs": 33,
+        "ties": 2,
+        "lyrics": 0,
+        "dynamics": 0,
+        "hairpins": 0,
+        "articulations": 2
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 2,
+      "text_over_notation": 0,
+      "text_over_text": 0,
+      "staff_space_mm": 1.8,
+      "lyric_font_mm": null,
+      "text_font_mm": 2.34,
+      "min_text_font_mm": 1.8,
+      "systems": 6
+    },
+    "verovio": {
+      "pages": 1,
+      "marks": {
+        "noteheads": 119,
+        "rests": 6,
+        "slurs": 33,
+        "ties": 2,
+        "lyrics": 0,
+        "dynamics": 0,
+        "hairpins": 0,
+        "articulations": 2
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 3,
+      "text_over_notation": 0,
+      "text_over_text": 0,
+      "staff_space_mm": 1.8,
+      "lyric_font_mm": null,
+      "text_font_mm": 4.05,
+      "min_text_font_mm": 3.03,
+      "systems": 4
+    },
+    "shortfalls": {
+      "acorde": {},
+      "verovio": {}
+    }
+  }
+]

@@ -1235,3 +1235,96 @@ fn five_staff_aloha_does_not_gain_pages_from_three_staff_clearance() {
         6
     );
 }
+
+#[test]
+fn five_staff_omr_without_lyrics_can_use_four_readable_a4_systems() {
+    let fixture = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/fixtures/openscore_omr_score_1036.mscz"
+    );
+    let import = acorde_io::parse_mscz_with_report(&std::fs::read(fixture).unwrap()).unwrap();
+    assert!(import.diagnostics.is_empty());
+    // The fixed Verovio comparison gives both engines this MusicXML conversion.
+    let xml = acorde_io::serialize_musicxml(&import.score).unwrap();
+    let score = acorde_io::parse_musicxml(&xml).unwrap();
+    let config = PrintConfig {
+        measures_per_system: 8,
+        system_break_strategy: PrintSystemBreakStrategy::NotationDensity,
+        ..PrintConfig::default()
+    };
+    let three_systems = PrintConfig {
+        systems_per_page: Some(3),
+        ..config.clone()
+    };
+    assert!(compute_print_layout(&score, &three_systems).is_ok());
+    let layout = compute_print_layout(&score, &config).unwrap();
+    let pages = render_print_page_svgs(&score, &layout).unwrap();
+    assert_eq!(pages.len(), 2);
+    assert_eq!(
+        layout
+            .pages
+            .iter()
+            .map(|page| page.systems.len())
+            .sum::<usize>(),
+        4
+    );
+    assert_eq!(
+        pages
+            .iter()
+            .map(|page| page.matches(r#"class="acorde-notehead""#).count())
+            .sum::<usize>(),
+        119
+    );
+    for page in &pages {
+        let staff_lines = page
+            .split(r#"class="acorde-staff-line""#)
+            .skip(1)
+            .take(5)
+            .map(|line| svg_attribute_f32(line, "y1"))
+            .collect::<Vec<_>>();
+        assert_eq!(staff_lines.len(), 5);
+        let space_mm = (staff_lines[1] - staff_lines[0]).abs() / 4.0;
+        assert!(space_mm >= 1.79, "five-staff space is {space_mm:.2} mm");
+    }
+}
+
+#[test]
+fn five_staff_lyrics_keep_conservative_density_with_eight_measure_cap() {
+    let fixture = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/fixtures/openscore_lieder_aloha_oe.mxl"
+    );
+    let score = acorde_io::parse_mxl(&std::fs::read(fixture).unwrap()).unwrap();
+    let config = PrintConfig {
+        measures_per_system: 8,
+        system_break_strategy: PrintSystemBreakStrategy::NotationDensity,
+        ..PrintConfig::default()
+    };
+    let layout = compute_print_layout(&score, &config).unwrap();
+    let pages = render_print_page_svgs(&score, &layout).unwrap();
+    assert!(pages.len() <= 3);
+    assert_eq!(
+        pages
+            .iter()
+            .map(|page| page.matches(r#"class="acorde-notehead""#).count())
+            .sum::<usize>(),
+        646
+    );
+    assert_eq!(
+        pages
+            .iter()
+            .map(|page| page.matches(r#"class="acorde-tie""#).count())
+            .sum::<usize>(),
+        2
+    );
+    assert_eq!(
+        pages
+            .iter()
+            .map(|page| {
+                page.matches(r#"class="acorde-lyric""#).count()
+                    + page.matches(r#"class="acorde-lyric-verse""#).count()
+            })
+            .sum::<usize>(),
+        146
+    );
+}

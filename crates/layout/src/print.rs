@@ -2930,6 +2930,21 @@ fn validate_print_config(config: &PrintConfig) -> Result<(f32, f32, f32), PrintL
     Ok((width_mm, height_mm, scaled_system_height_mm))
 }
 
+fn score_has_lyrics(score: &Score) -> bool {
+    score
+        .parts
+        .iter()
+        .flat_map(|part| &part.staves)
+        .flat_map(|staff| &staff.measures)
+        .any(|measure| {
+            measure
+                .voices
+                .iter()
+                .flatten()
+                .any(|note| note.lyric.is_some() || !note.additional_lyrics.is_empty())
+        })
+}
+
 /// Build rows from score-relative notation demand. The 90th percentile of the established
 /// four-measure systems sets a budget for this score; physical page width and
 /// staff size scale it.
@@ -2941,6 +2956,7 @@ fn print_density_rows(
     first_row_limit: Option<usize>,
     content_width_mm: f32,
     print_size_factor: f32,
+    dense_ensemble: bool,
 ) -> Vec<RowLayout> {
     if vis_slots.is_empty() {
         return vec![RowLayout {
@@ -2959,13 +2975,25 @@ fn print_density_rows(
         .collect::<Vec<_>>();
     baseline_costs.sort_unstable();
     let percentile_index = (baseline_costs.len() * 9 - 1) / 10;
-    let budget =
+    let four_measure_budget =
         ((baseline_costs[percentile_index] as f32 * content_width_mm / 182.0 / print_size_factor)
             .round()
             .max(3.0)) as usize;
-    // The first row spends part of the same physical width on clefs, key, and meter.
-    // Reserve 15% of its demand budget instead of packing it like later rows.
-    let first_row_budget = ((budget as f32 * 0.85).round().max(3.0)) as usize;
+    // The raised column cap permits a six-bar-equivalent budget for a large
+    // lyric-free ensemble. Reserve the four-bar baseline for the first row's
+    // clefs and part labels.
+    let budget = if dense_ensemble {
+        four_measure_budget.saturating_mul(3) / 2
+    } else {
+        four_measure_budget
+    };
+    // Ordinary first rows reserve 15% for clefs, key, and meter. A dense
+    // ensemble keeps the original four-bar budget for that first row.
+    let first_row_budget = if dense_ensemble {
+        four_measure_budget
+    } else {
+        ((budget as f32 * 0.85).round().max(3.0)) as usize
+    };
 
     let mut rows = Vec::new();
     let mut row = Vec::new();
@@ -3040,6 +3068,12 @@ pub fn compute_print_layout(
         .iter()
         .map(|part| part.staves.len())
         .sum::<usize>();
+    let dense_ensemble = staff_count >= 5
+        && config.measures_per_system > 4
+        && config.systems_per_page.is_none_or(|systems| systems <= 2)
+        && config.system_break_strategy == PrintSystemBreakStrategy::NotationDensity
+        && config.system_height_policy == SystemHeightPolicy::StaffAware
+        && !score_has_lyrics(&layout_score);
     // A two-staff grand staff needs enough physical height for readable notes.
     // The previous 40 mm reservation made dense piano systems fit four bars by
     // shrinking the staff; the density budget below tracks the notation portion
@@ -3062,11 +3096,16 @@ pub fn compute_print_layout(
     let staff_clearance_mm = if staff_count <= 1 {
         0.0
     } else {
-        // Three-staff voice/piano systems need a larger physical lane to keep
-        // notation readable when a page holds several systems. Apply it only
-        // there: using the same gap for larger ensembles adds pages without
-        // improving their horizontal system breaks.
-        let gap_mm = if staff_count == 3 { 24.0 } else { 16.0 };
+        // Three-staff voice/piano systems need a larger physical lane. Large
+        // lyric-free ensembles get it only when a raised column cap can pack
+        // fewer systems; otherwise the extra height can add pages.
+        let gap_mm = if staff_count == 3 {
+            24.0
+        } else if dense_ensemble {
+            21.0
+        } else {
+            16.0
+        };
         (24.0 + staff_count.saturating_sub(1) as f32 * gap_mm).max(if staff_count == 2 {
             TWO_STAFF_MIN_HEIGHT_MM
                 + if grand_staff_has_below_text {
@@ -3169,6 +3208,7 @@ pub fn compute_print_layout(
             } else {
                 1.0
             },
+            dense_ensemble,
         );
     }
 

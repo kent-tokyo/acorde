@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+- Opt-in notation-density print layout with a system cap above four can pack
+  lyric-free scores of five or more staves into fewer, larger systems. The
+  four-measure default and explicit three-systems-per-page requests retain
+  their previous behavior.
+
 ## 1.3.10 - 2026-11-06
 
 - **Rust source compatibility:** New public fields on `Measure`, `Note`, `ScoreFragmentMeasureAttributes`, `PrintConfig`, `StandardBassCandidate`, and the standard-bass arrangement options/results require updates to complete struct literals. `ScoreChange`, `ScorePatch`, `SvgGlyphSource`, and `PdfError` add variants that require updates to exhaustive matches. Serde defaults help read older score JSON; they do not preserve Rust source compatibility. Saved preset/layer engine markers must be reselected for 1.3.10. See the migration notes.
