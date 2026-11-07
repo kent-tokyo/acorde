@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- The independent MusicXML playback comparator now applies pedal release
+  caveats only near written pedal intervals and carries chord articulations to
+  every sounding member. Acorde playback output is unchanged.
 - MusicXML direction-level `<other-dynamics>` prose stays visible as expression
   text in SVG and print PDF. Its playback level is still unsupported and
   reported; MusicXML export writes the text as `<words>`.

@@ -4,7 +4,9 @@
 The oracle reads MusicXML duration, backup, forward, chord, tie, and silent cue
 elements directly. It rejects unsupported note forms and navigation instead
 of guessing their timing. Slurs, articulation, pedal and ambiguous equal-pitch
-overlaps are reported but excluded from the strict note-end metric.
+overlaps are reported but excluded from the strict note-end metric. Pedal
+caveats follow the written active interval, and chord-wide release markings
+apply to every sounding member of the chord.
 Requires the optional `mido` package for the external MIDI input.
 """
 
@@ -13,6 +15,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import xml.etree.ElementTree as ET
 import zipfile
 from collections import Counter, defaultdict
@@ -107,6 +110,7 @@ class SourceSpan:
     end: float
     pitch: int
     release_caveats: set[str]
+    part: int
 
 
 def source_spans(path: Path) -> list[SourceSpan]:
@@ -120,7 +124,7 @@ def source_spans(path: Path) -> list[SourceSpan]:
     parts = [part.findall("measure") for part in root.findall("part")]
     if not parts or len({len(measures) for measures in parts}) != 1:
         raise ValueError("parts must have the same physical measure count")
-    part_has_pedal = [part.find(".//pedal") is not None for part in root.findall("part")]
+    pedal_events: list[list[tuple[float, int, str, str]]] = [[] for _ in parts]
     divisions = [1] * len(parts)
     open_ties: dict[tuple[int, str, str, int], SourceSpan] = {}
     active_slurs: set[tuple[int, str, str, str]] = set()
@@ -133,6 +137,8 @@ def source_spans(path: Path) -> list[SourceSpan]:
             if measure.find(".//repeat") is not None or measure.find(".//transpose") is not None:
                 raise ValueError("navigation and transposition are outside this oracle")
             cursor = last_note_start = max_cursor = 0.0
+            chord_spans: list[SourceSpan] = []
+            chord_release_reasons: set[str] = set()
             for item in measure:
                 if item.tag == "attributes" and item.findtext("divisions"):
                     divisions[part_index] = int(item.findtext("divisions"))
@@ -144,6 +150,24 @@ def source_spans(path: Path) -> list[SourceSpan]:
                     if cursor < 0:
                         raise ValueError("backup before measure start")
                     max_cursor = max(max_cursor, cursor)
+                elif item.tag == "direction":
+                    pedals = item.findall("./direction-type/pedal")
+                    if not pedals:
+                        continue
+                    offset = float(item.findtext("offset") or 0) / divisions[part_index]
+                    if not math.isfinite(offset):
+                        raise ValueError("invalid pedal direction offset")
+                    for pedal in pedals:
+                        kind = pedal.attrib.get("type", "")
+                        if kind not in {
+                            "start", "stop", "change", "continue", "resume", "discontinue"
+                        }:
+                            raise ValueError(f"unsupported pedal type: {kind}")
+                        events = pedal_events[part_index]
+                        events.append((
+                            round(score_beat + cursor + offset, 6), len(events),
+                            kind, pedal.attrib.get("number", "1"),
+                        ))
                 elif item.tag == "note":
                     if item.find("grace") is not None:
                         raise ValueError("grace notes are outside this oracle")
@@ -153,6 +177,8 @@ def source_spans(path: Path) -> list[SourceSpan]:
                     chord = item.find("chord") is not None
                     if not chord:
                         last_note_start = cursor
+                        chord_spans = []
+                        chord_release_reasons = set()
                     pitch = item.find("pitch")
                     if pitch is not None and item.find("cue") is None:
                         alter = float(pitch.findtext("alter") or 0)
@@ -168,8 +194,6 @@ def source_spans(path: Path) -> list[SourceSpan]:
                             for mark in slurs
                         ]
                         reasons = set()
-                        if part_has_pedal[part_index]:
-                            reasons.add("pedal_in_part")
                         if slurs or any(
                             key[:3] == (part_index, voice, staff) for key in active_slurs
                         ):
@@ -207,13 +231,20 @@ def source_spans(path: Path) -> list[SourceSpan]:
                             span.end = end
                             span.release_caveats.update(reasons)
                         else:
-                            span = SourceSpan(start, end, midi, reasons)
+                            span = SourceSpan(start, end, midi, reasons, part_index)
                         if "start" in tie_types:
                             if tie_key in open_ties:
                                 raise ValueError(f"overlapping tie starts: {tie_key}")
                             open_ties[tie_key] = span
                         else:
                             spans.append(span)
+                        # MusicXML often writes a chord articulation only on
+                        # its first note; it affects every sounding member.
+                        chord_release_reasons.update(reasons)
+                        span.release_caveats.update(chord_release_reasons)
+                        for member in chord_spans:
+                            member.release_caveats.update(reasons)
+                        chord_spans.append(span)
                         for mark, key in zip(slurs, slur_keys):
                             if mark.attrib.get("type") == "stop":
                                 active_slurs.discard(key)
@@ -231,6 +262,40 @@ def source_spans(path: Path) -> list[SourceSpan]:
         score_beat += length
     if open_ties:
         raise ValueError(f"unterminated ties: {sorted(open_ties)}")
+    # The pedal can prolong a note-off only near its actual active interval.
+    # Directions can follow backup/forward, so resolve them by beat after all
+    # parts and measures have supplied their physical lengths.
+    pedal_intervals: list[list[tuple[float, float]]] = [[] for _ in parts]
+    uncertain_pedal: set[int] = set()
+    for part_index, events in enumerate(pedal_events):
+        active: dict[str, float] = {}
+        for beat, _, kind, number in sorted(events):
+            if kind in {"start", "resume"}:
+                if number in active:
+                    pedal_intervals[part_index].append((active[number], beat))
+                active[number] = beat
+            elif kind == "change":
+                if number in active:
+                    pedal_intervals[part_index].append((active[number], beat))
+                else:
+                    uncertain_pedal.add(part_index)
+                active[number] = beat
+            elif kind in {"stop", "discontinue"}:
+                if number in active:
+                    pedal_intervals[part_index].append((active.pop(number), beat))
+                else:
+                    uncertain_pedal.add(part_index)
+            elif kind == "continue" and number not in active:
+                uncertain_pedal.add(part_index)
+        pedal_intervals[part_index].extend((start, score_beat) for start in active.values())
+    for span in spans:
+        if span.part in uncertain_pedal:
+            span.release_caveats.add("pedal_ambiguous")
+        elif any(
+            start <= span.end and span.start <= end
+            for start, end in pedal_intervals[span.part]
+        ):
+            span.release_caveats.add("pedal_overlap")
     # The MIDI reader intentionally drops part/channel identity. A note-off
     # cannot be attributed uniquely when equal pitches overlap in the source.
     by_pitch: defaultdict[int, list[SourceSpan]] = defaultdict(list)

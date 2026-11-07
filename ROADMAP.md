@@ -98,7 +98,12 @@ checks source-derived note ends for the same scores. After excluding ambiguous
 same-pitch overlaps and expressive markings, Acorde matches 838/838 written
 ends, and alphaTab matches 597/623 onset-matched written ends; all 26
 differences are in the split-bar score. Expand the source
-oracle beyond these simple forms, then recheck note onset/release, tempo,
+oracle beyond these simple forms. The
+[local-pedal follow-up](docs/archive/playback-alpha19-local-pedal.md) narrows
+pedal release caveats to written active intervals and propagates chord-wide
+articulations: Acorde matches 824/824 strict written ends and alphaTab
+586/612 under the revised eligibility rule. These totals cannot be compared
+as a trend with the preceding rule. Next recheck note onset/release, tempo,
 repeats, pedal, ornaments and instrument changes on sparse diagnostic excerpts
 before using an audio onset detector on dense scores. Track import losses
 separately.
