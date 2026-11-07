@@ -64,6 +64,82 @@ class SourceSpanTests(unittest.TestCase):
             self.assertEqual(len(spans), 2)
             self.assertTrue(all("overlapping_same_pitch" in s.release_caveats for s in spans))
 
+    def test_pedal_caveat_applies_only_near_its_written_interval(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "score.mxl"
+            mxl(path, """
+                <measure><attributes><divisions>1</divisions></attributes>
+                  <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
+                  <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration></note>
+                </measure>
+                <measure>
+                  <note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration></note>
+                  <direction><direction-type><pedal type="start"/></direction-type></direction>
+                  <note><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration></note>
+                  <direction><direction-type><pedal type="stop"/></direction-type></direction>
+                  <note><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration></note>
+                </measure>
+                <measure>
+                  <note><pitch><step>A</step><octave>4</octave></pitch><duration>1</duration></note>
+                </measure>
+            """)
+            spans = source_spans(path)
+            self.assertEqual([(s.start, s.end) for s in spans],
+                             [(0.0, 1.0), (1.0, 2.0), (2.0, 3.0),
+                              (3.0, 4.0), (4.0, 5.0), (5.0, 6.0)])
+            self.assertEqual(["pedal_overlap" in s.release_caveats for s in spans],
+                             [False, False, True, True, True, False])
+
+    def test_pedal_after_backup_uses_its_own_score_beat(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "score.mxl"
+            mxl(path, """
+                <measure><attributes><divisions>1</divisions></attributes>
+                  <note><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration>
+                    <voice>1</voice></note>
+                  <backup><duration>2</duration></backup>
+                  <forward><duration>1</duration></forward>
+                  <direction><direction-type><pedal type="start"/></direction-type></direction>
+                  <note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration>
+                    <voice>2</voice></note>
+                  <direction><direction-type><pedal type="stop"/></direction-type></direction>
+                </measure>
+            """)
+            spans = source_spans(path)
+            self.assertEqual([(s.start, s.end) for s in spans], [(0.0, 2.0), (1.0, 2.0)])
+            self.assertTrue(all("pedal_overlap" in s.release_caveats for s in spans))
+
+    def test_articulation_on_one_chord_member_marks_the_whole_chord(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "score.mxl"
+            mxl(path, """
+                <measure><attributes><divisions>1</divisions></attributes>
+                  <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration>
+                    <notations><articulations><staccato/></articulations></notations></note>
+                  <note><chord/><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration></note>
+                  <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration></note>
+                  <note><chord/><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration>
+                    <notations><articulations><staccato/></articulations></notations></note>
+                  <note><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration></note>
+                </measure>
+            """)
+            spans = source_spans(path)
+            self.assertEqual(["articulations" in s.release_caveats for s in spans],
+                             [True, True, True, True, False])
+
+    def test_orphan_pedal_stop_keeps_release_comparison_conservative(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "score.mxl"
+            mxl(path, """
+                <measure><attributes><divisions>1</divisions></attributes>
+                  <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
+                  <direction><direction-type><pedal type="stop"/></direction-type></direction>
+                  <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration></note>
+                </measure>
+            """)
+            self.assertTrue(all("pedal_ambiguous" in s.release_caveats
+                                for s in source_spans(path)))
+
 
 if __name__ == "__main__":
     unittest.main()
