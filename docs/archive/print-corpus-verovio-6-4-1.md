@@ -77,6 +77,17 @@ A visual spot check of *Freilachs* page 1 found Acorde's seven systems spread
 over the page with smaller staves, while Verovio's four systems occupy its upper
 portion. This is one unblinded screen review, not a print-size preference score.
 
+### Density-limit probe
+
+The print example uses four measures per system as an upper bound in density
+mode. Repeating four of the scores with that bound raised to eight changed only
+*Freilachs* from seven to six Acorde systems (staff space 1.67 to 1.70 mm).
+*Just for Today* stayed at 11 systems, Webern at five, and OMR 1016 at seven;
+their page counts, staff sizes and text-overlap candidates were unchanged.
+Thus the four-measure cap alone does not explain the measured gap. The next
+layout experiment should examine density budgets and actual horizontal
+clearance before raising the cap as a default.
+
 ## Next gate
 
 Raise the smallest staff and text sizes without introducing confirmed
