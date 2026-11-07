@@ -3108,6 +3108,42 @@ pub(crate) fn parse_musicxml_collecting(
                                     target_staff_index,
                                     note_voice,
                                 )?;
+                                // Some MuseScore exports place a full-measure rest after notes
+                                // in the same numbered voice, then back up over that rest and
+                                // continue the notes. Keep both timelines in separate model
+                                // voices instead of rejecting or dropping the rest.
+                                let detached_measure_rest = note_is_measure_rest
+                                    && !note_chord
+                                    && !m.voices[voice_index].is_empty();
+                                if detached_measure_rest {
+                                    let slot = (0..m.voices.len()).find(|slot| {
+                                        m.voices[*slot].is_empty()
+                                            && !source_voice_slots.iter().any(
+                                                |(&(staff, _), &mapped)| {
+                                                    staff == target_staff_index && mapped == *slot
+                                                },
+                                            )
+                                    });
+                                    let slot = slot.ok_or_else(|| {
+                                        Error::Xml(format!(
+                                            "MusicXML overlaid measure rest needs another voice in measure {}",
+                                            current_measure_number
+                                        ))
+                                    })?;
+                                    let synthetic_number = 1_000_000 - slot as u32;
+                                    m.source_voice_numbers[slot] = Some(synthetic_number);
+                                    source_voice_slots
+                                        .insert((target_staff_index, synthetic_number), slot);
+                                    voice_index = slot;
+                                    let mut diagnostic = crate::Diagnostic::warning(
+                                        "musicxml.recovered-overlaid-measure-rest",
+                                        "a measure rest overlapping notes of its numbered voice was moved to a separate voice",
+                                    );
+                                    diagnostic.source_location = Some(format!(
+                                        "/score-partwise/measure[{current_measure_number}]/note"
+                                    ));
+                                    tolerated.push(diagnostic);
+                                }
                                 if !note_is_grace
                                     && !note_chord
                                     && !pending_figured_groups.is_empty()
@@ -3180,18 +3216,40 @@ pub(crate) fn parse_musicxml_collecting(
                                     )));
                                 }
                                 let voice = &mut m.voices[voice_index];
+                                let mut model_note_start =
+                                    if detached_measure_rest { 0 } else { note_start };
                                 if !note_chord {
                                     let voice_cursor = *voice_cursor_ticks
                                         .get(&(target_staff_index, voice_index))
                                         .unwrap_or(&0);
-                                    if voice_cursor > note_start {
-                                        return Err(Error::Xml(
-                                            "MusicXML voice cursor moves backward".into(),
-                                        ));
+                                    if voice_cursor > model_note_start {
+                                        let overlap = voice_cursor - model_note_start;
+                                        if current_divisions >= 1000
+                                            && overlap <= current_divisions / 1000
+                                        {
+                                            model_note_start = voice_cursor;
+                                            let mut diagnostic = crate::Diagnostic::warning(
+                                                "musicxml.rounded-voice-cursor",
+                                                "a sub-millibeat overlap from exported divisions was aligned with the preceding note",
+                                            );
+                                            diagnostic.source_location = Some(format!(
+                                                "/score-partwise/measure[{current_measure_number}]/note"
+                                            ));
+                                            tolerated.push(diagnostic);
+                                        } else {
+                                            return Err(Error::Xml(format!(
+                                                "MusicXML voice cursor moves backward in measure {} voice {} ({} > {}, divisions {})",
+                                                current_measure_number,
+                                                note_voice,
+                                                voice_cursor,
+                                                model_note_start,
+                                                current_divisions,
+                                            )));
+                                        }
                                     }
                                     append_gap_rests(
                                         voice,
-                                        note_start - voice_cursor,
+                                        model_note_start - voice_cursor,
                                         current_divisions,
                                     )?;
                                 }
@@ -3450,6 +3508,10 @@ pub(crate) fn parse_musicxml_collecting(
                                     // A zero-time cue note leaves the model voice where it was, so
                                     // the next note in this voice is placed after a gap rest at
                                     // its real time instead of drifting earlier.
+                                    let model_next_cursor =
+                                        model_note_start.checked_add(duration_ticks).ok_or_else(
+                                            || Error::Xml("MusicXML voice cursor overflow".into()),
+                                        )?;
                                     voice_cursor_ticks.insert(
                                         (target_staff_index, voice_index),
                                         if note_is_cue && !note_chord {
@@ -3460,11 +3522,18 @@ pub(crate) fn parse_musicxml_collecting(
                                                 .copied()
                                                 .unwrap_or(note_start)
                                         } else {
-                                            next_cursor
+                                            model_next_cursor
                                         },
                                     );
                                     measure_cursor_ticks = next_cursor;
-                                    measure_content_ticks = measure_content_ticks.max(next_cursor);
+                                    measure_content_ticks =
+                                        measure_content_ticks.max(if detached_measure_rest {
+                                            duration_ticks
+                                        } else if note_is_cue {
+                                            next_cursor
+                                        } else {
+                                            model_next_cursor
+                                        });
                                     last_note_start =
                                         Some((target_staff_index, voice_index, note_start));
                                     last_note_cross_home = cross_home;

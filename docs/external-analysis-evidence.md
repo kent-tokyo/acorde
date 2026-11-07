@@ -65,7 +65,7 @@ equal to music21 on this development corpus. This is not an independent
 holdout result; parser coverage and other analysis categories remain separate
 gates.
 
-The [Mozart sonata holdout](archive/analysis-mozart-key-holdout.md) fixes 53
+The [Mozart sonata observation](archive/analysis-mozart-key-holdout.md) fixed 53
 previously unseen annotated movements before scoring. MuseScore 4.7.5 produced
 52 valid common MusicXML inputs; one movement failed to export. After
 analyst-provided harmony labels were removed, music21 selected 51 annotated
@@ -73,13 +73,15 @@ keys and Acorde's opt-in ranking selected 50, both over the original 53-score
 denominator. The 52 paired parses had equal pitched-event counts and unordered
 pitch/duration bags. Exporter instability and the narrow global-key task keep
 this a provisional, task-specific result rather than overall analysis parity.
+Its K331-2 result later informed the full-candidate method, so this corpus is
+now development evidence for that method.
 
 The [integrated BCMH rerun](archive/analysis-bcmh-integrated-profile.md) combines
 the Humdrum field recovery with opt-in tonal-profile ranking. Both tools parse
 98/100 scores; all 98 paired parses have matching note/chord counts and
 unordered pitch/duration event bags. On the 89 scores with explicit key labels,
 Acorde and music21 each select 83 labels. This remains the ranking rule's
-development corpus and does not change the Mozart holdout result.
+development corpus.
 
 The [part and measure audit](archive/analysis-bcmh-structure-audit.md) adds
 onset and rest positions to that same corpus. Among 98 paired successful
@@ -87,3 +89,15 @@ parses, 97 agree on pitched events by part, measure and onset; 97 agree on
 visible-rest positions. One malformed barline yields different measure
 boundaries, and 16 further scores differ only when hidden rests are included.
 This still leaves absolute measure positions, voices, spelling and ties to audit.
+
+The [Beethoven sonata v2.3 holdout](archive/analysis-beethoven-key-holdout.md)
+tests a separate opt-in Aarden-Essen profile against music21 10.5.2 on 64
+annotated movements. Both tools parse all 64 common MusicXML inputs; Acorde
+selects 57 annotated global keys and music21 selects 56. The one disagreement
+is D-flat versus C-sharp major, so this is a spelling-sensitive result, not
+proof of better tonal-class recognition. Acorde exposes this ranking through
+the Rust `estimate_keys_with_aarden_essen_profile` function, CLI
+`analyze --aarden-essen-keys`, and WASM
+`estimate_keys_with_aarden_essen_profile`. Default analysis results remain
+unchanged. The corpus and comparator do not establish harmony, cadence or
+voice-leading parity.

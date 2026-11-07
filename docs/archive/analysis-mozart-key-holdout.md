@@ -1,5 +1,10 @@
 # Mozart sonata global-key holdout against music21 10.5.2 (2026-11-07)
 
+This was an untouched holdout for PR #403. Its K331-2 result was later
+inspected to design the full-candidate Aarden-Essen route, so this corpus is
+now development evidence for that route. The figures below remain the
+historical PR #403 measurements, not a fresh holdout result.
+
 This is an **untuned holdout observation** of the opt-in tonal-profile ranking in
 [PR #403](https://github.com/kent-tokyo/acorde/pull/403). The ranking was developed
 on Bach chorales; it was not changed after inspecting these Mozart results.
