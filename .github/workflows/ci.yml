@@ -281,7 +281,9 @@ jobs:
           # Exact-time lined pedal import, playback and MusicXML roundtrip
           # measured 7,082,331 bytes on macOS, up 19,666 from the same-base
           # 7,062,665-byte build. Keep a narrow Linux gate for this feature.
-          test "$size" -le 7140000
+          # PR #419's opt-in full-key WASM API and MusicXML recovery measured
+          # 7,145,681 bytes on Linux CI. Retain about 7.3 KB of headroom.
+          test "$size" -le 7153000
 
   renderer-benchmark:
     name: Renderer performance budget
