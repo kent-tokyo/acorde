@@ -7,7 +7,8 @@ Usage:
 
 Needs Verovio 6.3.0 on PATH or VEROVIO_NPM_PREFIX with verovio@6.4.1,
 plus Google Chrome at the macOS default path. Set CARGO_TARGET_DIR when the
-release binaries are outside the checkout.
+release binaries are outside the checkout. ACORDE_BINARY and PRINT_MXL_BINARY
+can select existing binaries from another build profile for geometry checks.
 
 Each SOURCE is a licensed fixture. MuseScore sources are first converted by
 `acorde convert` so both renderers read one shared MusicXML file. Acorde uses
@@ -46,8 +47,8 @@ import zipfile
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 TARGET = pathlib.Path(os.environ.get("CARGO_TARGET_DIR", ROOT / "target"))
-ACORDE = TARGET / "release/acorde"
-PRINT_MXL = TARGET / "release/examples/print_mxl"
+ACORDE = pathlib.Path(os.environ.get("ACORDE_BINARY", TARGET / "release/acorde"))
+PRINT_MXL = pathlib.Path(os.environ.get("PRINT_MXL_BINARY", TARGET / "release/examples/print_mxl"))
 FONT = ROOT / "crates/pdf/tests/fixtures/Tuffy.ttf"
 CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 VEROVIO = ["verovio", "--page-width", "2100", "--page-height", "2970",
@@ -94,15 +95,22 @@ for (const svg of document.querySelectorAll('body > div > svg')) {
     else if (b.x0 < 14 - 0.5 || b.x1 > W - 14 + 0.5 || b.y0 < 16 - 0.5 || b.y1 > H - 16 + 0.5) pastMargin++;
   }
   const texts = [...svg.querySelectorAll('text')].filter(t => t.textContent.trim() && !t.closest('defs'))
-    .map(t => ({b: box(t), lyric: !!t.closest(SEL.lyrics),
+    .map(t => ({b: box(t), label: t.textContent.trim(), className: t.getAttribute('class') || '',
+                lyric: !!t.closest(SEL.lyrics),
                 font: Math.max(...[t, ...t.querySelectorAll('tspan')].map(e =>
                   parseFloat(getComputedStyle(e).fontSize) * e.getScreenCTM().d * mm))})).filter(t => real(t.b));
-  const marks = [...svg.querySelectorAll(SEL.notation)].map(box).filter(real);
+  const marks = [...svg.querySelectorAll(SEL.notation)]
+    .map(el => ({b: box(el), className: el.getAttribute('class') || ''})).filter(m => real(m.b));
   const area = (a, b) => Math.max(0, Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0)) *
                          Math.max(0, Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0));
   let textMark = 0, textText = 0;
+  const textMarkCandidates = [];
   for (let i = 0; i < texts.length; i++) {
-    for (const m of marks) if (area(texts[i].b, m) > 0.5) textMark++;
+    for (const m of marks) if (area(texts[i].b, m.b) > 0.5) {
+      textMark++;
+      textMarkCandidates.push({text: texts[i].label, textClass: texts[i].className,
+        markClass: m.className, overlap_mm2: area(texts[i].b, m.b), textBox: texts[i].b, markBox: m.b});
+    }
     for (let j = i + 1; j < texts.length; j++) if (area(texts[i].b, texts[j].b) > 0.5) textText++;
   }
   const spaces = [];
@@ -114,6 +122,7 @@ for (const svg of document.querySelectorAll('body > div > svg')) {
   const med = a => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
   out.pages.push({counts, past_page_edge: pastEdge, past_margins: pastMargin,
     text_over_notation: textMark, text_over_text: textText,
+    text_notation_candidates: textMarkCandidates,
     systems: SEL.system ? svg.querySelectorAll(SEL.system).length : null,
     staff_space_mm: med(spaces), lyric_font_mm: med(texts.filter(t => t.lyric).map(t => t.font)),
     text_font_mm: med(texts.map(t => t.font)), min_text_font_mm: texts.length ? Math.min(...texts.map(t => t.font)) : null});
@@ -177,6 +186,9 @@ def measure(svgs, selectors, html_path):
         "elements_past_margins": summed("past_margins"),
         "text_over_notation": summed("text_over_notation"),
         "text_over_text": summed("text_over_text"),
+        "text_notation_candidates": [dict(page=index + 1, **candidate)
+                                     for index, page in enumerate(pages)
+                                     for candidate in page["text_notation_candidates"]],
         "staff_space_mm": round(statistics.median(values("staff_space_mm")), 2) if values("staff_space_mm") else None,
         "lyric_font_mm": round(statistics.median(values("lyric_font_mm")), 2) if values("lyric_font_mm") else None,
         "text_font_mm": round(statistics.median(values("text_font_mm")), 2) if values("text_font_mm") else None,

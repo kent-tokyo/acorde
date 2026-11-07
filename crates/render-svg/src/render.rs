@@ -33,13 +33,15 @@ use crate::{spans, tab_technique};
 
 /// Vertical distance between lyric verse lines, in staff spaces.
 pub(crate) const LYRIC_VERSE_SPACING: f32 = 2.4;
-// Keep printed lyrics near the staff-space height and reserve the same width that is drawn.
 pub(crate) const LYRIC_FONT_SIZE_U: f32 = 1.6;
+/// Print-only lyric size, while screen SVGs retain the existing font size.
+pub(crate) const PRINT_LYRIC_FONT_SIZE_U: f32 = 1.9;
 /// Font size of directions, chord symbols and other annotation text, in staff spaces.
 pub(crate) const ANNOTATION_FONT_SIZE_U: f32 = 1.0;
 /// Estimated advance of one annotation-text character, in staff spaces.
 pub(crate) const ANNOTATION_CHAR_WIDTH_U: f32 = 0.58;
 const LYRIC_CHAR_WIDTH_U: f32 = 0.91;
+pub(crate) const PRINT_LYRIC_CHAR_WIDTH_U: f32 = 1.08;
 const LYRIC_WIDTH_PADDING_U: f32 = 1.0;
 const LEFT_MARGIN_U: f32 = 1.0;
 const RIGHT_MARGIN_U: f32 = 1.0;
@@ -271,7 +273,7 @@ pub(crate) fn required_lyric_staff_gaps(score: &Score, base: f32) -> Vec<f32> {
                         .max();
                     let Some(verse) = verse else { continue };
                     let baseline =
-                        (1.8_f32).max(-(low as f32) * 0.5 + 0.5 + 0.6) + LYRIC_FONT_SIZE_U;
+                        (1.8_f32).max(-(low as f32) * 0.5 + 0.5 + 0.6) + PRINT_LYRIC_FONT_SIZE_U;
                     let bottom =
                         baseline + LYRIC_VERSE_SPACING * f32::from(verse.saturating_sub(1)) + 0.5;
                     lyric_bottom = Some(lyric_bottom.map_or(bottom, |value| value.max(bottom)));
@@ -280,7 +282,17 @@ pub(crate) fn required_lyric_staff_gaps(score: &Score, base: f32) -> Vec<f32> {
                     continue;
                 };
                 let lower_top = measure_note_positions(lower, index)
-                    .map(|(_, _, high)| high as f32 * 0.5 - 4.0 + 0.5)
+                    .map(|(note, _, high)| {
+                        // An accidental can rise above the notehead into the lyric lane.
+                        let accidental_clearance = note.pitches.iter().enumerate().any(|(i, p)| {
+                            p.alter != 0
+                                || note.accidental_display(i)
+                                    != acorde_core::AccidentalDisplay::Auto
+                        });
+                        high as f32 * 0.5 - 4.0
+                            + 0.5
+                            + if accidental_clearance { 0.75 } else { 0.0 }
+                    })
                     .fold(0.0_f32, f32::max);
                 required = required.max(lyric_bottom + 0.4 + lower_top);
             }
@@ -1054,6 +1066,16 @@ pub(crate) fn build_svg_with_metadata_placement(
                         clef_lead_u + inline_meter_widths_u[col] + inline_key_widths_u[col],
                         &cross_frames,
                         space,
+                        if print_placement.is_some() {
+                            PRINT_LYRIC_FONT_SIZE_U
+                        } else {
+                            LYRIC_FONT_SIZE_U
+                        },
+                        if print_placement.is_some() {
+                            PRINT_LYRIC_CHAR_WIDTH_U
+                        } else {
+                            LYRIC_CHAR_WIDTH_U
+                        },
                         options.interactive,
                         &mandatory,
                         &courtesy,
@@ -1315,6 +1337,11 @@ pub(crate) fn build_svg_with_metadata_placement(
         &note_points,
         &resolved_annotation_obstacles,
         space,
+        if print_placement.is_some() {
+            PRINT_LYRIC_CHAR_WIDTH_U
+        } else {
+            LYRIC_CHAR_WIDTH_U
+        },
     );
     render_cross_measure_tab_technique_connections(
         &mut body,
@@ -4086,6 +4113,8 @@ fn render_measure(
     clef_lead_u: f32,
     cross_frames: &HashMap<usize, (i32, f32)>,
     space: f32,
+    lyric_font_size_u: f32,
+    lyric_char_width_u: f32,
     interactive: bool,
     mandatory: &HashMap<AccKey, i8>,
     courtesy: &HashMap<AccKey, i8>,
@@ -4361,6 +4390,8 @@ fn render_measure(
         measure_idx,
         note_points,
         space,
+        lyric_font_size_u,
+        lyric_char_width_u,
         annotations::Kinds::ALL,
         annotations::StaffBand {
             top_y: bottom_y
@@ -5637,6 +5668,7 @@ fn render_lyric_extenders(
     points: &HashMap<NoteKey, NotePoint>,
     placements: &[acorde_layout::GlyphPlacement],
     space: f32,
+    lyric_char_width_u: f32,
 ) {
     let lyric_ys: HashMap<&str, f32> = placements
         .iter()
@@ -5705,7 +5737,10 @@ fn render_lyric_extenders(
                         }
                         let end_x =
                             end.map_or(start_x, |(_, _, x)| x) + glyphs::NOTEHEAD_RX_U * space;
-                        let x1 = start_x + lyric_width_u(&lyric.text) * 0.5 * space;
+                        let x1 = start_x
+                            + lyric_width_with_char_width_u(&lyric.text, lyric_char_width_u)
+                                * 0.5
+                                * space;
                         if !x1.is_finite() || !end_x.is_finite() || end_x - x1 < 0.5 * space {
                             continue;
                         }
@@ -10458,9 +10493,32 @@ pub(crate) fn write_annotation_text(
     space: f32,
     italic: bool,
 ) {
+    write_annotation_text_with_lyric_size(
+        body,
+        class,
+        value,
+        x,
+        y,
+        space,
+        italic,
+        LYRIC_FONT_SIZE_U,
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn write_annotation_text_with_lyric_size(
+    body: &mut String,
+    class: &str,
+    value: &str,
+    x: f32,
+    y: f32,
+    space: f32,
+    italic: bool,
+    lyric_font_size_u: f32,
+) {
     let style = if italic { " font-style=\"italic\"" } else { "" };
     let font_size = if class.starts_with("acorde-lyric") {
-        LYRIC_FONT_SIZE_U
+        lyric_font_size_u
     } else {
         ANNOTATION_FONT_SIZE_U
     };
@@ -10492,7 +10550,9 @@ fn print_lyric_demand_u(score: &Score, measure: usize) -> f32 {
                     note.lyric
                         .iter()
                         .chain(note.additional_lyrics.iter().map(|entry| &entry.lyric))
-                        .map(|lyric| lyric_width_u(&lyric.text))
+                        .map(|lyric| {
+                            lyric_width_with_char_width_u(&lyric.text, PRINT_LYRIC_CHAR_WIDTH_U)
+                        })
                         .reduce(f32::max)
                 })
                 .sum::<f32>()
@@ -10502,13 +10562,17 @@ fn print_lyric_demand_u(score: &Score, measure: usize) -> f32 {
 }
 
 pub(crate) fn lyric_width_u(text: &str) -> f32 {
-    text.chars().count() as f32 * LYRIC_CHAR_WIDTH_U + LYRIC_WIDTH_PADDING_U
+    lyric_width_with_char_width_u(text, LYRIC_CHAR_WIDTH_U)
 }
 
-/// A print lyric's collision box: the glyphs plus a small gap. It is narrower than the spacing
-/// width, so syllables spaced apart by `lyric_width_u` never collide and stay on their verse line.
-pub(crate) fn lyric_collision_width_u(text: &str) -> f32 {
-    text.chars().count() as f32 * LYRIC_CHAR_WIDTH_U + 0.4
+pub(crate) fn lyric_width_with_char_width_u(text: &str, char_width_u: f32) -> f32 {
+    text.chars().count() as f32 * char_width_u + LYRIC_WIDTH_PADDING_U
+}
+
+/// A lyric collision box: the glyphs plus a small gap. It is narrower than the
+/// spacing width so syllables spaced apart by the width estimate stay on one line.
+pub(crate) fn lyric_collision_width_with_char_width_u(text: &str, char_width_u: f32) -> f32 {
+    text.chars().count() as f32 * char_width_u + 0.4
 }
 
 /// Emit an exact, browser-addressable microtone marker while retaining the readable fallback
@@ -12053,5 +12117,9 @@ mod piano_brace_tests {
         let gaps = super::required_lyric_staff_gaps(&score, 6.0);
         assert!(gaps[0] > 8.0);
         assert_eq!(gaps[1], 6.0);
+        score.parts[0].staves[1].measures[0].voices[0][0].pitches[0].alter = -1;
+        let altered_gaps = super::required_lyric_staff_gaps(&score, 6.0);
+        assert!(altered_gaps[0] >= gaps[0] + 0.7);
+        assert_eq!(altered_gaps[1], 6.0);
     }
 }

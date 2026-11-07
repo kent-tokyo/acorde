@@ -8,7 +8,9 @@ use acorde_layout::{GlyphCollisionClass, GlyphCollisionDirection, GlyphMetrics, 
 use crate::RenderError;
 use crate::SVG_ANNOTATION_COLLISION_GAP_PX;
 use crate::collision::CollisionOwner;
-use crate::render::{NoteKey, NotePoint, render_articulation, write_annotation_text};
+use crate::render::{
+    NoteKey, NotePoint, render_articulation, write_annotation_text_with_lyric_size,
+};
 
 #[derive(Clone, Copy)]
 pub(crate) struct Kinds {
@@ -73,6 +75,8 @@ pub(crate) fn render_measure_semantic_annotations(
     measure_idx: usize,
     note_points: &HashMap<NoteKey, NotePoint>,
     space: f32,
+    lyric_font_size_u: f32,
+    lyric_char_width_u: f32,
     kinds: Kinds,
     band: StaffBand,
 ) -> Result<Vec<GlyphPlacement>, RenderError> {
@@ -176,8 +180,8 @@ pub(crate) fn render_measure_semantic_annotations(
             // reaches below it), with dynamics under a lyric line moved above the staff.
             // The baseline leaves 1.8 spaces under the staff and 0.6 under the lowest note above
             // the lyric's cap height.
-            let lyric_baseline = (band.bottom_y + (1.8 + crate::render::LYRIC_FONT_SIZE_U) * space)
-                .max(note_bottom + (0.6 + crate::render::LYRIC_FONT_SIZE_U) * space);
+            let lyric_baseline = (band.bottom_y + (1.8 + lyric_font_size_u) * space)
+                .max(note_bottom + (0.6 + lyric_font_size_u) * space);
             if kinds.lyrics
                 && let Some(lyric) = &note.lyric
             {
@@ -188,7 +192,10 @@ pub(crate) fn render_measure_semantic_annotations(
                     x,
                     italic: false,
                 });
-                let width = crate::render::lyric_collision_width_u(&text) * space;
+                let width = crate::render::lyric_collision_width_with_char_width_u(
+                    &text,
+                    lyric_char_width_u,
+                ) * space;
                 owner.push(
                     GlyphPlacement {
                         resource_key: format!(
@@ -197,9 +204,9 @@ pub(crate) fn render_measure_semantic_annotations(
                         metrics: GlyphMetrics {
                             advance_mm: 0.0,
                             left_mm: -width / 2.0,
-                            top_mm: -crate::render::LYRIC_FONT_SIZE_U * space,
+                            top_mm: -lyric_font_size_u * space,
                             width_mm: width,
-                            height_mm: 1.25 * crate::render::LYRIC_FONT_SIZE_U * space,
+                            height_mm: 1.25 * lyric_font_size_u * space,
                         },
                         x_mm: x,
                         y_mm: lyric_baseline,
@@ -220,7 +227,10 @@ pub(crate) fn render_measure_semantic_annotations(
                         x,
                         italic: false,
                     });
-                    let width = crate::render::lyric_collision_width_u(&text) * space;
+                    let width = crate::render::lyric_collision_width_with_char_width_u(
+                        &text,
+                        lyric_char_width_u,
+                    ) * space;
                     let verse_offset =
                         crate::render::LYRIC_VERSE_SPACING * f32::from(entry.verse - 1);
                     owner.push(
@@ -232,9 +242,9 @@ pub(crate) fn render_measure_semantic_annotations(
                             metrics: GlyphMetrics {
                                 advance_mm: 0.0,
                                 left_mm: -width / 2.0,
-                                top_mm: -crate::render::LYRIC_FONT_SIZE_U * space,
+                                top_mm: -lyric_font_size_u * space,
                                 width_mm: width,
-                                height_mm: 1.25 * crate::render::LYRIC_FONT_SIZE_U * space,
+                                height_mm: 1.25 * lyric_font_size_u * space,
                             },
                             x_mm: x,
                             y_mm: lyric_baseline + verse_offset * space,
@@ -324,9 +334,16 @@ pub(crate) fn render_measure_semantic_annotations(
                     .flatten();
                 match drawn {
                     Some(svg) => body.push_str(&svg),
-                    None => {
-                        write_annotation_text(body, class, &text, x, placement.y_mm, space, italic)
-                    }
+                    None => write_annotation_text_with_lyric_size(
+                        body,
+                        class,
+                        &text,
+                        x,
+                        placement.y_mm,
+                        space,
+                        italic,
+                        lyric_font_size_u,
+                    ),
                 }
             }
             SemanticAnnotation::Articulation {
