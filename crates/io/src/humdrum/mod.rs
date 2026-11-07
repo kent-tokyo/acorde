@@ -421,7 +421,9 @@ fn close_measures(parts: &mut [KernPart], right: Barline, left: Barline) {
         .fold(0.0_f64, f64::max);
     for part in parts {
         let mut measure = std::mem::replace(&mut part.current, blank_measure());
-        finish_text_measure(&mut measure, length, Some(part.meter.total_beats()));
+        // A missing trailing event is silence, not an authored rest. Keep the
+        // shared bar length without inventing hidden rests in active voices.
+        finish_text_measure(&mut measure, length, Some(part.meter.total_beats()), false);
         measure.barline_right = right.clone();
         measure.number = u32::try_from(part.measures.len() + 1).unwrap_or(u32::MAX);
         if part.measures.is_empty() {
@@ -1043,8 +1045,28 @@ mod tests {
         assert_eq!(second_voice[1].pitches[0].step, Step::G);
         let bar2_voice2 = notes(score, 0, 1, 1);
         assert_eq!(bar2_voice2[0].pitches[0].step, Step::F);
-        assert!(bar2_voice2[1].hidden, "joined voice is padded");
+        assert_eq!(
+            bar2_voice2.len(),
+            1,
+            "trailing silence is not an authored rest"
+        );
         assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
+    }
+
+    #[test]
+    fn underfull_part_does_not_gain_an_unwritten_rest() {
+        let kern = "**kern\t**kern\n*M4/4\t*M4/4\n8C\t4c\n4D\t4d\n4E\t4e\n4F\t4f\n=1\t=1\n4G\t4g\n==\t==\n";
+        let score = parse_kern(kern).expect("kern parses");
+        let bass = &score.parts[1].staves[0].measures;
+        assert_eq!(bass[0].voices[0].len(), 4);
+        assert!(bass[0].voices[0].iter().all(|note| !note.is_rest));
+        assert!((voice_beats(&bass[0].voices[0]) - 3.5).abs() < 1e-9);
+        assert_eq!(bass[0].actual_length, None);
+        assert_eq!(bass[1].voices[0][0].pitches[0].step, Step::G);
+        assert_eq!(
+            bass[1].actual_length.and_then(|length| length.beats()),
+            Some(1.0)
+        );
     }
 
     #[test]
