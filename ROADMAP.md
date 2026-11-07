@@ -75,10 +75,14 @@ First land [PR #405](https://github.com/kent-tokyo/acorde/pull/405), which
 raises paired parse and note/chord event-count agreement to 98/100 and 98/98
 respectively on this development corpus. Unordered pitch/duration event bags
 also match on 98/98; audit order, part/staff/voice/measure placement, rests,
-spelling and ties before treating this as semantic equality. Freeze a different
-labeled key corpus before further tuning, and compare a single selected key
-per score with parse coverage shown.
-Next add independently annotated harmony, cadence and voice-leading fixtures;
+spelling and ties before treating this as semantic equality. The separately
+frozen [Mozart sonata holdout in PR #406](https://github.com/kent-tokyo/acorde/pull/406)
+records 53 primary movements and 52 common
+MusicXML inputs, 50 annotated keys selected by Acorde's ranked first choice
+versus 51 by music21. MuseScore failed to export K533-3, so first reproduce the
+full corpus with a stable converter and inspect the Acorde-only K331-2 error
+without tuning on this holdout. Then add independently annotated harmony,
+cadence and voice-leading fixtures;
 report precision, recall and error cases per task against music21 under the
 same input notes. Task-scoped parity requires Acorde to match or exceed
 music21 on each frozen holdout metric without lower parse coverage. A global
