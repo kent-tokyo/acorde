@@ -26,6 +26,34 @@ settings. Keep import losses separate from each engine's layout, scheduling or
 analysis errors. Save per-score results and commands. An improvement on the
 development corpus needs a separate, frozen holdout before a general parity claim.
 
+### Execution order and release gates
+
+1. Freeze the input hashes, competitor tags, A4/audio settings, annotations and
+   per-score reports. Add untouched piano/chamber, expressive-playback and
+   analysis holdouts before changing algorithms. Check parsed score semantics
+   first, so an import loss is not counted as an engraving, playback or
+   analysis error.
+2. Fix print readability and missing marks on the ten-score corpus, then run
+   the blind A/B print review and the piano/chamber holdout. The print gate is
+   no confirmed clipping or unexplained missing marks, no systematic Verovio
+   preference, and measured staff/text sizes and collisions reported per score.
+3. Expand the independent written-event oracle to releases, repeats, pedal,
+   ornaments, tempo and instrument changes. Repair source-event differences
+   before comparing level-matched complete audio. The playback gate is no
+   missing or wrongly timed source events, no clipped/truncated/stuck output,
+   and no systematic alphaTab preference in the blinded listening review and
+   expressive holdout.
+4. Audit imported musical order, voice placement, spelling, rests and ties;
+   then improve global key, harmony, cadence and voice-leading as separate
+   tasks. The analysis gate is at least music21's result on each task's frozen
+   labeled holdout with no lower parse coverage. Keep development-corpus
+   scores separate from holdout results.
+
+Track each failure as a small reproducible score and an issue linked to its
+per-score report. If a holdout is inspected to design a fix, treat it as
+development data and freeze a new untouched holdout for the final gate. The
+three gates are independent; an average score cannot substitute for any one.
+
 ### 1. Engraving and print: Verovio 6.4.1
 
 The [ten-score 6.3.0 corpus](docs/archive/print-corpus-verovio.md) and
@@ -81,8 +109,12 @@ Acorde's legacy first candidate selected 46.
 the opt-in tonal-profile ranking and Humdrum field recovery. Both tools parse
 98/100, and all 98 paired imports have equal note/chord counts and unordered
 pitch/duration event bags. On 89 explicitly labeled scores, each tool selects
-83 correct keys. Audit order, part/staff/voice/measure placement, rests,
-spelling and ties before treating those event bags as semantic equality. This
+83 correct keys. A [part/measure audit](docs/archive/analysis-bcmh-structure-audit.md)
+finds 97/98 paired scores with matching pitched onsets within the same part
+and measure; the remaining score has a malformed barline. Visible-rest positions
+also agree for 97/98, but only 81/98 agree when hidden rests are included.
+Audit absolute measure positions, voice placement, spelling and ties before
+treating the event bags as semantic equality. This
 development-corpus tie is not holdout accuracy. The separately frozen
 [Mozart sonata holdout](docs/archive/analysis-mozart-key-holdout.md) records
 53 primary movements and 52 common MusicXML inputs, 50 annotated keys

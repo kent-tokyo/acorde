@@ -80,3 +80,10 @@ the Humdrum field recovery with opt-in tonal-profile ranking. Both tools parse
 unordered pitch/duration event bags. On the 89 scores with explicit key labels,
 Acorde and music21 each select 83 labels. This remains the ranking rule's
 development corpus and does not change the Mozart holdout result.
+
+The [part and measure audit](archive/analysis-bcmh-structure-audit.md) adds
+onset and rest positions to that same corpus. Among 98 paired successful
+parses, 97 agree on pitched events by part, measure and onset; 97 agree on
+visible-rest positions. One malformed barline yields different measure
+boundaries, and 16 further scores differ only when hidden rests are included.
+This still leaves absolute measure positions, voices, spelling and ties to audit.
