@@ -26,12 +26,15 @@ settings. Keep import losses separate from each engine's layout, scheduling or
 analysis errors. Save per-score results and commands. An improvement on the
 development corpus needs a separate, frozen holdout before a general parity claim.
 
-### 1. Engraving and print: Verovio 6.3.0
+### 1. Engraving and print: Verovio 6.4.1
 
 The [ten-score piano/chamber corpus](docs/archive/print-corpus-verovio.md)
-already checks PDF page geometry, marks, collisions and font/staff sizes. The
-next implementation work is to raise the small staff and text sizes without
-introducing overlaps, then address remaining page-use and missing-mark cases.
+checks PDF page geometry, marks, collisions and font/staff sizes against the
+previously pinned Verovio 6.3.0. First rerun the same inputs and options with
+[stable Verovio 6.4.1](https://github.com/rism-digital/verovio/releases/tag/version-6.4.1)
+and save a separate versioned result. The next implementation work is to raise
+the small staff and text sizes without introducing overlaps, then address
+remaining page-use and missing-mark cases.
 Compare each revision on the same A4 inputs and verify suspicious collision
 counts in the PDFs, including slurs, beams, lyrics and directions.
 
