@@ -229,7 +229,7 @@ def pitch_bag(events):
     return Counter(pitch for pitches, _ in events for pitch in pitches)
 
 
-def compare_one(archive, name, temporary_dir, acorde, converter, note, chord, rank_tied_keys):
+def compare_one(archive, name, temporary_dir, acorde, converter, note, chord, key_option):
     source = archive.read(name)
     lines = source.decode("utf-8-sig").splitlines()
     gold, gold_source = gold_key(lines)
@@ -263,7 +263,7 @@ def compare_one(archive, name, temporary_dir, acorde, converter, note, chord, ra
         match = NOTE_COUNT.search(info)
         if not match:
             raise ValueError("Acorde info did not report a note count")
-        extra_args = ("--rank-tied-keys",) if rank_tied_keys else ()
+        extra_args = (key_option,) if key_option else ()
         analysis = json.loads(acorde_output(acorde, "analyze", score_path, *extra_args))
         import_report = json.loads(acorde_output(acorde, "report", score_path))
         acorde_projection = acorde_events(import_report["score"])
@@ -309,8 +309,11 @@ def main():
     parser.add_argument("archive", type=Path)
     parser.add_argument("acorde", type=Path)
     parser.add_argument("output", type=Path)
-    parser.add_argument("--rank-tied-keys", action="store_true",
-                        help="pass the opt-in tonal-profile ranking flag to Acorde")
+    key_options = parser.add_mutually_exclusive_group()
+    key_options.add_argument("--rank-tied-keys", action="store_true",
+                             help="rank only equal-coverage key candidates")
+    key_options.add_argument("--aarden-essen-keys", action="store_true",
+                             help="rank all key candidates by the Aarden-Essen profile")
     args = parser.parse_args()
     from music21 import chord, converter, note
     import music21
@@ -319,6 +322,8 @@ def main():
         parser.error(f"expected music21 10.5.2, got {music21.__version__}")
     if sha256(args.archive.read_bytes()) != ARCHIVE_SHA256:
         parser.error("BCMH archive SHA-256 does not match the pinned version")
+    key_option = ("--aarden-essen-keys" if args.aarden_essen_keys else
+                  "--rank-tied-keys" if args.rank_tied_keys else None)
     with zipfile.ZipFile(args.archive) as archive:
         names = sorted(
             name for name in archive.namelist()
@@ -332,7 +337,7 @@ def main():
                 try:
                     rows.append(compare_one(
                         archive, name, Path(tmp), args.acorde, converter, note, chord,
-                        args.rank_tied_keys,
+                        key_option,
                     ))
                 except Exception as error:
                     rows.append({"score": Path(name).name,
@@ -397,8 +402,8 @@ def main():
         },
         "rows": rows,
     }
-    if args.rank_tied_keys:
-        report["acorde_analyze_option"] = "--rank-tied-keys"
+    if key_option:
+        report["acorde_analyze_option"] = key_option
     args.output.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n")
     print(json.dumps(report["summary"], sort_keys=True))
 

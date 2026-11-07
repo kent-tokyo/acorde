@@ -1850,6 +1850,10 @@ where
 
 /// Estimate major/minor keys from pitch coverage, preserving tied candidates.
 pub fn estimate_keys(score: &Score) -> Vec<KeyEstimate> {
+    estimate_key_candidates(score, true)
+}
+
+fn estimate_key_candidates(score: &Score, only_best_coverage: bool) -> Vec<KeyEstimate> {
     let mut pitches = Vec::new();
     let mut evidence = Vec::new();
     for (part_index, part) in score.parts.iter().enumerate() {
@@ -1913,7 +1917,9 @@ pub fn estimate_keys(score: &Score) -> Vec<KeyEstimate> {
     let best_weight = candidates[0].2;
     candidates
         .into_iter()
-        .take_while(|(_, _, weighted)| weighted.total_cmp(&best_weight).is_eq())
+        .take_while(|(_, _, weighted)| {
+            !only_best_coverage || weighted.total_cmp(&best_weight).is_eq()
+        })
         .map(
             |(key, covered_pitches, weighted_covered_beats)| KeyEstimate {
                 key,
@@ -1941,22 +1947,64 @@ pub fn estimate_keys(score: &Score) -> Vec<KeyEstimate> {
 /// Microtonal input leaves the original order unchanged.
 pub fn estimate_keys_with_tonal_profile(score: &Score) -> Vec<KeyEstimate> {
     let mut estimates = estimate_keys(score);
-    rank_key_estimates_by_tonal_profile(score, &mut estimates);
+    rank_key_estimates_by_tonal_profile(
+        score,
+        &mut estimates,
+        &KRUMHANSL_MAJOR,
+        &KRUMHANSL_MINOR,
+        "duration-weighted-diatonic-pitch-coverage+krumhansl-profile-ranking",
+    );
     estimates
 }
 
-fn rank_key_estimates_by_tonal_profile(score: &Score, estimates: &mut [KeyEstimate]) {
-    if estimates.len() < 2 {
-        return;
+/// Rank all major/minor key spellings by the Aarden-Essen tonal profile.
+///
+/// This uses the profile behind music21 10.5.2's `analyze("key")`, while
+/// preserving Acorde's own input model and key spellings. Unlike
+/// [`estimate_keys_with_tonal_profile`], chromatic notes do not discard a key
+/// before the profile is evaluated. `confidence` still means diatonic coverage,
+/// not probability. Microtonal or uniform input falls back to the legacy set.
+pub fn estimate_keys_with_aarden_essen_profile(score: &Score) -> Vec<KeyEstimate> {
+    let mut estimates = estimate_key_candidates(score, false);
+    if !rank_key_estimates_by_tonal_profile(
+        score,
+        &mut estimates,
+        &AARDEN_ESSEN_MAJOR,
+        &AARDEN_ESSEN_MINOR,
+        "duration-weighted-aarden-essen-profile-ranking",
+    ) {
+        return estimate_keys(score);
     }
-    // Krumhansl-Kessler major/minor probe-tone profiles, indexed from the tonic.
-    // See https://music21.org/music21docs/moduleReference/moduleAnalysisDiscrete.html
-    const MAJOR: [f64; 12] = [
-        6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88,
-    ];
-    const MINOR: [f64; 12] = [
-        6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17,
-    ];
+    estimates
+}
+
+// Major/minor weights are indexed from the tonic. The Aarden-Essen constants
+// match music21 10.5.2's AardenEssen.getWeights implementation.
+const KRUMHANSL_MAJOR: [f64; 12] = [
+    6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88,
+];
+const KRUMHANSL_MINOR: [f64; 12] = [
+    6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17,
+];
+const AARDEN_ESSEN_MAJOR: [f64; 12] = [
+    17.7661, 0.145624, 14.9265, 0.160186, 19.8049, 11.3587, 0.291248, 22.062, 0.145624, 8.15494,
+    0.232998, 4.95122,
+];
+const AARDEN_ESSEN_MINOR: [f64; 12] = [
+    18.2648, 0.737619, 14.0499, 16.8599, 0.702494, 14.4362, 0.702494, 18.6161, 4.56621, 1.93186,
+    7.37619, 1.75623,
+];
+
+fn rank_key_estimates_by_tonal_profile(
+    score: &Score,
+    estimates: &mut [KeyEstimate],
+    major: &[f64; 12],
+    minor: &[f64; 12],
+    rule_id: &str,
+) -> bool {
+    if estimates.len() < 2 {
+        return false;
+    }
 
     let mut pitch_classes = [0.0_f64; 12];
     for part in &score.parts {
@@ -1973,7 +2021,7 @@ fn rank_key_estimates_by_tonal_profile(score: &Score, estimates: &mut [KeyEstima
                         }
                         for pitch in &note.pitches {
                             if pitch.microtone_cents != 0 {
-                                return;
+                                return false;
                             }
                             pitch_classes[pitch.to_midi().rem_euclid(12) as usize] += beats;
                         }
@@ -1988,13 +2036,13 @@ fn rank_key_estimates_by_tonal_profile(score: &Score, estimates: &mut [KeyEstima
         .map(|value| (value - observed_mean).powi(2))
         .sum::<f64>();
     if observed_variance <= 0.0 {
-        return;
+        return false;
     }
     let correlation = |estimate: &KeyEstimate| {
         let weights = if estimate.key.mode == "minor" {
-            &MINOR
+            minor
         } else {
-            &MAJOR
+            major
         };
         let tonic = (estimate.key.fifths * 7 + if estimate.key.mode == "minor" { 9 } else { 0 })
             .rem_euclid(12) as usize;
@@ -2014,9 +2062,9 @@ fn rank_key_estimates_by_tonal_profile(score: &Score, estimates: &mut [KeyEstima
     };
     estimates.sort_by(|left, right| correlation(right).total_cmp(&correlation(left)));
     for estimate in estimates {
-        estimate.rule_id =
-            "duration-weighted-diatonic-pitch-coverage+krumhansl-profile-ranking".to_string();
+        estimate.rule_id = rule_id.to_string();
     }
+    true
 }
 
 /// Analyze adjacent pitched notes in every voice without inferring missing events.
@@ -2829,6 +2877,51 @@ mod tests {
         ));
         let original = estimate_keys(&score);
         assert_eq!(estimate_keys_with_tonal_profile(&score), original);
+    }
+
+    #[test]
+    fn aarden_essen_profile_keeps_candidates_discarded_by_coverage() {
+        let mut score = Score::default();
+        let voice = &mut score.parts[0].staves[0].measures[0].voices[0];
+        voice.clear();
+        for step in [
+            Step::A,
+            Step::B,
+            Step::C,
+            Step::D,
+            Step::E,
+            Step::F,
+            Step::G,
+        ] {
+            voice.push(Note::new(Pitch::new(step, 4), Duration::Quarter));
+        }
+        let coverage = estimate_keys(&score);
+        let full = estimate_keys_with_aarden_essen_profile(&score);
+        assert!(coverage.len() < full.len());
+        assert_eq!(full.len(), 30);
+        assert!(
+            full.iter()
+                .any(|estimate| estimate.key.display_name() == "A major")
+        );
+        assert!(full.iter().all(|estimate| {
+            estimate.rule_id == "duration-weighted-aarden-essen-profile-ranking"
+        }));
+    }
+
+    #[test]
+    fn aarden_essen_profile_falls_back_on_microtones() {
+        let mut score = Score::default();
+        let voice = &mut score.parts[0].staves[0].measures[0].voices[0];
+        voice.clear();
+        voice.push(Note::new(Pitch::new(Step::A, 4), Duration::Quarter));
+        voice.push(Note::new(
+            Pitch::with_microtone(Step::C, 5, 0, 25),
+            Duration::Quarter,
+        ));
+        assert_eq!(
+            estimate_keys_with_aarden_essen_profile(&score),
+            estimate_keys(&score)
+        );
     }
 
     #[test]

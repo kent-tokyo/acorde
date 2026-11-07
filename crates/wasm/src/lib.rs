@@ -1191,6 +1191,18 @@ pub fn analyze_score(score_json: &str) -> Result<String, JsValue> {
         .map_err(|e| js_err(format!("analysis serialization failed: {e}")))
 }
 
+/// Rank all major/minor keys in a score by the Aarden-Essen profile.
+///
+/// The returned JSON is an array of `KeyEstimate` objects. This opt-in route
+/// leaves the default `analyze_score` contract unchanged.
+#[wasm_bindgen]
+pub fn estimate_keys_with_aarden_essen_profile(score_json: &str) -> Result<String, JsValue> {
+    let score = validated_score_from_json(score_json)?;
+    let estimates = acorde_analysis::estimate_keys_with_aarden_essen_profile(&score);
+    serde_json::to_string(&estimates)
+        .map_err(|e| js_err(format!("key estimate serialization failed: {e}")))
+}
+
 /// Return the schema-versioned analysis cache key for a score JSON string.
 #[wasm_bindgen]
 pub fn analysis_cache_key(score_json: &str) -> Result<String, JsValue> {
@@ -3650,6 +3662,17 @@ mod tests {
     }
 
     #[test]
+    fn native_web_aarden_essen_key_option_returns_all_candidates() {
+        let score = parse_abc("X:1\nT:Analysis\nM:4/4\nL:1/8\nK:C\nCDEFGABc|\n").unwrap();
+        let result = estimate_keys_with_aarden_essen_profile(&score).unwrap();
+        let parsed: Vec<acorde_analysis::KeyEstimate> = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed.len(), 30);
+        assert!(parsed.iter().all(|estimate| {
+            estimate.rule_id == "duration-weighted-aarden-essen-profile-ranking"
+        }));
+    }
+
+    #[test]
     fn native_web_analysis_cache_and_score_diffs_keep_the_same_evidence() {
         let score = parse_abc("X:1\nT:Analysis\nM:4/4\nL:1/4\nK:C\nCEGc|\n").unwrap();
         let result = analyze_score(&score).unwrap();
@@ -4972,6 +4995,32 @@ mod wasm_tests {
         assert!(analysis.contains("\"cents\":175"));
         assert!(analysis.contains("\"weighted_covered_beats\":"));
         assert!(analysis.contains("\"total_duration_beats\":4.5"));
+    }
+
+    #[wasm_bindgen_test]
+    fn browser_aarden_essen_keys_match_the_native_candidate_set() {
+        let mut score = Score::default();
+        let voice = &mut score.parts[0].staves[0].measures[0].voices[0];
+        voice.clear();
+        for step in [
+            acorde_core::Step::C,
+            acorde_core::Step::D,
+            acorde_core::Step::E,
+            acorde_core::Step::F,
+            acorde_core::Step::G,
+            acorde_core::Step::A,
+            acorde_core::Step::B,
+            acorde_core::Step::C,
+        ] {
+            voice.push(acorde_core::Note::new(
+                acorde_core::Pitch::new(step, 4),
+                acorde_core::Duration::Eighth,
+            ));
+        }
+        let score_json = serde_json::to_string(&score).unwrap();
+        let result = estimate_keys_with_aarden_essen_profile(&score_json).unwrap();
+        let parsed: Vec<acorde_analysis::KeyEstimate> = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed, acorde_analysis::estimate_keys_with_aarden_essen_profile(&score));
     }
 
     #[wasm_bindgen_test]

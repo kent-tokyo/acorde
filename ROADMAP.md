@@ -138,19 +138,24 @@ imports, [all-rest onsets](docs/archive/analysis-bcmh-rest-preservation.md)
 agree for 97/98, up from 81/98; the remaining source has a malformed barline.
 Audit absolute measure positions, voice placement, spelling and ties before
 treating the event bags as semantic equality. This
-development-corpus tie is not holdout accuracy. The separately frozen
-[Mozart sonata holdout](docs/archive/analysis-mozart-key-holdout.md) records
+development-corpus tie is not holdout accuracy. The earlier
+[Mozart sonata observation](docs/archive/analysis-mozart-key-holdout.md) records
 53 primary movements and 52 common MusicXML inputs, 50 annotated keys
 selected by Acorde's ranked first choice
-versus 51 by music21. MuseScore failed to export K533-3, so first reproduce the
-full corpus with a stable converter and inspect the Acorde-only K331-2 error
-as a candidate-generation failure, without tuning on this holdout. Then add
-independently annotated harmony,
+versus 51 by music21. MuseScore failed to export K533-3. The K331-2 error
+informed a new full-candidate route, so Mozart is now development evidence.
+The [Beethoven v2.3 key holdout](docs/archive/analysis-beethoven-key-holdout.md)
+uses 64 independently annotated movements: both tools parse all 64 common
+MusicXML files, and Acorde matches 57 global-key labels versus music21's 56.
+Unordered pitched pitch/duration bags agree on all 64, but order, voice
+placement, rests and source-export fidelity are not proved. Reproduce the
+missing Mozart K533-3 export with a stable converter, then add independently
+annotated harmony,
 cadence and voice-leading fixtures. Report precision, recall and error cases
 per task against music21 under the
 same input notes. Task-scoped parity requires Acorde to match or exceed
 music21 on each frozen holdout metric without lower parse coverage. A global
-key tie on one development corpus is not overall analysis parity.
+key result on these corpora is not overall analysis parity.
 
 ## Other evidence gates
 

@@ -308,8 +308,11 @@ enum Commands {
         /// Input file (.musicxml, .mxl, .mid, .midi, .abc, .mei, .mscz, .mscx, .gp, .gpx, .gp3, .gp4, .gp5, .krn, .pae)
         input: PathBuf,
         /// Rank tied key candidates by a duration-weighted tonal profile
-        #[arg(long)]
+        #[arg(long, conflicts_with = "aarden_essen_keys")]
         rank_tied_keys: bool,
+        /// Rank all major/minor key candidates by the Aarden-Essen tonal profile
+        #[arg(long)]
+        aarden_essen_keys: bool,
     },
     /// Run a local analysis benchmark manifest and print its JSON report
     Benchmark {
@@ -676,7 +679,8 @@ fn run(cli: &Cli) -> Result<(), String> {
         Commands::Analyze {
             input,
             rank_tied_keys,
-        } => cmd_analyze(input, *rank_tied_keys),
+            aarden_essen_keys,
+        } => cmd_analyze(input, *rank_tied_keys, *aarden_essen_keys),
         Commands::Benchmark {
             manifest,
             fail_on_mismatch,
@@ -1112,10 +1116,12 @@ fn build_print_config(
     Ok(config)
 }
 
-fn cmd_analyze(input: &Path, rank_tied_keys: bool) -> Result<(), String> {
+fn cmd_analyze(input: &Path, rank_tied_keys: bool, aarden_essen_keys: bool) -> Result<(), String> {
     let score = parse_score(input)?;
     let mut analysis = acorde_analysis::analyze_score(&score);
-    if rank_tied_keys {
+    if aarden_essen_keys {
+        analysis.key_estimates = acorde_analysis::estimate_keys_with_aarden_essen_profile(&score);
+    } else if rank_tied_keys {
         analysis.key_estimates = acorde_analysis::estimate_keys_with_tonal_profile(&score);
     }
     let json = serde_json::to_string_pretty(&analysis)
