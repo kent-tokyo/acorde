@@ -119,7 +119,7 @@ fn ineligible_ties_tuplets_keys_and_references_are_not_silently_changed() {
     let before = serde_json::to_value(&score).unwrap();
     let result = insert_melodic_notes(&score, opts.clone());
     assert!(result.insertions.is_empty());
-    assert_eq!(result.diagnostics[0].code, "unsupported-measure");
+    assert_eq!(result.diagnostics[0].code, "ineligible-candidate");
     assert_eq!(serde_json::to_value(result.score.unwrap()).unwrap(), before);
     score.parts[0].staves[0].measures[0].voices[0][0].tie_start = false;
     score.parts[0].staves[0].measures[0].voices[0][1].tie_end = false;
@@ -161,7 +161,7 @@ fn explicit_key_lower_neighbor_density_and_pitch_limits_are_enforced() {
 }
 
 #[test]
-fn notes_addressed_by_harmony_ranges_are_not_shifted() {
+fn harmony_range_end_is_remapped_to_the_original_note() {
     let mut score = Score::new("range", 120, 4, 4, 0, 1);
     score.parts[0].staves[0].measures[0].voices[0] =
         vec![note(Step::C, Duration::Half), note(Step::E, Duration::Half)];
@@ -183,9 +183,174 @@ fn notes_addressed_by_harmony_ranges_are_not_shifted() {
             MelodicInsertionSource::ShortenNote,
         ),
     );
-    assert!(result.score.is_none());
-    assert_eq!(result.diagnostics[0].code, "unsupported-references");
+    assert_eq!(result.insertions.len(), 1);
+    let output = result.score.unwrap();
+    let range_end = output.parts[0].staves[0].measures[0].voices[0][0]
+        .chord_symbol
+        .as_ref()
+        .unwrap()
+        .range_end
+        .as_ref()
+        .unwrap();
+    assert_eq!(range_end.note, 2);
     assert_eq!(serde_json::to_value(&score).unwrap(), before);
+}
+
+#[test]
+fn typed_spanners_styles_and_linked_views_keep_original_targets() {
+    let mut score = Score::new("references", 120, 4, 4, 0, 2);
+    score.parts[0].staves[0].measures[0].voices[0] =
+        vec![note(Step::C, Duration::Half), note(Step::E, Duration::Half)];
+    score.parts[0].staves[0].measures[1].voices[0] =
+        vec![note(Step::F, Duration::Half), note(Step::A, Duration::Half)];
+    let address = |measure, note| acorde_core::NoteAddr {
+        part: 0,
+        staff: 0,
+        measure,
+        voice: 0,
+        note,
+    };
+    score.spanners.push(acorde_core::NotationSpanner {
+        id: "slur".into(),
+        kind: acorde_core::NotationSpannerKind::Slur,
+        start: address(0, 0),
+        end: address(0, 1),
+        number: None,
+        line_type: None,
+        text: None,
+        placement: None,
+        ottava_size: None,
+        ottava_type: None,
+    });
+    score.spanners.push(acorde_core::NotationSpanner {
+        id: "outside".into(),
+        kind: acorde_core::NotationSpannerKind::Slur,
+        start: address(1, 0),
+        end: address(1, 1),
+        number: None,
+        line_type: None,
+        text: None,
+        placement: None,
+        ottava_size: None,
+        ottava_type: None,
+    });
+    score
+        .object_style_overrides
+        .push(acorde_core::ObjectStyleOverride {
+            target: acorde_core::ObjectStyleTarget::Note {
+                address: address(0, 1),
+            },
+            property: acorde_core::ViewStyleProperty::TextScale,
+            value: 1.1,
+            provenance: None,
+        });
+    score
+        .views
+        .push(acorde_core::ScoreView::linked_part("part", "Part", 0));
+    let before = serde_json::to_value(&score).unwrap();
+    let result = insert_melodic_notes(
+        &score,
+        options(
+            MelodicInsertionKind::Passing,
+            MelodicInsertionSource::ShortenNote,
+        ),
+    );
+    assert_eq!(result.insertions.len(), 1, "{:?}", result.diagnostics);
+    let output = result.score.unwrap();
+    assert_eq!(output.spanners[0].start, address(0, 0));
+    assert_eq!(output.spanners[0].end, address(0, 2));
+    assert_eq!(output.spanners[1].start, address(1, 0));
+    assert_eq!(output.spanners[1].end, address(1, 1));
+    assert_eq!(
+        output.object_style_overrides[0].target,
+        acorde_core::ObjectStyleTarget::Note {
+            address: address(0, 2)
+        }
+    );
+    assert_eq!(output.views.len(), 1);
+    assert_eq!(serde_json::to_value(&score).unwrap(), before);
+}
+
+#[test]
+fn authored_beams_slur_and_chord_on_other_notes_survive_insertion() {
+    let mut score = Score::new("marks", 120, 4, 4, 0, 1);
+    let mut beamed = [Step::G, Step::A, Step::B, Step::G]
+        .into_iter()
+        .map(|step| note(step, Duration::Eighth))
+        .collect::<Vec<_>>();
+    beamed[0].beam = acorde_core::BeamState::Begin;
+    beamed[1].beam = acorde_core::BeamState::Continue;
+    beamed[2].beam = acorde_core::BeamState::Continue;
+    beamed[3].beam = acorde_core::BeamState::End;
+    beamed[0].slur_start = true;
+    let mut ending = note(Step::E, Duration::Quarter);
+    ending.slur_end = true;
+    ending
+        .articulations
+        .push(acorde_core::Articulation::Staccato);
+    ending.chord_symbol = Some(
+        serde_json::from_value(serde_json::json!({
+            "root":"C", "kind":"major", "bass":null
+        }))
+        .unwrap(),
+    );
+    beamed.push(note(Step::C, Duration::Quarter));
+    beamed.push(ending);
+    score.parts[0].staves[0].measures[0].voices[0] = beamed;
+    let result = insert_melodic_notes(
+        &score,
+        options(
+            MelodicInsertionKind::Passing,
+            MelodicInsertionSource::ShortenNote,
+        ),
+    );
+    assert_eq!(result.insertions.len(), 1, "{:?}", result.diagnostics);
+    let output = result.score.unwrap();
+    let notes = &output.parts[0].staves[0].measures[0].voices[0];
+    assert_eq!(notes.len(), 7);
+    assert_eq!(notes[0].beam, acorde_core::BeamState::Begin);
+    assert_eq!(notes[3].beam, acorde_core::BeamState::End);
+    assert!(notes[0].slur_start);
+    assert!(notes[6].slur_end);
+    assert_eq!(
+        notes[6].articulations,
+        vec![acorde_core::Articulation::Staccato]
+    );
+    assert_eq!(notes[6].chord_symbol.as_ref().unwrap().root, "C");
+}
+
+#[test]
+fn unsafe_bar_does_not_cancel_safe_bar() {
+    let mut score = Score::new("partial", 120, 4, 4, 0, 2);
+    for bar in &mut score.parts[0].staves[0].measures {
+        bar.voices[0] = vec![note(Step::C, Duration::Half), note(Step::E, Duration::Half)];
+    }
+    score.parts[0].staves[0].measures[0].voices[1] = vec![note(Step::G, Duration::Whole)];
+    let original_first = serde_json::to_value(&score.parts[0].staves[0].measures[0]).unwrap();
+    let mut opts = options(
+        MelodicInsertionKind::Passing,
+        MelodicInsertionSource::ShortenNote,
+    );
+    opts.end_measure = 2;
+    let result = insert_melodic_notes(&score, opts);
+    assert_eq!(result.insertions.len(), 1, "{:?}", result.diagnostics);
+    assert_eq!(
+        result.outcome(),
+        acorde_core::MelodicInsertionOutcome::Partial
+    );
+    assert_eq!(result.insertions[0].source_anchor.measure, 1);
+    assert!(
+        result
+            .diagnostics
+            .iter()
+            .any(|d| d.code == "unsupported-measure"
+                && d.measure == Some(0)
+                && d.message.contains("part 0 staff 0 measure 0 voice 0"))
+    );
+    assert_eq!(
+        serde_json::to_value(&result.score.unwrap().parts[0].staves[0].measures[0]).unwrap(),
+        original_first
+    );
 }
 
 #[test]
@@ -203,7 +368,7 @@ fn fermata_timing_is_not_changed_by_shortening() {
         ),
     );
     assert!(result.insertions.is_empty());
-    assert_eq!(result.diagnostics[0].code, "unsupported-measure");
+    assert_eq!(result.diagnostics[0].code, "ineligible-candidate");
     assert_eq!(serde_json::to_value(result.score.unwrap()).unwrap(), before);
 }
 
@@ -236,7 +401,7 @@ fn tuplets_and_polyphonic_measures_are_diagnosed_without_editing() {
             MelodicInsertionSource::ShortenNote,
         ),
     );
-    assert_eq!(result.diagnostics[0].code, "unsupported-measure");
+    assert_eq!(result.diagnostics[0].code, "ineligible-candidate");
     assert_eq!(
         serde_json::to_value(result.score.unwrap()).unwrap(),
         original

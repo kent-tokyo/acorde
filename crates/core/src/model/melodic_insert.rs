@@ -1,9 +1,10 @@
 //! Conservative, explicitly keyed melodic insertions with source provenance.
 use super::{
+    chord_plan::{CHORD_PLAN_CONTRACT_VERSION, ChordPlan, ChordPlanEntry},
     duration::Duration,
     notation::{BeamState, KeySignature},
     pitch::{Pitch, Step},
-    score::{Note, NoteAddr, Score},
+    score::{Note, NoteAddr, ObjectStyleTarget, Score},
     validate::validate,
 };
 use serde::{Deserialize, Serialize};
@@ -71,6 +72,72 @@ pub struct MelodicInsertionResult {
     pub diagnostics: Vec<MelodicInsertionDiagnostic>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum MelodicInsertionOutcome {
+    Invalid,
+    NoChange,
+    Partial,
+    Applied,
+}
+
+impl MelodicInsertionResult {
+    pub fn outcome(&self) -> MelodicInsertionOutcome {
+        if self.score.is_none() {
+            MelodicInsertionOutcome::Invalid
+        } else if self.insertions.is_empty() {
+            MelodicInsertionOutcome::NoChange
+        } else if self.diagnostics.is_empty() {
+            MelodicInsertionOutcome::Applied
+        } else {
+            MelodicInsertionOutcome::Partial
+        }
+    }
+}
+
+/// An explicit local key, effective from `start_measure` until the next entry.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MelodicLocalKey {
+    pub start_measure: usize,
+    pub key: KeySignature,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MelodicInsertionSelection {
+    pub source_anchor: NoteAddr,
+    pub pitch: Pitch,
+}
+
+/// Optional musical context. Empty fields retain the conservative legacy behavior.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct MelodicInsertionContext {
+    pub chord_plan: Option<ChordPlan>,
+    pub local_keys: Vec<MelodicLocalKey>,
+    pub phrase_end_measures: Vec<usize>,
+    pub selections: Vec<MelodicInsertionSelection>,
+    pub max_insertions_per_measure: Option<usize>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MelodicInsertionCandidate {
+    pub source_anchor: NoteAddr,
+    pub beat: f64,
+    pub pitch: Pitch,
+    pub kind: MelodicInsertionKind,
+    pub score: i32,
+    pub reason_codes: Vec<String>,
+    pub constraint_violations: Vec<String>,
+    pub selected: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MelodicInsertionContextResult {
+    pub insertion: MelodicInsertionResult,
+    pub candidates: Vec<MelodicInsertionCandidate>,
+    pub outcome: MelodicInsertionOutcome,
+}
+
 fn diagnostic(code: &str, measure: Option<usize>, message: &str) -> MelodicInsertionDiagnostic {
     MelodicInsertionDiagnostic {
         code: code.into(),
@@ -78,7 +145,7 @@ fn diagnostic(code: &str, measure: Option<usize>, message: &str) -> MelodicInser
         message: message.into(),
     }
 }
-fn plain(note: &Note) -> bool {
+fn safe_anchor(note: &Note) -> bool {
     !note.is_unpitched
         && !note.is_grace
         && !note.is_cue
@@ -86,24 +153,52 @@ fn plain(note: &Note) -> bool {
         && !note.tie_end
         && note.pitch_tie_starts.is_empty()
         && note.pitch_tie_ends.is_empty()
+        && !note.pitch_incoming_partial_ties.iter().any(|tied| *tied)
+        && !note.pitch_tie_sources.iter().any(Option::is_some)
         && note.tuplet.is_none()
         && note.tuplet_boundary.is_none()
         && note.beam == BeamState::None
-        && note.articulations.is_empty()
+        && !note
+            .articulations
+            .contains(&super::notation::Articulation::Fermata)
         && note.tremolo_pair.is_none()
-        && note.hairpin_start.is_none()
-        && !note.hairpin_end
-        && note.ottava_start.is_none()
-        && !note.ottava_end
-        && !note.pedal_start
-        && !note.pedal_end
         && note.cross_staff.is_none()
-        && !note.slur_start
-        && !note.slur_end
-        && !note.glissando_start
-        && !note.glissando_end
-        && !note.trill_line_start
-        && !note.trill_line_end
+        && note.guitar_technique.is_none()
+        && !note.hidden
+}
+
+fn remap_address(address: &mut NoteAddr, mapping: &[MelodicSourceMapping]) {
+    if let Some(found) = mapping.iter().find(|entry| entry.source == *address) {
+        *address = found.output.clone();
+    }
+}
+
+fn remap_references(score: &mut Score, mapping: &[MelodicSourceMapping]) {
+    for spanner in &mut score.spanners {
+        remap_address(&mut spanner.start, mapping);
+        remap_address(&mut spanner.end, mapping);
+    }
+    for style in &mut score.object_style_overrides {
+        if let ObjectStyleTarget::Note { address } = &mut style.target {
+            remap_address(address, mapping);
+        }
+    }
+    for note in score
+        .parts
+        .iter_mut()
+        .flat_map(|part| &mut part.staves)
+        .flat_map(|staff| &mut staff.measures)
+        .flat_map(|measure| &mut measure.voices)
+        .flatten()
+    {
+        if let Some(end) = note
+            .chord_symbol
+            .as_mut()
+            .and_then(|harmony| harmony.range_end.as_mut())
+        {
+            remap_address(end, mapping);
+        }
+    }
 }
 fn step_index(step: &Step) -> i16 {
     match step {
@@ -133,11 +228,16 @@ fn pitch_at(position: i16, key: &KeySignature) -> Option<Pitch> {
     let alter = key.alter_for_step(&step);
     Some(Pitch::with_alter(step, octave, alter))
 }
-fn candidate(left: &Pitch, right: &Pitch, options: &MelodicInsertionOptions) -> Option<Pitch> {
+fn candidate(
+    left: &Pitch,
+    right: &Pitch,
+    key: &KeySignature,
+    options: &MelodicInsertionOptions,
+) -> Option<Pitch> {
     if left.microtone_cents != 0
         || right.microtone_cents != 0
-        || !options.key.contains_pitch(left)
-        || !options.key.contains_pitch(right)
+        || !key.contains_pitch(left)
+        || !key.contains_pitch(right)
     {
         return None;
     }
@@ -148,15 +248,182 @@ fn candidate(left: &Pitch, right: &Pitch, options: &MelodicInsertionOptions) -> 
         MelodicInsertionKind::LowerNeighbor if a == b && left.to_midi() == right.to_midi() => a - 1,
         _ => return None,
     };
-    let pitch = pitch_at(position, &options.key)?;
+    let pitch = pitch_at(position, key)?;
+    Some(pitch)
+}
+
+fn constraint_violations(
+    pitch: &Pitch,
+    left: &Pitch,
+    right: &Pitch,
+    options: &MelodicInsertionOptions,
+) -> Vec<String> {
     let midi = pitch.to_midi();
-    if !(i16::from(options.min_midi)..=i16::from(options.max_midi)).contains(&midi)
-        || (midi - left.to_midi()).abs() > i16::from(options.max_leap_semitones)
+    let mut violations = Vec::new();
+    if !(i16::from(options.min_midi)..=i16::from(options.max_midi)).contains(&midi) {
+        violations.push("pitch-range".into());
+    }
+    if (midi - left.to_midi()).abs() > i16::from(options.max_leap_semitones)
         || (midi - right.to_midi()).abs() > i16::from(options.max_leap_semitones)
     {
-        return None;
+        violations.push("leap-limit".into());
     }
-    Some(pitch)
+    violations
+}
+
+fn chord_tones(entry: &ChordPlanEntry) -> Option<Vec<i16>> {
+    let root = entry.chord.root.as_bytes();
+    let base = match root.first()?.to_ascii_uppercase() {
+        b'C' => 0,
+        b'D' => 2,
+        b'E' => 4,
+        b'F' => 5,
+        b'G' => 7,
+        b'A' => 9,
+        b'B' => 11,
+        _ => return None,
+    };
+    let alter = match root.get(1..) {
+        Some(b"") => 0,
+        Some(b"#") => 1,
+        Some(b"b") => -1,
+        _ => return None,
+    };
+    let intervals: &[i16] = match entry.chord.kind.as_str() {
+        "major" => &[0, 4, 7],
+        "minor" => &[0, 3, 7],
+        "diminished" => &[0, 3, 6],
+        "augmented" => &[0, 4, 8],
+        "dominant" | "dominant-seventh" => &[0, 4, 7, 10],
+        "major-seventh" => &[0, 4, 7, 11],
+        "minor-seventh" => &[0, 3, 7, 10],
+        "half-diminished" => &[0, 3, 6, 10],
+        "diminished-seventh" => &[0, 3, 6, 9],
+        _ => return None,
+    };
+    Some(
+        intervals
+            .iter()
+            .map(|interval| (base + alter + *interval).rem_euclid(12))
+            .collect(),
+    )
+}
+
+fn harmony_at(plan: &ChordPlan, measure: usize, beat: f64) -> Option<&ChordPlanEntry> {
+    plan.entries
+        .iter()
+        .filter(|entry| {
+            entry.position.offset.denominator != 0
+                && (entry.position.measure_index < measure
+                    || (entry.position.measure_index == measure
+                        && entry.position.offset.beats() <= beat + 1e-8))
+        })
+        .max_by(|a, b| {
+            a.position
+                .measure_index
+                .cmp(&b.position.measure_index)
+                .then_with(|| {
+                    a.position
+                        .offset
+                        .beats()
+                        .total_cmp(&b.position.offset.beats())
+                })
+        })
+}
+
+struct CandidateEvaluation<'a> {
+    base: Pitch,
+    left: &'a Pitch,
+    right: &'a Pitch,
+    beat: f64,
+    source: NoteAddr,
+    options: &'a MelodicInsertionOptions,
+    harmony: Option<&'a ChordPlanEntry>,
+    resolves: bool,
+    phrase_end: bool,
+}
+
+fn ranked_candidates(evaluation: CandidateEvaluation<'_>) -> Vec<MelodicInsertionCandidate> {
+    let CandidateEvaluation {
+        base,
+        left,
+        right,
+        beat,
+        source,
+        options,
+        harmony,
+        resolves,
+        phrase_end,
+    } = evaluation;
+    let chord_pitches = harmony.and_then(chord_tones);
+    let mut candidates = Vec::new();
+    for delta in if harmony.is_some() {
+        [-1, 0, 1].as_slice()
+    } else {
+        [0].as_slice()
+    } {
+        let mut pitch = base.clone();
+        pitch.alter += delta;
+        let midi = pitch.to_midi();
+        let violations = constraint_violations(&pitch, left, right, options);
+        let chord_tone = chord_pitches
+            .as_ref()
+            .is_some_and(|tones| tones.contains(&midi.rem_euclid(12)));
+        let weak_beat = (beat - beat.round()).abs() > 1e-8;
+        let mut score = if chord_tone {
+            10
+        } else if harmony.is_none() {
+            5
+        } else if weak_beat && resolves {
+            6
+        } else {
+            -5
+        };
+        let mut reason_codes = vec![
+            if chord_tone {
+                "chord-tone"
+            } else if harmony.is_none() {
+                "diatonic"
+            } else if weak_beat && resolves {
+                "resolved-weak-beat-nonchord-tone"
+            } else {
+                "unresolved-or-strong-beat-dissonance"
+            }
+            .to_string(),
+        ];
+        if *delta != 0 {
+            score -= 2;
+            reason_codes.push("chromatic-alteration".into());
+        }
+        if phrase_end && !chord_tone && harmony.is_some() {
+            score -= 8;
+            reason_codes.push("phrase-ending-nonchord-tone".into());
+        }
+        if !violations.is_empty() {
+            score = -100;
+        }
+        candidates.push(MelodicInsertionCandidate {
+            source_anchor: source.clone(),
+            beat,
+            pitch,
+            kind: options.kind,
+            score,
+            reason_codes,
+            constraint_violations: violations,
+            selected: false,
+        });
+    }
+    candidates.sort_by(|a, b| {
+        b.score
+            .cmp(&a.score)
+            .then_with(|| {
+                (a.pitch.alter - base.alter)
+                    .abs()
+                    .cmp(&(b.pitch.alter - base.alter).abs())
+            })
+            .then_with(|| a.pitch.to_midi().cmp(&b.pitch.to_midi()))
+    });
+    candidates
 }
 fn generated_id(
     score: &Score,
@@ -187,6 +454,24 @@ pub fn insert_melodic_notes(
     score: &Score,
     options: MelodicInsertionOptions,
 ) -> MelodicInsertionResult {
+    insert_melodic_notes_impl(score, options, None).insertion
+}
+
+/// Evaluate explicitly positioned harmony and local keys, returning preview candidates and
+/// a deterministic edited copy. A selected candidate is reapplied through `context.selections`.
+pub fn insert_melodic_notes_with_context(
+    score: &Score,
+    options: MelodicInsertionOptions,
+    context: &MelodicInsertionContext,
+) -> MelodicInsertionContextResult {
+    insert_melodic_notes_impl(score, options, Some(context))
+}
+
+fn insert_melodic_notes_impl(
+    score: &Score,
+    options: MelodicInsertionOptions,
+    context: Option<&MelodicInsertionContext>,
+) -> MelodicInsertionContextResult {
     let mut result = MelodicInsertionResult {
         score: None,
         options: options.clone(),
@@ -194,6 +479,16 @@ pub fn insert_melodic_notes(
         insertions: Vec::new(),
         diagnostics: Vec::new(),
     };
+    let mut candidates = Vec::new();
+    macro_rules! done {
+        () => {
+            return MelodicInsertionContextResult {
+                outcome: result.outcome(),
+                insertion: result,
+                candidates,
+            }
+        };
+    }
     if !validate(score).is_valid()
         || !(-7..=7).contains(&options.key.fifths)
         || !matches!(options.key.mode.as_str(), "major" | "minor")
@@ -210,7 +505,7 @@ pub fn insert_melodic_notes(
             None,
             "invalid score, range, key, pitch or density limit",
         ));
-        return result;
+        done!();
     }
     let Some(staff) = score
         .parts
@@ -222,7 +517,7 @@ pub fn insert_melodic_notes(
             None,
             "part or staff does not exist",
         ));
-        return result;
+        done!();
     };
     if options.end_measure > staff.measures.len() || options.voice >= 4 {
         result.diagnostics.push(diagnostic(
@@ -230,31 +525,57 @@ pub fn insert_melodic_notes(
             None,
             "measure or voice does not exist",
         ));
-        return result;
+        done!();
     }
-    let has_harmony_ranges = score
-        .parts
-        .iter()
-        .flat_map(|p| &p.staves)
-        .flat_map(|s| &s.measures)
-        .flat_map(|m| &m.voices)
-        .flatten()
-        .any(|n| {
-            n.chord_symbol
-                .as_ref()
-                .is_some_and(|h| h.range_end.is_some())
+    if let Some(context) = context {
+        let valid_keys = context.local_keys.iter().all(|entry| {
+            entry.start_measure < options.end_measure
+                && (-7..=7).contains(&entry.key.fifths)
+                && matches!(entry.key.mode.as_str(), "major" | "minor")
+        }) && context
+            .local_keys
+            .windows(2)
+            .all(|pair| pair[0].start_measure < pair[1].start_measure);
+        let valid_plan = context.chord_plan.as_ref().is_none_or(|plan| {
+            plan.contract_version == CHORD_PLAN_CONTRACT_VERSION
+                && !plan.entries.is_empty()
+                && plan.entries.len() <= 512
+                && plan.entries.iter().all(|entry| {
+                    entry.position.offset.denominator != 0
+                        && entry.offset_beats.is_finite()
+                        && entry.offset_beats <= 32.0
+                        && (entry.offset_beats - entry.position.offset.beats()).abs() < 1e-8
+                })
+                && plan.entries.windows(2).all(|pair| {
+                    pair[0].position.measure_index < pair[1].position.measure_index
+                        || (pair[0].position.measure_index == pair[1].position.measure_index
+                            && pair[0].position.offset.beats() < pair[1].position.offset.beats())
+                })
         });
-    if !score.spanners.is_empty()
-        || !score.object_style_overrides.is_empty()
-        || !score.views.is_empty()
-        || has_harmony_ranges
-    {
-        result.diagnostics.push(diagnostic(
-            "unsupported-references",
-            None,
-            "typed spans, harmony ranges, object overrides and score views require address remapping",
-        ));
-        return result;
+        let valid_selections = context.selections.len() <= 128
+            && context
+                .selections
+                .iter()
+                .enumerate()
+                .all(|(index, selection)| {
+                    !context.selections[..index]
+                        .iter()
+                        .any(|previous| previous.source_anchor == selection.source_anchor)
+                });
+        if !valid_keys
+            || !valid_plan
+            || !valid_selections
+            || context
+                .max_insertions_per_measure
+                .is_some_and(|limit| limit > 16)
+        {
+            result.diagnostics.push(diagnostic(
+                "invalid-context",
+                None,
+                "invalid local key, chord plan or selection limit",
+            ));
+            done!();
+        }
     }
     let mut used: HashSet<String> = score
         .parts
@@ -276,18 +597,28 @@ pub fn insert_melodic_notes(
             continue;
         }
         let voice = &measure.voices[options.voice];
-        let incompatible = key != options.key
+        let measure_start_insertions = result.insertions.len();
+        let explicit_local_key = context.and_then(|ctx| {
+            ctx.local_keys
+                .iter()
+                .rev()
+                .find(|entry| entry.start_measure <= mi)
+        });
+        let local_key = explicit_local_key.map_or(&key, |entry| &entry.key);
+        let incompatible = (explicit_local_key.is_none() && key != options.key)
             || measure
                 .voices
                 .iter()
                 .enumerate()
-                .any(|(i, v)| i != options.voice && v.iter().any(|n| !n.is_rest))
-            || voice.iter().any(|n| !plain(n));
+                .any(|(i, v)| i != options.voice && v.iter().any(|n| !n.is_rest));
         if incompatible {
             result.diagnostics.push(diagnostic(
                 "unsupported-measure",
                 Some(mi),
-                "key differs or the measure contains polyphony, ties, tuplets, articulations, beams or spans",
+                &format!(
+                    "part {} staff {} measure {} voice {}: key differs or the measure contains polyphony",
+                    options.part, options.staff, mi, options.voice
+                ),
             ));
         }
         let mut next_voice = Vec::with_capacity(voice.len() + 1);
@@ -319,34 +650,109 @@ pub fn insert_melodic_notes(
                 MelodicInsertionSource::ShortenNote if !note.is_rest && note.pitches.len() == 1 => {
                     voice
                         .get(i + 1)
-                        .filter(|n| !n.is_rest && n.pitches.len() == 1)
+                        .filter(|n| {
+                            !n.is_rest
+                                && !n.is_grace
+                                && !n.is_cue
+                                && !n.is_unpitched
+                                && n.pitches.len() == 1
+                        })
                         .map(|n| (&note.pitches[0], &n.pitches[0]))
                 }
                 MelodicInsertionSource::FillRest if note.is_rest && i > 0 => voice
                     .get(i - 1)
                     .zip(voice.get(i + 1))
                     .filter(|(a, b)| {
-                        !a.is_rest && !b.is_rest && a.pitches.len() == 1 && b.pitches.len() == 1
+                        !a.is_rest
+                            && !b.is_rest
+                            && !a.is_grace
+                            && !b.is_grace
+                            && !a.is_cue
+                            && !b.is_cue
+                            && !a.is_unpitched
+                            && !b.is_unpitched
+                            && a.pitches.len() == 1
+                            && b.pitches.len() == 1
                     })
                     .map(|(a, b)| (&a.pitches[0], &b.pitches[0])),
                 _ => None,
             };
             let attempted = !incompatible
                 && result.insertions.len() < options.max_insertions
+                && context.is_none_or(|ctx| {
+                    ctx.max_insertions_per_measure.is_none_or(|limit| {
+                        result.insertions.len() - measure_start_insertions < limit
+                    })
+                })
                 && endpoints.is_some();
-            let candidate = if attempted {
-                endpoints.and_then(|(a, b)| candidate(a, b, &options))
+            let selected_pitch = if attempted && split.is_some() {
+                endpoints.filter(|_| safe_anchor(note)).and_then(|(a, b)| {
+                    let base = candidate(a, b, local_key, &options)?;
+                    let Some(context) = context else {
+                        return constraint_violations(&base, a, b, &options)
+                            .is_empty()
+                            .then_some(base);
+                    };
+                    let beat = voice[..i].iter().map(Note::beats).sum::<f64>()
+                        + split.as_ref().map_or(0.0, |(short, _)| {
+                            let mut shortened = note.clone();
+                            shortened.duration = short.clone();
+                            shortened.dot_count = 1;
+                            shortened.beats()
+                        });
+                    let harmony = context.chord_plan.as_ref().and_then(|plan| harmony_at(plan, mi, beat));
+                    if context.chord_plan.is_some() && harmony.is_none() {
+                        result.diagnostics.push(diagnostic("uncovered-harmony", Some(mi),
+                            &format!("part {} staff {} measure {} voice {} note {}: no explicit chord at insertion beat", options.part, options.staff, mi, options.voice, i)));
+                        return None;
+                    }
+                    if harmony.is_some_and(|entry| chord_tones(entry).is_none()) {
+                        result.diagnostics.push(diagnostic("unsupported-harmony", Some(mi),
+                            &format!("part {} staff {} measure {} voice {} note {}: unsupported chord root or kind", options.part, options.staff, mi, options.voice, i)));
+                        return None;
+                    }
+                    let right_beat = voice[..=i].iter().map(Note::beats).sum::<f64>();
+                    let resolves = context.chord_plan.as_ref()
+                        .and_then(|plan| harmony_at(plan, mi, right_beat))
+                        .and_then(chord_tones)
+                        .is_some_and(|tones| tones.contains(&b.to_midi().rem_euclid(12)));
+                    let mut ranked = ranked_candidates(CandidateEvaluation {
+                        base, left: a, right: b, beat, source: addr(i), options: &options,
+                        harmony, resolves,
+                        phrase_end: context.phrase_end_measures.contains(&mi) && i + 1 == voice.len() - 1,
+                    });
+                    let selected = if let Some(choice) = context.selections.iter().find(|choice| choice.source_anchor == addr(i)) {
+                        ranked.iter().position(|item| item.pitch == choice.pitch && item.score >= 0
+                            && item.constraint_violations.is_empty())
+                    } else {
+                        ranked.iter().position(|item| item.score >= 0
+                            && item.constraint_violations.is_empty())
+                    };
+                    let pitch = selected.map(|index| {
+                        ranked[index].selected = true;
+                        ranked[index].pitch.clone()
+                    });
+                    if pitch.is_none() {
+                        result.diagnostics.push(diagnostic("no-safe-candidate", Some(mi),
+                            &format!("part {} staff {} measure {} voice {} note {}: no allowed pitch satisfies the musical context", options.part, options.staff, mi, options.voice, i)));
+                    }
+                    candidates.extend(ranked);
+                    pitch
+                })
             } else {
                 None
             };
-            if attempted && (split.is_none() || candidate.is_none()) {
+            if attempted && (split.is_none() || selected_pitch.is_none()) {
                 result.diagnostics.push(diagnostic(
                     "ineligible-candidate",
                     Some(mi),
-                    "the interval, pitch limits or written duration cannot be edited safely",
+                    &format!(
+                        "part {} staff {} measure {} voice {} note {}: interval, pitch limits, references or written duration cannot be edited safely",
+                        options.part, options.staff, mi, options.voice, i
+                    ),
                 ));
             }
-            if let (Some((short, added)), Some(pitch)) = (split, candidate) {
+            if let (Some((short, added)), Some(pitch)) = (split, selected_pitch) {
                 let id = generated_id(score, note, mi, i, options.kind, options.source);
                 if !used.insert(id.clone()) {
                     result.diagnostics.push(diagnostic(
@@ -385,6 +791,7 @@ pub fn insert_melodic_notes(
         output.parts[options.part].staves[options.staff].measures[mi].voices[options.voice] =
             next_voice;
     }
+    remap_references(&mut output, &result.source_mapping);
     if !validate(&output).is_valid() {
         result.diagnostics.push(diagnostic(
             "invalid-output",
@@ -393,8 +800,12 @@ pub fn insert_melodic_notes(
         ));
         result.source_mapping.clear();
         result.insertions.clear();
-        return result;
+        done!();
     }
     result.score = Some(output);
-    result
+    MelodicInsertionContextResult {
+        outcome: result.outcome(),
+        insertion: result,
+        candidates,
+    }
 }
