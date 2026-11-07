@@ -273,8 +273,8 @@ pub fn render_print_page_svgs_with_glyphs(
     }
     score_layout.rows = rows;
     let staff_gap = render::required_hairpin_staff_gap(score, &score_layout, staff_gap);
-    let staff_gap = render::required_lyric_staff_gap(score, staff_gap);
-    let (top_u, system_u, bottom_u) = render::print_row_metrics(score, &score_layout, staff_gap)?;
+    let staff_gaps = render::required_lyric_staff_gaps(score, staff_gap);
+    let (top_u, system_u, bottom_u) = render::print_row_metrics(score, &score_layout, &staff_gaps)?;
     let required_u = top_u + system_u + bottom_u;
     let minimum_mm = required_u * MIN_STAFF_SPACE_MM;
     if min_system_height_mm < minimum_mm {
@@ -297,8 +297,10 @@ pub fn render_print_page_svgs_with_glyphs(
             .max(1),
         interactive: false,
     };
+    let staff_offsets = render::print_staff_offsets(score, &staff_gaps);
     let config = SvgRenderConfig::new(options)
         .with_staff_gap(staff_gap)
+        .with_staff_gaps(staff_gaps)
         .with_measure_text_scale(3.0)
         .with_glyph_source(glyphs.clone());
     let row_tops_px = row_tops_mm
@@ -319,7 +321,6 @@ pub fn render_print_page_svgs_with_glyphs(
         .split_once(BODY_PREFIX)
         .and_then(|(_, remainder)| remainder.strip_suffix("</g></svg>"))
         .ok_or(PrintRenderError::InternalSvg)?;
-    let staff_offsets = render::print_staff_offsets(score, staff_gap);
     let fragments = top_level_fragments(body)
         .map(|fragments| {
             fragments

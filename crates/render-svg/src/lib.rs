@@ -135,6 +135,7 @@ pub struct SvgRenderOptions {
 pub struct SvgRenderConfig {
     options: SvgRenderOptions,
     staff_gap: f32,
+    staff_gaps: Option<Vec<f32>>,
     measure_text_scale: f32,
     system_breaking: SvgSystemBreakStrategy,
     auto_beam_unmarked: bool,
@@ -194,6 +195,7 @@ impl SvgRenderConfig {
         Self {
             options,
             staff_gap: 10.0,
+            staff_gaps: None,
             measure_text_scale: 1.0,
             system_breaking: SvgSystemBreakStrategy::FixedMeasureCount,
             auto_beam_unmarked: false,
@@ -223,6 +225,11 @@ impl SvgRenderConfig {
         self
     }
 
+    pub(crate) fn with_staff_gaps(mut self, staff_gaps: Vec<f32>) -> Self {
+        self.staff_gaps = Some(staff_gaps);
+        self
+    }
+
     pub(crate) fn with_measure_text_scale(mut self, scale: f32) -> Self {
         self.measure_text_scale = scale;
         self
@@ -249,6 +256,9 @@ impl SvgRenderConfig {
     }
     pub fn staff_gap(&self) -> f32 {
         self.staff_gap
+    }
+    pub(crate) fn staff_gaps(&self) -> Option<&[f32]> {
+        self.staff_gaps.as_deref()
     }
     pub(crate) fn measure_text_scale(&self) -> f32 {
         self.measure_text_scale
