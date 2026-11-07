@@ -12,6 +12,7 @@ acorde render input.mscz output.svg --auto-beams
 acorde print-report input.musicxml --preset a4-score --fail-on-issues
 acorde compatibility-report source.musicxml candidate.musicxml --fail-on-differences
 acorde mcp --root ./scores
+acorde analyze-vertical score.krn --infer-key
 ~~~
 
 Use `acorde <command> --help` for the full surface. Commands are grouped as conversion and
@@ -32,6 +33,10 @@ issues; `export-report` exposes typed conversion losses; `compatibility-report` 
 scores; and `benchmark` checks a local manifest. Their `fnv1a64-*` values identify local input
 bytes and are not publication hashes or compatibility scores. `--fail-on-*` keeps JSON output while
 making the selected condition a non-zero exit.
+
+`analyze-vertical` emits opt-in simultaneous-note chord candidates with written
+measure/beat positions and source addresses. `--infer-key` uses the first
+Aarden-Essen global-key candidate; otherwise written key changes apply.
 
 `auto-tab-report`, `tab-performance-report`, and `fingering-report` provide deterministic
 tablature and fingering diagnostics. `playback-report` produces the expected event schedule, while

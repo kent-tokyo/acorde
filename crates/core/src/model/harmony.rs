@@ -207,6 +207,68 @@ pub fn roman_numeral(chord: &ChordSymbol, key: &KeySignature) -> Option<String> 
     Some(format!("{}{}", rn, slash))
 }
 
+/// Return a Roman numeral with common figured-bass inversion suffixes.
+///
+/// The existing [`roman_numeral`] keeps its slash-bass contract. This helper
+/// expresses triad inversions as `6`/`64` and seventh inversions as
+/// `65`/`43`/`2`. Unsupported chord qualities retain the slash-bass form.
+pub fn roman_numeral_figured(chord: &ChordSymbol, key: &KeySignature) -> Option<String> {
+    let mut root_chord = chord.clone();
+    root_chord.bass = None;
+    let root_roman = roman_numeral(&root_chord, key)?;
+    // Classical figured-bass labels use IV7/IV2 for a diatonic major seventh;
+    // the quality is implied by the key rather than spelled "maj".
+    let root_roman = if chord.kind == "major-seventh" {
+        root_roman.replacen("maj7", "7", 1)
+    } else {
+        root_roman
+    };
+    let Some(bass) = chord.bass.as_deref() else {
+        return Some(root_roman);
+    };
+    let Some(root_pc) = root_to_pc(&chord.root) else {
+        return roman_numeral(chord, key);
+    };
+    let Some(bass_pc) = root_to_pc(bass) else {
+        return roman_numeral(chord, key);
+    };
+    let interval = (i16::from(bass_pc) - i16::from(root_pc)).rem_euclid(12);
+    let seventh = matches!(
+        chord.kind.as_str(),
+        "dominant"
+            | "major-seventh"
+            | "minor-seventh"
+            | "diminished-seventh"
+            | "half-diminished"
+            | "minor-major-seventh"
+    );
+    let figure = if seventh {
+        match interval {
+            3 | 4 => "65",
+            6..=8 => "43",
+            9..=11 => "2",
+            _ => return roman_numeral(chord, key),
+        }
+    } else if matches!(
+        chord.kind.as_str(),
+        "major" | "minor" | "diminished" | "augmented"
+    ) {
+        match interval {
+            3 | 4 => "6",
+            6..=8 => "64",
+            _ => return roman_numeral(chord, key),
+        }
+    } else {
+        return roman_numeral(chord, key);
+    };
+    let stem = if seventh {
+        root_roman.strip_suffix('7').unwrap_or(&root_roman)
+    } else {
+        &root_roman
+    };
+    Some(format!("{stem}{figure}"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -473,6 +535,60 @@ mod tests {
         assert_eq!(
             roman_numeral(&chord, &c_major_key()),
             Some("I/V".to_string())
+        );
+    }
+
+    #[test]
+    fn figured_roman_numerals_cover_triad_and_seventh_inversions() {
+        let mut chord = ChordSymbol {
+            root: "C".to_string(),
+            kind: "major".to_string(),
+            bass: Some("E".to_string()),
+            placement: None,
+            extender: false,
+            harmonic_degree: None,
+            harmony_function: None,
+            harmony_type: None,
+            chord_ref: None,
+            range_end: None,
+            degrees: Vec::new(),
+        };
+        assert_eq!(
+            roman_numeral_figured(&chord, &c_major_key()).as_deref(),
+            Some("I6")
+        );
+        chord.bass = Some("G".to_string());
+        assert_eq!(
+            roman_numeral_figured(&chord, &c_major_key()).as_deref(),
+            Some("I64")
+        );
+        chord.root = "G".to_string();
+        chord.kind = "dominant".to_string();
+        for (bass, expected) in [("B", "V65"), ("D", "V43"), ("F", "V2")] {
+            chord.bass = Some(bass.to_string());
+            assert_eq!(
+                roman_numeral_figured(&chord, &c_major_key()).as_deref(),
+                Some(expected)
+            );
+        }
+        chord.root = "F".to_string();
+        chord.kind = "major-seventh".to_string();
+        chord.bass = Some("E".to_string());
+        assert_eq!(
+            roman_numeral_figured(&chord, &c_major_key()).as_deref(),
+            Some("IV2")
+        );
+        chord.root = "G".to_string();
+        chord.kind = "dominant".to_string();
+        chord.bass = Some("B".to_string());
+        let c_minor = KeySignature {
+            fifths: -3,
+            mode: "minor".to_string(),
+        };
+        assert_eq!(roman_numeral(&chord, &c_minor), None);
+        assert_eq!(
+            roman_numeral_figured(&chord, &c_minor).as_deref(),
+            Some("V65")
         );
     }
 }

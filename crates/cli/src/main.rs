@@ -314,6 +314,14 @@ enum Commands {
         #[arg(long)]
         aarden_essen_keys: bool,
     },
+    /// Infer chords from notes sounding together across parts and voices as JSON
+    AnalyzeVertical {
+        /// Input score file
+        input: PathBuf,
+        /// Use the first Aarden-Essen global-key candidate instead of the written key
+        #[arg(long)]
+        infer_key: bool,
+    },
     /// Run a local analysis benchmark manifest and print its JSON report
     Benchmark {
         /// Manifest JSON containing benchmark cases and expected category counts
@@ -681,6 +689,7 @@ fn run(cli: &Cli) -> Result<(), String> {
             rank_tied_keys,
             aarden_essen_keys,
         } => cmd_analyze(input, *rank_tied_keys, *aarden_essen_keys),
+        Commands::AnalyzeVertical { input, infer_key } => cmd_analyze_vertical(input, *infer_key),
         Commands::Benchmark {
             manifest,
             fail_on_mismatch,
@@ -1126,6 +1135,33 @@ fn cmd_analyze(input: &Path, rank_tied_keys: bool, aarden_essen_keys: bool) -> R
     }
     let json = serde_json::to_string_pretty(&analysis)
         .map_err(|e| format!("analysis serialization failed: {e}"))?;
+    println!("{json}");
+    Ok(())
+}
+
+fn cmd_analyze_vertical(input: &Path, infer_key: bool) -> Result<(), String> {
+    let score = parse_score(input)?;
+    let inferred_key = if infer_key {
+        acorde_analysis::estimate_keys_with_aarden_essen_profile(&score)
+            .first()
+            .map(|candidate| candidate.key.clone())
+    } else {
+        None
+    };
+    let sonorities = if let Some(key) = inferred_key.as_ref() {
+        acorde_analysis::analyze_vertical_sonorities_in_key(&score, key)
+    } else {
+        acorde_analysis::analyze_vertical_sonorities(&score)
+    };
+    let report = serde_json::json!({
+        "schema_version": 1,
+        "score_fingerprint": acorde_analysis::score_fingerprint(&score),
+        "key_source": if inferred_key.is_some() { "aarden-essen-first-candidate" } else { "written" },
+        "global_key": inferred_key,
+        "sonorities": sonorities,
+    });
+    let json = serde_json::to_string_pretty(&report)
+        .map_err(|error| format!("vertical analysis serialization failed: {error}"))?;
     println!("{json}");
     Ok(())
 }
