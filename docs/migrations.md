@@ -11,6 +11,15 @@ struct literals must still update for added variants and fields.
 > longer compile in 1.2.19 or 1.2.20, despite the patch version. Pin `=1.2.18` or migrate the
 > literal before updating; do not assume a later 1.2 patch restores the old literal form.
 
+## Unreleased: opt-in ensemble print density
+
+`PrintSystemBreakStrategy::NotationDensity` with staff-aware height and a
+`measures_per_system` cap above four can produce different system breaks and
+staff sizes for lyric-free scores of at least five staves. The public
+four-measure default is unchanged. Reproducible exports that use a higher cap
+should pin the Acorde version and review their pages after upgrading. An
+explicit `systems_per_page` above two retains the previous height reservation.
+
 ## v1.3.10: Rust source compatibility and saved arrangements
 
 The minimum supported Rust version remains 1.89. This patch release adds public fields to
