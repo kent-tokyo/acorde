@@ -97,6 +97,11 @@ preserved in the records below.
 
 [Full record](archive/playback-audio-corpus.md).
 
+## Eight-score audio observation against alphaTab 1.9.0 (2026-11-07)
+
+[Full record](archive/playback-audio-corpus-alpha19.md). The attack comparison uses
+Acorde's schedule and is a screening result, not an independent timing verdict.
+
 ## Evidence boundary
 
 [Full record](archive/playback-corpus-and-controls.md#evidence-boundary).

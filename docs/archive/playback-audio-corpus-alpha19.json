@@ -1,0 +1,529 @@
+[
+  {
+    "score": "simple",
+    "schedule_sha256": "dd19b869557d1bb153a40765230810bccd5817cb752acd73642c2003be29ea6a",
+    "scheduled_events": 5,
+    "scheduled_onsets": 5,
+    "scheduled_silences": 0,
+    "scheduled_end_seconds": 3.0,
+    "sample_rate": 48000,
+    "features": {
+      "parts": 1,
+      "overlapping_voices": false,
+      "tempo_changes": false,
+      "dynamics": false,
+      "pedal": false,
+      "articulations": [],
+      "programs": [
+        0
+      ]
+    },
+    "import_diagnostics": {
+      "total": 0,
+      "by_code": {}
+    },
+    "acorde": {
+      "seconds": 4.0,
+      "detected_onsets": 5,
+      "undetected_onsets": 0,
+      "onset_median_ms": 5.0,
+      "onset_median_abs_ms": 5.0,
+      "onset_p95_abs_ms": 5.0,
+      "median_level_250ms_into_silence_db": null,
+      "buffer_beyond_scheduled_end_seconds": 1.0,
+      "level_at_buffer_end_db": -180.0,
+      "tail_to_minus60db_seconds": 0.36,
+      "sha256": "5924323107446e40972f5eddd46ea1aae265bdb437353bda716c52886a2edd02",
+      "peak": 0.075897,
+      "full_scale_samples": 0,
+      "nonfinite_samples": 0
+    },
+    "alphatab": {
+      "seconds": 4.0,
+      "detected_onsets": 5,
+      "undetected_onsets": 0,
+      "onset_median_ms": 5.0,
+      "onset_median_abs_ms": 5.0,
+      "onset_p95_abs_ms": 5.0,
+      "median_level_250ms_into_silence_db": null,
+      "buffer_beyond_scheduled_end_seconds": 1.0,
+      "level_at_buffer_end_db": -180.0,
+      "tail_to_minus60db_seconds": 0.535,
+      "sha256": "781fc384d6480e691ebe9de12d3ef0c45680d0dbd00257a833fb084d3e96b57c",
+      "peak": 0.592075,
+      "full_scale_samples": 0,
+      "nonfinite_samples": 0
+    },
+    "paired_alphatab_minus_acorde": {
+      "onsets": 5,
+      "median_ms": 0.0,
+      "median_abs_ms": 0.0,
+      "p95_abs_ms": 0.0
+    }
+  },
+  {
+    "score": "multipart",
+    "schedule_sha256": "5d0072c20293d7273b5971fdbe8c3526ab800a5778d3cbbb8f0f54f6e70b976c",
+    "scheduled_events": 4,
+    "scheduled_onsets": 3,
+    "scheduled_silences": 0,
+    "scheduled_end_seconds": 1.5,
+    "sample_rate": 48000,
+    "features": {
+      "parts": 2,
+      "overlapping_voices": false,
+      "tempo_changes": false,
+      "dynamics": false,
+      "pedal": false,
+      "articulations": [],
+      "programs": [
+        0
+      ]
+    },
+    "import_diagnostics": {
+      "total": 0,
+      "by_code": {}
+    },
+    "acorde": {
+      "seconds": 2.5,
+      "detected_onsets": 3,
+      "undetected_onsets": 0,
+      "onset_median_ms": 160.0,
+      "onset_median_abs_ms": 160.0,
+      "onset_p95_abs_ms": 245.0,
+      "median_level_250ms_into_silence_db": null,
+      "buffer_beyond_scheduled_end_seconds": 1.0,
+      "level_at_buffer_end_db": -180.0,
+      "tail_to_minus60db_seconds": 0.39,
+      "sha256": "820452a38f1b9135c222cd1a93049ca100e973a4504a8cf67d59723b45d4b97e",
+      "peak": 0.082001,
+      "full_scale_samples": 0,
+      "nonfinite_samples": 0
+    },
+    "alphatab": {
+      "seconds": 1.501,
+      "detected_onsets": 3,
+      "undetected_onsets": 0,
+      "onset_median_ms": 160.0,
+      "onset_median_abs_ms": 160.0,
+      "onset_p95_abs_ms": 245.0,
+      "median_level_250ms_into_silence_db": null,
+      "buffer_beyond_scheduled_end_seconds": 0.001,
+      "level_at_buffer_end_db": -19.1,
+      "tail_to_minus60db_seconds": null,
+      "sha256": "f8a558b7412fca3bf0bc90cbdfad752aa5bbf2f305c2ebb168fdb615108171a8",
+      "peak": 0.591311,
+      "full_scale_samples": 0,
+      "nonfinite_samples": 0
+    },
+    "paired_alphatab_minus_acorde": {
+      "onsets": 3,
+      "median_ms": 0.0,
+      "median_abs_ms": 0.0,
+      "p95_abs_ms": 170.0
+    }
+  },
+  {
+    "score": "openscore_lieder_aloha_oe",
+    "schedule_sha256": "241f10d4f044034224122823583804bb9231190b32a362df57413d2a88ab15ef",
+    "scheduled_events": 644,
+    "scheduled_onsets": 157,
+    "scheduled_silences": 1,
+    "scheduled_end_seconds": 60.0,
+    "sample_rate": 48000,
+    "features": {
+      "parts": 4,
+      "overlapping_voices": true,
+      "tempo_changes": false,
+      "dynamics": true,
+      "pedal": false,
+      "articulations": [],
+      "programs": [
+        0,
+        52,
+        68
+      ]
+    },
+    "import_diagnostics": {
+      "total": 73,
+      "by_code": {
+        "musicxml.unsupported-dynamic": 1,
+        "musicxml.unsupported-render-attribute": 72
+      }
+    },
+    "acorde": {
+      "seconds": 61.0,
+      "detected_onsets": 155,
+      "undetected_onsets": 2,
+      "onset_median_ms": 17.5,
+      "onset_median_abs_ms": 30.0,
+      "onset_p95_abs_ms": 175.0,
+      "median_level_250ms_into_silence_db": -49.4,
+      "buffer_beyond_scheduled_end_seconds": 1.0,
+      "level_at_buffer_end_db": -180.0,
+      "tail_to_minus60db_seconds": 0.32,
+      "sha256": "7078ce89dd8382119a51231b6d508e10b28dac490ba612e11040e1296ce6f5b7",
+      "peak": 0.553558,
+      "full_scale_samples": 0,
+      "nonfinite_samples": 0
+    },
+    "alphatab": {
+      "seconds": 61.876,
+      "detected_onsets": 149,
+      "undetected_onsets": 8,
+      "onset_median_ms": 10.0,
+      "onset_median_abs_ms": 30.0,
+      "onset_p95_abs_ms": 175.0,
+      "median_level_250ms_into_silence_db": -25.0,
+      "buffer_beyond_scheduled_end_seconds": 1.876,
+      "level_at_buffer_end_db": -180.0,
+      "tail_to_minus60db_seconds": 1.53,
+      "sha256": "0d18cd3fa3792740447ee3aad496cca738614902508377a66a9d6a8c6170cdb3",
+      "peak": 1.244791,
+      "full_scale_samples": 76,
+      "nonfinite_samples": 0
+    },
+    "paired_alphatab_minus_acorde": {
+      "onsets": 147,
+      "median_ms": 0.0,
+      "median_abs_ms": 55.0,
+      "p95_abs_ms": 185.0
+    }
+  },
+  {
+    "score": "openscore_lieder_just_for_today",
+    "schedule_sha256": "a1baba1b1f2657d7254782e9d5e7b299aca9063747e8043b71555a06a3b6cc45",
+    "scheduled_events": 579,
+    "scheduled_onsets": 151,
+    "scheduled_silences": 1,
+    "scheduled_end_seconds": 85.109,
+    "sample_rate": 48000,
+    "features": {
+      "parts": 2,
+      "overlapping_voices": true,
+      "tempo_changes": false,
+      "dynamics": true,
+      "pedal": false,
+      "articulations": [
+        "Accent",
+        "Fermata"
+      ],
+      "programs": [
+        0,
+        68
+      ]
+    },
+    "import_diagnostics": {
+      "total": 32,
+      "by_code": {
+        "musicxml.unsupported-render-attribute": 32
+      }
+    },
+    "acorde": {
+      "seconds": 86.109,
+      "detected_onsets": 145,
+      "undetected_onsets": 6,
+      "onset_median_ms": 13.3,
+      "onset_median_abs_ms": 43.7,
+      "onset_p95_abs_ms": 187.6,
+      "median_level_250ms_into_silence_db": -49.5,
+      "buffer_beyond_scheduled_end_seconds": 1.0,
+      "level_at_buffer_end_db": -180.0,
+      "tail_to_minus60db_seconds": 0.241,
+      "sha256": "9d9df15bf26118d80c1bb532cab35291d4d75445607f2d468f611a3bd42e91ed",
+      "peak": 0.235046,
+      "full_scale_samples": 0,
+      "nonfinite_samples": 0
+    },
+    "alphatab": {
+      "seconds": 80.219,
+      "detected_onsets": 142,
+      "undetected_onsets": 9,
+      "onset_median_ms": 32.7,
+      "onset_median_abs_ms": 52.1,
+      "onset_p95_abs_ms": 223.0,
+      "median_level_250ms_into_silence_db": -19.0,
+      "buffer_beyond_scheduled_end_seconds": -4.89,
+      "level_at_buffer_end_db": -23.0,
+      "tail_to_minus60db_seconds": null,
+      "sha256": "fef25a1ad302e55bf183f20d95f886e7f66a51986716993df76973d1f3ae80f7",
+      "peak": 0.572022,
+      "full_scale_samples": 0,
+      "nonfinite_samples": 0
+    },
+    "paired_alphatab_minus_acorde": {
+      "onsets": 136,
+      "median_ms": 10.0,
+      "median_abs_ms": 75.0,
+      "p95_abs_ms": 205.0
+    }
+  },
+  {
+    "score": "openscore_lieder_quilter_prelude",
+    "schedule_sha256": "d871e08f5ee6afa98d88d94dadaf1451485f02d9309640bd6cf7542fc25af3bf",
+    "scheduled_events": 181,
+    "scheduled_onsets": 69,
+    "scheduled_silences": 0,
+    "scheduled_end_seconds": 34.783,
+    "sample_rate": 48000,
+    "features": {
+      "parts": 1,
+      "overlapping_voices": true,
+      "tempo_changes": false,
+      "dynamics": true,
+      "pedal": false,
+      "articulations": [
+        "Accent"
+      ],
+      "programs": [
+        0
+      ]
+    },
+    "import_diagnostics": {
+      "total": 104,
+      "by_code": {
+        "musicxml.unsupported-placement-attribute": 82,
+        "musicxml.unsupported-render-attribute": 21,
+        "musicxml.unterminated-hairpin": 1
+      }
+    },
+    "acorde": {
+      "seconds": 35.783,
+      "detected_onsets": 67,
+      "undetected_onsets": 2,
+      "onset_median_ms": 5.0,
+      "onset_median_abs_ms": 49.6,
+      "onset_p95_abs_ms": 190.7,
+      "median_level_250ms_into_silence_db": null,
+      "buffer_beyond_scheduled_end_seconds": 1.0,
+      "level_at_buffer_end_db": -180.0,
+      "tail_to_minus60db_seconds": 0.232,
+      "sha256": "81ae7fcc4e42fc3ab3c388f954789c2149b970a366d1b45f86cb7d86719031bf",
+      "peak": 0.182343,
+      "full_scale_samples": 0,
+      "nonfinite_samples": 0
+    },
+    "alphatab": {
+      "seconds": 34.783,
+      "detected_onsets": 68,
+      "undetected_onsets": 1,
+      "onset_median_ms": 2.6,
+      "onset_median_abs_ms": 15.1,
+      "onset_p95_abs_ms": 194.6,
+      "median_level_250ms_into_silence_db": null,
+      "buffer_beyond_scheduled_end_seconds": 0.0,
+      "level_at_buffer_end_db": -38.2,
+      "tail_to_minus60db_seconds": null,
+      "sha256": "743bc801612aa699e476f3b61c91a49e997bf0ce67f5230a461281daf59e33a1",
+      "peak": 0.484158,
+      "full_scale_samples": 0,
+      "nonfinite_samples": 0
+    },
+    "paired_alphatab_minus_acorde": {
+      "onsets": 66,
+      "median_ms": 0.0,
+      "median_abs_ms": 25.0,
+      "p95_abs_ms": 215.0
+    }
+  },
+  {
+    "score": "openscore_lieder_webern_so_ich_traurig_bin",
+    "schedule_sha256": "033ef9e2b608c936970a6bfba39746c3d403c156b22995dfd8aaacfdbb6d9a97",
+    "scheduled_events": 132,
+    "scheduled_onsets": 67,
+    "scheduled_silences": 0,
+    "scheduled_end_seconds": 34.643,
+    "sample_rate": 48000,
+    "features": {
+      "parts": 2,
+      "overlapping_voices": true,
+      "tempo_changes": true,
+      "dynamics": true,
+      "pedal": true,
+      "articulations": [
+        "Accent",
+        "Staccato",
+        "Tenuto"
+      ],
+      "programs": [
+        0,
+        68
+      ]
+    },
+    "import_diagnostics": {
+      "total": 23,
+      "by_code": {
+        "musicxml.orphan-spanner-stop": 1,
+        "musicxml.unsupported-dynamic": 1,
+        "musicxml.unsupported-metronome": 2,
+        "musicxml.unsupported-overlapping-hairpin": 1,
+        "musicxml.unsupported-render-attribute": 18
+      }
+    },
+    "acorde": {
+      "seconds": 35.643,
+      "detected_onsets": 64,
+      "undetected_onsets": 3,
+      "onset_median_ms": 9.6,
+      "onset_median_abs_ms": 31.9,
+      "onset_p95_abs_ms": 205.0,
+      "median_level_250ms_into_silence_db": null,
+      "buffer_beyond_scheduled_end_seconds": 1.0,
+      "level_at_buffer_end_db": -180.0,
+      "tail_to_minus60db_seconds": 0.062,
+      "sha256": "fae2f39a9ea6192e5cf82a0e1195c6905e5691dd3f0110662fa16d9752926c87",
+      "peak": 0.158081,
+      "full_scale_samples": 0,
+      "nonfinite_samples": 0
+    },
+    "alphatab": {
+      "seconds": 34.048,
+      "detected_onsets": 59,
+      "undetected_onsets": 8,
+      "onset_median_ms": 11.4,
+      "onset_median_abs_ms": 33.6,
+      "onset_p95_abs_ms": 235.5,
+      "median_level_250ms_into_silence_db": null,
+      "buffer_beyond_scheduled_end_seconds": -0.595,
+      "level_at_buffer_end_db": -180.0,
+      "tail_to_minus60db_seconds": null,
+      "sha256": "c4c2e3fe1c7e66c1b4df0b899c00ba3521390c5c1978b323da359fe7eeea8b0a",
+      "peak": 0.323513,
+      "full_scale_samples": 0,
+      "nonfinite_samples": 0
+    },
+    "paired_alphatab_minus_acorde": {
+      "onsets": 57,
+      "median_ms": 0.0,
+      "median_abs_ms": 50.0,
+      "p95_abs_ms": 245.0
+    }
+  },
+  {
+    "score": "issue_311_trill",
+    "schedule_sha256": "b4d2e258d31d8817b54a120e25a378d0f0ec87f319edc37486e49f936238c7d9",
+    "scheduled_events": 1,
+    "scheduled_onsets": 1,
+    "scheduled_silences": 0,
+    "scheduled_end_seconds": 2.0,
+    "sample_rate": 48000,
+    "features": {
+      "parts": 1,
+      "overlapping_voices": false,
+      "tempo_changes": false,
+      "dynamics": false,
+      "pedal": false,
+      "articulations": [
+        "Trill"
+      ],
+      "programs": [
+        0
+      ]
+    },
+    "import_diagnostics": {
+      "total": 0,
+      "by_code": {}
+    },
+    "acorde": {
+      "seconds": 3.0,
+      "detected_onsets": 1,
+      "undetected_onsets": 0,
+      "onset_median_ms": 5.0,
+      "onset_median_abs_ms": 5.0,
+      "onset_p95_abs_ms": 5.0,
+      "median_level_250ms_into_silence_db": null,
+      "buffer_beyond_scheduled_end_seconds": 1.0,
+      "level_at_buffer_end_db": -180.0,
+      "tail_to_minus60db_seconds": 0.4,
+      "sha256": "694d19ff54203bfa718f1010cf2cfd092d354b3b49d70ddb264bcf93e360a9a2",
+      "peak": 0.064087,
+      "full_scale_samples": 0,
+      "nonfinite_samples": 0
+    },
+    "alphatab": {
+      "seconds": 2.001,
+      "detected_onsets": 1,
+      "undetected_onsets": 0,
+      "onset_median_ms": 190.0,
+      "onset_median_abs_ms": 190.0,
+      "onset_p95_abs_ms": 190.0,
+      "median_level_250ms_into_silence_db": null,
+      "buffer_beyond_scheduled_end_seconds": 0.001,
+      "level_at_buffer_end_db": -21.4,
+      "tail_to_minus60db_seconds": null,
+      "sha256": "99f141fb0fb67d8794f093b9ed73374d77b2910b6e5163b199fb8ad80c29ab57",
+      "peak": 0.719842,
+      "full_scale_samples": 0,
+      "nonfinite_samples": 0
+    },
+    "paired_alphatab_minus_acorde": {
+      "onsets": 1,
+      "median_ms": 185.0,
+      "median_abs_ms": 185.0,
+      "p95_abs_ms": 185.0
+    }
+  },
+  {
+    "score": "issue_203_instrument_change",
+    "schedule_sha256": "226bf01c2da539bbfc97f34c979875627ecb20ac4394a0c9d91dd940133d5fe3",
+    "scheduled_events": 2,
+    "scheduled_onsets": 2,
+    "scheduled_silences": 1,
+    "scheduled_end_seconds": 3.0,
+    "sample_rate": 48000,
+    "features": {
+      "parts": 1,
+      "overlapping_voices": false,
+      "tempo_changes": false,
+      "dynamics": false,
+      "pedal": false,
+      "articulations": [],
+      "programs": [
+        0,
+        40
+      ]
+    },
+    "import_diagnostics": {
+      "total": 0,
+      "by_code": {}
+    },
+    "acorde": {
+      "seconds": 4.0,
+      "detected_onsets": 2,
+      "undetected_onsets": 0,
+      "onset_median_ms": 2.5,
+      "onset_median_abs_ms": 2.5,
+      "onset_p95_abs_ms": 5.0,
+      "median_level_250ms_into_silence_db": -38.8,
+      "buffer_beyond_scheduled_end_seconds": 1.0,
+      "level_at_buffer_end_db": -180.0,
+      "tail_to_minus60db_seconds": 0.1,
+      "sha256": "7d68ad6e9fbfcca3aba6084a25569813595eb69c32cea9b7a13f805fcbc7277d",
+      "peak": 0.047882,
+      "full_scale_samples": 0,
+      "nonfinite_samples": 0
+    },
+    "alphatab": {
+      "seconds": 4.0,
+      "detected_onsets": 2,
+      "undetected_onsets": 0,
+      "onset_median_ms": 2.5,
+      "onset_median_abs_ms": 2.5,
+      "onset_p95_abs_ms": 5.0,
+      "median_level_250ms_into_silence_db": -38.0,
+      "buffer_beyond_scheduled_end_seconds": 1.0,
+      "level_at_buffer_end_db": -180.0,
+      "tail_to_minus60db_seconds": 0.155,
+      "sha256": "b6be32ee84ac38b004f821be0e7d7307ea493c4ec110da9d6576e2a8d817941d",
+      "peak": 0.34503,
+      "full_scale_samples": 0,
+      "nonfinite_samples": 0
+    },
+    "paired_alphatab_minus_acorde": {
+      "onsets": 2,
+      "median_ms": 0.0,
+      "median_abs_ms": 0.0,
+      "p95_abs_ms": 0.0
+    }
+  }
+]

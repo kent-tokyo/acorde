@@ -1,15 +1,15 @@
 #!/usr/bin/env node
-// Export pinned alphaTab 1.8.4 synthesized stereo float32 audio without a browser.
-// Usage: node scripts/export_alphatab_audio.mjs PREFIX SCORE SF2 OUTPUT.f32le [SAMPLE_RATE]
+// Export pinned alphaTab synthesized stereo float32 audio without a browser.
+// Usage: node scripts/export_alphatab_audio.mjs PREFIX SCORE SF2 OUTPUT.f32le [SAMPLE_RATE] [EXPECTED_VERSION]
 
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 
-const [prefix, scorePath, soundfontPath, outputPath, rateText = '8000'] = process.argv.slice(2);
+const [prefix, scorePath, soundfontPath, outputPath, rateText = '8000', expectedVersion = '1.8.4'] = process.argv.slice(2);
 if (!prefix || !scorePath || !soundfontPath || !outputPath) {
-    throw new Error('expected PREFIX SCORE SF2 OUTPUT.f32le [SAMPLE_RATE]');
+    throw new Error('expected PREFIX SCORE SF2 OUTPUT.f32le [SAMPLE_RATE] [EXPECTED_VERSION]');
 }
 if ([scorePath, soundfontPath].some(input => path.resolve(input) === path.resolve(outputPath))) {
     throw new Error('audio output must not replace a score or SoundFont input');
@@ -20,8 +20,8 @@ if (!Number.isInteger(sampleRate) || sampleRate < 8000 || sampleRate > 384000) {
 }
 const packageDir = path.join(prefix, 'node_modules', '@coderline', 'alphatab');
 const packageInfo = JSON.parse(fs.readFileSync(path.join(packageDir, 'package.json'), 'utf8'));
-if (packageInfo.version !== '1.8.4') {
-    throw new Error(`expected alphaTab 1.8.4, got ${packageInfo.version}`);
+if (packageInfo.version !== expectedVersion) {
+    throw new Error(`expected alphaTab ${expectedVersion}, got ${packageInfo.version}`);
 }
 const alphaTab = await import(pathToFileURL(path.join(packageDir, 'dist', 'alphaTab.mjs')).href);
 const scoreBytes = fs.readFileSync(scorePath);
