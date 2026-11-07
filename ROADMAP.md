@@ -70,8 +70,12 @@ reaches Verovio's two pages, four systems and 1.8 mm staff space. The public
 four-measure default is unchanged. A
 [direction-text follow-up](docs/archive/print-direction-text-verovio-6-4-1.md)
 preserves two real-score `other-dynamics` prose directions in SVG and PDF,
-and corrects the comparison's empty-hairpin count. The next work is to raise the remaining
-small staff and text sizes without introducing overlaps, then address page-use
+and corrects the comparison's empty-hairpin count. A
+[lyric legibility follow-up](docs/archive/print-lyric-legibility-verovio-6-4-1.md)
+raises measured lyrics on four scores to 3.08–3.42 mm without adding pages,
+but Verovio still measures 4.05 mm and two Acorde staff spaces shrink slightly.
+The next work is to raise the remaining small staff and text sizes without
+introducing overlaps, then address page-use
 and missing-mark cases. Aloha Oe's final page remains sparsely used.
 Compare each revision on the same A4 inputs and verify suspicious collision
 counts in the PDFs, including slurs, beams, lyrics and directions.

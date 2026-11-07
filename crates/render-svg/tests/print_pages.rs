@@ -2,7 +2,7 @@ use acorde_core::{Score, TimeSignature, TimeSymbol};
 use acorde_layout::{
     GlyphResourcePolicy, PrintConfig, PrintSystemBreakStrategy, compute_print_layout,
 };
-use acorde_render_svg::{PrintRenderError, render_print_page_svgs};
+use acorde_render_svg::{PrintRenderError, SvgRenderOptions, render_print_page_svgs, render_svg};
 
 fn staff_line_right_edges(svg: &str) -> Vec<f32> {
     svg.split(r#"class="acorde-staff-line""#)
@@ -574,7 +574,21 @@ fn openscore_five_staff_score_reserves_space_for_two_lyric_verses() {
         .unwrap()
         .parse::<f32>()
         .unwrap();
-    assert!(lyric_size >= 7.6, "lyric font below 1.9 mm: {lyric_size}");
+    assert!(lyric_size >= 12.0, "lyric font below 3.0 mm: {lyric_size}");
+    let screen = render_svg(
+        &import.score,
+        &SvgRenderOptions {
+            staff_size: 4.0,
+            ..SvgRenderOptions::default()
+        },
+    )
+    .expect("screen SVG");
+    let screen_lyric = screen
+        .split_once("class=\"acorde-lyric\"")
+        .expect("screen lyric")
+        .1;
+    let screen_lyric_size = svg_attribute_f32(screen_lyric, "font-size");
+    assert!((screen_lyric_size - 6.4).abs() < 0.01);
     let staff_line_ys = svgs[0]
         .split(r#"class="acorde-staff-line""#)
         .skip(1)
