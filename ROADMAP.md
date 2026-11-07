@@ -67,7 +67,10 @@ measured staff space was 1.50 mm. An
 [opt-in eight-measure density run](docs/archive/print-density-ensemble-verovio-6-4-1.md)
 uses 18 pages and 54 systems, with a smallest staff space of 1.65 mm; OMR 1036
 reaches Verovio's two pages, four systems and 1.8 mm staff space. The public
-four-measure default is unchanged. The next work is to raise the remaining
+four-measure default is unchanged. A
+[direction-text follow-up](docs/archive/print-direction-text-verovio-6-4-1.md)
+preserves two real-score `other-dynamics` prose directions in SVG and PDF,
+and corrects the comparison's empty-hairpin count. The next work is to raise the remaining
 small staff and text sizes without introducing overlaps, then address page-use
 and missing-mark cases. Aloha Oe's final page remains sparsely used.
 Compare each revision on the same A4 inputs and verify suspicious collision

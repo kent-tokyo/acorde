@@ -905,16 +905,6 @@ pub(crate) fn parse_musicxml_collecting(
                         metronome_dots = metronome_dots.saturating_add(1).min(4);
                     }
                     "dynamics" if in_direction_type || in_notations => in_dynamics = true,
-                    "other-dynamics" if in_dynamics => {
-                        let mut diagnostic = crate::Diagnostic::warning(
-                            "musicxml.unsupported-dynamic",
-                            "a dynamic outside acorde's set (other-dynamics) is not imported",
-                        );
-                        diagnostic.source_location = Some(format!(
-                            "/score-partwise/measure[{current_measure_number}]/dynamics/other-dynamics"
-                        ));
-                        tolerated.push(diagnostic);
-                    }
                     // Print-style position attributes belong on the text element; they take
                     // precedence over the legacy acorde placement on <direction>.
                     "words" | "rehearsal" if in_direction_type => {
@@ -2812,6 +2802,28 @@ pub(crate) fn parse_musicxml_collecting(
                                 score.parts[pi].staves.push(Staff::new(Clef::Treble));
                             }
                         }
+                    }
+                    "other-dynamics" if in_dynamics => {
+                        let text = current_text.trim();
+                        let preserved = in_direction_type && !text.is_empty();
+                        if preserved {
+                            pending_expression_text = Some(match pending_expression_text.take() {
+                                Some(previous) => format!("{previous} {text}"),
+                                None => text.to_string(),
+                            });
+                        }
+                        let mut diagnostic = crate::Diagnostic::warning(
+                            "musicxml.unsupported-dynamic",
+                            if preserved {
+                                "other-dynamics text is displayed but not mapped to a playback dynamic"
+                            } else {
+                                "a dynamic outside acorde's set (other-dynamics) is not imported"
+                            },
+                        );
+                        diagnostic.source_location = Some(format!(
+                            "/score-partwise/measure[{current_measure_number}]/dynamics/other-dynamics"
+                        ));
+                        tolerated.push(diagnostic);
                     }
                     "dynamics" => in_dynamics = false,
                     "staff" if in_direction && !in_note => {

@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- MusicXML direction-level `<other-dynamics>` prose stays visible as expression
+  text in SVG and print PDF. Its playback level is still unsupported and
+  reported; MusicXML export writes the text as `<words>`.
 - Opt-in notation-density print layout with a system cap above four can pack
   lyric-free scores of five or more staves into fewer, larger systems. The
   four-measure default and explicit three-systems-per-page requests retain

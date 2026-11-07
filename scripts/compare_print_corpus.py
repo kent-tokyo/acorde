@@ -66,7 +66,7 @@ SELECTORS = {
     "verovio": {
         "noteheads": ".notehead", "rests": ".rest, .mRest",
         "slurs": ".slur", "ties": ".tie", "lyrics": ".syl",
-        "dynamics": ".dynam", "hairpins": ".hairpin", "articulations": ".artic",
+        "dynamics": ".dynam", "hairpins": ".hairpin:has(path, line, polyline)", "articulations": ".artic",
         "notation": ".notehead, .accid, .rest, .mRest",
         "staff_lines": ":scope > path", "staff": ".staff", "system": ".system",
     },
@@ -149,7 +149,9 @@ def expected_marks(path):
             counts["ties"] += sum(1 for t in n.findall("tied") if t.get("type") == "start")
             counts["articulations"] += sum(len(a) for a in n.findall("articulations"))
     for d in root.iter("dynamics"):
-        counts["dynamics"] += len(d)
+        # <other-dynamics> carries arbitrary text; compare it as a direction,
+        # not as a standard dynamic glyph.
+        counts["dynamics"] += sum(mark.tag != "other-dynamics" for mark in d)
     for w in root.iter("wedge"):
         counts["hairpins"] += w.get("type") in ("crescendo", "diminuendo")
     return dict(counts)
