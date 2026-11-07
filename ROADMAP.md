@@ -133,7 +133,9 @@ pitch/duration event bags. On 89 explicitly labeled scores, each tool selects
 83 correct keys. A [part/measure audit](docs/archive/analysis-bcmh-structure-audit.md)
 finds 97/98 paired scores with matching pitched onsets within the same part
 and measure; the remaining score has a malformed barline. Visible-rest positions
-also agree for 97/98, but only 81/98 agree when hidden rests are included.
+also agree for 97/98. After removing synthesized trailing rests from Humdrum
+imports, [all-rest onsets](docs/archive/analysis-bcmh-rest-preservation.md)
+agree for 97/98, up from 81/98; the remaining source has a malformed barline.
 Audit absolute measure positions, voice placement, spelling and ties before
 treating the event bags as semantic equality. This
 development-corpus tie is not holdout accuracy. The separately frozen

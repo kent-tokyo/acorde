@@ -303,18 +303,20 @@ pub(crate) fn pad_voice_to(voice: &mut Vec<acorde_core::Note>, target: f64, hidd
 }
 
 /// Close a bar of a line-oriented text format: an empty first voice gets visible rests for
-/// `length` beats, other short voices get hidden spacer rests, and a bar whose length differs
-/// from the meter (or has no meter) records it as `actual_length`.
+/// `length` beats. Formats that need filled trailing voices may request hidden spacer rests.
+/// A bar whose length differs from the meter (or has no meter) records it as `actual_length`.
 #[cfg(any(feature = "humdrum", feature = "pae"))]
 pub(crate) fn finish_text_measure(
     measure: &mut acorde_core::Measure,
     length: f64,
     meter_beats: Option<f64>,
+    pad_trailing_voices: bool,
 ) {
     for (index, voice) in measure.voices.iter_mut().enumerate() {
-        if index == 0 || !voice.is_empty() {
-            let hidden = !voice.is_empty();
-            pad_voice_to(voice, length, hidden);
+        if index == 0 && voice.is_empty() {
+            pad_voice_to(voice, length, false);
+        } else if pad_trailing_voices && !voice.is_empty() {
+            pad_voice_to(voice, length, true);
         }
     }
     if meter_beats.is_none_or(|meter| (meter - length).abs() > 1e-6) {

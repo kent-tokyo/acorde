@@ -360,6 +360,7 @@ impl Pae {
             &mut measure,
             length,
             self.meter.as_ref().map(TimeSignature::total_beats),
+            true,
         );
         measure.barline_right = right;
         measure.number = u32::try_from(self.measures.len() + 1).unwrap_or(u32::MAX);
