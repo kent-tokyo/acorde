@@ -149,8 +149,13 @@ semantic equality. This development-corpus tie is not holdout accuracy. A new
 uses an opt-in simultaneous-note pass and held-aside BCMH Roman labels. On
 equal-row-count measures it matches 1,916/3,943 labels with a separately
 inferred global key, versus 1,498/3,943 with the written key; 266 measures
-remain unaligned. Verify source-row timing and compare music21 on the same
-inputs before claiming analytical parity. The earlier
+remain unaligned. A [source-beat-aligned comparison with music21 10.5.2](docs/archive/analysis-bcmh-harmony-music21.md)
+uses the same cleaned `**kern` input in both programs. Of 97 scores with equal
+pitched timelines, 1,305 measures align directly to source-derived beats and
+75 remain excluded. On 4,627 annotated rows in aligned measures, Acorde
+matches 2,155 narrowly normalized Roman labels versus music21's 2,073, but
+Acorde produces no label on 382 rows. This is development-corpus evidence,
+not an untouched harmony holdout or general analysis parity. The earlier
 [Mozart sonata observation](docs/archive/analysis-mozart-key-holdout.md) records
 53 primary movements and 52 common MusicXML inputs, 50 annotated keys
 selected by Acorde's ranked first choice
