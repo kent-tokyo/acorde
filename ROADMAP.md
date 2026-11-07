@@ -73,27 +73,26 @@ and expressive playback before a broader claim.
 
 ### 3. Music analysis: music21 10.5.2
 
-The [BCMH global-key baseline in PR #402](https://github.com/kent-tokyo/acorde/pull/402)
+The [BCMH global-key baseline](docs/archive/analysis-bcmh-key-baseline.md)
 has 82 chorales with explicit labels, equal imported note/chord event counts
 and successful parses in both tools: music21 selected 76 correct keys, while
 Acorde's legacy first candidate selected 46.
-[PR #403](https://github.com/kent-tokyo/acorde/pull/403)
-adds an opt-in tonal-profile ranking;
-its development-corpus result must not be treated as holdout accuracy.
-
-First land [PR #405](https://github.com/kent-tokyo/acorde/pull/405), which
-raises paired parse and note/chord event-count agreement to 98/100 and 98/98
-respectively on this development corpus. Unordered pitch/duration event bags
-also match on 98/98; audit order, part/staff/voice/measure placement, rests,
-spelling and ties before treating this as semantic equality. The separately
-frozen [Mozart sonata holdout in PR #406](https://github.com/kent-tokyo/acorde/pull/406)
-records 53 primary movements and 52 common
-MusicXML inputs, 50 annotated keys selected by Acorde's ranked first choice
+[The integrated rerun](docs/archive/analysis-bcmh-integrated-profile.md) combines
+the opt-in tonal-profile ranking and Humdrum field recovery. Both tools parse
+98/100, and all 98 paired imports have equal note/chord counts and unordered
+pitch/duration event bags. On 89 explicitly labeled scores, each tool selects
+83 correct keys. Audit order, part/staff/voice/measure placement, rests,
+spelling and ties before treating those event bags as semantic equality. This
+development-corpus tie is not holdout accuracy. The separately frozen
+[Mozart sonata holdout](docs/archive/analysis-mozart-key-holdout.md) records
+53 primary movements and 52 common MusicXML inputs, 50 annotated keys
+selected by Acorde's ranked first choice
 versus 51 by music21. MuseScore failed to export K533-3, so first reproduce the
 full corpus with a stable converter and inspect the Acorde-only K331-2 error
-without tuning on this holdout. Then add independently annotated harmony,
-cadence and voice-leading fixtures;
-report precision, recall and error cases per task against music21 under the
+as a candidate-generation failure, without tuning on this holdout. Then add
+independently annotated harmony,
+cadence and voice-leading fixtures. Report precision, recall and error cases
+per task against music21 under the
 same input notes. Task-scoped parity requires Acorde to match or exceed
 music21 on each frozen holdout metric without lower parse coverage. A global
 key tie on one development corpus is not overall analysis parity.

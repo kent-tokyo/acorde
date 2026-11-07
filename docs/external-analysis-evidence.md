@@ -73,3 +73,10 @@ keys and Acorde's opt-in ranking selected 50, both over the original 53-score
 denominator. The 52 paired parses had equal pitched-event counts and unordered
 pitch/duration bags. Exporter instability and the narrow global-key task keep
 this a provisional, task-specific result rather than overall analysis parity.
+
+The [integrated BCMH rerun](archive/analysis-bcmh-integrated-profile.md) combines
+the Humdrum field recovery with opt-in tonal-profile ranking. Both tools parse
+98/100 scores; all 98 paired parses have matching note/chord counts and
+unordered pitch/duration event bags. On the 89 scores with explicit key labels,
+Acorde and music21 each select 83 labels. This remains the ranking rule's
+development corpus and does not change the Mozart holdout result.
