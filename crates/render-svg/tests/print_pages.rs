@@ -1177,3 +1177,61 @@ fn part_labels_stay_clear_of_the_paper_edge() {
         );
     }
 }
+
+#[test]
+fn three_staff_webern_keeps_readable_staff_space_on_two_a4_pages() {
+    let fixture = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/fixtures/openscore_lieder_webern_so_ich_traurig_bin.mxl"
+    );
+    let score = acorde_io::parse_mxl(&std::fs::read(fixture).unwrap()).unwrap();
+    let config = PrintConfig {
+        system_break_strategy: PrintSystemBreakStrategy::NotationDensity,
+        ..PrintConfig::default()
+    };
+    let layout = compute_print_layout(&score, &config).unwrap();
+    let pages = render_print_page_svgs(&score, &layout).unwrap();
+    assert_eq!(pages.len(), 2);
+    assert_eq!(
+        layout
+            .pages
+            .iter()
+            .map(|page| page.systems.len())
+            .sum::<usize>(),
+        5
+    );
+    for page in &pages {
+        let staff_lines = page
+            .split(r#"class="acorde-staff-line""#)
+            .skip(1)
+            .take(5)
+            .map(|line| svg_attribute_f32(line, "y1"))
+            .collect::<Vec<_>>();
+        assert_eq!(staff_lines.len(), 5);
+        let space_mm = (staff_lines[1] - staff_lines[0]).abs() / 4.0;
+        assert!(space_mm >= 1.65, "three-staff space is {space_mm:.2} mm");
+    }
+}
+
+#[test]
+fn five_staff_aloha_does_not_gain_pages_from_three_staff_clearance() {
+    let fixture = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/fixtures/openscore_lieder_aloha_oe.mxl"
+    );
+    let score = acorde_io::parse_mxl(&std::fs::read(fixture).unwrap()).unwrap();
+    let config = PrintConfig {
+        system_break_strategy: PrintSystemBreakStrategy::NotationDensity,
+        ..PrintConfig::default()
+    };
+    let layout = compute_print_layout(&score, &config).unwrap();
+    assert_eq!(layout.pages.len(), 3);
+    assert_eq!(
+        layout
+            .pages
+            .iter()
+            .map(|page| page.systems.len())
+            .sum::<usize>(),
+        6
+    );
+}

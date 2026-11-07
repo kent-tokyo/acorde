@@ -90,6 +90,10 @@ clearance before raising the cap as a default.
 
 ## Next gate
 
+The [staff-size follow-up](print-staff-size-verovio-6-4-1.md) raises staff
+space on seven scores without changing page or system counts. It does not
+resolve the smaller text, remaining mark shortfalls or PDF inspection gate.
+
 Raise the smallest staff and text sizes without introducing confirmed
 collisions or missing marks, then inspect page use and the suspicious OMR 1036
 edge boxes in the rendered PDFs. [Issue #390](https://github.com/kent-tokyo/acorde/issues/390)
