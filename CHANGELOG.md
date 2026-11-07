@@ -2,19 +2,38 @@
 
 ## [Unreleased]
 
-- MusicXML lined pedal starts, releases, resumes and changes now keep their
-  written beat positions for playback, including offsets between notes and
-  barline releases. Export writes each paired line/control direction once.
-- The independent MusicXML playback comparator now applies pedal release
-  caveats only near written pedal intervals and carries chord articulations to
-  every sounding member. Acorde playback output is unchanged.
-- MusicXML direction-level `<other-dynamics>` prose stays visible as expression
-  text in SVG and print PDF. Its playback level is still unsupported and
-  reported; MusicXML export writes the text as `<words>`.
-- Opt-in notation-density print layout with a system cap above four can pack
-  lyric-free scores of five or more staves into fewer, larger systems. The
-  four-measure default and explicit three-systems-per-page requests retain
-  their previous behavior.
+## 1.3.11 - 2026-11-07
+
+- **Migration:** Rust 1.89 remains the minimum. Saved preset and free-layer
+  configurations carry the workspace version; reselect their inputs to create
+  1.3.11 engine markers. The minor-key Roman numeral change below can change
+  analysis output even when callers do not opt in to a new API. See the
+  [migration notes](docs/migrations.md).
+- MusicXML lined pedal starts, releases, resumes, changes, offsets between
+  notes, and barline releases keep their written positions through playback
+  and export. Direction-level `<other-dynamics>` prose remains visible as text
+  in SVG and print PDF; its playback level is still reported as unsupported.
+  Humdrum import preserves unambiguous omitted durations and unwritten
+  trailing silence. Multi-voice MusicXML cursor handling has focused tests.
+- Print pages gain opt-in notation-density layout for lyric-free scores with
+  five or more staves and a system cap above four. Staff sizing and lyric
+  clearance improve on the pinned Verovio 6.4.1 development corpus. The
+  default four-measure cap and explicit three-systems-per-page behavior stay
+  as before; print parity still needs blind review and an untouched holdout.
+- Playback fixes whole-measure-rest fermata timing. The independent alphaTab
+  1.9.0 comparison now audits written note onsets and releases, chord-member
+  articulations, and pedal intervals more precisely. These comparator changes
+  do not themselves change Acorde playback output.
+- Analysis adds opt-in vertical sonorities, key-profile ranking, and
+  source-beat-aligned BCMH comparison with music21 10.5.2. Minor-key diminished
+  chords on the raised seventh now receive leading-tone Roman numerals,
+  including supported inversions. The BCMH gains are development-corpus
+  evidence, not a general or frozen-holdout parity claim.
+- Opt-in contextual passing/neighbor-note insertion accepts chord plans,
+  local keys, phrase endings, explicit selections, and a density cap. It
+  returns scored candidates and preserves supported typed references when
+  splitting source notes. The existing insertion API retains its signature;
+  tied, tuplet, and other unsafe anchors remain conservatively skipped.
 
 ## 1.3.10 - 2026-11-06
 

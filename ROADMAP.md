@@ -7,7 +7,7 @@ This roadmap tracks work still needing evidence or implementation. The
 
 ## Current baseline
 
-Version 1.3.10 includes a Rust score model with undoable commands, bounded notation I/O,
+Version 1.3.11 includes a Rust score model with undoable commands, bounded notation I/O,
 SVG and print-page rendering, playback scheduling, analysis primitives, WASM bindings,
 and the file-based CLI. MusicXML/MXL is the broadest interchange path; Humdrum `**kern` and
 Plaine & Easie import are opt-in subsets. Import and export reports identify known losses,
