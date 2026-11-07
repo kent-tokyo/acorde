@@ -307,6 +307,9 @@ enum Commands {
     Analyze {
         /// Input file (.musicxml, .mxl, .mid, .midi, .abc, .mei, .mscz, .mscx, .gp, .gpx, .gp3, .gp4, .gp5, .krn, .pae)
         input: PathBuf,
+        /// Rank tied key candidates by a duration-weighted tonal profile
+        #[arg(long)]
+        rank_tied_keys: bool,
     },
     /// Run a local analysis benchmark manifest and print its JSON report
     Benchmark {
@@ -415,6 +418,9 @@ enum Commands {
         /// Override the score tempo for event timestamps
         #[arg(long)]
         bpm: Option<u16>,
+        /// Fermata duration factor; use 1.0 to compare written onset positions
+        #[arg(long, value_name = "FACTOR")]
+        fermata_multiplier: Option<f64>,
         /// Inclusive zero-based physical measure at which the report starts
         #[arg(long, requires = "loop_end")]
         loop_start: Option<usize>,
@@ -667,7 +673,10 @@ fn run(cli: &Cli) -> Result<(), String> {
             input,
             fail_on_issues,
         } => cmd_preflight(input, *fail_on_issues),
-        Commands::Analyze { input } => cmd_analyze(input),
+        Commands::Analyze {
+            input,
+            rank_tied_keys,
+        } => cmd_analyze(input, *rank_tied_keys),
         Commands::Benchmark {
             manifest,
             fail_on_mismatch,
@@ -716,9 +725,10 @@ fn run(cli: &Cli) -> Result<(), String> {
         Commands::PlaybackReport {
             input,
             bpm,
+            fermata_multiplier,
             loop_start,
             loop_end,
-        } => cmd_playback_report(input, *bpm, *loop_start, *loop_end),
+        } => cmd_playback_report(input, *bpm, *fermata_multiplier, *loop_start, *loop_end),
         Commands::AudioRender {
             input,
             soundfont,
@@ -1102,9 +1112,12 @@ fn build_print_config(
     Ok(config)
 }
 
-fn cmd_analyze(input: &Path) -> Result<(), String> {
+fn cmd_analyze(input: &Path, rank_tied_keys: bool) -> Result<(), String> {
     let score = parse_score(input)?;
-    let analysis = acorde_analysis::analyze_score(&score);
+    let mut analysis = acorde_analysis::analyze_score(&score);
+    if rank_tied_keys {
+        analysis.key_estimates = acorde_analysis::estimate_keys_with_tonal_profile(&score);
+    }
     let json = serde_json::to_string_pretty(&analysis)
         .map_err(|e| format!("analysis serialization failed: {e}"))?;
     println!("{json}");
@@ -2340,11 +2353,12 @@ fn cmd_audio_render(
 fn cmd_playback_report(
     input: &Path,
     bpm: Option<u16>,
+    fermata_multiplier: Option<f64>,
     loop_start: Option<usize>,
     loop_end: Option<usize>,
 ) -> Result<(), String> {
     let score = parse_score(input)?;
-    let events = playback_report_events(&score, bpm, loop_start, loop_end)?;
+    let events = playback_report_events(&score, bpm, fermata_multiplier, loop_start, loop_end)?;
     println!(
         "{}",
         serde_json::to_string_pretty(&events)
@@ -2356,6 +2370,7 @@ fn cmd_playback_report(
 fn playback_report_events(
     score: &Score,
     bpm: Option<u16>,
+    fermata_multiplier: Option<f64>,
     loop_start: Option<usize>,
     loop_end: Option<usize>,
 ) -> Result<Vec<acorde_core::PlaybackEvent>, String> {
@@ -2364,11 +2379,17 @@ fn playback_report_events(
     {
         return Err("--loop-start must not exceed --loop-end".to_string());
     }
-    let options = PlaybackOptions {
+    let mut options = PlaybackOptions {
         bpm_override: bpm,
         loop_region: loop_start.zip(loop_end),
         ..PlaybackOptions::default()
     };
+    if let Some(multiplier) = fermata_multiplier {
+        if !multiplier.is_finite() || !(0.0..=16.0).contains(&multiplier) {
+            return Err("--fermata-multiplier must be finite and within 0..=16".to_string());
+        }
+        options.fermata_multiplier = multiplier;
+    }
     acorde_core::to_playback_events_bounded(score, &options)
         .map_err(|e| format!("playback report generation failed: {e}"))
 }
@@ -2820,17 +2841,42 @@ mod tests {
     #[test]
     fn playback_report_is_deterministic_and_respects_measure_range() {
         let score = parse_score(&fixture("simple.musicxml")).expect("fixture parses");
-        let all =
-            playback_report_events(&score, Some(120), None, None).expect("full report succeeds");
-        let partial = playback_report_events(&score, Some(120), Some(0), Some(0))
+        let all = playback_report_events(&score, Some(120), None, None, None)
+            .expect("full report succeeds");
+        let partial = playback_report_events(&score, Some(120), None, Some(0), Some(0))
             .expect("partial report succeeds");
-        let repeated = playback_report_events(&score, Some(120), None, None)
+        let repeated = playback_report_events(&score, Some(120), None, None, None)
             .expect("repeated report succeeds");
         assert_eq!(all, repeated);
         assert!(!all.is_empty());
         assert!(!partial.is_empty());
         assert!(partial.len() <= all.len());
         assert!(partial.iter().all(|event| event.time_beats >= 0.0));
+    }
+
+    #[test]
+    fn playback_report_can_project_written_onsets_without_fermata_holds() {
+        let score = parse_score(&fixture("openscore_lieder_just_for_today.mxl"))
+            .expect("lieder fixture parses");
+        let first_in_measure_six = |events: &[acorde_core::PlaybackEvent]| {
+            events
+                .iter()
+                .filter(|event| {
+                    event
+                        .source
+                        .as_ref()
+                        .is_some_and(|source| source.measure == 5)
+                })
+                .map(|event| event.time_beats)
+                .reduce(f64::min)
+                .expect("measure six has sounding notes")
+        };
+        let default_events = playback_report_events(&score, None, None, None, None).unwrap();
+        let written_events = playback_report_events(&score, None, Some(1.0), None, None).unwrap();
+        assert_eq!(first_in_measure_six(&default_events), 16.0);
+        assert_eq!(first_in_measure_six(&written_events), 15.0);
+        assert_eq!(default_events.len(), written_events.len());
+        assert!(playback_report_events(&score, None, Some(f64::NAN), None, None).is_err());
     }
 
     #[test]
@@ -3067,7 +3113,7 @@ mod tests {
     #[test]
     fn playback_report_rejects_reversed_measure_range() {
         let score = parse_score(&fixture("simple.musicxml")).expect("fixture parses");
-        let error = playback_report_events(&score, None, Some(1), Some(0))
+        let error = playback_report_events(&score, None, None, Some(1), Some(0))
             .expect_err("reversed range must fail");
         assert!(error.contains("--loop-start must not exceed --loop-end"));
     }
@@ -3215,7 +3261,7 @@ mod tests {
     #[test]
     fn playback_compare_reports_tolerance_and_rejects_invalid_tolerance() {
         let score = parse_score(&fixture("simple.musicxml")).expect("fixture parses");
-        let expected = playback_report_events(&score, Some(120), None, None)
+        let expected = playback_report_events(&score, Some(120), None, None, None)
             .expect("expected schedule succeeds");
         let mut actual = expected.clone();
         actual[0].time_secs += 0.01;
@@ -3483,7 +3529,7 @@ mod tests {
         }
 
         let playback =
-            playback_report_events(&parse_score(&input).unwrap(), None, None, None).unwrap();
+            playback_report_events(&parse_score(&input).unwrap(), None, None, None, None).unwrap();
         let events = directory.join("events.json");
         std::fs::write(&events, serde_json::to_vec(&playback).unwrap()).unwrap();
         invoke(&[

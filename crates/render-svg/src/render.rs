@@ -250,41 +250,43 @@ pub(crate) fn required_hairpin_staff_gap(score: &Score, layout: &LayoutResult, b
     required
 }
 
-/// Staff gap (in staff spaces) that keeps a staff's lyric lines clear of the noteheads of the
-/// staff below in the same measure. Lyric depth mirrors the print baseline in `annotations.rs`.
-// ponytail: one gap for the whole score (largest need wins) and noteheads only; per-system gaps
-// and stems if real scores need them.
-pub(crate) fn required_lyric_staff_gap(score: &Score, base: f32) -> f32 {
+/// The clearance for each consecutive pair of staves. A lyric under one staff must not
+/// enlarge unrelated gaps elsewhere in the system.
+pub(crate) fn required_lyric_staff_gaps(score: &Score, base: f32) -> Vec<f32> {
     let staff_refs = collect_staff_refs(score);
-    let mut required = base;
-    for pair in staff_refs.windows(2) {
-        let upper = &score.parts[pair[0].0].staves[pair[0].1];
-        let lower = &score.parts[pair[1].0].staves[pair[1].1];
-        for index in 0..upper.measures.len().min(lower.measures.len()) {
-            let mut lyric_bottom: Option<f32> = None;
-            for (note, low, _) in measure_note_positions(upper, index) {
-                let verse = note
-                    .additional_lyrics
-                    .iter()
-                    .map(|entry| entry.verse)
-                    .chain(note.lyric.as_ref().map(|_| 1))
-                    .max();
-                let Some(verse) = verse else { continue };
-                let baseline = (1.8_f32).max(-(low as f32) * 0.5 + 0.5 + 0.6) + LYRIC_FONT_SIZE_U;
-                let bottom =
-                    baseline + LYRIC_VERSE_SPACING * f32::from(verse.saturating_sub(1)) + 0.5;
-                lyric_bottom = Some(lyric_bottom.map_or(bottom, |value| value.max(bottom)));
+    staff_refs
+        .windows(2)
+        .map(|pair| {
+            let mut required = base;
+            let upper = &score.parts[pair[0].0].staves[pair[0].1];
+            let lower = &score.parts[pair[1].0].staves[pair[1].1];
+            for index in 0..upper.measures.len().min(lower.measures.len()) {
+                let mut lyric_bottom: Option<f32> = None;
+                for (note, low, _) in measure_note_positions(upper, index) {
+                    let verse = note
+                        .additional_lyrics
+                        .iter()
+                        .map(|entry| entry.verse)
+                        .chain(note.lyric.as_ref().map(|_| 1))
+                        .max();
+                    let Some(verse) = verse else { continue };
+                    let baseline =
+                        (1.8_f32).max(-(low as f32) * 0.5 + 0.5 + 0.6) + LYRIC_FONT_SIZE_U;
+                    let bottom =
+                        baseline + LYRIC_VERSE_SPACING * f32::from(verse.saturating_sub(1)) + 0.5;
+                    lyric_bottom = Some(lyric_bottom.map_or(bottom, |value| value.max(bottom)));
+                }
+                let Some(lyric_bottom) = lyric_bottom else {
+                    continue;
+                };
+                let lower_top = measure_note_positions(lower, index)
+                    .map(|(_, _, high)| high as f32 * 0.5 - 4.0 + 0.5)
+                    .fold(0.0_f32, f32::max);
+                required = required.max(lyric_bottom + 0.4 + lower_top);
             }
-            let Some(lyric_bottom) = lyric_bottom else {
-                continue;
-            };
-            let lower_top = measure_note_positions(lower, index)
-                .map(|(_, _, high)| high as f32 * 0.5 - 4.0 + 0.5)
-                .fold(0.0_f32, f32::max);
-            required = required.max(lyric_bottom + 0.4 + lower_top);
-        }
-    }
-    required
+            required
+        })
+        .collect()
 }
 
 /// Each pitched note of one measure with its lowest and highest staff position.
@@ -322,7 +324,7 @@ fn measure_note_positions(
 pub(crate) fn print_row_metrics(
     score: &Score,
     layout: &LayoutResult,
-    staff_gap: f32,
+    staff_gaps: &[f32],
 ) -> Result<(f32, f32, f32), RenderError> {
     let staff_refs = collect_staff_refs(score);
     if staff_refs.is_empty() {
@@ -333,19 +335,20 @@ pub(crate) fn print_row_metrics(
         .iter()
         .map(|&(part, staff)| staff_height_u(score, part, staff))
         .sum::<f32>()
-        + staff_refs.len().saturating_sub(1) as f32 * staff_gap;
+        + staff_gaps.iter().sum::<f32>();
     Ok((top, system, bottom))
 }
 
-pub(crate) fn print_staff_offsets(score: &Score, staff_gap: f32) -> Vec<(usize, f32, f32)> {
+pub(crate) fn print_staff_offsets(score: &Score, staff_gaps: &[f32]) -> Vec<(usize, f32, f32)> {
     let mut offset = 0.0;
     let staff_refs = collect_staff_refs(score);
     staff_refs
         .into_iter()
-        .map(|(part, staff)| {
+        .enumerate()
+        .map(|(index, (part, staff))| {
             let height = staff_height_u(score, part, staff);
             let result = (part, offset, height);
-            offset += height + staff_gap;
+            offset += height + staff_gaps.get(index).copied().unwrap_or(0.0);
             result
         })
         .collect()
@@ -486,13 +489,29 @@ pub(crate) fn build_svg_with_metadata_placement(
         Some(&RowEdges::from_layout(layout)),
     );
 
-    let staff_gap = required_hairpin_staff_gap(score, layout, config.staff_gap());
+    let staff_gaps = config.staff_gaps();
+    if let Some(gaps) = staff_gaps
+        && (gaps.len() != staff_refs.len().saturating_sub(1)
+            || gaps.iter().any(|gap| !gap.is_finite() || *gap <= 0.0))
+    {
+        return Err(RenderError::InvalidOptions {
+            reason: "staff_gaps must contain one positive finite value per staff pair".into(),
+        });
+    }
+    let staff_gap = if staff_gaps.is_some() {
+        config.staff_gap()
+    } else {
+        required_hairpin_staff_gap(score, layout, config.staff_gap())
+    };
     let staff_heights_u: Vec<f32> = staff_refs
         .iter()
         .map(|&(part, staff)| staff_height_u(score, part, staff))
         .collect();
     let system_height_u: f32 = staff_heights_u.iter().sum::<f32>()
-        + (staff_refs.len().saturating_sub(1)) as f32 * staff_gap;
+        + staff_gaps.map_or(
+            staff_refs.len().saturating_sub(1) as f32 * staff_gap,
+            |gaps| gaps.iter().sum::<f32>(),
+        );
 
     let content_width = options.width - (left_margin_u + right_margin_u) * space;
     if !content_width.is_finite() || content_width <= 0.0 {
@@ -799,9 +818,13 @@ pub(crate) fn build_svg_with_metadata_placement(
         let mut staff_y: Vec<f32> = Vec::with_capacity(staff_refs.len());
         {
             let mut y = row_top_y;
-            for &staff_height in &staff_heights_u {
+            for (index, &staff_height) in staff_heights_u.iter().enumerate() {
                 staff_y.push(y);
-                y += (staff_height + staff_gap) * space;
+                let gap = staff_gaps
+                    .and_then(|gaps| gaps.get(index))
+                    .copied()
+                    .unwrap_or(staff_gap);
+                y += (staff_height + gap) * space;
             }
         }
         for (i, &(part, staff)) in staff_refs.iter().enumerate() {
@@ -12022,9 +12045,13 @@ mod piano_brace_tests {
             extend: false,
         });
         score.parts[0].staves[0].measures[0].voices[0] = vec![sung];
-        assert_eq!(super::required_lyric_staff_gap(&score, 6.0), 6.0);
+        assert_eq!(super::required_lyric_staff_gaps(&score, 6.0), vec![6.0]);
         let high = Note::new(Pitch::new(Step::C, 5), Duration::Whole);
         score.parts[0].staves[1].measures[0].voices[0] = vec![high];
-        assert!(super::required_lyric_staff_gap(&score, 6.0) > 8.0);
+        let unrelated_staff = score.parts[0].staves[1].clone();
+        score.parts[0].staves.push(unrelated_staff);
+        let gaps = super::required_lyric_staff_gaps(&score, 6.0);
+        assert!(gaps[0] > 8.0);
+        assert_eq!(gaps[1], 6.0);
     }
 }

@@ -276,7 +276,10 @@ jobs:
           # Opt-in SMuFL glyph text (#393) adds 5,335 bytes on macOS
           # (6,987,726 -> 6,993,061). Merged with #391 it measured 7,087,815
           # bytes on Linux CI (+5,289); keep about 7 KB headroom.
-          test "$size" -le 7095000
+          # Per-pair lyric clearance for print pages (#398) measured 7,109,872
+          # bytes on Linux CI, up 21,887 from v1.3.10 main (7,087,985).
+          # Retain about 7 KB headroom for the integrated full artifact.
+          test "$size" -le 7117000
 
   renderer-benchmark:
     name: Renderer performance budget

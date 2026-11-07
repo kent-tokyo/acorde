@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Compare pitch and beat onsets with a narrow, independent MusicXML source oracle.
 
-The oracle reads MusicXML duration, backup, forward, chord, and tie elements directly.
-It rejects unsupported note forms and navigation instead of guessing their timing.
+The oracle reads MusicXML duration, backup, forward, chord, tie, and silent cue
+elements directly. It rejects unsupported note forms and navigation instead
+of guessing their timing.
 Requires the optional `mido` package for the external MIDI input.
 """
 
@@ -62,14 +63,15 @@ def source_attacks(path: Path) -> tuple[Counter[tuple[float, int]], list[float]]
                         raise ValueError("backup before measure start")
                     max_cursor = max(max_cursor, cursor)
                 elif item.tag == "note":
-                    if item.find("grace") is not None or item.find("cue") is not None:
-                        raise ValueError("grace and cue notes are outside this oracle")
+                    if item.find("grace") is not None:
+                        raise ValueError("grace notes are outside this oracle")
+                    cue = item.find("cue") is not None
                     duration = int(item.findtext("duration")) / divisions[part_index]
                     chord = item.find("chord") is not None
                     if not chord:
                         last_note_start = cursor
                     pitch = item.find("pitch")
-                    if pitch is not None:
+                    if pitch is not None and not cue:
                         alter = float(pitch.findtext("alter") or 0)
                         if not alter.is_integer():
                             raise ValueError("microtonal pitch is outside this MIDI oracle")
@@ -77,7 +79,7 @@ def source_attacks(path: Path) -> tuple[Counter[tuple[float, int]], list[float]]
                         midi += STEP[pitch.findtext("step")] + int(alter)
                         if not any(tie.attrib.get("type") == "stop" for tie in item.findall("tie")):
                             measure_attacks.append((last_note_start, midi))
-                    elif item.find("rest") is None:
+                    elif pitch is None and item.find("rest") is None:
                         raise ValueError("unpitched note is outside this oracle")
                     if not chord:
                         cursor += duration
@@ -151,14 +153,19 @@ def main() -> None:
     acorde_matches, acorde_max_difference = match_onsets(source, acorde, tolerance_beats)
     external_matches, external_max_difference = match_onsets(source, external, tolerance_beats)
     print(json.dumps({
+        "source_sha256": hashlib.sha256(args.source_mxl.read_bytes()).hexdigest(),
+        "acorde_schedule_sha256": hashlib.sha256(args.acorde_json.read_bytes()).hexdigest(),
+        "external_midi_sha256": hashlib.sha256(args.external_midi.read_bytes()).hexdigest(),
         "source_attacks": source.total(),
         "source_onset_fingerprint_sha256": fingerprint(source),
         "physical_measure_lengths_beats": lengths,
         "onset_tolerance_beats": tolerance_beats,
         "acorde_source_matches": acorde_matches,
+        "acorde_events": acorde.total(),
         "acorde_only": acorde.total() - acorde_matches,
         "acorde_max_matched_difference_beats": acorde_max_difference,
         "alphatab_source_matches": external_matches,
+        "alphatab_events": external.total(),
         "alphatab_only": external.total() - external_matches,
         "alphatab_max_matched_difference_beats": external_max_difference,
     }, indent=2))

@@ -46,3 +46,30 @@ include C major.
 This is one checksum-pinned smoke observation only. It supplies neither a population accuracy
 measurement nor a music21 compatibility score. Add more permission-cleared fixtures, pinned
 environment details, and explicit expected agreements/disagreements before treating it as a gate.
+
+## Independent global-key corpus (2026-11-07)
+
+The [BCMH Bach chorale baseline](archive/analysis-bcmh-key-baseline.md) compares
+Acorde v1.3.10 with music21 10.5.2 against independently annotated keys.
+On the 82 mutually parsed scores with matching note/chord event counts and
+explicit key labels, music21's single estimate matched 76 labels and Acorde's
+first candidate matched 46. Acorde included the label among tied candidates in 78,
+which is not single-key accuracy. The result is limited to this corpus and
+does not cover harmony or cadence analysis.
+The unordered pitch/duration event bag matches on 88 of the 90 paired parses;
+this does not check event order, placement, rests or ties.
+
+An [opt-in tonal-profile ranking](archive/analysis-bcmh-key-profile.md) orders
+the same tied candidates. Its first choice matched 76 of the same 82 labels,
+equal to music21 on this development corpus. This is not an independent
+holdout result; parser coverage and other analysis categories remain separate
+gates.
+
+The [Mozart sonata holdout](archive/analysis-mozart-key-holdout.md) fixes 53
+previously unseen annotated movements before scoring. MuseScore 4.7.5 produced
+52 valid common MusicXML inputs; one movement failed to export. After
+analyst-provided harmony labels were removed, music21 selected 51 annotated
+keys and Acorde's opt-in ranking selected 50, both over the original 53-score
+denominator. The 52 paired parses had equal pitched-event counts and unordered
+pitch/duration bags. Exporter instability and the narrow global-key task keep
+this a provisional, task-specific result rather than overall analysis parity.

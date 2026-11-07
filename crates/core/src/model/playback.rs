@@ -3422,10 +3422,18 @@ fn score_fermata_holds(score: &Score, options: &PlaybackOptions) -> Vec<FermataH
                     if note.is_grace || note.is_cue {
                         continue;
                     }
+                    // A lone plain whole rest occupies the authored measure, even
+                    // in meters shorter than 4/4. Its fermata belongs at the
+                    // barline, not after four quarter-note beats.
+                    let notated_duration = if voice.len() == 1 && note.is_plain_whole_rest() {
+                        measure_clock.beats
+                    } else {
+                        note.beats()
+                    };
                     let duration = if let Some(ratio) = swing {
                         if swing_second {
                             swing_second = false;
-                            (1.0 - ratio) * note.beats() * 2.0
+                            (1.0 - ratio) * notated_duration * 2.0
                         } else if starts_swing_pair(
                             voice,
                             note_index,
@@ -3435,14 +3443,14 @@ fn score_fermata_holds(score: &Score, options: &PlaybackOptions) -> Vec<FermataH
                             &options.swing_unit,
                         ) {
                             swing_second = true;
-                            ratio * note.beats() * 2.0
+                            ratio * notated_duration * 2.0
                         } else {
-                            note.beats()
+                            notated_duration
                         }
                     } else {
-                        note.beats()
+                        notated_duration
                     };
-                    written += note.beats();
+                    written += notated_duration;
                     local += duration;
                     if note.articulations.contains(&Articulation::Fermata) && duration > 0.0 {
                         let at_beat = measure_clock.start_beats + local;
@@ -4808,6 +4816,38 @@ mod tests {
     }
 
     // ── Fermata ───────────────────────────────────────────────────────────────
+
+    #[test]
+    fn whole_measure_rest_fermata_uses_three_four_bar_length() {
+        let mut score = Score::new("Measure rest fermata", 120, 3, 4, 0, 2);
+        let mut rest = Note::rest(Duration::Whole);
+        rest.articulations.push(Articulation::Fermata);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![rest];
+        score.parts[0].staves[0].measures[1].voices[0] =
+            vec![Note::new(Pitch::new(Step::D, 4), Duration::Quarter)];
+
+        let options = PlaybackOptions::default();
+        assert_eq!(playback_fermata_pauses(&score, &options), vec![(3.0, 1.5)]);
+        let events = to_playback_events(&score, &options);
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].time_beats, 4.5);
+
+        // A simultaneous pitched fermata is one shared hold at the barline.
+        let mut held = Note::new(Pitch::new(Step::C, 4), Duration::Half);
+        held.dot_count = 1;
+        held.articulations.push(Articulation::Fermata);
+        score.parts[0].staves[0].measures[0].voices[1] = vec![held];
+        assert_eq!(playback_fermata_pauses(&score, &options), vec![(3.0, 1.5)]);
+        let events = to_playback_events(&score, &options);
+        assert_eq!(
+            events
+                .iter()
+                .find(|event| event.pitch_midi == 62)
+                .unwrap()
+                .time_beats,
+            4.5
+        );
+    }
 
     #[test]
     fn fermata_holds_a_shared_clock_across_voices_and_repeat_traversal() {
