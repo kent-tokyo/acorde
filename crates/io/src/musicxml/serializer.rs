@@ -669,21 +669,34 @@ fn serialize_musicxml_inner(
 
             // These directions are emitted at the measure cursor origin; offset preserves
             // their independent score-time position even when it falls inside a note.
-            for (staff_index, direction) in part
-                .staves
-                .iter()
-                .enumerate()
-                .filter_map(|(staff_index, staff)| {
-                    staff.measures.get(i).map(|measure| (staff_index, measure))
-                })
-                .flat_map(|(staff_index, measure)| {
-                    measure
-                        .timed_pedals
-                        .iter()
-                        .map(move |direction| (staff_index, direction))
-                })
+            for (staff_index, event_index, direction) in
+                part.staves
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(staff_index, staff)| {
+                        staff.measures.get(i).map(|measure| (staff_index, measure))
+                    })
+                    .flat_map(|(staff_index, measure)| {
+                        measure.timed_pedals.iter().enumerate().map(
+                            move |(event_index, direction)| (staff_index, event_index, direction),
+                        )
+                    })
             {
                 if !direction.position_beats.is_finite() || direction.position_beats < 0.0 {
+                    continue;
+                }
+                if score.spanners.iter().any(|spanner| {
+                    [true, false].into_iter().any(|down| {
+                        let address = if down { &spanner.start } else { &spanner.end };
+                        address.part == pi
+                            && address.staff == staff_index
+                            && paired_timed_pedal(score, spanner, down).is_some_and(
+                                |(paired_measure, paired_index, _)| {
+                                    paired_measure == i && paired_index == event_index
+                                },
+                            )
+                    })
+                }) {
                     continue;
                 }
                 let placement = direction
@@ -1032,7 +1045,7 @@ fn serialize_note(
         .collect();
     // Direction spanners start before their first note and stop after their last one (after
     // its chord members), where MusicXML import reads them back.
-    serialize_typed_direction_spanners(xml, &typed_spanners, address, "start");
+    serialize_typed_direction_spanners(xml, score, &typed_spanners, address, "start");
     let has_typed_endpoint =
         |kind: NotationSpannerKind| typed_spanners.iter().any(|spanner| spanner.kind == kind);
 
@@ -1489,7 +1502,7 @@ fn serialize_note(
         }
     }
 
-    serialize_typed_direction_spanners(xml, &typed_spanners, address, "stop");
+    serialize_typed_direction_spanners(xml, score, &typed_spanners, address, "stop");
 
     // Pedal stop
     if note.pedal_end && !timed_pedal_here(false) && !has_typed_endpoint(NotationSpannerKind::Pedal)
@@ -1669,8 +1682,132 @@ fn cue_written_ticks(note: &Note) -> u32 {
     adjusted.min(u64::from(u32::MAX)) as u32
 }
 
+fn pedal_endpoint_beat(score: &Score, address: &NoteAddr, down: bool) -> Option<f64> {
+    let voice = score
+        .parts
+        .get(address.part)?
+        .staves
+        .get(address.staff)?
+        .measures
+        .get(address.measure)?
+        .voices
+        .get(address.voice)?;
+    let note = voice.get(address.note)?;
+    Some(
+        voice
+            .iter()
+            .take(address.note)
+            .map(Note::beats)
+            .sum::<f64>()
+            + if down { 0.0 } else { note.beats() },
+    )
+}
+
+/// Pair a drawn pedal endpoint with its exact-time event by number and order
+/// within the measure. Ambiguous groups retain the existing separate exports.
+fn paired_timed_pedal(
+    score: &Score,
+    spanner: &NotationSpanner,
+    down: bool,
+) -> Option<(usize, usize, f64)> {
+    if spanner.kind != NotationSpannerKind::Pedal {
+        return None;
+    }
+    let address = if down { &spanner.start } else { &spanner.end };
+    let measure = score
+        .parts
+        .get(address.part)?
+        .staves
+        .get(address.staff)?
+        .measures
+        .get(address.measure)?;
+    let number = spanner.number.unwrap_or(1);
+    let mut events: Vec<_> = measure
+        .timed_pedals
+        .iter()
+        .enumerate()
+        .filter(|(_, event)| event.number == number && event.down == down && event.hide_sign)
+        .map(|(index, event)| (index, event.position_beats))
+        .collect();
+    let mut endpoints: Vec<_> = score
+        .spanners
+        .iter()
+        .filter(|candidate| {
+            if candidate.kind != NotationSpannerKind::Pedal
+                || candidate.number.unwrap_or(1) != number
+            {
+                return false;
+            }
+            let at = if down {
+                &candidate.start
+            } else {
+                &candidate.end
+            };
+            at.part == address.part && at.staff == address.staff && at.measure == address.measure
+        })
+        .filter_map(|candidate| {
+            Some((
+                candidate,
+                pedal_endpoint_beat(
+                    score,
+                    if down {
+                        &candidate.start
+                    } else {
+                        &candidate.end
+                    },
+                    down,
+                )?,
+            ))
+        })
+        .collect();
+    if endpoints.len() != events.len() || events.is_empty() {
+        if endpoints.len() == 1 && events.is_empty() {
+            // A release at a barline belongs to the next physical measure,
+            // while its drawn line ends after the preceding measure's note.
+            let adjacent = if down {
+                address.measure.checked_sub(1)?
+            } else {
+                address.measure.checked_add(1)?
+            };
+            let nearby = score
+                .parts
+                .get(address.part)?
+                .staves
+                .get(address.staff)?
+                .measures
+                .get(adjacent)?;
+            let candidates: Vec<_> = nearby
+                .timed_pedals
+                .iter()
+                .enumerate()
+                .filter(|(_, event)| {
+                    event.number == number && event.down == down && event.hide_sign
+                })
+                .collect();
+            if let [(index, event)] = candidates.as_slice() {
+                let beat = if down {
+                    event.position_beats - score.playback_measure_beats(adjacent)
+                } else {
+                    score.playback_measure_beats(address.measure) + event.position_beats
+                };
+                return Some((adjacent, *index, beat));
+            }
+        }
+        return None;
+    }
+    endpoints.sort_by(|a, b| a.1.total_cmp(&b.1));
+    events.sort_by(|a, b| a.1.total_cmp(&b.1));
+    let rank = endpoints
+        .iter()
+        .position(|(candidate, _)| std::ptr::eq(*candidate, spanner))?;
+    events
+        .get(rank)
+        .map(|(index, beat)| (address.measure, *index, *beat))
+}
+
 fn serialize_typed_direction_spanners(
     xml: &mut String,
+    score: &Score,
     spanners: &[&NotationSpanner],
     address: &NoteAddr,
     which: &str,
@@ -1689,18 +1826,32 @@ fn serialize_typed_direction_spanners(
         let number = spanner.number.unwrap_or(1);
         match spanner.kind {
             NotationSpannerKind::Pedal => {
-                let placement = spanner.placement.as_deref().unwrap_or("below");
+                let paired = paired_timed_pedal(score, spanner, endpoint == "start");
+                let placement = spanner.placement.as_deref().map_or_else(
+                    || {
+                        if paired.is_some() {
+                            String::new()
+                        } else {
+                            " placement=\"below\"".to_string()
+                        }
+                    },
+                    |value| format!(" placement=\"{}\"", escape_xml(value)),
+                );
                 let line = spanner.line_type.as_deref().unwrap_or("no");
-                xml.push_str(&format!(
-                    "      <direction placement=\"{}\">\n",
-                    escape_xml(placement)
-                ));
+                xml.push_str(&format!("      <direction{placement}>\n"));
                 xml.push_str("        <direction-type>\n");
                 xml.push_str(&format!(
                     "          <pedal type=\"{endpoint}\" number=\"{number}\" line=\"{}\"/>\n",
                     escape_xml(line)
                 ));
                 xml.push_str("        </direction-type>\n");
+                if let Some((_, _, beat)) = paired {
+                    let cursor =
+                        pedal_endpoint_beat(score, address, endpoint == "start").unwrap_or(0.0);
+                    let offset = ((beat - cursor) * f64::from(DIVISIONS)).round() as i64;
+                    xml.push_str(&format!("        <offset>{offset}</offset>\n"));
+                }
+                xml.push_str(&format!("        <staff>{}</staff>\n", address.staff + 1));
                 xml.push_str("      </direction>\n");
             }
             NotationSpannerKind::Dashes => {

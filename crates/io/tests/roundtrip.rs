@@ -5605,7 +5605,7 @@ fn typed_direction_spanners_keep_their_end_note_and_reach_other_exporters() {
 }
 
 #[test]
-fn webern_same_cursor_pedal_change_reaches_one_playback_note() {
+fn webern_same_cursor_repedals_include_lined_resume() {
     let score = acorde_io::parse_mxl(include_bytes!(
         "../../../tests/fixtures/openscore_lieder_webern_so_ich_traurig_bin.mxl"
     ))
@@ -5639,7 +5639,23 @@ fn webern_same_cursor_pedal_change_reaches_one_playback_note() {
                 })
         })
         .collect::<Vec<_>>();
-    assert_eq!(repedal_notes, vec![(1, 1, 11, 0, 1)]);
+    assert_eq!(repedal_notes, vec![(1, 1, 11, 0, 1), (1, 1, 16, 0, 0)]);
+    let pedal_beats = |measure: usize| {
+        score.parts[1].staves[1].measures[measure]
+            .timed_pedals
+            .iter()
+            .map(|pedal| (pedal.position_beats, pedal.down))
+            .collect::<Vec<_>>()
+    };
+    let repedal = pedal_beats(11);
+    assert!(
+        repedal
+            .windows(2)
+            .any(|pair| { pair[0].0 == pair[1].0 && !pair[0].1 && pair[1].1 })
+    );
+    let lined = pedal_beats(16);
+    assert_eq!(lined, [(0.0, false), (0.0, true)]);
+    assert_eq!(pedal_beats(17), [(0.0, false)]);
 }
 
 #[test]

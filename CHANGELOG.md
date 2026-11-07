@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- MusicXML lined pedal starts, releases, resumes and changes now keep their
+  written beat positions for playback, including offsets between notes and
+  barline releases. Export writes each paired line/control direction once.
 - The independent MusicXML playback comparator now applies pedal release
   caveats only near written pedal intervals and carries chord articulations to
   every sounding member. Acorde playback output is unchanged.

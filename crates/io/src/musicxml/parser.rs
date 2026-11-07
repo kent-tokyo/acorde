@@ -568,8 +568,6 @@ pub(crate) fn parse_musicxml_collecting(
     let mut pending_figured_groups: Vec<FiguredBassGroup> = Vec::new();
     let mut pending_figured_texts: Vec<StyledText> = Vec::new();
     let mut pending_ottava_start: Option<OttavaKind> = None;
-    let mut pending_pedal_start = false;
-    let mut pending_pedal_end = false;
     // Independent score-time directions: document order need not match playback order.
     let mut pending_timed_pedals: Vec<(bool, u16, bool)> = Vec::new();
     let mut timed_pedal_events: Vec<(usize, usize, usize, acorde_core::TimedPedalDirection)> =
@@ -653,6 +651,7 @@ pub(crate) fn parse_musicxml_collecting(
     // follow their chord head.
     let mut last_note_cross_home: Option<usize> = None;
     let mut last_note_address: Option<NoteAddr> = None;
+    let mut previous_measure_last_note_address: Option<NoteAddr> = None;
     let mut current_text = String::new();
 
     let mut part_index: Option<usize> = None;
@@ -1174,6 +1173,10 @@ pub(crate) fn parse_musicxml_collecting(
                         source_voice_slots.clear();
                         last_note_start = None;
                         last_note_cross_home = None;
+                        previous_measure_last_note_address = last_note_address
+                            .as_ref()
+                            .filter(|address| Some(address.part) == part_index)
+                            .cloned();
                         last_note_address = None;
                     }
                     "backup" => in_backup = true,
@@ -1571,17 +1574,29 @@ pub(crate) fn parse_musicxml_collecting(
                         _ => {}
                     },
                     "pedal" if attr_str(e, b"line").as_deref() == Some("no") => {
-                        if let Some(kind @ ("start" | "stop")) = attr_str(e, b"type").as_deref() {
-                            pending_timed_pedals.push((
-                                kind == "start",
-                                parse_spanner_number(attr_str(e, b"number"))?,
-                                attr_str(e, b"sign").as_deref() == Some("no"),
-                            ));
+                        let number = parse_spanner_number(attr_str(e, b"number"))?;
+                        let hidden = attr_str(e, b"sign").as_deref() == Some("no");
+                        match attr_str(e, b"type").as_deref() {
+                            Some("start" | "resume") => {
+                                pending_timed_pedals.push((true, number, hidden));
+                            }
+                            Some("stop" | "discontinue") => {
+                                pending_timed_pedals.push((false, number, hidden));
+                            }
+                            Some("change") => {
+                                pending_timed_pedals.push((false, number, hidden));
+                                pending_timed_pedals.push((true, number, hidden));
+                            }
+                            _ => {}
                         }
                     }
                     "pedal" => match attr_str(e, b"type").as_deref() {
-                        Some("start") => {
-                            pending_pedal_start = true;
+                        Some("start" | "resume") => {
+                            pending_timed_pedals.push((
+                                true,
+                                parse_spanner_number(attr_str(e, b"number"))?,
+                                true,
+                            ));
                             pending_direction_spanner_events.push(ParsedSpannerEvent {
                                 kind: NotationSpannerKind::Pedal,
                                 action: SpannerAction::Start,
@@ -1592,17 +1607,23 @@ pub(crate) fn parse_musicxml_collecting(
                                 ottava_size: None,
                             });
                         }
-                        Some("stop") => {
-                            // The drawn span ends at the preceding note. The playback release
-                            // normally occurs at the next note's onset.
-                            if let Some(address) = last_note_address.clone() {
+                        Some("stop" | "discontinue" | "change") => {
+                            // Keep the line's note anchor for drawing, and the independent
+                            // score-time position for playback between note onsets.
+                            let change = attr_str(e, b"type").as_deref() == Some("change");
+                            let number = parse_spanner_number(attr_str(e, b"number"))?;
+                            pending_timed_pedals.push((false, number, true));
+                            if let Some(address) = last_note_address
+                                .clone()
+                                .or_else(|| previous_measure_last_note_address.clone())
+                            {
                                 apply_spanner_event(
                                     &mut score,
                                     &mut open_spanners,
                                     ParsedSpannerEvent {
                                         kind: NotationSpannerKind::Pedal,
                                         action: SpannerAction::Stop,
-                                        number: parse_spanner_number(attr_str(e, b"number"))?,
+                                        number,
                                         line_type: attr_str(e, b"line"),
                                         text: None,
                                         placement: pending_direction_placement.clone(),
@@ -1611,11 +1632,22 @@ pub(crate) fn parse_musicxml_collecting(
                                     address,
                                     tolerated,
                                 )?;
-                                pending_pedal_end = true;
                             } else {
                                 return Err(Error::Xml(
                                     "MusicXML pedal stop has no preceding note".into(),
                                 ));
+                            }
+                            if change {
+                                pending_timed_pedals.push((true, number, true));
+                                pending_direction_spanner_events.push(ParsedSpannerEvent {
+                                    kind: NotationSpannerKind::Pedal,
+                                    action: SpannerAction::Start,
+                                    number,
+                                    line_type: attr_str(e, b"line"),
+                                    text: None,
+                                    placement: pending_direction_placement.clone(),
+                                    ottava_size: None,
+                                });
                             }
                         }
                         _ => {}
@@ -1710,21 +1742,6 @@ pub(crate) fn parse_musicxml_collecting(
                     .to_string();
                 match tag.as_str() {
                     "part" => {
-                        // Keep the legacy fallback when a final pedal-up has no
-                        // following note to carry its playback release.
-                        if pending_pedal_end
-                            && let Some(address) = last_note_address.as_ref()
-                            && let Some(note) = score.parts[address.part]
-                                .staves
-                                .get_mut(address.staff)
-                                .and_then(|staff| staff.measures.get_mut(address.measure))
-                                .and_then(|measure| measure.voices.get_mut(address.voice))
-                                .and_then(|voice| voice.get_mut(address.note))
-                        {
-                            note.pedal_end = true;
-                        }
-                        pending_pedal_end = false;
-                        pending_pedal_start = false;
                         if let Some(pi) = part_index {
                             for record in hairpin_records.drain(..) {
                                 if let Some(stop) = record.stop {
@@ -3354,14 +3371,6 @@ pub(crate) fn parse_musicxml_collecting(
                                     if let Some(ok) = pending_ottava_start.take() {
                                         note.ottava_start = Some(ok);
                                     }
-                                    if pending_pedal_start {
-                                        note.pedal_start = true;
-                                        pending_pedal_start = false;
-                                    }
-                                    if pending_pedal_end {
-                                        note.pedal_end = true;
-                                        pending_pedal_end = false;
-                                    }
                                     if note_slur_start {
                                         note.slur_start = true;
                                     }
@@ -3669,6 +3678,62 @@ pub(crate) fn parse_musicxml_collecting(
                     }
                 }
             }
+        }
+    }
+    // Keep the older last-note flag when a drawn pedal line releases exactly
+    // at that note's end. Off-note releases remain independent timed events.
+    for spanner in score.spanners.clone() {
+        if spanner.kind != NotationSpannerKind::Pedal {
+            continue;
+        }
+        let address = &spanner.end;
+        let Some(staff) = score
+            .parts
+            .get(address.part)
+            .and_then(|part| part.staves.get(address.staff))
+        else {
+            continue;
+        };
+        let Some(voice) = staff
+            .measures
+            .get(address.measure)
+            .and_then(|measure| measure.voices.get(address.voice))
+        else {
+            continue;
+        };
+        let Some(note) = voice.get(address.note) else {
+            continue;
+        };
+        let end = bar_starts.get(address.measure).copied().unwrap_or(0.0)
+            + voice
+                .iter()
+                .take(address.note)
+                .map(Note::beats)
+                .sum::<f64>()
+            + note.beats();
+        let has_release = staff
+            .measures
+            .iter()
+            .enumerate()
+            .any(|(measure_index, measure)| {
+                let start = bar_starts.get(measure_index).copied().unwrap_or(0.0);
+                measure.timed_pedals.iter().any(|pedal| {
+                    !pedal.down
+                        && pedal.number == spanner.number.unwrap_or(1)
+                        && (start + pedal.position_beats - end).abs() < 1e-9
+                })
+            });
+        if has_release
+            && (end - bar_starts.last().copied().unwrap_or(0.0)).abs() < 1e-9
+            && let Some(note) = score
+                .parts
+                .get_mut(address.part)
+                .and_then(|part| part.staves.get_mut(address.staff))
+                .and_then(|staff| staff.measures.get_mut(address.measure))
+                .and_then(|measure| measure.voices.get_mut(address.voice))
+                .and_then(|voice| voice.get_mut(address.note))
+        {
+            note.pedal_end = true;
         }
     }
     resolve_direction_dynamics(&mut score, direction_dynamics, tolerated);
@@ -4603,6 +4668,60 @@ mod tests {
             })
             .collect::<Vec<_>>();
         assert_eq!(repedal.len(), 2);
+    }
+
+    #[test]
+    fn lined_pedal_offsets_drive_playback_between_note_onsets() {
+        let xml = r#"<score-partwise version="4.0">
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1"><measure number="1">
+    <attributes><divisions>480</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+    <note><pitch><step>C</step><octave>4</octave></pitch><duration>480</duration><type>quarter</type></note>
+    <direction><direction-type><pedal type="start" number="2" line="yes"/></direction-type><offset>240</offset></direction>
+    <note><pitch><step>D</step><octave>4</octave></pitch><duration>480</duration><type>quarter</type></note>
+    <direction><direction-type><pedal type="stop" number="2" line="yes"/></direction-type><offset>240</offset></direction>
+    <note><rest/><duration>480</duration><type>quarter</type></note>
+    <note><pitch><step>E</step><octave>4</octave></pitch><duration>480</duration><type>quarter</type></note>
+  </measure></part>
+</score-partwise>"#;
+        let score = parse_musicxml(xml).unwrap();
+        let pedals = &score.parts[0].staves[0].measures[0].timed_pedals;
+        assert_eq!(
+            pedals
+                .iter()
+                .map(|p| (p.position_beats, p.down))
+                .collect::<Vec<_>>(),
+            [(1.5, true), (2.5, false)]
+        );
+        assert!(
+            score.parts[0].staves[0].measures[0].voices[0]
+                .iter()
+                .all(|note| !note.pedal_start && !note.pedal_end)
+        );
+        let manifest = acorde_core::build_offline_render_manifest(
+            &score,
+            &acorde_core::PlaybackOptions::default(),
+            &acorde_core::OfflineRenderRequest {
+                sample_rate_hz: 16_000,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            manifest
+                .semantic_events
+                .iter()
+                .filter_map(|event| {
+                    if let acorde_core::OfflineRenderSemanticEventKind::Pedal { down } = event.kind
+                    {
+                        Some((event.frame, down))
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>(),
+            [(12_000, true), (20_000, false)]
+        );
     }
 
     #[test]

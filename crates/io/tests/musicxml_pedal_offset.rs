@@ -54,6 +54,158 @@ fn pedal_offset_inside_note_is_independent_of_document_order() {
     assert_eq!(pedal, vec![(0, true), (24_000, false)]);
 }
 
+#[test]
+fn lined_pedal_with_offsets_roundtrips_without_duplicate_controls() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>480</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>480</duration><type>quarter</type></note><direction><direction-type><pedal type="start" number="2" line="yes"/></direction-type><offset>240</offset></direction><note><pitch><step>D</step><octave>4</octave></pitch><duration>480</duration><type>quarter</type></note><direction><direction-type><pedal type="stop" number="2" line="yes"/></direction-type><offset>240</offset></direction><note><rest/><duration>480</duration><type>quarter</type></note><note><pitch><step>E</step><octave>4</octave></pitch><duration>480</duration><type>quarter</type></note></measure></part></score-partwise>"#;
+    let score = parse_musicxml(xml).unwrap();
+    let out = acorde_io::serialize_musicxml(&score).unwrap();
+    assert_eq!(out.matches("<pedal type=").count(), 2, "{out}");
+    assert_eq!(out.matches("line=\"yes\"").count(), 2);
+    let restored = parse_musicxml(&out).unwrap();
+    assert_eq!(
+        score.parts[0].staves[0].measures[0].timed_pedals,
+        restored.parts[0].staves[0].measures[0].timed_pedals
+    );
+    let manifest = build_offline_render_manifest(
+        &restored,
+        &PlaybackOptions::default(),
+        &OfflineRenderRequest {
+            sample_rate_hz: 16_000,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let pedals: Vec<_> = manifest
+        .semantic_events
+        .iter()
+        .filter_map(|event| {
+            if let OfflineRenderSemanticEventKind::Pedal { down } = event.kind {
+                Some((event.frame, down))
+            } else {
+                None
+            }
+        })
+        .collect();
+    assert_eq!(pedals, [(12_000, true), (20_000, false)]);
+}
+
+#[test]
+fn lined_pedal_release_at_next_barline_roundtrips_once() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><direction><direction-type><pedal type="start" number="2" line="yes"/></direction-type></direction><note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration><type>whole</type></note></measure><measure number="2"><direction><direction-type><pedal type="stop" number="2" line="yes"/></direction-type></direction><note><pitch><step>D</step><octave>4</octave></pitch><duration>4</duration><type>whole</type></note></measure></part></score-partwise>"#;
+    let score = parse_musicxml(xml).unwrap();
+    let out = acorde_io::serialize_musicxml(&score).unwrap();
+    assert_eq!(out.matches("<pedal type=").count(), 2, "{out}");
+    let restored = parse_musicxml(&out).unwrap();
+    let pedals: Vec<_> = restored.parts[0].staves[0]
+        .measures
+        .iter()
+        .enumerate()
+        .flat_map(|(measure, m)| {
+            m.timed_pedals
+                .iter()
+                .map(move |p| (measure, p.position_beats, p.down))
+        })
+        .collect();
+    assert_eq!(pedals, [(0, 0.0, true), (1, 0.0, false)]);
+}
+
+#[test]
+fn lined_repedal_in_one_measure_keeps_four_ordered_controls() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><direction><direction-type><pedal type="start" number="2" line="yes"/></direction-type></direction><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note><direction><direction-type><pedal type="stop" number="2" line="yes"/></direction-type></direction><direction><direction-type><pedal type="start" number="2" line="yes"/></direction-type></direction><note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note><note><rest/><duration>1</duration><type>quarter</type></note><note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note><direction><direction-type><pedal type="stop" number="2" line="yes"/></direction-type></direction></measure></part></score-partwise>"#;
+    let score = parse_musicxml(xml).unwrap();
+    let out = acorde_io::serialize_musicxml(&score).unwrap();
+    assert_eq!(out.matches("<pedal type=").count(), 4, "{out}");
+    let restored = parse_musicxml(&out).unwrap();
+    assert_eq!(
+        score.parts[0].staves[0].measures[0].timed_pedals,
+        restored.parts[0].staves[0].measures[0].timed_pedals
+    );
+    let manifest = build_offline_render_manifest(
+        &restored,
+        &PlaybackOptions::default(),
+        &OfflineRenderRequest {
+            sample_rate_hz: 16_000,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let pedals: Vec<_> = manifest
+        .semantic_events
+        .iter()
+        .filter_map(|event| {
+            if let OfflineRenderSemanticEventKind::Pedal { down } = event.kind {
+                Some((event.frame, down))
+            } else {
+                None
+            }
+        })
+        .collect();
+    assert_eq!(
+        pedals,
+        [(0, true), (8_000, false), (8_000, true), (32_000, false)]
+    );
+}
+
+#[test]
+fn webern_fixture_keeps_the_lined_resume_after_six_pedal_signs() {
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/fixtures/openscore_lieder_webern_so_ich_traurig_bin.mxl"
+    );
+    let bytes = std::fs::read(path).unwrap();
+    let score = acorde_io::parse_mxl(&bytes).unwrap();
+    let pedals: Vec<_> = score.parts[1].staves[1]
+        .measures
+        .iter()
+        .flat_map(|measure| &measure.timed_pedals)
+        .map(|pedal| pedal.down)
+        .collect();
+    assert_eq!(pedals, [true, false, true, false, true, false, true, false]);
+    let manifest = build_offline_render_manifest(
+        &score,
+        &PlaybackOptions::default(),
+        &OfflineRenderRequest {
+            sample_rate_hz: 16_000,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let rendered = manifest
+        .semantic_events
+        .iter()
+        .filter(|event| matches!(event.kind, OfflineRenderSemanticEventKind::Pedal { .. }))
+        .count();
+    assert_eq!(rendered, 8);
+    let out = acorde_io::serialize_musicxml(&score).unwrap();
+    assert_eq!(out.matches("<pedal type=").count(), 8);
+    let reparsed = parse_musicxml(&out).unwrap();
+    assert_eq!(
+        reparsed.parts[1].staves[1]
+            .measures
+            .iter()
+            .map(|measure| measure.timed_pedals.len())
+            .sum::<usize>(),
+        8
+    );
+}
+
+#[test]
+fn musicxml_change_releases_then_represses_the_lined_pedal() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"/></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><direction><direction-type><pedal type="start" number="2" line="yes"/></direction-type></direction><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note><direction><direction-type><pedal type="change" number="2" line="yes"/></direction-type></direction><note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration></note><direction><direction-type><pedal type="stop" number="2" line="yes"/></direction-type></direction><note><rest/><duration>2</duration></note></measure></part></score-partwise>"#;
+    let score = parse_musicxml(xml).unwrap();
+    let out = acorde_io::serialize_musicxml(&score).unwrap();
+    assert_eq!(out.matches("<pedal type=").count(), 4, "{out}");
+    let restored = parse_musicxml(&out).unwrap();
+    let events = &restored.parts[0].staves[0].measures[0].timed_pedals;
+    assert_eq!(
+        events
+            .iter()
+            .map(|event| (event.position_beats, event.down))
+            .collect::<Vec<_>>(),
+        [(0.0, true), (1.0, false), (1.0, true), (2.0, false)]
+    );
+}
+
 #[cfg(feature = "midi")]
 #[test]
 fn timed_pedal_follows_repeated_measures_in_midi_and_offline_playback() {
