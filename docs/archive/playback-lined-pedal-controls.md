@@ -24,7 +24,8 @@ the way another application's player interprets the export. Those remain
 separate print and audio gates.
 
 Validation: 122 `acorde-io` library tests, 624 `acorde-core` library tests,
-and ten MusicXML pedal integration tests passed in the release profile.
+253 all-feature I/O roundtrip tests, and ten MusicXML pedal integration tests
+passed in the release profile.
 All-feature Clippy passed for core and I/O. The same-base optimized macOS WASM
 grew from 7,062,665 to 7,082,331 bytes (+19,666). The Linux CI artifact and
 browser tests must be checked on the PR before merging.
