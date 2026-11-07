@@ -1,8 +1,13 @@
-# Verovio 6.3.0 engraving baseline
+# Verovio engraving baselines
 
-These records compare selected piano and chamber scores or focused notation examples with
-Verovio 6.3.0. They are dated observations at the revisions named in each record; they do not
-establish overall engraving or print parity. Page count alone is not a quality measure.
+These records compare selected piano and chamber scores or focused notation
+examples with Verovio 6.3.0 and 6.4.1. They are dated observations at the
+revisions named in each record; they do not establish overall engraving or print
+parity. Page count alone is not a quality measure.
+
+The latest [ten-score A4 screening against Verovio 6.4.1](archive/print-corpus-verovio-6-4-1.md)
+uses the same licensed sources as the 6.3.0 print corpus and records source hashes,
+page geometry, size measurements, and candidate collisions separately from import losses.
 
 The Aloha Oe comparison used the same MusicXML input and A4 paper. Some earlier preview images
 had different aspect ratios, so apparent notation sizes cannot be compared directly. Later

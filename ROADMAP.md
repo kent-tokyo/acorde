@@ -28,13 +28,13 @@ development corpus needs a separate, frozen holdout before a general parity clai
 
 ### 1. Engraving and print: Verovio 6.4.1
 
-The [ten-score piano/chamber corpus](docs/archive/print-corpus-verovio.md)
-checks PDF page geometry, marks, collisions and font/staff sizes against the
-previously pinned Verovio 6.3.0. First rerun the same inputs and options with
-[stable Verovio 6.4.1](https://github.com/rism-digital/verovio/releases/tag/version-6.4.1)
-and save a separate versioned result. The next implementation work is to raise
-the small staff and text sizes without introducing overlaps, then address
-remaining page-use and missing-mark cases.
+The [ten-score 6.3.0 corpus](docs/archive/print-corpus-verovio.md) and
+[6.4.1 rerun](docs/archive/print-corpus-verovio-6-4-1.md) measure the same
+licensed inputs on A4. In the 6.4.1 screening, Acorde uses 18 pages and 57
+systems versus Verovio's 16 pages and 40 systems; Acorde's smallest measured
+staff space is 1.29 mm versus Verovio's 1.8 mm. The next implementation work
+is to raise the small staff and text sizes without introducing overlaps, then
+address remaining page-use and missing-mark cases.
 Compare each revision on the same A4 inputs and verify suspicious collision
 counts in the PDFs, including slurs, beams, lyrics and directions.
 

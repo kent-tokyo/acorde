@@ -5,12 +5,14 @@ Usage:
   cargo build --release -p acorde-cli -p acorde-pdf --example print_mxl
   python3 scripts/compare_print_corpus.py OUT.json WORKDIR NAME:SOURCE[:MEASURES] ...
 
-Needs Verovio 6.3.0 on PATH and Google Chrome at the macOS default path.
+Needs Verovio 6.3.0 on PATH or VEROVIO_NPM_PREFIX with verovio@6.4.1,
+plus Google Chrome at the macOS default path. Set CARGO_TARGET_DIR when the
+release binaries are outside the checkout.
 
 Each SOURCE is a licensed fixture. MuseScore sources are first converted by
 `acorde convert` so both renderers read one shared MusicXML file. Acorde uses
 `print_mxl` (A4, notation-density breaks, at most MEASURES per system, default
-4) and Verovio 6.3.0 uses A4 with 14 mm side and 16 mm top/bottom margins.
+4) and Verovio uses A4 with 14 mm side and 16 mm top/bottom margins.
 
 Every measurement is taken the same way for both renderers: each page SVG is
 inlined into one HTML page and measured in headless Chrome with
@@ -31,7 +33,9 @@ screening numbers on a small corpus; they are not a quality ranking.
 """
 
 import collections
+import hashlib
 import json
+import os
 import pathlib
 import re
 import statistics
@@ -41,13 +45,15 @@ import xml.etree.ElementTree as ET
 import zipfile
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-ACORDE = ROOT / "target/release/acorde"
-PRINT_MXL = ROOT / "target/release/examples/print_mxl"
+TARGET = pathlib.Path(os.environ.get("CARGO_TARGET_DIR", ROOT / "target"))
+ACORDE = TARGET / "release/acorde"
+PRINT_MXL = TARGET / "release/examples/print_mxl"
 FONT = ROOT / "crates/pdf/tests/fixtures/Tuffy.ttf"
 CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 VEROVIO = ["verovio", "--page-width", "2100", "--page-height", "2970",
            "--page-margin-top", "160", "--page-margin-bottom", "160",
            "--page-margin-left", "140", "--page-margin-right", "140"]
+VEROVIO_NPM_PREFIX = os.environ.get("VEROVIO_NPM_PREFIX")
 
 SELECTORS = {
     "acorde": {
@@ -199,7 +205,11 @@ def main():
         acorde_svgs = sorted(work.glob(f"{name}-acorde-page-*.svg"), key=lambda p: int(p.stem.rsplit("-", 1)[1]))
         for old in work.glob(f"{name}-verovio*.svg"):
             old.unlink()
-        run(*VEROVIO, "-a", "-o", work / f"{name}-verovio.svg", shared)
+        if VEROVIO_NPM_PREFIX:
+            run("node", ROOT / "scripts/export_verovio_pages.mjs", VEROVIO_NPM_PREFIX,
+                shared, work / f"{name}-verovio")
+        else:
+            run(*VEROVIO, "-a", "-o", work / f"{name}-verovio.svg", shared)
         verovio_svgs = sorted(work.glob(f"{name}-verovio*.svg"))
         acorde = measure(acorde_svgs, SELECTORS["acorde"], work / f"{name}-acorde.html")
         acorde["systems"] = sum(len(re.findall(r"\(\[", line)) for line in log.splitlines() if line.startswith("page "))
@@ -207,6 +217,9 @@ def main():
         expected = expected_marks(shared)
         rows.append({
             "score": name, "source": source, "measures_per_system": int(measures),
+            "verovio_version": "6.4.1" if VEROVIO_NPM_PREFIX else "6.3.0",
+            "source_sha256": hashlib.sha256(src.read_bytes()).hexdigest(),
+            "shared_input_sha256": hashlib.sha256(shared.read_bytes()).hexdigest(),
             "import_diagnostics": {"total": sum(codes.values()), "by_code": dict(sorted(codes.items()))},
             "source_marks": expected, "acorde": acorde, "verovio": verovio,
             "shortfalls": {r: {k: v - d[r]["marks"].get(k, 0) for k, v in expected.items() if d[r]["marks"].get(k, 0) < v}
