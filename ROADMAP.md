@@ -154,8 +154,12 @@ uses the same cleaned `**kern` input in both programs. Of 97 scores with equal
 pitched timelines, 1,305 measures align directly to source-derived beats and
 75 remain excluded. On 4,627 annotated rows in aligned measures, Acorde
 matches 2,155 narrowly normalized Roman labels versus music21's 2,073, but
-Acorde produces no label on 382 rows. This is development-corpus evidence,
-not an untouched harmony holdout or general analysis parity. The earlier
+Acorde produces no label on 382 rows. A
+[harmonic-minor leading-tone follow-up](docs/archive/analysis-bcmh-harmonic-minor.md)
+raises Acorde's matches to 2,189/4,627 and labels to 4,291/4,627; 210 rows
+still have no detected sonority and 126 have a sonority without a Roman label.
+These are development-corpus results, not an untouched harmony holdout or
+general analysis parity. The earlier
 [Mozart sonata observation](docs/archive/analysis-mozart-key-holdout.md) records
 53 primary movements and 52 common MusicXML inputs, 50 annotated keys
 selected by Acorde's ranked first choice

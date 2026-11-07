@@ -153,7 +153,7 @@ def compare_one(archive, name, directory, acorde, converter, note, chord, roman,
     a_sonorities = defaultdict(dict)
     for sonority in a_report["sonorities"]:
         beat = round(sonority["beat"], 6)
-        a_sonorities[sonority["measure"]][beat] = sonority["label"].get("roman_numeral")
+        a_sonorities[sonority["measure"]][beat] = sonority["label"]
     row["source_labeled_rows"] = sum(
         label not in {".", "*", ""} for values in source_rows.values() for label, _ in values
     )
@@ -162,6 +162,10 @@ def compare_one(archive, name, directory, acorde, converter, note, chord, roman,
     row["unaligned_reasons"] = defaultdict(int)
     row["labeled_rows"] = 0
     row["acorde_predicted_rows"] = 0
+    row["missing_sonority_rows"] = 0
+    row["unlabeled_sonority_rows"] = 0
+    row["missing_by_pitch_class_count"] = defaultdict(int)
+    row["unlabeled_by_chord_kind"] = defaultdict(int)
     row["music21_predicted_rows"] = 0
     row["acorde_exact"] = 0
     row["music21_exact"] = 0
@@ -202,7 +206,15 @@ def compare_one(archive, name, directory, acorde, converter, note, chord, roman,
                 m_label = roman.romanNumeralFromChord(chord.Chord(active), m_key).figure
             except Exception:
                 m_label = None
-            a_label = a_sonorities[index].get(beat)
+            a_entry = a_sonorities[index].get(beat)
+            a_label = a_entry.get("roman_numeral") if a_entry else None
+            if a_label is None:
+                if a_entry:
+                    row["unlabeled_sonority_rows"] += 1
+                    row["unlabeled_by_chord_kind"][a_entry["chord"]["kind"]] += 1
+                else:
+                    row["missing_sonority_rows"] += 1
+                    row["missing_by_pitch_class_count"][str(len({p.pitchClass for p in active}))] += 1
             row["acorde_predicted_rows"] += a_label is not None
             row["music21_predicted_rows"] += m_label is not None
             a_exact = a_label == gold
@@ -216,10 +228,18 @@ def compare_one(archive, name, directory, acorde, converter, note, chord, roman,
             row["music21_canonical_exact"] += m_canonical
             row["both_canonical_exact"] += a_canonical and m_canonical
             if (not a_exact or not m_exact) and len(row["errors"]) < 12:
-                row["errors"].append({
+                example = {
                     "measure": index, "row": ordinal, "beat": beat,
                     "gold": gold, "acorde": a_label, "music21": m_label,
-                })
+                }
+                if a_label is None:
+                    example["active_pitches"] = [p.nameWithOctave for p in active]
+                    if a_entry:
+                        example["acorde_chord"] = {
+                            field: a_entry["chord"].get(field)
+                            for field in ("root", "kind", "bass")
+                        }
+                row["errors"].append(example)
     return row
 
 
@@ -271,6 +291,16 @@ def main():
         "source_labeled_rows": sum(row["source_labeled_rows"] for row in eligible),
         "labeled_rows_in_aligned_measures": sum(row["labeled_rows"] for row in eligible),
         "acorde_predicted_rows": sum(row["acorde_predicted_rows"] for row in eligible),
+        "missing_sonority_rows": sum(row["missing_sonority_rows"] for row in eligible),
+        "unlabeled_sonority_rows": sum(row["unlabeled_sonority_rows"] for row in eligible),
+        "missing_by_pitch_class_count": dict(sorted((
+            (count, sum(row["missing_by_pitch_class_count"].get(count, 0) for row in eligible))
+            for count in {count for row in eligible for count in row["missing_by_pitch_class_count"]}
+        ))),
+        "unlabeled_by_chord_kind": dict(sorted((
+            (kind, sum(row["unlabeled_by_chord_kind"].get(kind, 0) for row in eligible))
+            for kind in {kind for row in eligible for kind in row["unlabeled_by_chord_kind"]}
+        ))),
         "music21_predicted_rows": sum(row["music21_predicted_rows"] for row in eligible),
         "acorde_exact": sum(row["acorde_exact"] for row in eligible),
         "music21_exact": sum(row["music21_exact"] for row in eligible),
@@ -280,7 +310,7 @@ def main():
         "both_canonical_exact": sum(row["both_canonical_exact"] for row in eligible),
     }
     report = {
-        "contract_version": 2,
+        "contract_version": 3,
         "corpus": "MusicCogCompLab/BCMH@97dfc249b90a8739457d83a2702644173c7eb4a8",
         "archive_sha256": ARCHIVE_SHA256,
         "acorde_binary_sha256": hashlib.sha256(args.acorde.read_bytes()).hexdigest(),

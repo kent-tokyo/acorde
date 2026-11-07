@@ -128,7 +128,8 @@ fn pitch_name(pitch: &Pitch) -> String {
 /// - Suffix: `o` for diminished, `o7` for diminished seventh, `ø7` for half-diminished,
 ///   `+` for augmented, `7` for dominant seventh, `maj7` for major seventh.
 /// - Slash chords append `/N` where N is the Roman numeral of the bass note.
-/// - Returns `None` when the chord root or bass is outside the key's scale.
+/// - In minor keys, a diminished chord on the raised seventh is a leading-tone chord.
+/// - Returns `None` when the root or slash bass has no supported scale degree.
 pub fn roman_numeral(chord: &ChordSymbol, key: &KeySignature) -> Option<String> {
     const NUMERALS: &[&str] = &["I", "II", "III", "IV", "V", "VI", "VII"];
 
@@ -159,7 +160,21 @@ pub fn roman_numeral(chord: &ChordSymbol, key: &KeySignature) -> Option<String> 
     };
 
     let chord_pc = root_to_pc(&chord.root)?;
-    let degree = pc_to_degree(chord_pc)?;
+    // Natural minor has a lowered seventh, but the leading-tone diminished
+    // chords of harmonic minor are built on its raised seventh. Keep this
+    // exception specific to diminished qualities: a chromatic major chord on
+    // the same root is not automatically a diatonic VII chord.
+    let raised_leading_tone = |pc: u8| {
+        key.mode == "minor" && (i16::from(pc) - i16::from(key_root_pc)).rem_euclid(12) == 11
+    };
+    let degree = pc_to_degree(chord_pc).or_else(|| {
+        (raised_leading_tone(chord_pc)
+            && matches!(
+                chord.kind.as_str(),
+                "diminished" | "diminished-seventh" | "half-diminished"
+            ))
+        .then_some(6)
+    })?;
     let numeral = NUMERALS[degree];
 
     // Quality → case and suffix.
@@ -414,6 +429,48 @@ mod tests {
             fifths: 0,
             mode: "major".to_string(),
         }
+    }
+
+    #[test]
+    fn harmonic_minor_leading_tone_diminished_inversions() {
+        let a_minor = KeySignature {
+            fifths: 0,
+            mode: "minor".to_string(),
+        };
+        let root = detect_chord(&[pa(Step::G, 4, 1), p(Step::B, 4), p(Step::D, 5)])
+            .expect("G-sharp diminished triad");
+        assert_eq!(
+            roman_numeral_figured(&root, &a_minor).as_deref(),
+            Some("viio")
+        );
+
+        let first_inversion = detect_chord(&[p(Step::B, 3), p(Step::D, 4), pa(Step::G, 4, 1)])
+            .expect("first inversion of G-sharp diminished");
+        assert_eq!(
+            roman_numeral_figured(&first_inversion, &a_minor).as_deref(),
+            Some("viio6")
+        );
+
+        let seventh = detect_chord(&[
+            pa(Step::G, 4, 1),
+            p(Step::B, 4),
+            p(Step::D, 5),
+            p(Step::F, 5),
+        ])
+        .expect("G-sharp diminished seventh");
+        assert_eq!(
+            roman_numeral_figured(&seventh, &a_minor).as_deref(),
+            Some("viio7")
+        );
+
+        let unrelated_chromatic = detect_chord(&[pa(Step::F, 4, 1), p(Step::A, 4), p(Step::C, 5)])
+            .expect("F-sharp diminished triad");
+        assert_eq!(roman_numeral_figured(&unrelated_chromatic, &a_minor), None);
+
+        let chromatic_major =
+            detect_chord(&[pa(Step::G, 4, 1), pa(Step::B, 4, 1), pa(Step::D, 5, 1)])
+                .expect("G-sharp major triad");
+        assert_eq!(roman_numeral_figured(&chromatic_major, &a_minor), None);
     }
 
     #[test]
