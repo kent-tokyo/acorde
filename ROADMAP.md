@@ -87,7 +87,12 @@ reference comes from Acorde. The independent written-onset audit in
 [PR #407](https://github.com/kent-tokyo/acorde/pull/407) covers four source
 scores: Acorde matched 1,536/1,536 pitch/beat attacks and alphaTab 1.9.0
 matched 1,093/1,536; the 443 differences are split-bar timing in one score.
-The audit also corrects a whole-measure-rest fermata hold. Expand the source
+The audit also corrects a whole-measure-rest fermata hold. The
+[written note-span follow-up](docs/archive/playback-alpha19-source-onsets.md)
+checks source-derived note ends for the same scores. After excluding ambiguous
+same-pitch overlaps and expressive markings, Acorde matches 838/838 written
+ends, and alphaTab matches 597/623 onset-matched written ends; all 26
+differences are in the split-bar score. Expand the source
 oracle beyond these simple forms, then recheck note onset/release, tempo,
 repeats, pedal, ornaments and instrument changes on sparse diagnostic excerpts
 before using an audio onset detector on dense scores. Track import losses

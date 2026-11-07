@@ -1,0 +1,340 @@
+{
+  "comparison": "written MusicXML note spans vs Acorde playback-report and alphaTab 1.9.0 MIDI; release caveats excluded from strict note-end metric",
+  "acorde_binary_sha256": "e621c057ae7ca80e3a0690a5d519cd65cfe4bca492a8def514f9239a0d6176ca",
+  "alphatab_package_json_sha256": "dd0745019051ed9d8c20fa19004d39971d6f1fba168423b69c9b5877c7a2a4c2",
+  "alphatab_version": "1.9.0",
+  "mido_version": "1.3.3",
+  "summary": {
+    "scores": 4,
+    "source_note_spans": 1536,
+    "source_spans_with_release_caveats": 698,
+    "acorde_strict_written_duration_matches": 838,
+    "acorde_strict_eligible_matched_spans": 838,
+    "alphatab_strict_written_duration_matches": 597,
+    "alphatab_strict_eligible_matched_spans": 623
+  },
+  "scores": {
+    "aloha_oe": {
+      "source_sha256": "b195ae477a10cbaee281d9b728cac001ae1d50fe4527078ccae14092eee4936c",
+      "acorde_schedule_sha256": "241f10d4f044034224122823583804bb9231190b32a362df57413d2a88ab15ef",
+      "external_midi_sha256": "e6d27531e2e6f037679df24f60e74b59a985ce89acc6c5b77ce9b2bd7b315a16",
+      "source_attacks": 644,
+      "source_note_spans": 644,
+      "source_spans_with_release_caveats": 268,
+      "release_caveat_counts": {
+        "overlapping_same_pitch": 263,
+        "slur": 14
+      },
+      "source_onset_fingerprint_sha256": "775250e82772f839c7a535f0d76a4b1fd478dd13d1757a300e8077e0d85cbe21",
+      "physical_measure_lengths_beats": [
+        1.0,
+        4.0,
+        4.0,
+        4.0,
+        3.0,
+        1.0,
+        4.0,
+        4.0,
+        4.0,
+        4.0,
+        4.0,
+        4.0,
+        4.0,
+        3.5,
+        0.5,
+        4.0,
+        4.0,
+        4.0,
+        4.0,
+        4.0,
+        4.0,
+        4.0,
+        3.0
+      ],
+      "onset_tolerance_beats": 0.0020833333333333333,
+      "acorde_source_matches": 644,
+      "acorde_events": 644,
+      "acorde_only": 0,
+      "acorde_max_matched_difference_beats": 0.0,
+      "acorde_written_durations": {
+        "matched_source_spans": 644,
+        "strict_eligible_matched_spans": 376,
+        "strict_written_duration_matches": 376,
+        "strict_max_note_end_difference_beats": 0.0,
+        "strict_note_end_mismatch_examples": []
+      },
+      "alphatab_source_matches": 201,
+      "alphatab_events": 644,
+      "alphatab_only": 443,
+      "alphatab_max_matched_difference_beats": 0.0,
+      "alphatab_written_durations": {
+        "matched_source_spans": 201,
+        "strict_eligible_matched_spans": 161,
+        "strict_written_duration_matches": 135,
+        "strict_max_note_end_difference_beats": 1.5,
+        "strict_note_end_mismatch_examples": [
+          {
+            "source_start_beat": 29.0,
+            "pitch_midi": 63,
+            "source_end_beat": 31.0,
+            "actual_end_beat": 29.5,
+            "difference_beats": 1.5
+          },
+          {
+            "source_start_beat": 29.0,
+            "pitch_midi": 67,
+            "source_end_beat": 31.0,
+            "actual_end_beat": 29.5,
+            "difference_beats": 1.5
+          },
+          {
+            "source_start_beat": 45.0,
+            "pitch_midi": 63,
+            "source_end_beat": 47.0,
+            "actual_end_beat": 45.5,
+            "difference_beats": 1.5
+          },
+          {
+            "source_start_beat": 17.0,
+            "pitch_midi": 63,
+            "source_end_beat": 18.5,
+            "actual_end_beat": 17.5,
+            "difference_beats": 1.0
+          },
+          {
+            "source_start_beat": 33.0,
+            "pitch_midi": 63,
+            "source_end_beat": 34.5,
+            "actual_end_beat": 33.5,
+            "difference_beats": 1.0
+          },
+          {
+            "source_start_beat": 52.5,
+            "pitch_midi": 56,
+            "source_end_beat": 53.0,
+            "actual_end_beat": 54.0,
+            "difference_beats": 1.0
+          },
+          {
+            "source_start_beat": 52.5,
+            "pitch_midi": 73,
+            "source_end_beat": 53.0,
+            "actual_end_beat": 54.0,
+            "difference_beats": 1.0
+          },
+          {
+            "source_start_beat": 52.5,
+            "pitch_midi": 77,
+            "source_end_beat": 53.0,
+            "actual_end_beat": 54.0,
+            "difference_beats": 1.0
+          },
+          {
+            "source_start_beat": 64.5,
+            "pitch_midi": 51,
+            "source_end_beat": 65.0,
+            "actual_end_beat": 66.0,
+            "difference_beats": 1.0
+          },
+          {
+            "source_start_beat": 64.5,
+            "pitch_midi": 60,
+            "source_end_beat": 65.0,
+            "actual_end_beat": 66.0,
+            "difference_beats": 1.0
+          }
+        ]
+      }
+    },
+    "just_for_today": {
+      "source_sha256": "79a19736fcce71c0acf4b39feff63723d2ff75e29285ea2ab594f9b2b6a835ff",
+      "acorde_schedule_sha256": "08c4290ee9b617ea44afd7ca7f356d115d470d4b58d78d9f341326097f8dca1b",
+      "external_midi_sha256": "9e0c7cc4907a21c46f76731561a6b1e92bb6c95a6a50ef5f6a34c01ee2f0534b",
+      "source_attacks": 579,
+      "source_note_spans": 579,
+      "source_spans_with_release_caveats": 255,
+      "release_caveat_counts": {
+        "articulations": 3,
+        "fermata": 10,
+        "overlapping_same_pitch": 184,
+        "slur": 74
+      },
+      "source_onset_fingerprint_sha256": "3d8cdb38714cce17c742aca055d2b5dece60959d24e021a33effb247703247d6",
+      "physical_measure_lengths_beats": [
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0,
+        3.0
+      ],
+      "onset_tolerance_beats": 0.0020833333333333333,
+      "acorde_source_matches": 579,
+      "acorde_events": 579,
+      "acorde_only": 0,
+      "acorde_max_matched_difference_beats": 0.0,
+      "acorde_written_durations": {
+        "matched_source_spans": 579,
+        "strict_eligible_matched_spans": 324,
+        "strict_written_duration_matches": 324,
+        "strict_max_note_end_difference_beats": 0.0,
+        "strict_note_end_mismatch_examples": []
+      },
+      "alphatab_source_matches": 579,
+      "alphatab_events": 579,
+      "alphatab_only": 0,
+      "alphatab_max_matched_difference_beats": 0.0,
+      "alphatab_written_durations": {
+        "matched_source_spans": 579,
+        "strict_eligible_matched_spans": 324,
+        "strict_written_duration_matches": 324,
+        "strict_max_note_end_difference_beats": 0.0,
+        "strict_note_end_mismatch_examples": []
+      }
+    },
+    "quilter_prelude": {
+      "source_sha256": "6b85a51cc92fc93f561fd07cbd553d2ac9d4e53bd403637e85bd888495af6aa4",
+      "acorde_schedule_sha256": "d871e08f5ee6afa98d88d94dadaf1451485f02d9309640bd6cf7542fc25af3bf",
+      "external_midi_sha256": "febdb61ab7c0444295b7e1267b543ba98ad6bc0eb73c1b95a2f065761c16062d",
+      "source_attacks": 181,
+      "source_note_spans": 181,
+      "source_spans_with_release_caveats": 72,
+      "release_caveat_counts": {
+        "articulations": 1,
+        "overlapping_same_pitch": 14,
+        "slur": 64
+      },
+      "source_onset_fingerprint_sha256": "d6a7a14d11699400090873cc6315799a60f51085ceb370d3d3b71c4d916be49d",
+      "physical_measure_lengths_beats": [
+        4.0,
+        4.0,
+        4.0,
+        4.0,
+        4.0,
+        4.0,
+        4.0,
+        4.0,
+        4.0,
+        4.0
+      ],
+      "onset_tolerance_beats": 0.0020833333333333333,
+      "acorde_source_matches": 181,
+      "acorde_events": 181,
+      "acorde_only": 0,
+      "acorde_max_matched_difference_beats": 0.0,
+      "acorde_written_durations": {
+        "matched_source_spans": 181,
+        "strict_eligible_matched_spans": 109,
+        "strict_written_duration_matches": 109,
+        "strict_max_note_end_difference_beats": 0.0,
+        "strict_note_end_mismatch_examples": []
+      },
+      "alphatab_source_matches": 181,
+      "alphatab_events": 181,
+      "alphatab_only": 0,
+      "alphatab_max_matched_difference_beats": 0.0,
+      "alphatab_written_durations": {
+        "matched_source_spans": 181,
+        "strict_eligible_matched_spans": 109,
+        "strict_written_duration_matches": 109,
+        "strict_max_note_end_difference_beats": 0.0,
+        "strict_note_end_mismatch_examples": []
+      }
+    },
+    "webern_so_ich_traurig_bin": {
+      "source_sha256": "609b32d0829c48ab9a134308d8694fd5b1ee7de89acba11f76084a32f56ca8a3",
+      "acorde_schedule_sha256": "5b22e48beeec161567306b83159ed941b74534a6adcf0e11fd5b8e2336275c5f",
+      "external_midi_sha256": "65679866240abb5275190173d02e30c868e3baadaba6c0d51a5593aff652cb69",
+      "source_attacks": 132,
+      "source_note_spans": 132,
+      "source_spans_with_release_caveats": 103,
+      "release_caveat_counts": {
+        "articulations": 20,
+        "fermata": 2,
+        "overlapping_same_pitch": 8,
+        "pedal_in_part": 89,
+        "slur": 39
+      },
+      "source_onset_fingerprint_sha256": "95d45c4ab4c58d0875831cbaab46fc08a5e29051ed18cbfe2debf2c311448c4f",
+      "physical_measure_lengths_beats": [
+        0.5,
+        1.5,
+        1.5,
+        1.0,
+        1.0,
+        1.0,
+        1.5,
+        1.0,
+        2.0,
+        1.5,
+        1.5,
+        2.0,
+        1.0,
+        1.0,
+        2.0,
+        1.5,
+        1.5,
+        2.0,
+        1.5
+      ],
+      "onset_tolerance_beats": 0.0020833333333333333,
+      "acorde_source_matches": 132,
+      "acorde_events": 132,
+      "acorde_only": 0,
+      "acorde_max_matched_difference_beats": 0.0,
+      "acorde_written_durations": {
+        "matched_source_spans": 132,
+        "strict_eligible_matched_spans": 29,
+        "strict_written_duration_matches": 29,
+        "strict_max_note_end_difference_beats": 0.0,
+        "strict_note_end_mismatch_examples": []
+      },
+      "alphatab_source_matches": 132,
+      "alphatab_events": 132,
+      "alphatab_only": 0,
+      "alphatab_max_matched_difference_beats": 0.0,
+      "alphatab_written_durations": {
+        "matched_source_spans": 132,
+        "strict_eligible_matched_spans": 29,
+        "strict_written_duration_matches": 29,
+        "strict_max_note_end_difference_beats": 0.0,
+        "strict_note_end_mismatch_examples": []
+      }
+    }
+  }
+}

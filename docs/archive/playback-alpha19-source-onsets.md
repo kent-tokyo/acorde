@@ -19,6 +19,29 @@ MIDI note-on positions are matched by pitch within two of alphaTab's 960 ticks
 per quarter note. This compares note attacks in score beats, not audio attack
 quality or note releases.
 
+The [written note-span follow-up](playback-alpha19-source-spans.json) also joins
+MusicXML sound ties and checks MIDI/schedule note-offs against written ends.
+It excludes spans with slurs, articulations, fermatas, ornaments, pedal marks
+in the part, or overlapping equal pitches from its strict duration count:
+these can change performed release or make a MIDI note-off ambiguous. The
+exclusion is conservative and applies equally to both engines. The report
+records the inputs, Acorde binary, alphaTab package and outputs by SHA-256.
+
+| Score | Acorde written ends | alphaTab written ends |
+| --- | ---: | ---: |
+| Aloha Oe | 376/376 | 135/161 |
+| Just for Today | 324/324 | 324/324 |
+| Quilter Prelude | 109/109 | 109/109 |
+| Webern, So ich traurig bin | 29/29 | 29/29 |
+| **Total** | **838/838** | **597/623** |
+
+Of 1,536 source note spans, 698 carry at least one release caveat. alphaTab
+has fewer eligible matched spans because its *Aloha Oe* attack positions differ
+from the source. Its 26 strict note-end differences are also in that score;
+they require a bar-by-bar attribution before being called independent release
+defects. These written durations do not measure sustain-pedal sound, SF2
+envelopes, audio decay, or subjective articulation quality.
+
 | Score | Source attacks | Acorde matched | alphaTab matched |
 | --- | ---: | ---: | ---: |
 | Aloha Oe | 644 | 644 | 201 |
