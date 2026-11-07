@@ -1286,6 +1286,20 @@ fn five_staff_omr_without_lyrics_can_use_four_readable_a4_systems() {
         let space_mm = (staff_lines[1] - staff_lines[0]).abs() / 4.0;
         assert!(space_mm >= 1.79, "five-staff space is {space_mm:.2} mm");
     }
+    let constrained_labels = pages
+        .iter()
+        .flat_map(|page| page.split(r#"class="acorde-print-part-label""#).skip(1))
+        .filter(|label| label.contains("textLength="))
+        .collect::<Vec<_>>();
+    assert_eq!(constrained_labels.len(), 6);
+    for label in constrained_labels {
+        let left_mm =
+            (svg_attribute_f32(label, "x") - svg_attribute_f32(label, "textLength")) / 4.0;
+        assert!(
+            left_mm >= 2.99,
+            "part label starts {left_mm} mm from paper edge"
+        );
+    }
 }
 
 #[test]

@@ -608,8 +608,8 @@
         "hairpins": 0,
         "articulations": 0
       },
-      "elements_past_page_edge": 6,
-      "elements_past_margins": 5,
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 11,
       "text_over_notation": 0,
       "text_over_text": 0,
       "staff_space_mm": 1.8,

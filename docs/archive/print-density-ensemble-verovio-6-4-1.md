@@ -30,8 +30,12 @@ now use two pages, four systems and 1.8 mm staff space. The score has zero
 import diagnostics, 119 noteheads and 39 visible rests in both rendered
 outputs. Across the corpus, source hashes and import diagnostics match the
 prior run; candidate text/notation collisions, text/text collisions and mark
-shortfalls do not increase. The six Chrome page-edge candidates on OMR 1036
-remain unresolved. *Aloha Oe* still has a sparsely used final page; fewer
+shortfalls do not increase. Chrome inspection found that the six OMR 1036
+page-edge candidates were Greek part labels clipped at the left paper edge.
+Constraining those label runs to the available width removes all six in the
+same-browser rerun. Its margin-screening count rises from 5 to 11 because the
+labels remain inside the 14 mm notation margin, where part labels belong.
+*Aloha Oe* still has a sparsely used final page; fewer
 systems there are not by themselves a readability improvement.
 
 Both OMR 1036 pages and all three *Aloha Oe* pages were rasterized at 110 dpi
@@ -54,8 +58,8 @@ appending `:8` to each `NAME:SOURCE` argument. The Acorde CLI binary used for
 MuseScore conversion has SHA-256
 `e621c057ae7ca80e3a0690a5d519cd65cfe4bca492a8def514f9239a0d6176ca`.
 The final `print_mxl` example SHA-256 is
-`418acd0d72c405b904be6b16c7eec009e928d0561052b859b7479f905c038634`.
+`bf3fb26d78a7c50586c9116cf9d309002c32c88e89e574bb3bbca6fbb28c1552`.
 
-The optimized local full WASM artifact was 7,061,788 bytes, up 1,693 bytes
+The optimized local full WASM artifact was 7,062,235 bytes, up 2,140 bytes
 from the preceding local build and below the 7,117,000-byte CI limit. Linux
 CI remains the release-relevant size check.

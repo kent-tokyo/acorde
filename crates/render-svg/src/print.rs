@@ -528,13 +528,24 @@ fn write_publication(
             let size_mm = ((page.content_left_mm - PART_LABEL_GAP_MM - PART_LABEL_PAPER_MM)
                 / (0.6 * longest.max(1) as f32))
                 .min(3.0);
+            let available_width_px =
+                (page.content_left_mm - PART_LABEL_GAP_MM - PART_LABEL_PAPER_MM) * scale;
             let leading = size_mm * 1.15;
             let first_baseline = part_middle * space_px + size_mm * scale * 0.25
                 - (lines.len() - 1) as f32 * leading * scale / 2.0;
             for (index, line) in lines.iter().enumerate() {
+                // Non-ASCII glyphs can be much wider than the Latin average used for
+                // font sizing. Constrain those runs so they cannot cross the paper edge.
+                let width_limit = if line.chars().any(|ch| !ch.is_ascii())
+                    && size_mm * line.chars().count() as f32 * scale > available_width_px
+                {
+                    format!(" textLength=\"{available_width_px:.3}\" lengthAdjust=\"spacing\"")
+                } else {
+                    String::new()
+                };
                 let _ = write!(
                     svg,
-                    "<text class=\"acorde-print-part-label\" x=\"{:.3}\" y=\"{:.3}\" text-anchor=\"end\" font-family=\"serif\" font-size=\"{:.3}\">{}</text>",
+                    "<text class=\"acorde-print-part-label\" x=\"{:.3}\" y=\"{:.3}\" text-anchor=\"end\" font-family=\"serif\" font-size=\"{:.3}\"{width_limit}>{}</text>",
                     (page.content_left_mm - PART_LABEL_GAP_MM) * scale,
                     row_top - offset_px + first_baseline + index as f32 * leading * scale,
                     size_mm * scale,
