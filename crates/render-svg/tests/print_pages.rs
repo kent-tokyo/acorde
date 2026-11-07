@@ -1192,6 +1192,11 @@ fn three_staff_webern_keeps_readable_staff_space_on_two_a4_pages() {
     let layout = compute_print_layout(&score, &config).unwrap();
     let pages = render_print_page_svgs(&score, &layout).unwrap();
     assert_eq!(pages.len(), 2);
+    assert!(
+        pages
+            .iter()
+            .any(|page| page.contains("äusserst zart</text>"))
+    );
     assert_eq!(
         layout
             .pages
@@ -1316,6 +1321,7 @@ fn five_staff_lyrics_keep_conservative_density_with_eight_measure_cap() {
     };
     let layout = compute_print_layout(&score, &config).unwrap();
     let pages = render_print_page_svgs(&score, &layout).unwrap();
+    assert!(pages.iter().any(|page| page.contains("solo</text>")));
     assert!(pages.len() <= 3);
     assert_eq!(
         pages
