@@ -283,7 +283,10 @@ jobs:
           # 7,062,665-byte build. Keep a narrow Linux gate for this feature.
           # PR #419's opt-in full-key WASM API and MusicXML recovery measured
           # 7,145,681 bytes on Linux CI. Retain about 7.3 KB of headroom.
-          test "$size" -le 7153000
+          # Contextual melodic insertion and reference remapping (#399/#400)
+          # measured 7,162,214 bytes in Linux CI on PR #425. Keep 7,786 bytes
+          # of regression headroom above that exact artifact.
+          test "$size" -le 7170000
 
   renderer-benchmark:
     name: Renderer performance budget

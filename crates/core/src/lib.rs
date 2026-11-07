@@ -82,8 +82,11 @@ pub use model::gm::{drum_name, program_name};
 pub use model::harmony::{detect_chord, roman_numeral, roman_numeral_figured};
 pub use model::interval::{Interval, IntervalQuality};
 pub use model::melodic_insert::{
-    MelodicInsertion, MelodicInsertionDiagnostic, MelodicInsertionKind, MelodicInsertionOptions,
-    MelodicInsertionResult, MelodicInsertionSource, MelodicSourceMapping, insert_melodic_notes,
+    MelodicInsertion, MelodicInsertionCandidate, MelodicInsertionContext,
+    MelodicInsertionContextResult, MelodicInsertionDiagnostic, MelodicInsertionKind,
+    MelodicInsertionOptions, MelodicInsertionOutcome, MelodicInsertionResult,
+    MelodicInsertionSelection, MelodicInsertionSource, MelodicLocalKey, MelodicSourceMapping,
+    insert_melodic_notes, insert_melodic_notes_with_context,
 };
 pub use model::musical_diff::{
     MusicalChange, MusicalChangeKind, MusicalComparisonDiagnostic, MusicalComparisonOptions,
