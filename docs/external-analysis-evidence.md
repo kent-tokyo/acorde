@@ -58,3 +58,9 @@ which is not single-key accuracy. The result is limited to this corpus and
 does not cover harmony or cadence analysis.
 The unordered pitch/duration event bag matches on 88 of the 90 paired parses;
 this does not check event order, placement, rests or ties.
+
+An [opt-in tonal-profile ranking](archive/analysis-bcmh-key-profile.md) orders
+the same tied candidates. Its first choice matched 76 of the same 82 labels,
+equal to music21 on this development corpus. This is not an independent
+holdout result; parser coverage and other analysis categories remain separate
+gates.

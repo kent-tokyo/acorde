@@ -100,9 +100,9 @@ def acorde_key_name(candidate):
     return f"{tonic} {mode}"
 
 
-def acorde_output(acorde, command, score_path):
+def acorde_output(acorde, command, score_path, *extra_args):
     result = subprocess.run(
-        [str(acorde), command, str(score_path)],
+        [str(acorde), command, str(score_path), *extra_args],
         capture_output=True,
         text=True,
         timeout=15,
@@ -156,7 +156,7 @@ def pitch_bag(events):
     return Counter(pitch for pitches, _ in events for pitch in pitches)
 
 
-def compare_one(archive, name, temporary_dir, acorde, converter, note, chord):
+def compare_one(archive, name, temporary_dir, acorde, converter, note, chord, rank_tied_keys):
     source = archive.read(name)
     lines = source.decode("utf-8-sig").splitlines()
     gold, gold_source = gold_key(lines)
@@ -188,7 +188,8 @@ def compare_one(archive, name, temporary_dir, acorde, converter, note, chord):
         match = NOTE_COUNT.search(info)
         if not match:
             raise ValueError("Acorde info did not report a note count")
-        analysis = json.loads(acorde_output(acorde, "analyze", score_path))
+        extra_args = ("--rank-tied-keys",) if rank_tied_keys else ()
+        analysis = json.loads(acorde_output(acorde, "analyze", score_path, *extra_args))
         import_report = json.loads(acorde_output(acorde, "report", score_path))
         acorde_projection = acorde_events(import_report["score"])
         candidates = [acorde_key_name(candidate) for candidate in analysis["key_estimates"]]
@@ -215,6 +216,8 @@ def main():
     parser.add_argument("archive", type=Path)
     parser.add_argument("acorde", type=Path)
     parser.add_argument("output", type=Path)
+    parser.add_argument("--rank-tied-keys", action="store_true",
+                        help="pass the opt-in tonal-profile ranking flag to Acorde")
     args = parser.parse_args()
     from music21 import chord, converter, note
     import music21
@@ -234,7 +237,10 @@ def main():
             rows = []
             for name in names:
                 try:
-                    rows.append(compare_one(archive, name, Path(tmp), args.acorde, converter, note, chord))
+                    rows.append(compare_one(
+                        archive, name, Path(tmp), args.acorde, converter, note, chord,
+                        args.rank_tied_keys,
+                    ))
                 except Exception as error:
                     rows.append({"score": Path(name).name,
                                  "error": f"{type(error).__name__}: {error}"})
@@ -285,6 +291,8 @@ def main():
         },
         "rows": rows,
     }
+    if args.rank_tied_keys:
+        report["acorde_analyze_option"] = "--rank-tied-keys"
     args.output.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n")
     print(json.dumps(report["summary"], sort_keys=True))
 
