@@ -103,7 +103,10 @@ oracle beyond these simple forms. The
 pedal release caveats to written active intervals and propagates chord-wide
 articulations: Acorde matches 824/824 strict written ends and alphaTab
 586/612 under the revised eligibility rule. These totals cannot be compared
-as a trend with the preceding rule. Next recheck note onset/release, tempo,
+as a trend with the preceding rule. A
+[lined-pedal repair](docs/archive/playback-lined-pedal-controls.md) keeps
+MusicXML offsets, barline releases and the Webern fixture's `resume` in
+offline playback and MusicXML roundtrips. Next recheck note onset/release, tempo,
 repeats, pedal, ornaments and instrument changes on sparse diagnostic excerpts
 before using an audio onset detector on dense scores. Track import losses
 separately.

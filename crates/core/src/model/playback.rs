@@ -1,7 +1,7 @@
 use super::duration::Duration;
 use super::notation::{Articulation, ChordSymbol, GuitarTechnique, TabPosition};
 use super::repeat::measure_sequence;
-use super::score::{GuitarBendPoint, Note, NoteAddr, Score};
+use super::score::{GuitarBendPoint, NotationSpannerKind, Note, NoteAddr, Score};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -934,6 +934,7 @@ pub fn build_offline_render_manifest(
             }
         })
         .collect::<Vec<_>>();
+    let timed_pedal_anchors = timed_pedal_spanner_endpoints(&resolved_score);
     let mut semantic_events = Vec::new();
     for event in &frame_events {
         let source = event.event.source.clone();
@@ -980,6 +981,7 @@ pub fn build_offline_render_manifest(
                 .is_some_and(|(measure, voice)| {
                     let onset: f64 = voice.iter().take(address.note).map(Note::beats).sum();
                     voice.get(address.note).is_some_and(|note| note.pedal_end)
+                        && !timed_pedal_anchors.contains(&pedal_endpoint_key(address, false))
                         && !measure
                             .timed_pedals
                             .iter()
@@ -1089,6 +1091,7 @@ fn append_rest_pedal_events(
     origin_secs: f64,
     events: &mut Vec<OfflineRenderSemanticFrameEvent>,
 ) {
+    let timed_pedal_anchors = timed_pedal_spanner_endpoints(score);
     let marks = score_tempo_marks(score);
     let holds = score_fermata_holds(score, options);
     let swing = options
@@ -1142,6 +1145,8 @@ fn append_rest_pedal_events(
                                 [(note.pedal_end, false), (note.pedal_start, true)]
                             {
                                 if present
+                                    && !timed_pedal_anchors
+                                        .contains(&pedal_endpoint_key(&address, down))
                                     && !measure.timed_pedals.iter().any(|pedal| {
                                         pedal.down == down
                                             && (pedal.position_beats - written).abs() < 1e-9
@@ -2208,6 +2213,57 @@ impl DynamicTimeline {
     }
 }
 
+type PedalEndpointKey = (usize, usize, usize, usize, usize, bool);
+
+fn pedal_endpoint_key(address: &NoteAddr, down: bool) -> PedalEndpointKey {
+    (
+        address.part,
+        address.staff,
+        address.measure,
+        address.voice,
+        address.note,
+        down,
+    )
+}
+
+/// A line pedal can have a drawn note anchor and a different, authoritative
+/// score-time position. Do not play the anchor again when its numbered timed
+/// direction is present in the same or an adjacent measure.
+fn timed_pedal_spanner_endpoints(score: &Score) -> BTreeSet<PedalEndpointKey> {
+    let mut endpoints = BTreeSet::new();
+    for spanner in &score.spanners {
+        if spanner.kind != NotationSpannerKind::Pedal {
+            continue;
+        }
+        for (address, down) in [(&spanner.start, true), (&spanner.end, false)] {
+            let Some(staff) = score
+                .parts
+                .get(address.part)
+                .and_then(|part| part.staves.get(address.staff))
+            else {
+                continue;
+            };
+            if address.measure >= staff.measures.len() {
+                continue;
+            }
+            let lo = address.measure.saturating_sub(1);
+            let hi = address
+                .measure
+                .saturating_add(1)
+                .min(staff.measures.len().saturating_sub(1));
+            let number = spanner.number.unwrap_or(1);
+            if staff.measures[lo..=hi]
+                .iter()
+                .flat_map(|measure| &measure.timed_pedals)
+                .any(|event| event.number == number && event.down == down && event.hide_sign)
+            {
+                endpoints.insert(pedal_endpoint_key(address, down));
+            }
+        }
+    }
+    endpoints
+}
+
 /// Convert a [`Score`] into a flat, time-ordered list of [`PlaybackEvent`]s.
 ///
 /// All parts, staves, and voices are included unless excluded via [`PlaybackOptions`].
@@ -2217,6 +2273,7 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
     // A pedal held only as a typed spanner still presses the pedal on its first note.
     let materialized = score.with_legacy_spanner_flags();
     let score: &Score = &materialized;
+    let timed_pedal_anchors = timed_pedal_spanner_endpoints(score);
     let bpm = initial_tempo_bpm(score, options);
     let tempo_marks = score_tempo_marks(score);
     let measure_lengths: Vec<f64> = (0..tempo_marks.len())
@@ -2458,7 +2515,15 @@ pub fn to_playback_events(score: &Score, options: &PlaybackOptions) -> Vec<Playb
                             }
                             // Keep the legacy note-on hint when an independent pedal-down
                             // happens exactly at this note's written onset.
-                            let pedal = note.pedal_start
+                            let pedal = (note.pedal_start
+                                && !timed_pedal_anchors.contains(&(
+                                    part_index,
+                                    staff_index,
+                                    idx,
+                                    voice_idx,
+                                    note_index,
+                                    true,
+                                )))
                                 || measure.timed_pedals.iter().any(|pedal| {
                                     pedal.down
                                         && (pedal.position_beats - onset_written_beats).abs() < 1e-9
