@@ -160,6 +160,10 @@ Next analysis gates, in order:
    works, with common input hashes and independent annotations. The Beethoven
    57/64 versus 56/64 result is one genre-specific observation; record
    per-genre accuracy and parsing exclusions before changing the key ranker.
+   A [12-score source selection](docs/archive/analysis-global-key-holdout-selection-v1.md)
+   now pins four scores per style without inspecting their key labels.
+   Common score preparation, a chorale transposition rule, input preflight,
+   and the scorer protocol are still required before opening those labels.
 2. Add local-key and modulation positions to the harmony contract. Preserve
    absolute score addresses, compare both tools against human annotations,
    and measure coverage as well as exact labels. The current Roman-position

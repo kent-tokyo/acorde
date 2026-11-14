@@ -1,0 +1,157 @@
+{
+  "schema_version": 1,
+  "classification": "global-key label holdout selection",
+  "task": "one tonic spelling and major/minor mode per score",
+  "selection": "Bach chorales 200-203, beyond the inspected BCMH 001-101; four C. P. E. Bach keyboard pieces and two movements from each of two Pleyel quartets. IDs and score paths were fixed without consulting label values or predictions.",
+  "chorale_key_index_url": "https://bach-chorales.com/ChoraleKeyIndex.htm",
+  "chorale_key_index_sha256": "d8849022d85f59ade61d84e911fd439fe8a42ad920c9a7748129c08863487d5e",
+  "metadata_repo_paths": {
+    "keyboard": "metadata.tsv",
+    "chamber": "metadata.tsv"
+  },
+  "label_values_unread_at_freeze": true,
+  "score_inputs_unprepared_at_freeze": true,
+  "stop_rule": "Freeze score preparation, label projection, comparator, eligibility and success thresholds before reading selected key labels; after any tuning, use new disjoint works.",
+  "works": [
+    {
+      "group": "chorale",
+      "piece": "200",
+      "score_repo": "MarkGotham/Chorale-Corpus",
+      "score_commit": "50fd22c7c69f6b70c5baa609758b640ad95982e1",
+      "score_path": "Bach,_Johann_Sebastian/Chorales/200/short_score.mxl",
+      "score_git_blob": "3f4642907e11ca621abb28834a4fcc5a4197baf0",
+      "gold_source": "bach-chorales.com ChoraleKeyIndex.htm, Riemenschneider column",
+      "corroboration_repo": "MarkGotham/When-in-Rome",
+      "corroboration_commit": "1c61fe41b8c2910296d7d2bcbf6476c7c1f2fe35",
+      "corroboration_path": "Corpus/Early_Choral/Bach,_Johann_Sebastian/Chorales/200/analysis.txt",
+      "corroboration_git_blob": "9b919226f2a359f25027aee8480d3029594f3fcb",
+      "remote_metadata_path": "Corpus/Early_Choral/Bach,_Johann_Sebastian/Chorales/200/remote.json",
+      "remote_metadata_git_blob": "fc77316bacde581fe3721031d2494294564892ab"
+    },
+    {
+      "group": "chorale",
+      "piece": "201",
+      "score_repo": "MarkGotham/Chorale-Corpus",
+      "score_commit": "50fd22c7c69f6b70c5baa609758b640ad95982e1",
+      "score_path": "Bach,_Johann_Sebastian/Chorales/201/short_score.mxl",
+      "score_git_blob": "309dbab493b0a6e869e6c0e48038cc1d2391a82e",
+      "gold_source": "bach-chorales.com ChoraleKeyIndex.htm, Riemenschneider column",
+      "corroboration_repo": "MarkGotham/When-in-Rome",
+      "corroboration_commit": "1c61fe41b8c2910296d7d2bcbf6476c7c1f2fe35",
+      "corroboration_path": "Corpus/Early_Choral/Bach,_Johann_Sebastian/Chorales/201/analysis.txt",
+      "corroboration_git_blob": "dad3a8b265426f92a2b79d465b8a4d8bb284ae85",
+      "remote_metadata_path": "Corpus/Early_Choral/Bach,_Johann_Sebastian/Chorales/201/remote.json",
+      "remote_metadata_git_blob": "0e15e9cb3063126daa9107e9fb4b60b4aeed06c1"
+    },
+    {
+      "group": "chorale",
+      "piece": "202",
+      "score_repo": "MarkGotham/Chorale-Corpus",
+      "score_commit": "50fd22c7c69f6b70c5baa609758b640ad95982e1",
+      "score_path": "Bach,_Johann_Sebastian/Chorales/202/short_score.mxl",
+      "score_git_blob": "20a393a8c28e869185cfeb1d27c5d654846e3c1c",
+      "gold_source": "bach-chorales.com ChoraleKeyIndex.htm, Riemenschneider column",
+      "corroboration_repo": "MarkGotham/When-in-Rome",
+      "corroboration_commit": "1c61fe41b8c2910296d7d2bcbf6476c7c1f2fe35",
+      "corroboration_path": "Corpus/Early_Choral/Bach,_Johann_Sebastian/Chorales/202/analysis.txt",
+      "corroboration_git_blob": "61395ed9fabee53d74cbc2f9aecc7197e160fbd7",
+      "remote_metadata_path": "Corpus/Early_Choral/Bach,_Johann_Sebastian/Chorales/202/remote.json",
+      "remote_metadata_git_blob": "db8eab0810be5e1e848f826210e0adb05ed2ba9c"
+    },
+    {
+      "group": "chorale",
+      "piece": "203",
+      "score_repo": "MarkGotham/Chorale-Corpus",
+      "score_commit": "50fd22c7c69f6b70c5baa609758b640ad95982e1",
+      "score_path": "Bach,_Johann_Sebastian/Chorales/203/short_score.mxl",
+      "score_git_blob": "6c9df7e7484741c525ca12a4ae14e04ad0136bcd",
+      "gold_source": "bach-chorales.com ChoraleKeyIndex.htm, Riemenschneider column",
+      "corroboration_repo": "MarkGotham/When-in-Rome",
+      "corroboration_commit": "1c61fe41b8c2910296d7d2bcbf6476c7c1f2fe35",
+      "corroboration_path": "Corpus/Early_Choral/Bach,_Johann_Sebastian/Chorales/203/analysis.txt",
+      "corroboration_git_blob": "5892a21a6192508389f79bccabc1e66e037f7486",
+      "remote_metadata_path": "Corpus/Early_Choral/Bach,_Johann_Sebastian/Chorales/203/remote.json",
+      "remote_metadata_git_blob": "1de8f3c91f054e5382d34c33d7d9180a709ab04c"
+    },
+    {
+      "group": "keyboard",
+      "piece": "wq112n02",
+      "score_repo": "DCMLab/cpe_bach_keyboard",
+      "score_commit": "4b3511eab12b5fbfc7aa5c75819ee02225430da8",
+      "score_path": "MS3/wq112n02.mscx",
+      "score_git_blob": "c89ec42e816ccdd444823a3cf0e54373a23acba3",
+      "gold_source": "annotated_key in metadata.tsv",
+      "metadata_git_blob": "1c4eb31d4ae087ac0cc1087ae00213019686eaab"
+    },
+    {
+      "group": "keyboard",
+      "piece": "wq112n08",
+      "score_repo": "DCMLab/cpe_bach_keyboard",
+      "score_commit": "4b3511eab12b5fbfc7aa5c75819ee02225430da8",
+      "score_path": "MS3/wq112n08.mscx",
+      "score_git_blob": "21d2f6144fc39c75264149ed0fa8391134371195",
+      "gold_source": "annotated_key in metadata.tsv",
+      "metadata_git_blob": "1c4eb31d4ae087ac0cc1087ae00213019686eaab"
+    },
+    {
+      "group": "keyboard",
+      "piece": "wq112n15",
+      "score_repo": "DCMLab/cpe_bach_keyboard",
+      "score_commit": "4b3511eab12b5fbfc7aa5c75819ee02225430da8",
+      "score_path": "MS3/wq112n15.mscx",
+      "score_git_blob": "4ed742988d8122cdd2a30d70a3b7f7558ce4f0b4",
+      "gold_source": "annotated_key in metadata.tsv",
+      "metadata_git_blob": "1c4eb31d4ae087ac0cc1087ae00213019686eaab"
+    },
+    {
+      "group": "keyboard",
+      "piece": "wq113n03",
+      "score_repo": "DCMLab/cpe_bach_keyboard",
+      "score_commit": "4b3511eab12b5fbfc7aa5c75819ee02225430da8",
+      "score_path": "MS3/wq113n03.mscx",
+      "score_git_blob": "01d66612bbde4a74997e1ea13e818678b12bf13b",
+      "gold_source": "annotated_key in metadata.tsv",
+      "metadata_git_blob": "1c4eb31d4ae087ac0cc1087ae00213019686eaab"
+    },
+    {
+      "group": "chamber",
+      "piece": "b307op2n1b",
+      "score_repo": "DCMLab/pleyel_quartets",
+      "score_commit": "8b3d7f5e966290631571274067de6d3a9206a737",
+      "score_path": "MS3/b307op2n1b.mscx",
+      "score_git_blob": "340999b6eef65d4e14c37a51c051f19a225c7585",
+      "gold_source": "annotated_key in metadata.tsv",
+      "metadata_git_blob": "2b28f963816fbbc8d528086c710c78178610e907"
+    },
+    {
+      "group": "chamber",
+      "piece": "b307op2n1c",
+      "score_repo": "DCMLab/pleyel_quartets",
+      "score_commit": "8b3d7f5e966290631571274067de6d3a9206a737",
+      "score_path": "MS3/b307op2n1c.mscx",
+      "score_git_blob": "16b9e125f8d3e1ca4bd6f44e7dd730bffe519c7b",
+      "gold_source": "annotated_key in metadata.tsv",
+      "metadata_git_blob": "2b28f963816fbbc8d528086c710c78178610e907"
+    },
+    {
+      "group": "chamber",
+      "piece": "b309op2n3a",
+      "score_repo": "DCMLab/pleyel_quartets",
+      "score_commit": "8b3d7f5e966290631571274067de6d3a9206a737",
+      "score_path": "MS3/b309op2n3a.mscx",
+      "score_git_blob": "9eabf0a14a12292e03f1bfbb68501015efb243d8",
+      "gold_source": "annotated_key in metadata.tsv",
+      "metadata_git_blob": "2b28f963816fbbc8d528086c710c78178610e907"
+    },
+    {
+      "group": "chamber",
+      "piece": "b309op2n3c",
+      "score_repo": "DCMLab/pleyel_quartets",
+      "score_commit": "8b3d7f5e966290631571274067de6d3a9206a737",
+      "score_path": "MS3/b309op2n3c.mscx",
+      "score_git_blob": "fae1bf7efe9b0d2735af5ce1eb83be9f5f65f6c2",
+      "gold_source": "annotated_key in metadata.tsv",
+      "metadata_git_blob": "2b28f963816fbbc8d528086c710c78178610e907"
+    }
+  ]
+}
