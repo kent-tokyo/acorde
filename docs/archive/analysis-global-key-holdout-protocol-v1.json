@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "classification": "preregistered three-style global-key holdout",
+  "works": 12,
+  "styles": [
+    "chorale",
+    "keyboard",
+    "chamber"
+  ],
+  "acorde_method": "first key_estimates candidate from analyze --aarden-essen-keys",
+  "music21_method": "music21 10.5.2 score.analyze('key')",
+  "primary_metric": "exact tonic spelling and major/minor mode, one vote per selected score; unavailable top choice counts as wrong",
+  "secondary_metric": "tonic pitch class plus mode; report each style and prediction coverage",
+  "chorale_reference_rule": "Use the Riemenschneider-numbered key-index tonic and mode only when the row is unique, unstarred, and unambiguous and the pinned human RomanText opening key agrees. A starred row signals possible collection transposition.",
+  "reference_exclusions": [
+    "nonunique chorale index row",
+    "chorale collection transposition flag",
+    "ambiguous or unsupported chorale index key",
+    "missing chorale opening key or reference disagreement",
+    "missing or unsupported annotated_key metadata"
+  ],
+  "gate": {
+    "required_scores": 12,
+    "max_excluded_scores": 1,
+    "min_eligible_per_group": 3,
+    "require_no_lower_acorde_prediction_coverage": true,
+    "require_more_acorde_exact_on_paired_scores": true,
+    "require_no_worse_acorde_exact_in_each_group": true
+  },
+  "stop_rule": "No candidate, comparator, label projection, exclusion, or threshold change after selected labels are read. A failure remains archived; tuning requires a new disjoint label holdout.",
+  "selected_label_values_unread_at_freeze": true,
+  "pinned": {
+    "selection_sha256": "250ed44261e935ac4878fc0a23c5ca4d2a984ed269bb8c5b3e25cca75aaf4f51",
+    "inputs_sha256": "82f848fb287fe1d24d4fa03029dbd43afce69e9380171bbb5c91aa0ac30f34c7",
+    "preflight_sha256": "c2e079b1737120e4a56b2b335af28b421f4bda68b8de14f5735436fb50e375a9",
+    "acorde_binary_sha256": "baf8fef974cecf704b80a7be49916e9280e2cf3909651507345e7cc58a21320d",
+    "scorer_source_sha256": "225e6258237db9a8828a900d9a86f5f6dfd95e043a8fe0f7c66618ef90928238",
+    "support_script_sha256": {
+      "compare_bcmh_keys.py": "b939c0264d3bb9df98e0dce31c0fa096c4cdc18f6a0d43fbfb0bb5121ca3a831",
+      "compare_mozart_keys.py": "74df7704b2cc380335b946b186823d701b1b4e1f428b31560bcaff5d1ee89076",
+      "fetch_global_key_holdout_scores.py": "aa728bda9b0304b5fc6991eeaaa9a529b017b4e13f348d673ed8d59474136eab"
+    },
+    "music21_version": "10.5.2",
+    "music21_discrete_source_sha256": "5110ff9d30b53d86e2907e447c9a5cf46e651391eb9afc02b1b9cfc508a1302a",
+    "lxml_version": "6.0.2",
+    "chorale_key_index_sha256": "d8849022d85f59ade61d84e911fd439fe8a42ad920c9a7748129c08863487d5e",
+    "cpe_metadata_git_blob": "1c4eb31d4ae087ac0cc1087ae00213019686eaab",
+    "pleyel_metadata_git_blob": "2b28f963816fbbc8d528086c710c78178610e907"
+  }
+}

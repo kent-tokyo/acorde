@@ -164,8 +164,9 @@ Next analysis gates, in order:
    now pins four scores per style without inspecting their key labels. The
    [score-only preflight](docs/archive/analysis-global-key-holdout-preflight-v1.md)
    confirms 12/12 paired parses and equal pitched events in all 496 physical
-   measures. A chorale transposition rule and scorer protocol are still
-   required before opening those labels.
+   measures. The [scoring protocol](docs/archive/analysis-global-key-holdout-protocol-v1.md)
+   now fixes the chorale transposition rule, both methods, exclusions, and
+   success thresholds before the selected labels are opened.
 2. Add local-key and modulation positions to the harmony contract. Preserve
    absolute score addresses, compare both tools against human annotations,
    and measure coverage as well as exact labels. The current Roman-position
