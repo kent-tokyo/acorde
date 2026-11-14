@@ -452,8 +452,7 @@ fn collect_beam_groups(score: &Score, infer_unmarked: bool) -> Vec<BeamGroup> {
                 if let Some(change) = &measure.time_sig {
                     meter = change.clone();
                 }
-                for vi in 0..4usize {
-                    let voice = &measure.voices[vi];
+                for (vi, voice) in measure.voices.iter().enumerate() {
                     let mut current: Option<Vec<usize>> = None;
 
                     for (ni, note) in voice.iter().enumerate() {
@@ -555,8 +554,7 @@ fn collect_tuplet_groups(score: &Score) -> Vec<TupletGroup> {
     for (pi, part) in score.parts.iter().enumerate() {
         for (si, staff) in part.staves.iter().enumerate() {
             for (mi, measure) in staff.measures.iter().enumerate() {
-                for vi in 0..4usize {
-                    let voice = &measure.voices[vi];
+                for (vi, voice) in measure.voices.iter().enumerate() {
                     for (first, last) in acorde_core::tuplet_group_ranges(voice) {
                         let note_indices: Vec<_> = (first..=last)
                             .filter(|&index| {
@@ -642,8 +640,8 @@ fn collect_courtesy_accidentals(score: &Score) -> Vec<CourtesyAccidental> {
                 }
 
                 // Phase 1: check this measure's notes against prev_alters.
-                for vi in 0..4usize {
-                    for (ni, note) in measure.voices[vi].iter().enumerate() {
+                for (vi, voice) in measure.voices.iter().enumerate() {
+                    for (ni, note) in voice.iter().enumerate() {
                         for (pitch_idx, pitch) in note.pitches.iter().enumerate() {
                             let key = (step_idx(&pitch.step), pitch.octave);
                             // A parenthesized accidental the source asked for is always drawn.
@@ -675,8 +673,8 @@ fn collect_courtesy_accidentals(score: &Score) -> Vec<CourtesyAccidental> {
 
                 // Phase 2: rebuild prev_alters from this measure's chromatically altered pitches.
                 prev_alters.clear();
-                for vi in 0..4usize {
-                    for note in measure.voices[vi].iter() {
+                for voice in &measure.voices {
+                    for note in voice {
                         for pitch in note.pitches.iter() {
                             if pitch.alter != key_alter(current_fifths, &pitch.step) {
                                 prev_alters
@@ -715,8 +713,8 @@ fn collect_accidental_marks(score: &Score) -> Vec<AccidentalMark> {
                 // Active alteration per (step, octave), established within this measure only.
                 let mut active: HashMap<(u8, i8), i8> = HashMap::new();
 
-                for vi in 0..4usize {
-                    for (ni, note) in measure.voices[vi].iter().enumerate() {
+                for (vi, voice) in measure.voices.iter().enumerate() {
+                    for (ni, note) in voice.iter().enumerate() {
                         for (pitch_idx, pitch) in note.pitches.iter().enumerate() {
                             let key = (step_idx(&pitch.step), pitch.octave);
                             let baseline = active
