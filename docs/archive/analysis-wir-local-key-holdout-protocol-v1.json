@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "classification": "preregistered local-key label holdout",
+  "source_commit": "1c61fe41b8c2910296d7d2bcbf6476c7c1f2fe35",
+  "works": 12,
+  "acorde_radius_measures": 4,
+  "music21_window_measures": 2,
+  "primary_metric": "exact tonic spelling and major/minor mode at each aligned RomanText annotation position; unavailable predictions count as wrong",
+  "secondary_metric": "tonic pitch class and mode; report coverage, exclusions, and per-work exact counts",
+  "exclusions": [
+    "duplicate gold labels at the same source beat",
+    "missing or ambiguous source measure number",
+    "Acorde/source measure-number mismatch",
+    "predeclared unequal pitched timeline measure"
+  ],
+  "gate": {
+    "required_works": 12,
+    "max_excluded_fraction": 0.05,
+    "min_acorde_work_wins": 7,
+    "require_no_lower_parse_and_prediction_coverage": true,
+    "require_more_exact_labels_on_paired_positions": true
+  },
+  "stop_rule": "No candidate, comparator, source-position, or threshold change after gold is read. A failure stays a failure; any subsequent tuning requires a new disjoint label holdout.",
+  "gold_files_unread_at_freeze": true,
+  "pinned": {
+    "selection_sha256": "34600765003781aa38da20eb93454535e0429181f0f88419237dcd958c96b002",
+    "inputs_sha256": "1def221579651654a1cc8c1f58b7d3ad574df544124e42c28459049c2c4d1fea",
+    "preflight_sha256": "1c8b0395ebd9d812237ebe6a11b50dc2a043413c9f2abededa5c9662789008a4",
+    "acorde_binary_sha256": "baf8fef974cecf704b80a7be49916e9280e2cf3909651507345e7cc58a21320d",
+    "scorer_source_sha256": "13e950f4e720a77cfc2528754b090ddc9dd841da575022e723fdb163325c0e30",
+    "support_script_sha256": {
+      "compare_wir_harmony_music21.py": "f11612c498d9025fb7ea54ecce15e35bbf7267b8aa3e0c0b9ca056f8a703e864",
+      "compare_wir_local_keys_music21.py": "030844b518e63928255525711ab04d9fbbbe76bee1a82117b77454c73f8ff5e5",
+      "diagnose_wir_local_keys.py": "5e8e591e147b2b9845933e11e1dd7e79490d22e30e0874107cf8e64e88426d67",
+      "compare_bcmh_keys.py": "b939c0264d3bb9df98e0dce31c0fa096c4cdc18f6a0d43fbfb0bb5121ca3a831",
+      "fetch_wir_harmony_holdout.py": "a75417517421efbff2dda9174a16737abef5efe3e6a281dd31fc33a4bffba16e"
+    },
+    "music21_version": "10.5.2",
+    "music21_floating_key_source_sha256": "523fc352ffc5c1fdf080ef1ede88b47d3bd5dd9d42bbf5944f7a23962ca1bd42",
+    "music21_discrete_source_sha256": "5110ff9d30b53d86e2907e447c9a5cf46e651391eb9afc02b1b9cfc508a1302a"
+  }
+}

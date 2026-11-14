@@ -43,7 +43,9 @@ SUPPORTED_LABELS = {key[2] for key in KEYS}
 
 def key_pitch_class_and_mode(label):
     tonic, mode = label.split(" ")
-    offset = {"#": 1, "-": -1, "b": -1}.get(tonic[1:], 0)
+    if mode not in ("major", "minor") or any(mark not in "#-b" for mark in tonic[1:]):
+        raise ValueError(f"unsupported key label: {label}")
+    offset = sum(1 if mark == "#" else -1 for mark in tonic[1:])
     return ((STEP_SEMITONES[tonic[0].upper()] + offset) % 12, mode)
 
 

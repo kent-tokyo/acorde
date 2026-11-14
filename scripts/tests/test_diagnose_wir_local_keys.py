@@ -10,6 +10,8 @@ class LocalKeyDiagnosticTests(unittest.TestCase):
         self.assertEqual(predict([c_sharp_profile], 0, [-5]), ["D- major"])
         self.assertEqual(key_pitch_class_and_mode("C# major"),
                          key_pitch_class_and_mode("D- major"))
+        self.assertEqual(key_pitch_class_and_mode("C## major"),
+                         key_pitch_class_and_mode("D major"))
 
 
 if __name__ == "__main__":

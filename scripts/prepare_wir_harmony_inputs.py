@@ -65,11 +65,13 @@ def prepare(selection, hashes, source_dir, output_dir):
         target = output_dir / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(cleaned)
-        inputs.append({"work": name, "path": str(relative),
-                       "source_sha256": sha256(source_bytes),
-                       "input_sha256": sha256(cleaned),
-                       "gold_sha256": by_work[name]["gold_sha256"],
-                       "removed_harmony_elements": removed})
+        entry = {"work": name, "path": str(relative),
+                 "source_sha256": sha256(source_bytes),
+                 "input_sha256": sha256(cleaned),
+                 "removed_harmony_elements": removed}
+        if "gold_sha256" in by_work[name]:
+            entry["gold_sha256"] = by_work[name]["gold_sha256"]
+        inputs.append(entry)
     return {"schema_version": 1, "source_commit": selection["commit"],
             "selection_sha256": hashes["selection_sha256"], "inputs": inputs}
 

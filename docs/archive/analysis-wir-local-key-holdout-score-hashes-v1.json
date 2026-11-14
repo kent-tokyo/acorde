@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "selection_sha256": "34600765003781aa38da20eb93454535e0429181f0f88419237dcd958c96b002",
+  "commit": "1c61fe41b8c2910296d7d2bcbf6476c7c1f2fe35",
+  "files": [
+    {
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op059_No1/1",
+      "score_sha256": "748ae7bcaf29a18b2b6189ca41b07a7c9644834a6d478f6bdcd8e379c29375fb",
+      "score_bytes": 112983
+    },
+    {
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op059_No2/1",
+      "score_sha256": "0cd899778a5ddf3bb58a7c1becf14cd707f32eb64a9309ae4a92befa1e9870d9",
+      "score_bytes": 103356
+    },
+    {
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op059_No3/1",
+      "score_sha256": "7f560dab518af3632b7046a870302c4cb92aae21bdb8709d934b202c2565445d",
+      "score_bytes": 85211
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/10",
+      "score_sha256": "a36f889320af6ac986cb4e3b091d4d7edc1662d4fa0bb2e15f7ec68fa7ce483a",
+      "score_bytes": 16076
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/11",
+      "score_sha256": "31d8c498130cec13966cfb800d57916b58dbc547ff5c5972a013f2fe0d3df981",
+      "score_bytes": 8719
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/12",
+      "score_sha256": "6cf694fcedb9cf1672568da5da04dc23258e72176b9991d1c1777ce0306c49be",
+      "score_bytes": 10250
+    },
+    {
+      "work": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K309/1",
+      "score_sha256": "11b77c4c8b3eaeebcc087c6037a69636f0cd72c796547ecde278c99e0b15ef49",
+      "score_bytes": 36075
+    },
+    {
+      "work": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K310/1",
+      "score_sha256": "98505b8c53776aa6e709ea92d14ec88916b5b702775a0b8947c9052f085bf663",
+      "score_bytes": 43331
+    },
+    {
+      "work": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K311/1",
+      "score_sha256": "5ce3bd0633a2ef0d7701e83826eed25a02c7cd5369ebbdc1f8f35c9c5c65fb8f",
+      "score_bytes": 38977
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Reichardt,_Louise/Sechs_Lieder_von_Novalis,_Op.4/1_Sehnsucht_nach_dem_Vaterlande",
+      "score_sha256": "2c21bfb3a644571c678af79ebc23f6b85e81dc0b446c75341d24b8c758739684",
+      "score_bytes": 7697
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Reichardt,_Louise/Zwölf_Deutsche_und_Italiänische_Romantische_Gesänge/01_Frühlingslied",
+      "score_sha256": "7b8d770725f7abea6cfce0eea441ba39445c1ca907ac1774b3d223e18c8c5ff8",
+      "score_bytes": 7645
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Reichardt,_Louise/Zwölf_Gesänge,_Op.3/01_Frühlingsblumen",
+      "score_sha256": "7d28ede09ae7887e57ca5c4ccfdc136a9430573f17c9880b13631b30289ab620",
+      "score_bytes": 6085
+    }
+  ],
+  "scores_only": true
+}

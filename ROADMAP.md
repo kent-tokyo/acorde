@@ -169,9 +169,12 @@ Next analysis gates, in order:
    local keys. The [paired development comparison](docs/archive/analysis-wir-local-key-paired-development-v1.md)
    scores music21's best radius from the same grid at 2,157/3,405, with
    12 Acorde wins, 10 music21 wins and two ties by work. This is not an
-   untouched holdout. Add source-beat
-   positions, within-measure transitions, transposition and alternate-bar
-   handling before freezing a paired local-key holdout.
+   untouched holdout. A new [12-work label holdout](docs/archive/analysis-wir-local-key-holdout-preflight-v1.md)
+   is selected from disjoint works; both parsers accept all prepared inputs,
+   their 1,462 pitched measure timelines agree, and the candidate/scorer
+   protocol is frozen before opening its annotations. Score it without tuning
+   on those labels. Source-beat positions, within-measure transitions,
+   transposition and alternate-bar handling remain capability gaps.
 3. Build a cadence task from independently annotated scores. The
    [Mozart cadence input preflight](docs/archive/analysis-mozart-cadence-preflight-v1.md)
    freezes 36 MusicXML/cadence-CSV movement pairs from the

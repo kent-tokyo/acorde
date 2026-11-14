@@ -1,0 +1,138 @@
+{
+  "schema_version": 1,
+  "classification": "input-only, no gold content read",
+  "source_commit": "1c61fe41b8c2910296d7d2bcbf6476c7c1f2fe35",
+  "selection_sha256": "34600765003781aa38da20eb93454535e0429181f0f88419237dcd958c96b002",
+  "inputs_sha256": "1def221579651654a1cc8c1f58b7d3ad574df544124e42c28459049c2c4d1fea",
+  "acorde_binary_sha256": "baf8fef974cecf704b80a7be49916e9280e2cf3909651507345e7cc58a21320d",
+  "music21_version": "10.5.2",
+  "summary": {
+    "cases": 12,
+    "parsed_both": 12,
+    "physical_measures": 1462,
+    "unequal_timeline_measures": 0,
+    "removed_harmony_elements": 2359
+  },
+  "cases": [
+    {
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op059_No1/1",
+      "input_sha256": "d501d03233ba259c6baf0b1a4a7e241b65226211fdae1db14bd1266f005a3dd8",
+      "source_sha256": "748ae7bcaf29a18b2b6189ca41b07a7c9644834a6d478f6bdcd8e379c29375fb",
+      "removed_harmony_elements": 482,
+      "music21_parts": 4,
+      "acorde_staves": 4,
+      "physical_measures": 400,
+      "unequal_timeline_measures": []
+    },
+    {
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op059_No2/1",
+      "input_sha256": "00e8098d60a2e38276b435371aa85e2bcec4128bb66f843bab92b81a1e4dca32",
+      "source_sha256": "0cd899778a5ddf3bb58a7c1becf14cd707f32eb64a9309ae4a92befa1e9870d9",
+      "removed_harmony_elements": 445,
+      "music21_parts": 4,
+      "acorde_staves": 4,
+      "physical_measures": 261,
+      "unequal_timeline_measures": []
+    },
+    {
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op059_No3/1",
+      "input_sha256": "a7094854ba77116127e814db59542cd64cf40b6898e8c9a160c847841e8b7790",
+      "source_sha256": "7f560dab518af3632b7046a870302c4cb92aae21bdb8709d934b202c2565445d",
+      "removed_harmony_elements": 515,
+      "music21_parts": 4,
+      "acorde_staves": 4,
+      "physical_measures": 270,
+      "unequal_timeline_measures": []
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/10",
+      "input_sha256": "a36f889320af6ac986cb4e3b091d4d7edc1662d4fa0bb2e15f7ec68fa7ce483a",
+      "source_sha256": "a36f889320af6ac986cb4e3b091d4d7edc1662d4fa0bb2e15f7ec68fa7ce483a",
+      "removed_harmony_elements": 0,
+      "music21_parts": 2,
+      "acorde_staves": 2,
+      "physical_measures": 41,
+      "unequal_timeline_measures": []
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/11",
+      "input_sha256": "31d8c498130cec13966cfb800d57916b58dbc547ff5c5972a013f2fe0d3df981",
+      "source_sha256": "31d8c498130cec13966cfb800d57916b58dbc547ff5c5972a013f2fe0d3df981",
+      "removed_harmony_elements": 0,
+      "music21_parts": 2,
+      "acorde_staves": 2,
+      "physical_measures": 18,
+      "unequal_timeline_measures": []
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/12",
+      "input_sha256": "6cf694fcedb9cf1672568da5da04dc23258e72176b9991d1c1777ce0306c49be",
+      "source_sha256": "6cf694fcedb9cf1672568da5da04dc23258e72176b9991d1c1777ce0306c49be",
+      "removed_harmony_elements": 0,
+      "music21_parts": 2,
+      "acorde_staves": 2,
+      "physical_measures": 22,
+      "unequal_timeline_measures": []
+    },
+    {
+      "work": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K309/1",
+      "input_sha256": "31dabcb10e8a6a59e0f33c19af91cdc4b96d02685468824360981d780e34a39b",
+      "source_sha256": "11b77c4c8b3eaeebcc087c6037a69636f0cd72c796547ecde278c99e0b15ef49",
+      "removed_harmony_elements": 306,
+      "music21_parts": 2,
+      "acorde_staves": 2,
+      "physical_measures": 155,
+      "unequal_timeline_measures": []
+    },
+    {
+      "work": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K310/1",
+      "input_sha256": "d83b51cef31ad7c2ca0a107716d7e8f7369f06da6ebc6b6e21b482da4b85e18d",
+      "source_sha256": "98505b8c53776aa6e709ea92d14ec88916b5b702775a0b8947c9052f085bf663",
+      "removed_harmony_elements": 292,
+      "music21_parts": 2,
+      "acorde_staves": 2,
+      "physical_measures": 133,
+      "unequal_timeline_measures": []
+    },
+    {
+      "work": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K311/1",
+      "input_sha256": "0f8b9e8e55a5dc044f6b384f79261c1df415b4ac3291f8ed951990cc36463d63",
+      "source_sha256": "5ce3bd0633a2ef0d7701e83826eed25a02c7cd5369ebbdc1f8f35c9c5c65fb8f",
+      "removed_harmony_elements": 319,
+      "music21_parts": 2,
+      "acorde_staves": 2,
+      "physical_measures": 112,
+      "unequal_timeline_measures": []
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Reichardt,_Louise/Sechs_Lieder_von_Novalis,_Op.4/1_Sehnsucht_nach_dem_Vaterlande",
+      "input_sha256": "2c21bfb3a644571c678af79ebc23f6b85e81dc0b446c75341d24b8c758739684",
+      "source_sha256": "2c21bfb3a644571c678af79ebc23f6b85e81dc0b446c75341d24b8c758739684",
+      "removed_harmony_elements": 0,
+      "music21_parts": 3,
+      "acorde_staves": 3,
+      "physical_measures": 14,
+      "unequal_timeline_measures": []
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Reichardt,_Louise/Zwölf_Deutsche_und_Italiänische_Romantische_Gesänge/01_Frühlingslied",
+      "input_sha256": "7b8d770725f7abea6cfce0eea441ba39445c1ca907ac1774b3d223e18c8c5ff8",
+      "source_sha256": "7b8d770725f7abea6cfce0eea441ba39445c1ca907ac1774b3d223e18c8c5ff8",
+      "removed_harmony_elements": 0,
+      "music21_parts": 3,
+      "acorde_staves": 3,
+      "physical_measures": 19,
+      "unequal_timeline_measures": []
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Reichardt,_Louise/Zwölf_Gesänge,_Op.3/01_Frühlingsblumen",
+      "input_sha256": "7d28ede09ae7887e57ca5c4ccfdc136a9430573f17c9880b13631b30289ab620",
+      "source_sha256": "7d28ede09ae7887e57ca5c4ccfdc136a9430573f17c9880b13631b30289ab620",
+      "removed_harmony_elements": 0,
+      "music21_parts": 3,
+      "acorde_staves": 3,
+      "physical_measures": 17,
+      "unequal_timeline_measures": []
+    }
+  ]
+}

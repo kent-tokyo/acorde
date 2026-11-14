@@ -18,6 +18,8 @@ def main():
     parser.add_argument("selection", type=Path)
     parser.add_argument("output_dir", type=Path)
     parser.add_argument("hashes", type=Path)
+    parser.add_argument("--scores-only", action="store_true",
+                        help="fetch and hash score inputs without reading annotation files")
     args = parser.parse_args()
     selected = json.loads(args.selection.read_text())
     if selected["source"] != "https://github.com/MarkGotham/When-in-Rome":
@@ -26,7 +28,9 @@ def main():
     entries = []
     for work in selected["works"]:
         entry = {"work": work["work"]}
-        for kind, field in (("score", "score_path"), ("gold", "gold_path")):
+        kinds = (("score", "score_path"),) if args.scores_only else (
+            ("score", "score_path"), ("gold", "gold_path"))
+        for kind, field in kinds:
             path = work[field]
             if not path.startswith("Corpus/") or ".." in Path(path).parts:
                 raise ValueError(f"invalid source path: {path}")
@@ -51,8 +55,10 @@ def main():
         "commit": selected["commit"],
         "files": entries,
     }
+    if args.scores_only:
+        result["scores_only"] = True
     args.hashes.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n")
-    print(f"verified {len(entries)} score/gold pairs")
+    print(f"verified {len(entries)} {'score inputs' if args.scores_only else 'score/gold pairs'}")
 
 
 if __name__ == "__main__":

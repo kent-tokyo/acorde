@@ -169,8 +169,10 @@ the prototype on all 24 works. A [paired development comparison](archive/analysi
 uses music21 10.5.2's native local-key analyzer on the same verified scores
 and positions. Its best radius over the same development grid matches
 2,157/3,405, with 3,401 available positions. This remains inspected
-development evidence; a new untouched cohort and source-beat-level local-key
-contract are required.
+development evidence. A disjoint [12-work local-key label holdout](archive/analysis-wir-local-key-holdout-preflight-v1.md)
+now has score-only input hashes, 12/12 parser coverage, 1,462/1,462 equal
+pitched timelines, and a frozen candidate/scorer protocol. Its annotations
+remain unopened. Source-beat-level local keys remain a separate capability gap.
 
 ## Mozart cadence inputs awaiting a scoring contract
 

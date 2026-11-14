@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "source": "https://github.com/MarkGotham/When-in-Rome",
+  "commit": "1c61fe41b8c2910296d7d2bcbf6476c7c1f2fe35",
+  "tree_sha": "825c2d104f0c060974e878aa43d7f77770717ddd",
+  "split": "local-key label holdout",
+  "selection": "Three lexicographic score.mxl/analysis.txt pairs in each fixed group after the recorded skip: distinct Beethoven Op.59 quartets, Bach WTC I 10-12, distinct Mozart K309-311 sonatas, and distinct Louise Reichardt song collections. Selection reads only the pinned complete Git tree index and prior work names.",
+  "prior_score_exposure": "Some Mozart sonata scores were used in a separate global-key task; this is a local-key label holdout, not an unseen-score claim.",
+  "musical_input": "score.mxl only; no analysis_on_score.mxl or analysis_automatic.rntxt",
+  "gold": "analysis.txt, unopened until candidate and scoring protocol are frozen",
+  "unit": "work directory; no work overlaps the three prior When in Rome selections",
+  "task": "local-key label at aligned human RomanText positions",
+  "stop_rule": "Do not tune against these twelve local-key labels. If they inform an algorithm change, reclassify all twelve works as development and freeze a new disjoint label holdout.",
+  "works": [
+    {
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op059_No1/1",
+      "score_path": "Corpus/Quartets/Beethoven,_Ludwig_van/Op059_No1/1/score.mxl",
+      "score_git_blob": "e371b053be27cea6df35f8afd3f31fe27364dd60",
+      "gold_path": "Corpus/Quartets/Beethoven,_Ludwig_van/Op059_No1/1/analysis.txt",
+      "gold_git_blob": "a32935319d1003c35596824b62daf30d94625219"
+    },
+    {
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op059_No2/1",
+      "score_path": "Corpus/Quartets/Beethoven,_Ludwig_van/Op059_No2/1/score.mxl",
+      "score_git_blob": "e048f4c8782155a8db6148741815fcc2dac0de21",
+      "gold_path": "Corpus/Quartets/Beethoven,_Ludwig_van/Op059_No2/1/analysis.txt",
+      "gold_git_blob": "6d8d48b4abc2c799f3e52d7d5a4337cb4a9b6730"
+    },
+    {
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op059_No3/1",
+      "score_path": "Corpus/Quartets/Beethoven,_Ludwig_van/Op059_No3/1/score.mxl",
+      "score_git_blob": "12da295c9af6e154c6a13cdac56df6373b7e34f9",
+      "gold_path": "Corpus/Quartets/Beethoven,_Ludwig_van/Op059_No3/1/analysis.txt",
+      "gold_git_blob": "17c38124ccad9e6beb1b7fe865f00f58e7fb641d"
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/10",
+      "score_path": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/10/score.mxl",
+      "score_git_blob": "20cf2f02223b1cfdac39f9d2c91e9760f29a3e51",
+      "gold_path": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/10/analysis.txt",
+      "gold_git_blob": "6599af13233cbbd23e0dfde6bef670061b95e7ed"
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/11",
+      "score_path": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/11/score.mxl",
+      "score_git_blob": "1167a7af57dd1a861f1b098dcf5b24675c2ea384",
+      "gold_path": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/11/analysis.txt",
+      "gold_git_blob": "19863744519b9464d785c8f837990fe0b04b11f9"
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/12",
+      "score_path": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/12/score.mxl",
+      "score_git_blob": "f5e0636890b52b01dca429542708ccedf63001b1",
+      "gold_path": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/12/analysis.txt",
+      "gold_git_blob": "728b7818668a17c795a783279e3397f38afdb36b"
+    },
+    {
+      "work": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K309/1",
+      "score_path": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K309/1/score.mxl",
+      "score_git_blob": "012ed51be5293c18af06b832902bf51981e99097",
+      "gold_path": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K309/1/analysis.txt",
+      "gold_git_blob": "0bb3153177ea98f399c98a2a8b54d6fffd5cf20f"
+    },
+    {
+      "work": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K310/1",
+      "score_path": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K310/1/score.mxl",
+      "score_git_blob": "6da1b54620245d0975da6b8c0245c4414ce59927",
+      "gold_path": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K310/1/analysis.txt",
+      "gold_git_blob": "0b7f5c60bae56a92c161283750ff59b39df990a1"
+    },
+    {
+      "work": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K311/1",
+      "score_path": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K311/1/score.mxl",
+      "score_git_blob": "08797105ba317b36b46a0a1bd567f7c1f12daa30",
+      "gold_path": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K311/1/analysis.txt",
+      "gold_git_blob": "999ce460e5d30fba8deb4a13f1447f5575da4c7c"
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Reichardt,_Louise/Sechs_Lieder_von_Novalis,_Op.4/1_Sehnsucht_nach_dem_Vaterlande",
+      "score_path": "Corpus/OpenScore-LiederCorpus/Reichardt,_Louise/Sechs_Lieder_von_Novalis,_Op.4/1_Sehnsucht_nach_dem_Vaterlande/score.mxl",
+      "score_git_blob": "aae6940d7f460a7b8b469ea7ecd8e4f837badee8",
+      "gold_path": "Corpus/OpenScore-LiederCorpus/Reichardt,_Louise/Sechs_Lieder_von_Novalis,_Op.4/1_Sehnsucht_nach_dem_Vaterlande/analysis.txt",
+      "gold_git_blob": "169c598d4c22ad4f4c6992dff5ad4574b9e90601"
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Reichardt,_Louise/Zwölf_Deutsche_und_Italiänische_Romantische_Gesänge/01_Frühlingslied",
+      "score_path": "Corpus/OpenScore-LiederCorpus/Reichardt,_Louise/Zwölf_Deutsche_und_Italiänische_Romantische_Gesänge/01_Frühlingslied/score.mxl",
+      "score_git_blob": "409a2b295384e3deb406533fe38496bcb255d3d7",
+      "gold_path": "Corpus/OpenScore-LiederCorpus/Reichardt,_Louise/Zwölf_Deutsche_und_Italiänische_Romantische_Gesänge/01_Frühlingslied/analysis.txt",
+      "gold_git_blob": "b7b70d45c3f4ea78d844581a0115b2945398d597"
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Reichardt,_Louise/Zwölf_Gesänge,_Op.3/01_Frühlingsblumen",
+      "score_path": "Corpus/OpenScore-LiederCorpus/Reichardt,_Louise/Zwölf_Gesänge,_Op.3/01_Frühlingsblumen/score.mxl",
+      "score_git_blob": "eff6e7dafb0f135f9e9ccd395a6cdf008126ca77",
+      "gold_path": "Corpus/OpenScore-LiederCorpus/Reichardt,_Louise/Zwölf_Gesänge,_Op.3/01_Frühlingsblumen/analysis.txt",
+      "gold_git_blob": "278f2e87d4a4a01ebe1159f00dd0f9a0d346cadf"
+    }
+  ],
+  "prior_selection_sha256": [
+    "1532d3e006eaee6179b9a968210a787fcf7ba173d58ef428bffa70ecca7135dd",
+    "0f4db2819434e685feb4946ce00ece39e0480bdc47f2eedfeb3d283aad5eec57",
+    "632530392285406739393f9ee4c4e3cf8b9e0815491d937961f9c9864dec82bd"
+  ]
+}
