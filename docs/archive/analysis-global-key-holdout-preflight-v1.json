@@ -1,0 +1,160 @@
+{
+  "schema_version": 1,
+  "classification": "score-only global-key preflight; labels unread",
+  "selection_sha256": "250ed44261e935ac4878fc0a23c5ca4d2a984ed269bb8c5b3e25cca75aaf4f51",
+  "inputs_sha256": "82f848fb287fe1d24d4fa03029dbd43afce69e9380171bbb5c91aa0ac30f34c7",
+  "acorde_binary_sha256": "baf8fef974cecf704b80a7be49916e9280e2cf3909651507345e7cc58a21320d",
+  "music21_version": "10.5.2",
+  "summary": {
+    "cases": 12,
+    "parsed_both": 12,
+    "physical_measures": 496,
+    "unequal_timeline_measures": 0
+  },
+  "cases": [
+    {
+      "group": "chorale",
+      "piece": "200",
+      "input_sha256": "f4670b45f71598123fbf168bc5c8116d4143f9c558dc92cd1b26206c68ba9cf9",
+      "music21_parts": 2,
+      "acorde_staves": 2,
+      "physical_measures": 15,
+      "acorde_import_diagnostics_by_code": {},
+      "unequal_timeline_measures": []
+    },
+    {
+      "group": "chorale",
+      "piece": "201",
+      "input_sha256": "2f257150057d2e90cc4ba4b4f1e308acfb25606ed1c7dc09bab26d33d7fd683f",
+      "music21_parts": 2,
+      "acorde_staves": 2,
+      "physical_measures": 20,
+      "acorde_import_diagnostics_by_code": {},
+      "unequal_timeline_measures": []
+    },
+    {
+      "group": "chorale",
+      "piece": "202",
+      "input_sha256": "899b011e7d7cee2e379ce179bd3b0d5d3e8c6127836f441f6dfd1ddc39ff90da",
+      "music21_parts": 2,
+      "acorde_staves": 2,
+      "physical_measures": 27,
+      "acorde_import_diagnostics_by_code": {},
+      "unequal_timeline_measures": []
+    },
+    {
+      "group": "chorale",
+      "piece": "203",
+      "input_sha256": "5423fc07e11f9907ac079f69d6ff7c51c05e9da14dff02a26c5ce38292c20e7a",
+      "music21_parts": 2,
+      "acorde_staves": 2,
+      "physical_measures": 21,
+      "acorde_import_diagnostics_by_code": {},
+      "unequal_timeline_measures": []
+    },
+    {
+      "group": "keyboard",
+      "piece": "wq112n02",
+      "input_sha256": "59b9956fa6a8e611de1906fb32e67a4763ab23c92e291c485e49713519dc920e",
+      "music21_parts": 2,
+      "acorde_staves": 2,
+      "physical_measures": 19,
+      "acorde_import_diagnostics_by_code": {
+        "musicxml.unsupported-placement-attribute": 84,
+        "musicxml.unsupported-render-attribute": 9
+      },
+      "unequal_timeline_measures": []
+    },
+    {
+      "group": "keyboard",
+      "piece": "wq112n08",
+      "input_sha256": "36fc4cf0464be14ec18ca73e8074617a260d35c7d0821cf373c5b9776c542c37",
+      "music21_parts": 2,
+      "acorde_staves": 2,
+      "physical_measures": 12,
+      "acorde_import_diagnostics_by_code": {
+        "musicxml.unsupported-placement-attribute": 168,
+        "musicxml.unsupported-render-attribute": 10
+      },
+      "unequal_timeline_measures": []
+    },
+    {
+      "group": "keyboard",
+      "piece": "wq112n15",
+      "input_sha256": "d04415e3c58a107d11145c96962f0db6c95e11a5f998083d62252a353dc2c6d2",
+      "music21_parts": 2,
+      "acorde_staves": 2,
+      "physical_measures": 13,
+      "acorde_import_diagnostics_by_code": {
+        "musicxml.unsupported-placement-attribute": 2,
+        "musicxml.unsupported-render-attribute": 23
+      },
+      "unequal_timeline_measures": []
+    },
+    {
+      "group": "keyboard",
+      "piece": "wq113n03",
+      "input_sha256": "7c78dbd5cf83514d423bf5e06f017a20c8ea3f51dc9d8064a0fdf537bcfceacd",
+      "music21_parts": 2,
+      "acorde_staves": 2,
+      "physical_measures": 7,
+      "acorde_import_diagnostics_by_code": {
+        "musicxml.unsupported-placement-attribute": 28,
+        "musicxml.unsupported-render-attribute": 11
+      },
+      "unequal_timeline_measures": []
+    },
+    {
+      "group": "chamber",
+      "piece": "b307op2n1b",
+      "input_sha256": "a9de1fcea02542cbdb5bb091b9870e41f5ce54b32f81db4956701d8f455ed85a",
+      "music21_parts": 4,
+      "acorde_staves": 4,
+      "physical_measures": 108,
+      "acorde_import_diagnostics_by_code": {
+        "musicxml.unsupported-placement-attribute": 672,
+        "musicxml.unsupported-render-attribute": 5
+      },
+      "unequal_timeline_measures": []
+    },
+    {
+      "group": "chamber",
+      "piece": "b307op2n1c",
+      "input_sha256": "f1aba6a8e2632904c5c8f7ce17b4895e49fae89fc4afe8236cb75e2dc4ce29f3",
+      "music21_parts": 4,
+      "acorde_staves": 4,
+      "physical_measures": 82,
+      "acorde_import_diagnostics_by_code": {
+        "musicxml.unsupported-placement-attribute": 576,
+        "musicxml.unsupported-render-attribute": 5
+      },
+      "unequal_timeline_measures": []
+    },
+    {
+      "group": "chamber",
+      "piece": "b309op2n3a",
+      "input_sha256": "06e3b10883edd89fa3cdcd10c83854cb5da2e1486d3f686b4fa6c423a2c79fa9",
+      "music21_parts": 4,
+      "acorde_staves": 4,
+      "physical_measures": 98,
+      "acorde_import_diagnostics_by_code": {
+        "musicxml.unsupported-placement-attribute": 758,
+        "musicxml.unsupported-render-attribute": 5
+      },
+      "unequal_timeline_measures": []
+    },
+    {
+      "group": "chamber",
+      "piece": "b309op2n3c",
+      "input_sha256": "e0d44c8921fe66c5c19181fa8a853ab4fc5fef39dd0fadab2cddf27469b219fc",
+      "music21_parts": 4,
+      "acorde_staves": 4,
+      "physical_measures": 74,
+      "acorde_import_diagnostics_by_code": {
+        "musicxml.unsupported-placement-attribute": 196,
+        "musicxml.unsupported-render-attribute": 5
+      },
+      "unequal_timeline_measures": []
+    }
+  ]
+}

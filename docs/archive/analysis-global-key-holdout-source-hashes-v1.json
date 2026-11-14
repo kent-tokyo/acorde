@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "scores_only": true,
+  "selection_sha256": "250ed44261e935ac4878fc0a23c5ca4d2a984ed269bb8c5b3e25cca75aaf4f51",
+  "files": [
+    {
+      "group": "chorale",
+      "piece": "200",
+      "score_path": "Bach,_Johann_Sebastian/Chorales/200/short_score.mxl",
+      "score_git_blob": "3f4642907e11ca621abb28834a4fcc5a4197baf0",
+      "local_path": "chorale/200.mxl",
+      "source_sha256": "5d2e84018b99b0fe138f303823cedc4c6d036649ffa23d880ad6d2308b9e9da3",
+      "source_bytes": 3254
+    },
+    {
+      "group": "chorale",
+      "piece": "201",
+      "score_path": "Bach,_Johann_Sebastian/Chorales/201/short_score.mxl",
+      "score_git_blob": "309dbab493b0a6e869e6c0e48038cc1d2391a82e",
+      "local_path": "chorale/201.mxl",
+      "source_sha256": "bc5995f28100b2d44753c507613a187bb68c2597dbd7ea0617ad7f46526676c6",
+      "source_bytes": 3995
+    },
+    {
+      "group": "chorale",
+      "piece": "202",
+      "score_path": "Bach,_Johann_Sebastian/Chorales/202/short_score.mxl",
+      "score_git_blob": "20a393a8c28e869185cfeb1d27c5d654846e3c1c",
+      "local_path": "chorale/202.mxl",
+      "source_sha256": "3e6b75f2a5efa65ccac2c4b820f19e3d226213dec316afdc7169753a94cca4d6",
+      "source_bytes": 4243
+    },
+    {
+      "group": "chorale",
+      "piece": "203",
+      "score_path": "Bach,_Johann_Sebastian/Chorales/203/short_score.mxl",
+      "score_git_blob": "6c9df7e7484741c525ca12a4ae14e04ad0136bcd",
+      "local_path": "chorale/203.mxl",
+      "source_sha256": "b533dadf5da8a08fec009768804faee26a2b0626d1a7416e46723f1451c69c52",
+      "source_bytes": 3125
+    },
+    {
+      "group": "keyboard",
+      "piece": "wq112n02",
+      "score_path": "MS3/wq112n02.mscx",
+      "score_git_blob": "c89ec42e816ccdd444823a3cf0e54373a23acba3",
+      "local_path": "keyboard/wq112n02.mscx",
+      "source_sha256": "70474a7d0ef8698712fe0eebd2f31fe765468cc2f682c4a0773239d1294e1fb3",
+      "source_bytes": 71598
+    },
+    {
+      "group": "keyboard",
+      "piece": "wq112n08",
+      "score_path": "MS3/wq112n08.mscx",
+      "score_git_blob": "21d2f6144fc39c75264149ed0fa8391134371195",
+      "local_path": "keyboard/wq112n08.mscx",
+      "source_sha256": "0e2b5fdbcc614625e4075ab2565522a34fb8590ae559413655a7db8217194c24",
+      "source_bytes": 100210
+    },
+    {
+      "group": "keyboard",
+      "piece": "wq112n15",
+      "score_path": "MS3/wq112n15.mscx",
+      "score_git_blob": "4ed742988d8122cdd2a30d70a3b7f7558ce4f0b4",
+      "local_path": "keyboard/wq112n15.mscx",
+      "source_sha256": "c6bde9d65e62d10cdcce4354f2a5a2e02a9890219aff97462e07f9774fd79b6e",
+      "source_bytes": 68475
+    },
+    {
+      "group": "keyboard",
+      "piece": "wq113n03",
+      "score_path": "MS3/wq113n03.mscx",
+      "score_git_blob": "01d66612bbde4a74997e1ea13e818678b12bf13b",
+      "local_path": "keyboard/wq113n03.mscx",
+      "source_sha256": "9abf7823874edbb7d79f1612af51c2f0f6b2e96fe27aaa2ff97641a68115b2e9",
+      "source_bytes": 82690
+    },
+    {
+      "group": "chamber",
+      "piece": "b307op2n1b",
+      "score_path": "MS3/b307op2n1b.mscx",
+      "score_git_blob": "340999b6eef65d4e14c37a51c051f19a225c7585",
+      "local_path": "chamber/b307op2n1b.mscx",
+      "source_sha256": "3bc1c0e86f917483865b9738d7f6665ce46aa40b663e5a32d1e525c90b53431e",
+      "source_bytes": 851204
+    },
+    {
+      "group": "chamber",
+      "piece": "b307op2n1c",
+      "score_path": "MS3/b307op2n1c.mscx",
+      "score_git_blob": "16b9e125f8d3e1ca4bd6f44e7dd730bffe519c7b",
+      "local_path": "chamber/b307op2n1c.mscx",
+      "source_sha256": "9d9c9a3eecf589bfe4168c2757366b40421ef71b2f23089fd46dc785390fe0f8",
+      "source_bytes": 452955
+    },
+    {
+      "group": "chamber",
+      "piece": "b309op2n3a",
+      "score_path": "MS3/b309op2n3a.mscx",
+      "score_git_blob": "9eabf0a14a12292e03f1bfbb68501015efb243d8",
+      "local_path": "chamber/b309op2n3a.mscx",
+      "source_sha256": "29739db142590e29de885d88ac5fb57575f31496f92a7f3989bfb56e81368d6f",
+      "source_bytes": 741798
+    },
+    {
+      "group": "chamber",
+      "piece": "b309op2n3c",
+      "score_path": "MS3/b309op2n3c.mscx",
+      "score_git_blob": "fae1bf7efe9b0d2735af5ce1eb83be9f5f65f6c2",
+      "local_path": "chamber/b309op2n3c.mscx",
+      "source_sha256": "0fbf443771094e4bef3b952db41e05bdbf7572947d8568c18335f05424c4b245",
+      "source_bytes": 435719
+    }
+  ]
+}

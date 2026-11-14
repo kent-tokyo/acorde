@@ -1,0 +1,197 @@
+{
+  "schema_version": 1,
+  "selection_sha256": "250ed44261e935ac4878fc0a23c5ca4d2a984ed269bb8c5b3e25cca75aaf4f51",
+  "input_rule": "Unpack pinned MXL or export pinned MSCX with MuseScore 4.7.5. Remove harmony, direction, lyric, and credit elements; apply recorded input-only syntax repairs. Give identical cleaned MusicXML bytes to both analyzers.",
+  "inputs": [
+    {
+      "group": "chorale",
+      "piece": "200",
+      "export_method": "single XML member from pinned MXL",
+      "export_exit_status": 0,
+      "source_git_blob": "3f4642907e11ca621abb28834a4fcc5a4197baf0",
+      "source_sha256": "5d2e84018b99b0fe138f303823cedc4c6d036649ffa23d880ad6d2308b9e9da3",
+      "export_sha256": "f28e19224d5a3c6cf8f03c0cee2306bb004e0eb1a57974a64261cc196e7af68f",
+      "input_path": "chorale/200.musicxml",
+      "input_sha256": "f4670b45f71598123fbf168bc5c8116d4143f9c558dc92cd1b26206c68ba9cf9",
+      "removed_elements": {},
+      "repaired_elements": {}
+    },
+    {
+      "group": "chorale",
+      "piece": "201",
+      "export_method": "single XML member from pinned MXL",
+      "export_exit_status": 0,
+      "source_git_blob": "309dbab493b0a6e869e6c0e48038cc1d2391a82e",
+      "source_sha256": "bc5995f28100b2d44753c507613a187bb68c2597dbd7ea0617ad7f46526676c6",
+      "export_sha256": "5d73c0d2ae5b174d7f02aea179ba5707c2d1d892105ea7b23daf8bea368bf75d",
+      "input_path": "chorale/201.musicxml",
+      "input_sha256": "2f257150057d2e90cc4ba4b4f1e308acfb25606ed1c7dc09bab26d33d7fd683f",
+      "removed_elements": {},
+      "repaired_elements": {}
+    },
+    {
+      "group": "chorale",
+      "piece": "202",
+      "export_method": "single XML member from pinned MXL",
+      "export_exit_status": 0,
+      "source_git_blob": "20a393a8c28e869185cfeb1d27c5d654846e3c1c",
+      "source_sha256": "3e6b75f2a5efa65ccac2c4b820f19e3d226213dec316afdc7169753a94cca4d6",
+      "export_sha256": "c3145a4cb8c3bb4a780adc9bbc17d8c4d21fc8778506e0a562ef2796625b417d",
+      "input_path": "chorale/202.musicxml",
+      "input_sha256": "899b011e7d7cee2e379ce179bd3b0d5d3e8c6127836f441f6dfd1ddc39ff90da",
+      "removed_elements": {},
+      "repaired_elements": {}
+    },
+    {
+      "group": "chorale",
+      "piece": "203",
+      "export_method": "single XML member from pinned MXL",
+      "export_exit_status": 0,
+      "source_git_blob": "6c9df7e7484741c525ca12a4ae14e04ad0136bcd",
+      "source_sha256": "b533dadf5da8a08fec009768804faee26a2b0626d1a7416e46723f1451c69c52",
+      "export_sha256": "982f57db5ca02f798ade5c42dfc44e91937528f70818801761b9af708f9e9d0d",
+      "input_path": "chorale/203.musicxml",
+      "input_sha256": "5423fc07e11f9907ac079f69d6ff7c51c05e9da14dff02a26c5ce38292c20e7a",
+      "removed_elements": {},
+      "repaired_elements": {}
+    },
+    {
+      "group": "keyboard",
+      "piece": "wq112n02",
+      "export_method": "MuseScore 4.7.5 export",
+      "export_exit_status": -6,
+      "source_git_blob": "c89ec42e816ccdd444823a3cf0e54373a23acba3",
+      "source_sha256": "70474a7d0ef8698712fe0eebd2f31fe765468cc2f682c4a0773239d1294e1fb3",
+      "export_sha256": "83a3fe7f1a796e9810fa3ff6fb698d66c44d662191f46478cc133b33df2f5368",
+      "input_path": "keyboard/wq112n02.musicxml",
+      "input_sha256": "59b9956fa6a8e611de1906fb32e67a4763ab23c92e291c485e49713519dc920e",
+      "removed_elements": {
+        "credit": 2,
+        "direction": 11,
+        "harmony": 38
+      },
+      "repaired_elements": {}
+    },
+    {
+      "group": "keyboard",
+      "piece": "wq112n08",
+      "export_method": "MuseScore 4.7.5 export",
+      "export_exit_status": -6,
+      "source_git_blob": "21d2f6144fc39c75264149ed0fa8391134371195",
+      "source_sha256": "0e2b5fdbcc614625e4075ab2565522a34fb8590ae559413655a7db8217194c24",
+      "export_sha256": "2f7d22da14d8f077e73ef6b6d6afedb1fec6abea148ef500b164ec2c8654dbc6",
+      "input_path": "keyboard/wq112n08.musicxml",
+      "input_sha256": "36fc4cf0464be14ec18ca73e8074617a260d35c7d0821cf373c5b9776c542c37",
+      "removed_elements": {
+        "credit": 2,
+        "direction": 13,
+        "harmony": 52
+      },
+      "repaired_elements": {}
+    },
+    {
+      "group": "keyboard",
+      "piece": "wq112n15",
+      "export_method": "MuseScore 4.7.5 export",
+      "export_exit_status": -6,
+      "source_git_blob": "4ed742988d8122cdd2a30d70a3b7f7558ce4f0b4",
+      "source_sha256": "c6bde9d65e62d10cdcce4354f2a5a2e02a9890219aff97462e07f9774fd79b6e",
+      "export_sha256": "9417abdab1b818f96b311f3d528239ca5988af2e064ccaacffe669bf483aadc3",
+      "input_path": "keyboard/wq112n15.musicxml",
+      "input_sha256": "d04415e3c58a107d11145c96962f0db6c95e11a5f998083d62252a353dc2c6d2",
+      "removed_elements": {
+        "credit": 2,
+        "direction": 17,
+        "harmony": 28
+      },
+      "repaired_elements": {}
+    },
+    {
+      "group": "keyboard",
+      "piece": "wq113n03",
+      "export_method": "MuseScore 4.7.5 export",
+      "export_exit_status": -6,
+      "source_git_blob": "01d66612bbde4a74997e1ea13e818678b12bf13b",
+      "source_sha256": "9abf7823874edbb7d79f1612af51c2f0f6b2e96fe27aaa2ff97641a68115b2e9",
+      "export_sha256": "cc6d21710b97f3915601822c1ad556332b1fb731861ddebb094c28244d8d2479",
+      "input_path": "keyboard/wq113n03.musicxml",
+      "input_sha256": "7c78dbd5cf83514d423bf5e06f017a20c8ea3f51dc9d8064a0fdf537bcfceacd",
+      "removed_elements": {
+        "credit": 2,
+        "direction": 1,
+        "harmony": 29
+      },
+      "repaired_elements": {}
+    },
+    {
+      "group": "chamber",
+      "piece": "b307op2n1b",
+      "export_method": "MuseScore 4.7.5 export",
+      "export_exit_status": -6,
+      "source_git_blob": "340999b6eef65d4e14c37a51c051f19a225c7585",
+      "source_sha256": "3bc1c0e86f917483865b9738d7f6665ce46aa40b663e5a32d1e525c90b53431e",
+      "export_sha256": "20a2d63c4f35f844fe3da6cb42801c776319e008b4960abc1d0e0f5b968ad925",
+      "input_path": "chamber/b307op2n1b.musicxml",
+      "input_sha256": "a9de1fcea02542cbdb5bb091b9870e41f5ce54b32f81db4956701d8f455ed85a",
+      "removed_elements": {
+        "credit": 13,
+        "direction": 178,
+        "harmony": 190
+      },
+      "repaired_elements": {}
+    },
+    {
+      "group": "chamber",
+      "piece": "b307op2n1c",
+      "export_method": "MuseScore 4.7.5 export",
+      "export_exit_status": -6,
+      "source_git_blob": "16b9e125f8d3e1ca4bd6f44e7dd730bffe519c7b",
+      "source_sha256": "9d9c9a3eecf589bfe4168c2757366b40421ef71b2f23089fd46dc785390fe0f8",
+      "export_sha256": "86c19f29bb2f6452ef6c3776e6af8db4542cbf65cb7014814877a81d319ead12",
+      "input_path": "chamber/b307op2n1c.musicxml",
+      "input_sha256": "f1aba6a8e2632904c5c8f7ce17b4895e49fae89fc4afe8236cb75e2dc4ce29f3",
+      "removed_elements": {
+        "credit": 10,
+        "direction": 47,
+        "harmony": 156
+      },
+      "repaired_elements": {}
+    },
+    {
+      "group": "chamber",
+      "piece": "b309op2n3a",
+      "export_method": "MuseScore 4.7.5 export",
+      "export_exit_status": -6,
+      "source_git_blob": "9eabf0a14a12292e03f1bfbb68501015efb243d8",
+      "source_sha256": "29739db142590e29de885d88ac5fb57575f31496f92a7f3989bfb56e81368d6f",
+      "export_sha256": "13c3bff08cd16cdef16f461cb51df063f40b1ba72c8a6cc1f49e9a24c347e4c1",
+      "input_path": "chamber/b309op2n3a.musicxml",
+      "input_sha256": "06e3b10883edd89fa3cdcd10c83854cb5da2e1486d3f686b4fa6c423a2c79fa9",
+      "removed_elements": {
+        "credit": 16,
+        "direction": 159,
+        "harmony": 189
+      },
+      "repaired_elements": {}
+    },
+    {
+      "group": "chamber",
+      "piece": "b309op2n3c",
+      "export_method": "MuseScore 4.7.5 export",
+      "export_exit_status": -6,
+      "source_git_blob": "fae1bf7efe9b0d2735af5ce1eb83be9f5f65f6c2",
+      "source_sha256": "0fbf443771094e4bef3b952db41e05bdbf7572947d8568c18335f05424c4b245",
+      "export_sha256": "0f94e59206a3629184f37033ca2445ffb61a193b783c3fe0b984122f6c34f7bc",
+      "input_path": "chamber/b309op2n3c.musicxml",
+      "input_sha256": "e0d44c8921fe66c5c19181fa8a853ab4fc5fef39dd0fadab2cddf27469b219fc",
+      "removed_elements": {
+        "credit": 9,
+        "direction": 64,
+        "harmony": 123
+      },
+      "repaired_elements": {}
+    }
+  ],
+  "source_hashes_sha256": "871f2550a0e39dce7e31c032ba719b49bbc628beb0b3544a9adbbf2cc37d8f74",
+  "mscore_version": "MuseScore4 4.7.5"
+}
