@@ -1520,14 +1520,13 @@ fn finish_measures(score: &mut Score, pickup: bool) {
         .and_then(|part| part.staves.first())
         .map_or(0, |staff| staff.measures.len());
     let mut times = Vec::with_capacity(measure_count);
-    for measure_index in 0..measure_count {
-        if let Some(changed) = score.parts[0].staves[0].measures[measure_index]
-            .time_sig
-            .clone()
-        {
-            time = changed;
+    if let Some(staff) = score.parts.first().and_then(|part| part.staves.first()) {
+        for measure in &staff.measures {
+            if let Some(changed) = measure.time_sig.clone() {
+                time = changed;
+            }
+            times.push(time.clone());
         }
-        times.push(time.clone());
     }
     for (measure_index, time) in times.iter().enumerate() {
         let bar_beats = time.total_beats();
