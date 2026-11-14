@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "source": "https://github.com/MarkGotham/When-in-Rome",
+  "commit": "1c61fe41b8c2910296d7d2bcbf6476c7c1f2fe35",
+  "tree_sha": "825c2d104f0c060974e878aa43d7f77770717ddd",
+  "split": "holdout",
+  "selection": "Three lexicographic score.mxl/analysis.txt pairs at each fixed composer prefix; one per distinct collection for Beethoven/Hensel/Clara Schumann, and Bach pairs 04-06 after skipping the three inspected ones. Selected without reading contents or predictions.",
+  "musical_input": "score.mxl only; never analysis_on_score.mxl or analysis_automatic.rntxt",
+  "gold": "analysis.txt only; never automatic or alternate analyses",
+  "unit": "work directory; no movement or transposition leaks between splits",
+  "task": "Roman numeral at human-annotated positions; score only at source positions; report all parser/alignment exclusions",
+  "normalization": "Freeze before evaluating: Roman glyph (%/ø, °/o), inversion 42/2, and whitespace only; preserve root, quality, applied chord, key, and chromatic spelling distinctions.",
+  "stop_rule": "Do not tune against these works. If a result informs a fix, reclassify all twelve works as development and freeze a new untouched holdout before a superiority claim.",
+  "works": [
+    {
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op018_No1/1",
+      "score_path": "Corpus/Quartets/Beethoven,_Ludwig_van/Op018_No1/1/score.mxl",
+      "score_git_blob": "f2fbd6c035c97be26d34f1a17597874b146a8d18",
+      "gold_path": "Corpus/Quartets/Beethoven,_Ludwig_van/Op018_No1/1/analysis.txt",
+      "gold_git_blob": "5cb4ec02b0c80d29e558f7134c692e68c357cdd8"
+    },
+    {
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op018_No2/1",
+      "score_path": "Corpus/Quartets/Beethoven,_Ludwig_van/Op018_No2/1/score.mxl",
+      "score_git_blob": "106c6b8b7d9c7036dde232dbebe3f7d7920381ed",
+      "gold_path": "Corpus/Quartets/Beethoven,_Ludwig_van/Op018_No2/1/analysis.txt",
+      "gold_git_blob": "4e703714488f22ebaef1aca82f365a621e814758"
+    },
+    {
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op018_No3/1",
+      "score_path": "Corpus/Quartets/Beethoven,_Ludwig_van/Op018_No3/1/score.mxl",
+      "score_git_blob": "9c8ba7ec9048d0e6e3f70d1fa8648a15ad929383",
+      "gold_path": "Corpus/Quartets/Beethoven,_Ludwig_van/Op018_No3/1/analysis.txt",
+      "gold_git_blob": "0cca9594a8bd53bca77a408950873002a9e5459b"
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/04",
+      "score_path": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/04/score.mxl",
+      "score_git_blob": "baa4d0ff175f95843eb4a49be30829e766db9dbe",
+      "gold_path": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/04/analysis.txt",
+      "gold_git_blob": "640c41ccc39bddf4ea0f98b25a5fac9b25800ace"
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/05",
+      "score_path": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/05/score.mxl",
+      "score_git_blob": "b5434b3a858f4fa8e05cb311c383311e062f9780",
+      "gold_path": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/05/analysis.txt",
+      "gold_git_blob": "8f106ab945f0984599fa5608917905d3c9d4ba50"
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/06",
+      "score_path": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/06/score.mxl",
+      "score_git_blob": "5498e87f23610785a575d2715ebcbd05de44c76c",
+      "gold_path": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/06/analysis.txt",
+      "gold_git_blob": "3cef4608d11e5e9b8d9a0516d47164aa2bf8d3fc"
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Hensel,_Fanny_(Mendelssohn)/3_Lieder/1_Sehnsucht",
+      "score_path": "Corpus/OpenScore-LiederCorpus/Hensel,_Fanny_(Mendelssohn)/3_Lieder/1_Sehnsucht/score.mxl",
+      "score_git_blob": "e81bd240927c43140e39f2b26608949cc56ee48c",
+      "gold_path": "Corpus/OpenScore-LiederCorpus/Hensel,_Fanny_(Mendelssohn)/3_Lieder/1_Sehnsucht/analysis.txt",
+      "gold_git_blob": "8edb639924a6c838ab2d0333c42539170ec00f24"
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Hensel,_Fanny_(Mendelssohn)/5_Lieder,_Op.10/1_Nach_Süden",
+      "score_path": "Corpus/OpenScore-LiederCorpus/Hensel,_Fanny_(Mendelssohn)/5_Lieder,_Op.10/1_Nach_Süden/score.mxl",
+      "score_git_blob": "4da0f655178372777bb72c0c9a3a1fbbae86afec",
+      "gold_path": "Corpus/OpenScore-LiederCorpus/Hensel,_Fanny_(Mendelssohn)/5_Lieder,_Op.10/1_Nach_Süden/analysis.txt",
+      "gold_git_blob": "3aeff082cbbb07ac6c22217243a527a8e28cf122"
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Hensel,_Fanny_(Mendelssohn)/6_Lieder,_Op.1/1_Schwanenlied",
+      "score_path": "Corpus/OpenScore-LiederCorpus/Hensel,_Fanny_(Mendelssohn)/6_Lieder,_Op.1/1_Schwanenlied/score.mxl",
+      "score_git_blob": "73c021200af12827ba8a0ceba56c1d009dd03f76",
+      "gold_path": "Corpus/OpenScore-LiederCorpus/Hensel,_Fanny_(Mendelssohn)/6_Lieder,_Op.1/1_Schwanenlied/analysis.txt",
+      "gold_git_blob": "cbb9a1153fcebf5f823c22e3de4f50a1972b09d3"
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Schumann,_Clara/6_Lieder,_Op.13/1_Ich_stand_in_dunklen_Träumen",
+      "score_path": "Corpus/OpenScore-LiederCorpus/Schumann,_Clara/6_Lieder,_Op.13/1_Ich_stand_in_dunklen_Träumen/score.mxl",
+      "score_git_blob": "4559fdadecc96629531eb00b0493520d370de422",
+      "gold_path": "Corpus/OpenScore-LiederCorpus/Schumann,_Clara/6_Lieder,_Op.13/1_Ich_stand_in_dunklen_Träumen/analysis.txt",
+      "gold_git_blob": "58ee1091995a2a88422d060f2b61723072d5da85"
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Schumann,_Clara/6_Lieder,_Op.23/4_Auf_einem_grünen_Hügel",
+      "score_path": "Corpus/OpenScore-LiederCorpus/Schumann,_Clara/6_Lieder,_Op.23/4_Auf_einem_grünen_Hügel/score.mxl",
+      "score_git_blob": "db1ca06c8eb793b79b991a5fe5c29d2ee70edcf1",
+      "gold_path": "Corpus/OpenScore-LiederCorpus/Schumann,_Clara/6_Lieder,_Op.23/4_Auf_einem_grünen_Hügel/analysis.txt",
+      "gold_git_blob": "05925038cd9b629f6b03c1af7a337fdd8083950f"
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Schumann,_Clara/Lieder,_Op.12/04_Liebst_du_um_Schönheit",
+      "score_path": "Corpus/OpenScore-LiederCorpus/Schumann,_Clara/Lieder,_Op.12/04_Liebst_du_um_Schönheit/score.mxl",
+      "score_git_blob": "12e1ed14c6a13cb90cf9ff4ccbfcf19dd611ae2d",
+      "gold_path": "Corpus/OpenScore-LiederCorpus/Schumann,_Clara/Lieder,_Op.12/04_Liebst_du_um_Schönheit/analysis.txt",
+      "gold_git_blob": "8f144aa5c4d9dc6980b2d39f6641674b60266558"
+    }
+  ],
+  "cohort": 2
+}

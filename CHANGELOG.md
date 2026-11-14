@@ -2,6 +2,53 @@
 
 ## [Unreleased]
 
+- An opt-in `analyze-vertical --arpeggiated-bars` mode completes exact tertian
+  chords from short forward note windows and bar openings. Each added label
+  records future note addresses and a lower-confidence rule ID. The default
+  vertical-only pass remains unchanged; the CLI JSON contract advances to 3
+  and records the mode explicitly.
+- After the comparator's triplet timing correction, a frozen second 12-work
+  When in Rome harmony evaluation failed at 348 versus 394 correct Roman labels;
+  that inspected cohort became development data. The opt-in candidate then
+  passed a separately frozen third 12-work task holdout: 559 versus 508 correct
+  labels at 2,341 aligned primary annotation positions, with both tools parsing
+  all 12 answer-free scores. This is a narrow harmony result, not overall
+  music-analysis superiority.
+- The BCMH harmony comparator now retains all accepted source-positioned Roman
+  labels and both systems' predictions (contract 4). A new adapter verifies the
+  pinned stripped inputs and projects the development rerun into the common
+  label evaluator: 2,193/4,627 canonical matches for Acorde and 2,073/4,627
+  for music21 10.5.2 on 97 equal-timeline works. This is not holdout evidence.
+- Analysis passes for vertical sonorities, adjacent voice leading and SATB
+  spacing/crossing now share written note onsets within each physical measure.
+  Different note durations no longer cause index-matched voices to be compared
+  at different times; lone whole rests use the actual measure length. The
+  serialized analysis result schema and cache key advance to 14. This does not
+  yet align malformed bars across parts or analyze motion across barlines.
+- Vertical-sonority reports now identify missing or unequal physical measures,
+  invalid note durations, and overfull voices; affected measures produce no
+  inferred sonority. The preceding CLI schema 2 added `timeline_issues` while
+  retaining its `sonorities` and key fields.
+- If every staff has a valid, equal total written length, vertical harmony now
+  aligns different physical bar partitions by absolute beat. Results use the
+  first available staff for measure/beat coordinates and keep each source
+  note's own address as evidence. Roman numerals now use the concert key when
+  active staves agree across those different bars; a supplied concert key is
+  still accepted when they do not.
+- A tie continuation with a matching start in the same part at the same
+  absolute beat and sounding pitch no longer creates a vertical-harmony attack,
+  including ties across voices or staves. Explicit predecessor locations must
+  match. New members of a partially tied chord still trigger analysis and
+  include held pitches; a dangling tie flag remains a new attack.
+- Vertical harmony now applies staff and active instrument transposition before
+  combining parts, preserving conventional concert spelling for common
+  instrument intervals. On equal physical bars, explicit written keys on
+  transposing staves are converted to concert keys; Roman numerals are emitted
+  only when contributing staves agree. Missing or conflicting concert keys
+  leave chord labels without Roman numerals. Concert pitches outside the score
+  model's octave range produce a timeline issue instead of a partial chord
+  label.
+
 ## 1.3.12 - 2026-11-14
 
 - Add `arrange_standard_bass_with_annotations` in Rust and full/viewer WASM. It

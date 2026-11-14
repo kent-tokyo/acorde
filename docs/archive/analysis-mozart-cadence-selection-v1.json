@@ -1,0 +1,297 @@
+{
+  "schema_version": 1,
+  "source": "https://github.com/huispaty/batik_plays_mozart",
+  "commit": "9c5f7004c5ab1f15d64e959d011dbdf3b7863c3e",
+  "selection": "All paired MusicXML and cadence-CSV movements, sorted by sonata number. The first six complete sonatas are development, the last six are untouched cadence-label holdout. The selection reads only Git paths and blob IDs.",
+  "prior_exposure": "Some of these score files or movements were previously inspected for global-key work. Cadence labels have not been read for this task; this is a label-level holdout, not a previously unseen-score claim.",
+  "cases": [
+    {
+      "id": "K279-1",
+      "split": "development",
+      "score_path": "scores/kv279_1.musicxml",
+      "score_git_blob": "5e15855eff1715a8717379e55c73fc2b293ef544",
+      "cadence_path": "score_parts_annotated/kv279_1_spart_cadence.csv",
+      "cadence_git_blob": "617de3970b922de09594a4cffb3659a4a6b0c9ab"
+    },
+    {
+      "id": "K279-2",
+      "split": "development",
+      "score_path": "scores/kv279_2.musicxml",
+      "score_git_blob": "ae7dcdd2c12f1ad01dc0010c04e938eda80d6262",
+      "cadence_path": "score_parts_annotated/kv279_2_spart_cadence.csv",
+      "cadence_git_blob": "26ba01b0bf90059bc487b527780744bc26c2665f"
+    },
+    {
+      "id": "K279-3",
+      "split": "development",
+      "score_path": "scores/kv279_3.musicxml",
+      "score_git_blob": "c90799c54482ff277cff148b5a4c90da83f2f519",
+      "cadence_path": "score_parts_annotated/kv279_3_spart_cadence.csv",
+      "cadence_git_blob": "93eb461324d6e36f6fcdbd03fd25716b3a2043fc"
+    },
+    {
+      "id": "K280-1",
+      "split": "development",
+      "score_path": "scores/kv280_1.musicxml",
+      "score_git_blob": "df0bed586fdb5b268f6d3cf79f86ad5d6d0d94cc",
+      "cadence_path": "score_parts_annotated/kv280_1_spart_cadence.csv",
+      "cadence_git_blob": "6d006dc9493486df049920d6cb3301e77e15d399"
+    },
+    {
+      "id": "K280-2",
+      "split": "development",
+      "score_path": "scores/kv280_2.musicxml",
+      "score_git_blob": "fd9b6d7e281cdb8ca0b9599641a20502178893b9",
+      "cadence_path": "score_parts_annotated/kv280_2_spart_cadence.csv",
+      "cadence_git_blob": "3d83f655405da2073f971a22646a6d427d702ea6"
+    },
+    {
+      "id": "K280-3",
+      "split": "development",
+      "score_path": "scores/kv280_3.musicxml",
+      "score_git_blob": "db7924f9b087b650abda30bc5e08782399126b49",
+      "cadence_path": "score_parts_annotated/kv280_3_spart_cadence.csv",
+      "cadence_git_blob": "b9f0307f0f9a0d67eda9030d2aca46768af30e4e"
+    },
+    {
+      "id": "K281-1",
+      "split": "development",
+      "score_path": "scores/kv281_1.musicxml",
+      "score_git_blob": "d450ffe7be87dbcedb1c071c1abe6f0be2d156b3",
+      "cadence_path": "score_parts_annotated/kv281_1_spart_cadence.csv",
+      "cadence_git_blob": "15bcf34dd0edc23e73f07ceb0435a17be651ab26"
+    },
+    {
+      "id": "K281-2",
+      "split": "development",
+      "score_path": "scores/kv281_2.musicxml",
+      "score_git_blob": "eca473c7f7d9f915ca47800a57d85873ef9e1d54",
+      "cadence_path": "score_parts_annotated/kv281_2_spart_cadence.csv",
+      "cadence_git_blob": "38103f976a95602e8143d2a6e868e30852498b57"
+    },
+    {
+      "id": "K281-3",
+      "split": "development",
+      "score_path": "scores/kv281_3.musicxml",
+      "score_git_blob": "dbb181afb68c2a20504b9f4ea62d70594956e5fe",
+      "cadence_path": "score_parts_annotated/kv281_3_spart_cadence.csv",
+      "cadence_git_blob": "2f64d2a25383f3422a9a11cf6de29d911e0b1efc"
+    },
+    {
+      "id": "K282-1",
+      "split": "development",
+      "score_path": "scores/kv282_1.musicxml",
+      "score_git_blob": "595f2708beddc1908f034b548e8c902b19ea8711",
+      "cadence_path": "score_parts_annotated/kv282_1_spart_cadence.csv",
+      "cadence_git_blob": "a140e8bc4f52e9ec8d2cafd468fce08a8e5c1321"
+    },
+    {
+      "id": "K282-2",
+      "split": "development",
+      "score_path": "scores/kv282_2.musicxml",
+      "score_git_blob": "34f8428c5e7ac406583934a968a7f9821bc37255",
+      "cadence_path": "score_parts_annotated/kv282_2_spart_cadence.csv",
+      "cadence_git_blob": "22c8cd869a05fb05eb25a2bd9c16f4aa8b195f5e"
+    },
+    {
+      "id": "K282-3",
+      "split": "development",
+      "score_path": "scores/kv282_3.musicxml",
+      "score_git_blob": "4f2f6f4da636128250c1ba178a615e49eff0d450",
+      "cadence_path": "score_parts_annotated/kv282_3_spart_cadence.csv",
+      "cadence_git_blob": "f32dbab12e53f6544dcba78285d930823bab7081"
+    },
+    {
+      "id": "K283-1",
+      "split": "development",
+      "score_path": "scores/kv283_1.musicxml",
+      "score_git_blob": "a2d1a97cecb06e4f24efbe0bf1382654cccc3967",
+      "cadence_path": "score_parts_annotated/kv283_1_spart_cadence.csv",
+      "cadence_git_blob": "534925b1830c90aaa671a22618579044eff150d5"
+    },
+    {
+      "id": "K283-2",
+      "split": "development",
+      "score_path": "scores/kv283_2.musicxml",
+      "score_git_blob": "d2ba38b11610b4c80ae718be5b26090d2a1eb3c9",
+      "cadence_path": "score_parts_annotated/kv283_2_spart_cadence.csv",
+      "cadence_git_blob": "cde0847ac14052cfd22fded5af07cd2c8592e364"
+    },
+    {
+      "id": "K283-3",
+      "split": "development",
+      "score_path": "scores/kv283_3.musicxml",
+      "score_git_blob": "ecca78dee5c71e826b16fd96558c2063b17cb26b",
+      "cadence_path": "score_parts_annotated/kv283_3_spart_cadence.csv",
+      "cadence_git_blob": "4cc6f8be0a2e584579327804f59f5bda85210b33"
+    },
+    {
+      "id": "K284-1",
+      "split": "development",
+      "score_path": "scores/kv284_1.musicxml",
+      "score_git_blob": "a47222303b2e7ea4659c5e550eef5a4d9e35830f",
+      "cadence_path": "score_parts_annotated/kv284_1_spart_cadence.csv",
+      "cadence_git_blob": "3f4edc6f86e123cbc761cecbaba73dfe03880000"
+    },
+    {
+      "id": "K284-2",
+      "split": "development",
+      "score_path": "scores/kv284_2.musicxml",
+      "score_git_blob": "a414bee2d020969b628e32f8e3b6e380aa3f1f29",
+      "cadence_path": "score_parts_annotated/kv284_2_spart_cadence.csv",
+      "cadence_git_blob": "71e94c8b8dc0465e00a7d4f7bffdd4856701285d"
+    },
+    {
+      "id": "K284-3",
+      "split": "development",
+      "score_path": "scores/kv284_3.musicxml",
+      "score_git_blob": "5380a27c02003601ad779b7af23d21bf8932fa02",
+      "cadence_path": "score_parts_annotated/kv284_3_spart_cadence.csv",
+      "cadence_git_blob": "887ea1e4e85d21d873ce62740edc3bffd14ceaf3"
+    },
+    {
+      "id": "K330-1",
+      "split": "holdout",
+      "score_path": "scores/kv330_1.musicxml",
+      "score_git_blob": "2646fe0a90b64f8003b389030c9e3af0c0d213fd",
+      "cadence_path": "score_parts_annotated/kv330_1_spart_cadence.csv",
+      "cadence_git_blob": "6a7c0083a6ee876d6683ea507cf16ac54ad64313"
+    },
+    {
+      "id": "K330-2",
+      "split": "holdout",
+      "score_path": "scores/kv330_2.musicxml",
+      "score_git_blob": "64758672372eda4da85447d68c34db7e6e909b40",
+      "cadence_path": "score_parts_annotated/kv330_2_spart_cadence.csv",
+      "cadence_git_blob": "08c0afd0110ba9e007cd57228db262cd9bb9694c"
+    },
+    {
+      "id": "K330-3",
+      "split": "holdout",
+      "score_path": "scores/kv330_3.musicxml",
+      "score_git_blob": "f8b7637163462e5870e2007912424888c78875fc",
+      "cadence_path": "score_parts_annotated/kv330_3_spart_cadence.csv",
+      "cadence_git_blob": "2b9093420688b6dc4347ce6c9ed2e147e36a1a1e"
+    },
+    {
+      "id": "K331-1",
+      "split": "holdout",
+      "score_path": "scores/kv331_1.musicxml",
+      "score_git_blob": "ab5a64c703444db25fdb1e2d67505717d46a8f3f",
+      "cadence_path": "score_parts_annotated/kv331_1_spart_cadence.csv",
+      "cadence_git_blob": "0c498bd530c8539ce9c9530350d2da21969b7ebd"
+    },
+    {
+      "id": "K331-2",
+      "split": "holdout",
+      "score_path": "scores/kv331_2.musicxml",
+      "score_git_blob": "14c698e40859cb4c43603897e55832d3ca8d4b22",
+      "cadence_path": "score_parts_annotated/kv331_2_spart_cadence.csv",
+      "cadence_git_blob": "fa808838cbe51cda123fd99c0489a4bb8fceaeb5"
+    },
+    {
+      "id": "K331-3",
+      "split": "holdout",
+      "score_path": "scores/kv331_3.musicxml",
+      "score_git_blob": "e8ebab7d56aad601e77d91639ee1498a7d224d28",
+      "cadence_path": "score_parts_annotated/kv331_3_spart_cadence.csv",
+      "cadence_git_blob": "908f756a437016ba776e89b307af08c29ef7802d"
+    },
+    {
+      "id": "K332-1",
+      "split": "holdout",
+      "score_path": "scores/kv332_1.musicxml",
+      "score_git_blob": "fd405af1ef9b66f4308211adf6c48dbe3f03fd94",
+      "cadence_path": "score_parts_annotated/kv332_1_spart_cadence.csv",
+      "cadence_git_blob": "0f20ba0d21a415e7206c11c0d1386d49d25a2004"
+    },
+    {
+      "id": "K332-2",
+      "split": "holdout",
+      "score_path": "scores/kv332_2.musicxml",
+      "score_git_blob": "cd680e4902660c34aecba323d212ba4d6da42873",
+      "cadence_path": "score_parts_annotated/kv332_2_spart_cadence.csv",
+      "cadence_git_blob": "e519ad6e861cf1989d55bd49752cab12676b09ef"
+    },
+    {
+      "id": "K332-3",
+      "split": "holdout",
+      "score_path": "scores/kv332_3.musicxml",
+      "score_git_blob": "5c6ec8d6875d5a24400a541d240fe67a629f919c",
+      "cadence_path": "score_parts_annotated/kv332_3_spart_cadence.csv",
+      "cadence_git_blob": "e974a95d4de9aa770fc8ae5b568987c2e71b0f17"
+    },
+    {
+      "id": "K333-1",
+      "split": "holdout",
+      "score_path": "scores/kv333_1.musicxml",
+      "score_git_blob": "4cf8a2fc51f2be6edd4c1263051c622579885c00",
+      "cadence_path": "score_parts_annotated/kv333_1_spart_cadence.csv",
+      "cadence_git_blob": "9245ae79962db1aea82d0b34daa6c8668edfe081"
+    },
+    {
+      "id": "K333-2",
+      "split": "holdout",
+      "score_path": "scores/kv333_2.musicxml",
+      "score_git_blob": "50e5486fd1cc170d335f91f60e3dc003d774e6b1",
+      "cadence_path": "score_parts_annotated/kv333_2_spart_cadence.csv",
+      "cadence_git_blob": "a993c8f456ac5bda87ee804a721b9341ea10b665"
+    },
+    {
+      "id": "K333-3",
+      "split": "holdout",
+      "score_path": "scores/kv333_3.musicxml",
+      "score_git_blob": "4cacc9f0796abba912828ce532c447c02db83067",
+      "cadence_path": "score_parts_annotated/kv333_3_spart_cadence.csv",
+      "cadence_git_blob": "69025e75932279ec1c3933bf804a0823c38513ed"
+    },
+    {
+      "id": "K457-1",
+      "split": "holdout",
+      "score_path": "scores/kv457_1.musicxml",
+      "score_git_blob": "ba0f1ca4f6d5a392a1730e44de80ec7dc57691f5",
+      "cadence_path": "score_parts_annotated/kv457_1_spart_cadence.csv",
+      "cadence_git_blob": "4a3beae2bee43c10c3e3e24dba8958efb6aee0ca"
+    },
+    {
+      "id": "K457-2",
+      "split": "holdout",
+      "score_path": "scores/kv457_2.musicxml",
+      "score_git_blob": "96764f102ae8c39981e866be60ea1efa6a500103",
+      "cadence_path": "score_parts_annotated/kv457_2_spart_cadence.csv",
+      "cadence_git_blob": "c2580c69ab5f84171a1af02fa7e8a26ff2b819a3"
+    },
+    {
+      "id": "K457-3",
+      "split": "holdout",
+      "score_path": "scores/kv457_3.musicxml",
+      "score_git_blob": "14ae099727cf3fcbeaa9722e7679f74bd032cad0",
+      "cadence_path": "score_parts_annotated/kv457_3_spart_cadence.csv",
+      "cadence_git_blob": "b5fa3a976436c6027ff2925d965286c517106d8c"
+    },
+    {
+      "id": "K533-1",
+      "split": "holdout",
+      "score_path": "scores/kv533_1.musicxml",
+      "score_git_blob": "61086320e26a417176638414648091b4dc69524d",
+      "cadence_path": "score_parts_annotated/kv533_1_spart_cadence.csv",
+      "cadence_git_blob": "7bbe9ada39d7713de2e50b61033bdf50dc5cccc2"
+    },
+    {
+      "id": "K533-2",
+      "split": "holdout",
+      "score_path": "scores/kv533_2.musicxml",
+      "score_git_blob": "9fd39d4215dd339b7f9b2ad2a21ae65427852c7e",
+      "cadence_path": "score_parts_annotated/kv533_2_spart_cadence.csv",
+      "cadence_git_blob": "7f16c058b64f4e7bb5b7980d1c107537a9a2c1e0"
+    },
+    {
+      "id": "K533-3",
+      "split": "holdout",
+      "score_path": "scores/kv533_3.musicxml",
+      "score_git_blob": "dfbf92fa91b58bdb2fbf867ec8c46e3e73c7395c",
+      "cadence_path": "score_parts_annotated/kv533_3_spart_cadence.csv",
+      "cadence_git_blob": "e262482604e981d0eba31fe20e1a5b504c59daa7"
+    }
+  ]
+}

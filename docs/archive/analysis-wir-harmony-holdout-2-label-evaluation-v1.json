@@ -1,0 +1,845 @@
+{
+  "schema_version": 1,
+  "system_profiles": {
+    "acorde": {
+      "version": "73ef83351d7ec7daff089df3cd50f762d8153ecff74253db03a95cbcdc92ee0b",
+      "command": "acorde analyze-vertical INPUT --infer-key --arpeggiated-bars",
+      "options": {
+        "key": "independently estimated global key",
+        "arpeggiated_bars": true
+      }
+    },
+    "music21": {
+      "version": "10.5.2",
+      "command": "converter.parse(INPUT).analyze('key'); roman.romanNumeralFromChord(active, key)",
+      "options": {
+        "key": "independently estimated global key"
+      }
+    }
+  },
+  "provenance": {
+    "corpus_commit": "1c61fe41b8c2910296d7d2bcbf6476c7c1f2fe35",
+    "source_report_sha256": "671a06a670763c349e175a8eac350c0308ae33d65a7c59d56c17e4560135dc81",
+    "selection_sha256": "0f4db2819434e685feb4946ce00ece39e0480bdc47f2eedfeb3d283aad5eec57",
+    "task": "roman_at_primary_annotation_position",
+    "exclusion_policy": "unequal pitched timeline, ambiguous measure or duplicate source position"
+  },
+  "cases": [
+    {
+      "id": "Corpus/Quartets/Beethoven,_Ludwig_van/Op018_No1/1",
+      "input_sha256": "b79af644697e7424f84aded8a5032c27a6db7ce0dfbcead83773c0620fe2e960",
+      "input_verified": true,
+      "split": "holdout",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 476,
+          "predicted": 241,
+          "correct": 90,
+          "precision": 0.37344398340248963,
+          "recall": 0.18907563025210083,
+          "f1": 0.2510460251046025,
+          "wrong_label": 151,
+          "missing": 235,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 476,
+              "predicted": 241,
+              "correct": 90,
+              "precision": 0.37344398340248963,
+              "recall": 0.18907563025210083,
+              "f1": 0.2510460251046025,
+              "wrong_label": 151,
+              "missing": 235,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 476,
+          "predicted": 472,
+          "correct": 94,
+          "precision": 0.19915254237288135,
+          "recall": 0.19747899159663865,
+          "f1": 0.19831223628691982,
+          "wrong_label": 378,
+          "missing": 4,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 476,
+              "predicted": 472,
+              "correct": 94,
+              "precision": 0.19915254237288135,
+              "recall": 0.19747899159663865,
+              "f1": 0.19831223628691982,
+              "wrong_label": 378,
+              "missing": 4,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "Corpus/Quartets/Beethoven,_Ludwig_van/Op018_No2/1",
+      "input_sha256": "5f3f5c1a259237e849a4d7dc52fe8d01d5a9e3ab2a1145d9640b46e93d1d58dc",
+      "input_verified": true,
+      "split": "holdout",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 504,
+          "predicted": 206,
+          "correct": 71,
+          "precision": 0.3446601941747573,
+          "recall": 0.14087301587301587,
+          "f1": 0.2,
+          "wrong_label": 135,
+          "missing": 298,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 504,
+              "predicted": 206,
+              "correct": 71,
+              "precision": 0.3446601941747573,
+              "recall": 0.14087301587301587,
+              "f1": 0.2,
+              "wrong_label": 135,
+              "missing": 298,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 504,
+          "predicted": 504,
+          "correct": 114,
+          "precision": 0.2261904761904762,
+          "recall": 0.2261904761904762,
+          "f1": 0.2261904761904762,
+          "wrong_label": 390,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 504,
+              "predicted": 504,
+              "correct": 114,
+              "precision": 0.2261904761904762,
+              "recall": 0.2261904761904762,
+              "f1": 0.2261904761904762,
+              "wrong_label": 390,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "Corpus/Quartets/Beethoven,_Ludwig_van/Op018_No3/1",
+      "input_sha256": "deae9afa8bcfdf30b9af8267e8fcf1c6488cad4971ceb330ec33aefffa974c06",
+      "input_verified": true,
+      "split": "holdout",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 415,
+          "predicted": 179,
+          "correct": 27,
+          "precision": 0.15083798882681565,
+          "recall": 0.06506024096385542,
+          "f1": 0.09090909090909091,
+          "wrong_label": 152,
+          "missing": 236,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 415,
+              "predicted": 179,
+              "correct": 27,
+              "precision": 0.15083798882681565,
+              "recall": 0.06506024096385542,
+              "f1": 0.09090909090909091,
+              "wrong_label": 152,
+              "missing": 236,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 415,
+          "predicted": 414,
+          "correct": 35,
+          "precision": 0.08454106280193237,
+          "recall": 0.08433734939759036,
+          "f1": 0.08443908323281062,
+          "wrong_label": 379,
+          "missing": 1,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 415,
+              "predicted": 414,
+              "correct": 35,
+              "precision": 0.08454106280193237,
+              "recall": 0.08433734939759036,
+              "f1": 0.08443908323281062,
+              "wrong_label": 379,
+              "missing": 1,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/04",
+      "input_sha256": "3a8471d25c3f71a71af2de19f351c95f945d3de4fb919b4c7ef92bc4149855a0",
+      "input_verified": true,
+      "split": "holdout",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 91,
+          "predicted": 49,
+          "correct": 13,
+          "precision": 0.2653061224489796,
+          "recall": 0.14285714285714285,
+          "f1": 0.18571428571428572,
+          "wrong_label": 36,
+          "missing": 42,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 91,
+              "predicted": 49,
+              "correct": 13,
+              "precision": 0.2653061224489796,
+              "recall": 0.14285714285714285,
+              "f1": 0.18571428571428572,
+              "wrong_label": 36,
+              "missing": 42,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 91,
+          "predicted": 91,
+          "correct": 18,
+          "precision": 0.1978021978021978,
+          "recall": 0.1978021978021978,
+          "f1": 0.1978021978021978,
+          "wrong_label": 73,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 91,
+              "predicted": 91,
+              "correct": 18,
+              "precision": 0.1978021978021978,
+              "recall": 0.1978021978021978,
+              "f1": 0.1978021978021978,
+              "wrong_label": 73,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/05",
+      "input_sha256": "a522bed78e8d045b803d65167271668defc5a106e6aaace9d7c354e46d316f53",
+      "input_verified": true,
+      "split": "holdout",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 108,
+          "predicted": 17,
+          "correct": 3,
+          "precision": 0.17647058823529413,
+          "recall": 0.027777777777777776,
+          "f1": 0.048,
+          "wrong_label": 14,
+          "missing": 91,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 108,
+              "predicted": 17,
+              "correct": 3,
+              "precision": 0.17647058823529413,
+              "recall": 0.027777777777777776,
+              "f1": 0.048,
+              "wrong_label": 14,
+              "missing": 91,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 108,
+          "predicted": 108,
+          "correct": 15,
+          "precision": 0.1388888888888889,
+          "recall": 0.1388888888888889,
+          "f1": 0.1388888888888889,
+          "wrong_label": 93,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 108,
+              "predicted": 108,
+              "correct": 15,
+              "precision": 0.1388888888888889,
+              "recall": 0.1388888888888889,
+              "f1": 0.1388888888888889,
+              "wrong_label": 93,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/06",
+      "input_sha256": "4de7ea61b6c90bc231923c926cf8a36ecd2b2aa2829c4d5bdb5e05f336e037f1",
+      "input_verified": true,
+      "split": "holdout",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 114,
+          "predicted": 24,
+          "correct": 6,
+          "precision": 0.25,
+          "recall": 0.05263157894736842,
+          "f1": 0.08695652173913043,
+          "wrong_label": 18,
+          "missing": 90,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 114,
+              "predicted": 24,
+              "correct": 6,
+              "precision": 0.25,
+              "recall": 0.05263157894736842,
+              "f1": 0.08695652173913043,
+              "wrong_label": 18,
+              "missing": 90,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 114,
+          "predicted": 114,
+          "correct": 11,
+          "precision": 0.09649122807017543,
+          "recall": 0.09649122807017543,
+          "f1": 0.09649122807017543,
+          "wrong_label": 103,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 114,
+              "predicted": 114,
+              "correct": 11,
+              "precision": 0.09649122807017543,
+              "recall": 0.09649122807017543,
+              "f1": 0.09649122807017543,
+              "wrong_label": 103,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "Corpus/OpenScore-LiederCorpus/Hensel,_Fanny_(Mendelssohn)/3_Lieder/1_Sehnsucht",
+      "input_sha256": "007bb104dadbeb92fe868cd5492016794f252ff59ff64b1b72a4fc4f9946d63a",
+      "input_verified": true,
+      "split": "holdout",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 41,
+          "predicted": 35,
+          "correct": 19,
+          "precision": 0.5428571428571428,
+          "recall": 0.4634146341463415,
+          "f1": 0.5,
+          "wrong_label": 16,
+          "missing": 6,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 41,
+              "predicted": 35,
+              "correct": 19,
+              "precision": 0.5428571428571428,
+              "recall": 0.4634146341463415,
+              "f1": 0.5,
+              "wrong_label": 16,
+              "missing": 6,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 41,
+          "predicted": 41,
+          "correct": 18,
+          "precision": 0.43902439024390244,
+          "recall": 0.43902439024390244,
+          "f1": 0.43902439024390244,
+          "wrong_label": 23,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 41,
+              "predicted": 41,
+              "correct": 18,
+              "precision": 0.43902439024390244,
+              "recall": 0.43902439024390244,
+              "f1": 0.43902439024390244,
+              "wrong_label": 23,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "Corpus/OpenScore-LiederCorpus/Hensel,_Fanny_(Mendelssohn)/5_Lieder,_Op.10/1_Nach_Süden",
+      "input_sha256": "4ab204b2d38435180646fe1a5a4b0ead696c925bd4a6f9b19bce2ffb9799536e",
+      "input_verified": true,
+      "split": "holdout",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 128,
+          "predicted": 64,
+          "correct": 18,
+          "precision": 0.28125,
+          "recall": 0.140625,
+          "f1": 0.1875,
+          "wrong_label": 46,
+          "missing": 64,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 128,
+              "predicted": 64,
+              "correct": 18,
+              "precision": 0.28125,
+              "recall": 0.140625,
+              "f1": 0.1875,
+              "wrong_label": 46,
+              "missing": 64,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 128,
+          "predicted": 128,
+          "correct": 26,
+          "precision": 0.203125,
+          "recall": 0.203125,
+          "f1": 0.203125,
+          "wrong_label": 102,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 128,
+              "predicted": 128,
+              "correct": 26,
+              "precision": 0.203125,
+              "recall": 0.203125,
+              "f1": 0.203125,
+              "wrong_label": 102,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "Corpus/OpenScore-LiederCorpus/Hensel,_Fanny_(Mendelssohn)/6_Lieder,_Op.1/1_Schwanenlied",
+      "input_sha256": "e15d3d70c64ff9169037321e664c5b59f6b0ac81f7af84668a1a53fc0573bbfc",
+      "input_verified": true,
+      "split": "holdout",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 97,
+          "predicted": 36,
+          "correct": 19,
+          "precision": 0.5277777777777778,
+          "recall": 0.1958762886597938,
+          "f1": 0.2857142857142857,
+          "wrong_label": 17,
+          "missing": 61,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 97,
+              "predicted": 36,
+              "correct": 19,
+              "precision": 0.5277777777777778,
+              "recall": 0.1958762886597938,
+              "f1": 0.2857142857142857,
+              "wrong_label": 17,
+              "missing": 61,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 97,
+          "predicted": 97,
+          "correct": 9,
+          "precision": 0.09278350515463918,
+          "recall": 0.09278350515463918,
+          "f1": 0.09278350515463918,
+          "wrong_label": 88,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 97,
+              "predicted": 97,
+              "correct": 9,
+              "precision": 0.09278350515463918,
+              "recall": 0.09278350515463918,
+              "f1": 0.09278350515463918,
+              "wrong_label": 88,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "Corpus/OpenScore-LiederCorpus/Schumann,_Clara/6_Lieder,_Op.13/1_Ich_stand_in_dunklen_Träumen",
+      "input_sha256": "8a0c5f93aa1aa50c1c9b04f9e36a3a28c93ed60500575edb8d2e7b95aacff63c",
+      "input_verified": true,
+      "split": "holdout",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 88,
+          "predicted": 60,
+          "correct": 32,
+          "precision": 0.5333333333333333,
+          "recall": 0.36363636363636365,
+          "f1": 0.43243243243243246,
+          "wrong_label": 28,
+          "missing": 28,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 88,
+              "predicted": 60,
+              "correct": 32,
+              "precision": 0.5333333333333333,
+              "recall": 0.36363636363636365,
+              "f1": 0.43243243243243246,
+              "wrong_label": 28,
+              "missing": 28,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 88,
+          "predicted": 88,
+          "correct": 36,
+          "precision": 0.4090909090909091,
+          "recall": 0.4090909090909091,
+          "f1": 0.4090909090909091,
+          "wrong_label": 52,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 88,
+              "predicted": 88,
+              "correct": 36,
+              "precision": 0.4090909090909091,
+              "recall": 0.4090909090909091,
+              "f1": 0.4090909090909091,
+              "wrong_label": 52,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "Corpus/OpenScore-LiederCorpus/Schumann,_Clara/6_Lieder,_Op.23/4_Auf_einem_grünen_Hügel",
+      "input_sha256": "7ddad682c4ada79518498142d0145e82c0873843a77652352fc464c3c0963aed",
+      "input_verified": true,
+      "split": "holdout",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 73,
+          "predicted": 41,
+          "correct": 13,
+          "precision": 0.3170731707317073,
+          "recall": 0.1780821917808219,
+          "f1": 0.22807017543859648,
+          "wrong_label": 28,
+          "missing": 32,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 73,
+              "predicted": 41,
+              "correct": 13,
+              "precision": 0.3170731707317073,
+              "recall": 0.1780821917808219,
+              "f1": 0.22807017543859648,
+              "wrong_label": 28,
+              "missing": 32,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 73,
+          "predicted": 72,
+          "correct": 18,
+          "precision": 0.25,
+          "recall": 0.2465753424657534,
+          "f1": 0.2482758620689655,
+          "wrong_label": 54,
+          "missing": 1,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 73,
+              "predicted": 72,
+              "correct": 18,
+              "precision": 0.25,
+              "recall": 0.2465753424657534,
+              "f1": 0.2482758620689655,
+              "wrong_label": 54,
+              "missing": 1,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "Corpus/OpenScore-LiederCorpus/Schumann,_Clara/Lieder,_Op.12/04_Liebst_du_um_Schönheit",
+      "input_sha256": "65d3d1f8ca2d00237d6760fe99843937c79934438678ea4dd2a7d52072c24151",
+      "input_verified": true,
+      "split": "holdout",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 111,
+          "predicted": 71,
+          "correct": 37,
+          "precision": 0.5211267605633803,
+          "recall": 0.3333333333333333,
+          "f1": 0.4065934065934066,
+          "wrong_label": 34,
+          "missing": 40,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 111,
+              "predicted": 71,
+              "correct": 37,
+              "precision": 0.5211267605633803,
+              "recall": 0.3333333333333333,
+              "f1": 0.4065934065934066,
+              "wrong_label": 34,
+              "missing": 40,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 111,
+          "predicted": 111,
+          "correct": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "wrong_label": 111,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 111,
+              "predicted": 111,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 111,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    }
+  ],
+  "totals": {
+    "acorde": {
+      "calibration": {
+        "cases": 0,
+        "analyzed": 0,
+        "failed": 0,
+        "gold": 0,
+        "predicted": 0,
+        "correct": 0,
+        "wrong_label": 0,
+        "missing": 0,
+        "extra": 0,
+        "precision": null,
+        "recall": null,
+        "f1": null,
+        "tasks": {}
+      },
+      "development": {
+        "cases": 0,
+        "analyzed": 0,
+        "failed": 0,
+        "gold": 0,
+        "predicted": 0,
+        "correct": 0,
+        "wrong_label": 0,
+        "missing": 0,
+        "extra": 0,
+        "precision": null,
+        "recall": null,
+        "f1": null,
+        "tasks": {}
+      },
+      "holdout": {
+        "cases": 12,
+        "analyzed": 12,
+        "failed": 0,
+        "gold": 2246,
+        "predicted": 1023,
+        "correct": 348,
+        "wrong_label": 675,
+        "missing": 1223,
+        "extra": 0,
+        "precision": 0.34017595307917886,
+        "recall": 0.1549421193232413,
+        "f1": 0.2129091465279902,
+        "tasks": {
+          "roman_at_primary_annotation_position": {
+            "gold": 2246,
+            "predicted": 1023,
+            "correct": 348,
+            "wrong_label": 675,
+            "missing": 1223,
+            "extra": 0,
+            "precision": 0.34017595307917886,
+            "recall": 0.1549421193232413,
+            "f1": 0.2129091465279902
+          }
+        }
+      }
+    },
+    "music21": {
+      "calibration": {
+        "cases": 0,
+        "analyzed": 0,
+        "failed": 0,
+        "gold": 0,
+        "predicted": 0,
+        "correct": 0,
+        "wrong_label": 0,
+        "missing": 0,
+        "extra": 0,
+        "precision": null,
+        "recall": null,
+        "f1": null,
+        "tasks": {}
+      },
+      "development": {
+        "cases": 0,
+        "analyzed": 0,
+        "failed": 0,
+        "gold": 0,
+        "predicted": 0,
+        "correct": 0,
+        "wrong_label": 0,
+        "missing": 0,
+        "extra": 0,
+        "precision": null,
+        "recall": null,
+        "f1": null,
+        "tasks": {}
+      },
+      "holdout": {
+        "cases": 12,
+        "analyzed": 12,
+        "failed": 0,
+        "gold": 2246,
+        "predicted": 2240,
+        "correct": 394,
+        "wrong_label": 1846,
+        "missing": 6,
+        "extra": 0,
+        "precision": 0.17589285714285716,
+        "recall": 0.17542297417631345,
+        "f1": 0.17565760142666073,
+        "tasks": {
+          "roman_at_primary_annotation_position": {
+            "gold": 2246,
+            "predicted": 2240,
+            "correct": 394,
+            "wrong_label": 1846,
+            "missing": 6,
+            "extra": 0,
+            "precision": 0.17589285714285716,
+            "recall": 0.17542297417631345,
+            "f1": 0.17565760142666073
+          }
+        }
+      }
+    }
+  }
+}

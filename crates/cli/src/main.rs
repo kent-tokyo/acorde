@@ -321,6 +321,9 @@ enum Commands {
         /// Use the first Aarden-Essen global-key candidate instead of the written key
         #[arg(long)]
         infer_key: bool,
+        /// Infer chords from exact arpeggio windows within a bar
+        #[arg(long)]
+        arpeggiated_bars: bool,
     },
     /// Run a local analysis benchmark manifest and print its JSON report
     Benchmark {
@@ -689,7 +692,11 @@ fn run(cli: &Cli) -> Result<(), String> {
             rank_tied_keys,
             aarden_essen_keys,
         } => cmd_analyze(input, *rank_tied_keys, *aarden_essen_keys),
-        Commands::AnalyzeVertical { input, infer_key } => cmd_analyze_vertical(input, *infer_key),
+        Commands::AnalyzeVertical {
+            input,
+            infer_key,
+            arpeggiated_bars,
+        } => cmd_analyze_vertical(input, *infer_key, *arpeggiated_bars),
         Commands::Benchmark {
             manifest,
             fail_on_mismatch,
@@ -1139,7 +1146,11 @@ fn cmd_analyze(input: &Path, rank_tied_keys: bool, aarden_essen_keys: bool) -> R
     Ok(())
 }
 
-fn cmd_analyze_vertical(input: &Path, infer_key: bool) -> Result<(), String> {
+fn cmd_analyze_vertical(
+    input: &Path,
+    infer_key: bool,
+    arpeggiated_bars: bool,
+) -> Result<(), String> {
     let score = parse_score(input)?;
     let inferred_key = if infer_key {
         acorde_analysis::estimate_keys_with_aarden_essen_profile(&score)
@@ -1148,17 +1159,22 @@ fn cmd_analyze_vertical(input: &Path, infer_key: bool) -> Result<(), String> {
     } else {
         None
     };
-    let sonorities = if let Some(key) = inferred_key.as_ref() {
-        acorde_analysis::analyze_vertical_sonorities_in_key(&score, key)
-    } else {
-        acorde_analysis::analyze_vertical_sonorities(&score)
+    let analysis = match (inferred_key.as_ref(), arpeggiated_bars) {
+        (Some(key), true) => acorde_analysis::analyze_arpeggiated_bars_in_key_report(&score, key),
+        (None, true) => acorde_analysis::analyze_arpeggiated_bars_report(&score),
+        (Some(key), false) => {
+            acorde_analysis::analyze_vertical_sonorities_in_key_report(&score, key)
+        }
+        (None, false) => acorde_analysis::analyze_vertical_sonorities_report(&score),
     };
     let report = serde_json::json!({
-        "schema_version": 1,
+        "schema_version": 3,
         "score_fingerprint": acorde_analysis::score_fingerprint(&score),
         "key_source": if inferred_key.is_some() { "aarden-essen-first-candidate" } else { "written" },
         "global_key": inferred_key,
-        "sonorities": sonorities,
+        "arpeggiated_bars": arpeggiated_bars,
+        "sonorities": analysis.sonorities,
+        "timeline_issues": analysis.timeline_issues,
     });
     let json = serde_json::to_string_pretty(&report)
         .map_err(|error| format!("vertical analysis serialization failed: {error}"))?;

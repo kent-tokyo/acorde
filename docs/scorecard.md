@@ -6,7 +6,7 @@ inventory of the current contracts, not a claim of parity with MuseScore, music2
 Verovio. Capability labels must remain aligned with the [notation coverage matrix](notation-coverage.md)
 and backed by a fixture or focused test.
 
-Current contracts are SVG metadata 22, analysis result 13, print layout 34, glyph-resource
+Current contracts are SVG metadata 22, analysis result 14, print layout 34, glyph-resource
 metadata 1, and tablature performance 4. `scorecard.json`, its contract documentation, and their
 regression tests must change together.
 
@@ -19,5 +19,13 @@ regression tests must change together.
   in-memory editing of ten `Command` types with undo/redo, and opt-in (`--allow-write`)
   export to a destination other than the source. It has no network transport and is not a
   hosted service.
+- Analysis evidence includes source-positioned BCMH and When in Rome
+  development comparisons with verified inputs. The fixed third 12-work
+  When in Rome harmony holdout passes its aggregate Roman-at-annotation-position
+  gate: 559 versus 508 correct labels for music21 10.5.2. This task-scoped
+  result does not establish overall analysis superiority; other analysis tasks
+  need independent holdouts. A separate Mozart cadence corpus has 36 verified
+  answer-free inputs, but its 18-movement development baseline exposes a large
+  cadence recall gap; the reserved cadence labels remain unread.
 - `evidence.security_checks` mirrors local release gates. Browser E2E, raster fidelity, latency,
   publication, and downstream adoption need their own evidence.

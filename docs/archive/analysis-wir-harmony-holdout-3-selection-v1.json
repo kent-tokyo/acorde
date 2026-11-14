@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "source": "https://github.com/MarkGotham/When-in-Rome",
+  "commit": "1c61fe41b8c2910296d7d2bcbf6476c7c1f2fe35",
+  "tree_sha": "825c2d104f0c060974e878aa43d7f77770717ddd",
+  "split": "holdout",
+  "selection": "Three lexicographic score.mxl/analysis.txt pairs at each fixed composer prefix; one per distinct collection for Beethoven/Robert Schumann/Josephine Lang, skipping the first three inspected Beethoven collections, and Bach pairs 07-09 after skipping the six inspected ones. Selected without reading contents or predictions.",
+  "musical_input": "score.mxl only; never analysis_on_score.mxl or analysis_automatic.rntxt",
+  "gold": "analysis.txt only; never automatic or alternate analyses",
+  "unit": "work directory; no movement or transposition leaks between splits",
+  "task": "Roman numeral at human-annotated positions; score only at source positions; report all parser/alignment exclusions",
+  "normalization": "Freeze before evaluating: Roman glyph (%/ø, °/o), inversion 42/2, and whitespace only; preserve root, quality, applied chord, key, and chromatic spelling distinctions.",
+  "stop_rule": "Do not tune against these works. If a result informs a fix, reclassify all twelve works as development and freeze a new untouched holdout before a superiority claim.",
+  "works": [
+    {
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op018_No4/1",
+      "score_path": "Corpus/Quartets/Beethoven,_Ludwig_van/Op018_No4/1/score.mxl",
+      "score_git_blob": "72d8ccb4f13e8d0f56576087ce9096a7d1ab652f",
+      "gold_path": "Corpus/Quartets/Beethoven,_Ludwig_van/Op018_No4/1/analysis.txt",
+      "gold_git_blob": "d95f768c48b4cc41c910c49405f808d7cab24142"
+    },
+    {
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op018_No5/1",
+      "score_path": "Corpus/Quartets/Beethoven,_Ludwig_van/Op018_No5/1/score.mxl",
+      "score_git_blob": "d873fe1261e70664b7539a5cf36108af62c74a0a",
+      "gold_path": "Corpus/Quartets/Beethoven,_Ludwig_van/Op018_No5/1/analysis.txt",
+      "gold_git_blob": "d584970140fe644177098937a7e716175928d060"
+    },
+    {
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op018_No6/1",
+      "score_path": "Corpus/Quartets/Beethoven,_Ludwig_van/Op018_No6/1/score.mxl",
+      "score_git_blob": "b33e3dea5232948e7caff6e69a1a42f06194754c",
+      "gold_path": "Corpus/Quartets/Beethoven,_Ludwig_van/Op018_No6/1/analysis.txt",
+      "gold_git_blob": "58190506b40806ede3f7d4fba06e4a3ecb45913d"
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/07",
+      "score_path": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/07/score.mxl",
+      "score_git_blob": "85f269c605e703bcb2d36280429ffb1c84565f9f",
+      "gold_path": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/07/analysis.txt",
+      "gold_git_blob": "03efcd1922bc1bb53c2463f89f51aa517e7e8f18"
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/08",
+      "score_path": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/08/score.mxl",
+      "score_git_blob": "a183c7e7cf1a88c0aa856296ab713e3b055b5e5c",
+      "gold_path": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/08/analysis.txt",
+      "gold_git_blob": "9fb3115cce4409bdbde563d33a3b6e2473d01f46"
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/09",
+      "score_path": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/09/score.mxl",
+      "score_git_blob": "3caa956798fa43a5f54a2d01468084d27fe64b59",
+      "gold_path": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/09/analysis.txt",
+      "gold_git_blob": "84071139b39c7197d384af045f1b4d3820167d29"
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Schumann,_Robert/5_Lieder_und_Gesänge,_Op.127/2_Dein_Angesicht",
+      "score_path": "Corpus/OpenScore-LiederCorpus/Schumann,_Robert/5_Lieder_und_Gesänge,_Op.127/2_Dein_Angesicht/score.mxl",
+      "score_git_blob": "ffc1961b8e133b02d5b0b2e334bbd86eff754414",
+      "gold_path": "Corpus/OpenScore-LiederCorpus/Schumann,_Robert/5_Lieder_und_Gesänge,_Op.127/2_Dein_Angesicht/analysis.txt",
+      "gold_git_blob": "c0bf8579dd1df418043ff3ceaa14fb6ac17a48d1"
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Schumann,_Robert/Dichterliebe,_Op.48/01_Im_wunderschönen_Monat_Mai",
+      "score_path": "Corpus/OpenScore-LiederCorpus/Schumann,_Robert/Dichterliebe,_Op.48/01_Im_wunderschönen_Monat_Mai/score.mxl",
+      "score_git_blob": "1e536c364b084dac9b916f7b393b29226e310380",
+      "gold_path": "Corpus/OpenScore-LiederCorpus/Schumann,_Robert/Dichterliebe,_Op.48/01_Im_wunderschönen_Monat_Mai/analysis.txt",
+      "gold_git_blob": "767bdd6ad35a08bd394d29286170bb754e904875"
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Schumann,_Robert/Frauenliebe_und_Leben,_Op.42/1_Seit_ich_ihn_gesehen",
+      "score_path": "Corpus/OpenScore-LiederCorpus/Schumann,_Robert/Frauenliebe_und_Leben,_Op.42/1_Seit_ich_ihn_gesehen/score.mxl",
+      "score_git_blob": "d070a1f67f461003c573ae71cfb6db54d46e20a1",
+      "gold_path": "Corpus/OpenScore-LiederCorpus/Schumann,_Robert/Frauenliebe_und_Leben,_Op.42/1_Seit_ich_ihn_gesehen/analysis.txt",
+      "gold_git_blob": "dfb2d464617effcee0f3a50116bae081a50116ae"
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Lang,_Josephine/3_Lieder,_Op.8/1_Schmetterling",
+      "score_path": "Corpus/OpenScore-LiederCorpus/Lang,_Josephine/3_Lieder,_Op.8/1_Schmetterling/score.mxl",
+      "score_git_blob": "3a6eb0d172c54422896a88aeba8c770235531dbf",
+      "gold_path": "Corpus/OpenScore-LiederCorpus/Lang,_Josephine/3_Lieder,_Op.8/1_Schmetterling/analysis.txt",
+      "gold_git_blob": "ef87f3453861e92ede19a74c06cb1e7c10dc0730"
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Lang,_Josephine/6_Lieder,_Op.10/6_Abschied",
+      "score_path": "Corpus/OpenScore-LiederCorpus/Lang,_Josephine/6_Lieder,_Op.10/6_Abschied/score.mxl",
+      "score_git_blob": "5e11a29350df6769ab2970c26976ebea6174a265",
+      "gold_path": "Corpus/OpenScore-LiederCorpus/Lang,_Josephine/6_Lieder,_Op.10/6_Abschied/analysis.txt",
+      "gold_git_blob": "e2c170d18cc514256b40866aa4d8c9b810f40033"
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Lang,_Josephine/6_Lieder,_Op.12/3_Abermals_am_See",
+      "score_path": "Corpus/OpenScore-LiederCorpus/Lang,_Josephine/6_Lieder,_Op.12/3_Abermals_am_See/score.mxl",
+      "score_git_blob": "c33a75697fcf0547ea162d4bb39ecd5dfb3e6c0e",
+      "gold_path": "Corpus/OpenScore-LiederCorpus/Lang,_Josephine/6_Lieder,_Op.12/3_Abermals_am_See/analysis.txt",
+      "gold_git_blob": "aaa2322ce96931cff2efbb09ac7d36bf2c15649a"
+    }
+  ],
+  "cohort": 3
+}

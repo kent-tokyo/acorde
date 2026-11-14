@@ -1,0 +1,506 @@
+{
+  "schema_version": 1,
+  "source_commit": "9c5f7004c5ab1f15d64e959d011dbdf3b7863c3e",
+  "selection_sha256": "c4e22d92f54def3c4e82bdae4a63e3cebb785bbc941ec47ffc341810e96ceef6",
+  "input_rule": "Strip harmony, direction, lyric, and credit elements. Correct an eigth note-type typo to eighth and remove a chord marker without a preceding note since the last backup/forward. Retain all notes, pitches, durations, and rhythmic structure. Give identical prepared bytes to both analyzers.",
+  "inputs": [
+    {
+      "id": "K279-1",
+      "split": "development",
+      "path": "scores/kv279_1.musicxml",
+      "source_git_blob": "5e15855eff1715a8717379e55c73fc2b293ef544",
+      "source_sha256": "0413d62c5a55d86197c543437150634f2c1c8a3a47cc3cdfe9fb925658773387",
+      "input_sha256": "f8addb674c44de7638f8f1676d19e2808350e78d014edbf854ed460bca93fc85",
+      "removed_elements": {
+        "credit": 4,
+        "direction": 52,
+        "harmony": 251
+      },
+      "repaired_elements": {}
+    },
+    {
+      "id": "K279-2",
+      "split": "development",
+      "path": "scores/kv279_2.musicxml",
+      "source_git_blob": "ae7dcdd2c12f1ad01dc0010c04e938eda80d6262",
+      "source_sha256": "4837a46c61e69ace2398db4389d114067ed8b36e67ef253e9f561bbd692b3c3b",
+      "input_sha256": "97cf19034032e7bd47e490f58ba2721010cbdd440173e1b9867617320cf07502",
+      "removed_elements": {
+        "credit": 3,
+        "direction": 135,
+        "harmony": 155
+      },
+      "repaired_elements": {}
+    },
+    {
+      "id": "K279-3",
+      "split": "development",
+      "path": "scores/kv279_3.musicxml",
+      "source_git_blob": "c90799c54482ff277cff148b5a4c90da83f2f519",
+      "source_sha256": "c6f81bb894c92d32f98086af99abd8357cc6577fe6eb77fb811abe94ca43fc2a",
+      "input_sha256": "2eff60a22fd694db49a600c716ef20b039b66d862c74f608a4052a2f3fe72fec",
+      "removed_elements": {
+        "credit": 3,
+        "direction": 56,
+        "harmony": 323
+      },
+      "repaired_elements": {}
+    },
+    {
+      "id": "K280-1",
+      "split": "development",
+      "path": "scores/kv280_1.musicxml",
+      "source_git_blob": "df0bed586fdb5b268f6d3cf79f86ad5d6d0d94cc",
+      "source_sha256": "c8d52835967aa6de97bff12fefe93f60d3bd940fd523aa38b71736be3e2c1815",
+      "input_sha256": "8cd09be7ab2f31214ca5fbc2b3300ce47893684ec75341868db9509171c6a827",
+      "removed_elements": {
+        "credit": 4,
+        "direction": 75,
+        "harmony": 229
+      },
+      "repaired_elements": {}
+    },
+    {
+      "id": "K280-2",
+      "split": "development",
+      "path": "scores/kv280_2.musicxml",
+      "source_git_blob": "fd9b6d7e281cdb8ca0b9599641a20502178893b9",
+      "source_sha256": "271930130bbc3e3646ce3541cd713bdc7bb66188bcc4c79492ef189e7a38e77e",
+      "input_sha256": "5a81d90fda000a19121a7804422072798197822db8e34d04abe04aa62d888dfb",
+      "removed_elements": {
+        "credit": 3,
+        "direction": 52,
+        "harmony": 129
+      },
+      "repaired_elements": {}
+    },
+    {
+      "id": "K280-3",
+      "split": "development",
+      "path": "scores/kv280_3.musicxml",
+      "source_git_blob": "db7924f9b087b650abda30bc5e08782399126b49",
+      "source_sha256": "40853c0cb7158baa0930803d5c09c9ed8f3d6a352f3fa055f38218aff190d2c9",
+      "input_sha256": "641b976ace2f47f6ccf4a3a6acf9e36890c8d9e315d8313bfb9961e992870380",
+      "removed_elements": {
+        "credit": 3,
+        "direction": 109,
+        "harmony": 200
+      },
+      "repaired_elements": {}
+    },
+    {
+      "id": "K281-1",
+      "split": "development",
+      "path": "scores/kv281_1.musicxml",
+      "source_git_blob": "d450ffe7be87dbcedb1c071c1abe6f0be2d156b3",
+      "source_sha256": "391eac41a3fa19ed2dbc9eb3d272af2c3f500942c493aad4e56bee831a4b17e6",
+      "input_sha256": "913f01ebb40b633d5f2d599dafb01ffed30724d4470e8534d456c172a4f509ec",
+      "removed_elements": {
+        "credit": 4,
+        "direction": 56,
+        "harmony": 208
+      },
+      "repaired_elements": {}
+    },
+    {
+      "id": "K281-2",
+      "split": "development",
+      "path": "scores/kv281_2.musicxml",
+      "source_git_blob": "eca473c7f7d9f915ca47800a57d85873ef9e1d54",
+      "source_sha256": "f18fbdc7917285117a093121d86a2d711fbc9b6eabeefdd85d3a827adfc7eca7",
+      "input_sha256": "a2d727e073aabd9103788a8149fbe60cf0daf8a21421242a9fcd07fe21a9dcee",
+      "removed_elements": {
+        "credit": 3,
+        "direction": 64,
+        "harmony": 155
+      },
+      "repaired_elements": {}
+    },
+    {
+      "id": "K281-3",
+      "split": "development",
+      "path": "scores/kv281_3.musicxml",
+      "source_git_blob": "dbb181afb68c2a20504b9f4ea62d70594956e5fe",
+      "source_sha256": "637fa5222f0f61e3c624fe7eebffc45cd33ce58c9611a0ffb669fc7fdb059864",
+      "input_sha256": "7c547b17f0baf371b4846a58e58c50faf97316b01aaa4772dafe6c17394f1919",
+      "removed_elements": {
+        "credit": 3,
+        "direction": 131,
+        "harmony": 396
+      },
+      "repaired_elements": {}
+    },
+    {
+      "id": "K282-1",
+      "split": "development",
+      "path": "scores/kv282_1.musicxml",
+      "source_git_blob": "595f2708beddc1908f034b548e8c902b19ea8711",
+      "source_sha256": "d9cf02492f840f2ee1349d98047b9a9a4466b0f909ced7d33c8bac08954e6fc8",
+      "input_sha256": "d12f8fbc801f1649e9659e232b848a70e6860dcbd75206e21a816a68366a349b",
+      "removed_elements": {
+        "credit": 4,
+        "direction": 65,
+        "harmony": 103
+      },
+      "repaired_elements": {}
+    },
+    {
+      "id": "K282-2",
+      "split": "development",
+      "path": "scores/kv282_2.musicxml",
+      "source_git_blob": "34f8428c5e7ac406583934a968a7f9821bc37255",
+      "source_sha256": "9e8c2eb7ede0a6ebabe949cad75136d9596468b7605ce6be717031d2a0a549f7",
+      "input_sha256": "313f0ab2c6100364b740702be38c94b2a99dbeea40dab78eb3da4b153372b60e",
+      "removed_elements": {
+        "credit": 3,
+        "direction": 64,
+        "harmony": 129
+      },
+      "repaired_elements": {}
+    },
+    {
+      "id": "K282-3",
+      "split": "development",
+      "path": "scores/kv282_3.musicxml",
+      "source_git_blob": "4f2f6f4da636128250c1ba178a615e49eff0d450",
+      "source_sha256": "53f6cce9bc6c684f5d925ac5fe429755504cf653beb7c9c10512fe5c47f7b7bf",
+      "input_sha256": "03f788b1945350051ce1c84c458717a65fc20ece8aaf0951ff5c785bc7919688",
+      "removed_elements": {
+        "credit": 3,
+        "direction": 47,
+        "harmony": 175
+      },
+      "repaired_elements": {}
+    },
+    {
+      "id": "K283-1",
+      "split": "development",
+      "path": "scores/kv283_1.musicxml",
+      "source_git_blob": "a2d1a97cecb06e4f24efbe0bf1382654cccc3967",
+      "source_sha256": "9dc9e1827586b9385b9c8a9ca434f30d102b6b2279798b1f47721a803ee72ae6",
+      "input_sha256": "c59c0b2dfbc562df33355decff90b73b8e8a3ebfcb447a6b57c815f5660652f2",
+      "removed_elements": {
+        "credit": 2,
+        "direction": 82,
+        "harmony": 334
+      },
+      "repaired_elements": {}
+    },
+    {
+      "id": "K283-2",
+      "split": "development",
+      "path": "scores/kv283_2.musicxml",
+      "source_git_blob": "d2ba38b11610b4c80ae718be5b26090d2a1eb3c9",
+      "source_sha256": "21524977b4f7f241621d4052c3c1f98681d3141dc8b049870997c2fce6528728",
+      "input_sha256": "a0690bf77a093c4722a53fef5c62c6f70ee226acdd132e99e8222645fb371b2f",
+      "removed_elements": {
+        "credit": 2,
+        "direction": 51,
+        "harmony": 170
+      },
+      "repaired_elements": {}
+    },
+    {
+      "id": "K283-3",
+      "split": "development",
+      "path": "scores/kv283_3.musicxml",
+      "source_git_blob": "ecca78dee5c71e826b16fd96558c2063b17cb26b",
+      "source_sha256": "ccac0c382a6c31a934f4e255446fb0cb9230e07cb216ed4959f9abe458d5a2fe",
+      "input_sha256": "bb4bdd81c7fa01eb31fcb1a2b9c780a2f20eadb44a28c4b45c6d0e7149097287",
+      "removed_elements": {
+        "credit": 2,
+        "direction": 108,
+        "harmony": 349
+      },
+      "repaired_elements": {}
+    },
+    {
+      "id": "K284-1",
+      "split": "development",
+      "path": "scores/kv284_1.musicxml",
+      "source_git_blob": "a47222303b2e7ea4659c5e550eef5a4d9e35830f",
+      "source_sha256": "5b5f1f0a0bfc3a25273dca823088ca26320cc21634b550c2137425e8f3ee47c9",
+      "input_sha256": "ee84c40d01f800d6f04a41efee08e5a1e96218f6ca68e8830c793f99a97f9eed",
+      "removed_elements": {
+        "credit": 3,
+        "direction": 120,
+        "harmony": 332
+      },
+      "repaired_elements": {}
+    },
+    {
+      "id": "K284-2",
+      "split": "development",
+      "path": "scores/kv284_2.musicxml",
+      "source_git_blob": "a414bee2d020969b628e32f8e3b6e380aa3f1f29",
+      "source_sha256": "4ec19b4ab7cc4694398d11bcc39c405ce5d49abcdec4a511c514a820a9c175db",
+      "input_sha256": "86766da16f906719d69ddf8baa4a34d93d5924ec9b7213a09ff4d86f08066669",
+      "removed_elements": {
+        "credit": 2,
+        "direction": 188,
+        "harmony": 228
+      },
+      "repaired_elements": {}
+    },
+    {
+      "id": "K284-3",
+      "split": "development",
+      "path": "scores/kv284_3.musicxml",
+      "source_git_blob": "5380a27c02003601ad779b7af23d21bf8932fa02",
+      "source_sha256": "0feec5720e34561efb7cce8df35b472b5f99d1fbc44397a0298bb488aa70f885",
+      "input_sha256": "0d771148cfcb31dacaae70ae64dd2c3da78ed06ab08b957a77a6c2a5bc26610e",
+      "removed_elements": {
+        "credit": 2,
+        "direction": 182,
+        "harmony": 768
+      },
+      "repaired_elements": {
+        "orphan_chord_removed": 1
+      }
+    },
+    {
+      "id": "K330-1",
+      "split": "holdout",
+      "path": "scores/kv330_1.musicxml",
+      "source_git_blob": "2646fe0a90b64f8003b389030c9e3af0c0d213fd",
+      "source_sha256": "006bad2f2a0a44ac5399439be5e4b2c1f23c7ec60fd961fc7afca82e47ac0b02",
+      "input_sha256": "ad532005a269c993d528f8eb0974d5ef6aea3fb067b3f16d3374325a3d19b343",
+      "removed_elements": {
+        "direction": 120,
+        "harmony": 293
+      },
+      "repaired_elements": {}
+    },
+    {
+      "id": "K330-2",
+      "split": "holdout",
+      "path": "scores/kv330_2.musicxml",
+      "source_git_blob": "64758672372eda4da85447d68c34db7e6e909b40",
+      "source_sha256": "b6dc8322e20279079b8757a5132050cffc6db304986dccca32f14f40d1d5e77c",
+      "input_sha256": "3768be7593bcb8a2dab34053cb44ec656149234ad160e5800fa794b579790132",
+      "removed_elements": {
+        "direction": 75,
+        "harmony": 188
+      },
+      "repaired_elements": {}
+    },
+    {
+      "id": "K330-3",
+      "split": "holdout",
+      "path": "scores/kv330_3.musicxml",
+      "source_git_blob": "f8b7637163462e5870e2007912424888c78875fc",
+      "source_sha256": "3237772348721b15d99f658b7c845816156b21b1113735284cdbbb2db2f77901",
+      "input_sha256": "67755ce3acfa8aa97776e1c8099749c2d68b69cb0d2bd3917dde862b2b61c73a",
+      "removed_elements": {
+        "direction": 69,
+        "harmony": 365
+      },
+      "repaired_elements": {}
+    },
+    {
+      "id": "K331-1",
+      "split": "holdout",
+      "path": "scores/kv331_1.musicxml",
+      "source_git_blob": "ab5a64c703444db25fdb1e2d67505717d46a8f3f",
+      "source_sha256": "595405aed70528ca5b240406fe9036a28042c72f5e554b4a20c728241a7685cb",
+      "input_sha256": "bf69b282bc593f45d8e9590936a755f63455cce47c588a4054ed7571b5964ceb",
+      "removed_elements": {
+        "credit": 2,
+        "direction": 85,
+        "harmony": 401
+      },
+      "repaired_elements": {}
+    },
+    {
+      "id": "K331-2",
+      "split": "holdout",
+      "path": "scores/kv331_2.musicxml",
+      "source_git_blob": "14c698e40859cb4c43603897e55832d3ca8d4b22",
+      "source_sha256": "b3b9dd5fc0259853fbd34d8c9b47ae813b3fe06ad4402d8b2819ab1a2477a81f",
+      "input_sha256": "4f40ab3017729cbd64400ed408418c645091591a212ff0da76877e8dd4796922",
+      "removed_elements": {
+        "direction": 31,
+        "harmony": 160
+      },
+      "repaired_elements": {}
+    },
+    {
+      "id": "K331-3",
+      "split": "holdout",
+      "path": "scores/kv331_3.musicxml",
+      "source_git_blob": "e8ebab7d56aad601e77d91639ee1498a7d224d28",
+      "source_sha256": "182184851cd8301a01d7e0efcfee4513e55a77a841bfde4d6dbe23568583275f",
+      "input_sha256": "6e6a8d4d95b82f7a62f635dfd62c82671c87dd158233c74d4a0aff8e35996551",
+      "removed_elements": {
+        "direction": 21,
+        "harmony": 128
+      },
+      "repaired_elements": {}
+    },
+    {
+      "id": "K332-1",
+      "split": "holdout",
+      "path": "scores/kv332_1.musicxml",
+      "source_git_blob": "fd405af1ef9b66f4308211adf6c48dbe3f03fd94",
+      "source_sha256": "02ed714dff24f9606a38f07c39cf4bdf263eca44f0f78267158bcccd4a246b5e",
+      "input_sha256": "a1226cb2bc4acacbd5d641828449e1b2c27c316529463ecc4b709a500b278786",
+      "removed_elements": {
+        "direction": 174,
+        "harmony": 318
+      },
+      "repaired_elements": {}
+    },
+    {
+      "id": "K332-2",
+      "split": "holdout",
+      "path": "scores/kv332_2.musicxml",
+      "source_git_blob": "cd680e4902660c34aecba323d212ba4d6da42873",
+      "source_sha256": "4b000d255d062b11e7b7a84c7d5acf3e86f82da5a3ab2af99e25a7190cf4ac94",
+      "input_sha256": "fddffeccaf1d27eac6953e3fd27ce733e67f383ce74c1a3d7c7947242e04cc43",
+      "removed_elements": {
+        "direction": 41,
+        "harmony": 170,
+        "lyric": 20
+      },
+      "repaired_elements": {}
+    },
+    {
+      "id": "K332-3",
+      "split": "holdout",
+      "path": "scores/kv332_3.musicxml",
+      "source_git_blob": "5c6ec8d6875d5a24400a541d240fe67a629f919c",
+      "source_sha256": "5178a65fbbfd496805a367bf88f7d9f95778da5bafc9d782e3d06fbb8a6eb6db",
+      "input_sha256": "b14ea3c8878f9eaf1ee43bfaf58fb340b7ce4b6fa538655b1b4d1ced2fcbf2fc",
+      "removed_elements": {
+        "direction": 75,
+        "harmony": 449
+      },
+      "repaired_elements": {}
+    },
+    {
+      "id": "K333-1",
+      "split": "holdout",
+      "path": "scores/kv333_1.musicxml",
+      "source_git_blob": "4cf8a2fc51f2be6edd4c1263051c622579885c00",
+      "source_sha256": "31a09d486c9c53c1b15e911334abb631ca3e4b8c54f8ccbef64c5de6e9160644",
+      "input_sha256": "b992618d7ef93b3e8f2c6a8ed00c01a91a66ee7bf6c3e3cfbbab018f3d508e3b",
+      "removed_elements": {
+        "direction": 33,
+        "harmony": 431
+      },
+      "repaired_elements": {}
+    },
+    {
+      "id": "K333-2",
+      "split": "holdout",
+      "path": "scores/kv333_2.musicxml",
+      "source_git_blob": "50e5486fd1cc170d335f91f60e3dc003d774e6b1",
+      "source_sha256": "2e5c3930c9aff544cda8693b34fbe3279131acd5b8837bc88290dd2e32f8ee16",
+      "input_sha256": "7e515bc20e5399b1a4405433cd08562d7cd93343b7a3a233b9c0c27424812746",
+      "removed_elements": {
+        "direction": 49,
+        "harmony": 218
+      },
+      "repaired_elements": {}
+    },
+    {
+      "id": "K333-3",
+      "split": "holdout",
+      "path": "scores/kv333_3.musicxml",
+      "source_git_blob": "4cacc9f0796abba912828ce532c447c02db83067",
+      "source_sha256": "66578034aef686f75e080ae947b88aa7a50e3ba5a1ab5f2f4cf36780629acca9",
+      "input_sha256": "006a90c0b378304c6c87f84c48c5864f568a5bea9c02d51e6e590a94a772471f",
+      "removed_elements": {
+        "direction": 70,
+        "harmony": 461
+      },
+      "repaired_elements": {}
+    },
+    {
+      "id": "K457-1",
+      "split": "holdout",
+      "path": "scores/kv457_1.musicxml",
+      "source_git_blob": "ba0f1ca4f6d5a392a1730e44de80ec7dc57691f5",
+      "source_sha256": "d8435c467865fb64be4c11c45f17ff93722ab38f1046e1bc3fe1120032132ca7",
+      "input_sha256": "fdab20292f5e00d35e4b54fd60ca41171413092dc0f1c981409364e29dc87421",
+      "removed_elements": {
+        "credit": 3,
+        "direction": 109,
+        "harmony": 311
+      },
+      "repaired_elements": {}
+    },
+    {
+      "id": "K457-2",
+      "split": "holdout",
+      "path": "scores/kv457_2.musicxml",
+      "source_git_blob": "96764f102ae8c39981e866be60ea1efa6a500103",
+      "source_sha256": "9db2b2beee9b102599a98e7747066244c28e4a84bfcf8a6d97a706f8fd02bcec",
+      "input_sha256": "38ad7f7497072ab83fe4ca2f016e6a4af917b5ab33f5550dd89f93f277dc36e5",
+      "removed_elements": {
+        "credit": 3,
+        "direction": 184,
+        "harmony": 214
+      },
+      "repaired_elements": {
+        "eigth_to_eighth": 1
+      }
+    },
+    {
+      "id": "K457-3",
+      "split": "holdout",
+      "path": "scores/kv457_3.musicxml",
+      "source_git_blob": "14ae099727cf3fcbeaa9722e7679f74bd032cad0",
+      "source_sha256": "241a3664c93cfd395988e55aed79e8a580239b4edf1d829fb08bf2bfb3c5e1bd",
+      "input_sha256": "ab5db21cd298c71468978adb403e23e55bf5d31f70d953726a3c7bba9d55ba10",
+      "removed_elements": {
+        "credit": 3,
+        "direction": 146,
+        "harmony": 328
+      },
+      "repaired_elements": {}
+    },
+    {
+      "id": "K533-1",
+      "split": "holdout",
+      "path": "scores/kv533_1.musicxml",
+      "source_git_blob": "61086320e26a417176638414648091b4dc69524d",
+      "source_sha256": "03c58d682afb6a7933e34349e1ec1893ae5973acbc1e9473ff4bccc90fa2d3c5",
+      "input_sha256": "8b376e4367ae93fa377fafd79fb26732d1d934535eb7acef0f36bc615ed59b27",
+      "removed_elements": {
+        "credit": 3,
+        "direction": 49,
+        "harmony": 589
+      },
+      "repaired_elements": {}
+    },
+    {
+      "id": "K533-2",
+      "split": "holdout",
+      "path": "scores/kv533_2.musicxml",
+      "source_git_blob": "9fd39d4215dd339b7f9b2ad2a21ae65427852c7e",
+      "source_sha256": "73636de59000a0d27907a997b2139b9b1adc2f563016b3366a0f416838025716",
+      "input_sha256": "2cc886f8811f4b88ab9d8ee08a29438e63edc9ee66248383a8274c0cd7398190",
+      "removed_elements": {
+        "credit": 2,
+        "direction": 2,
+        "harmony": 261
+      },
+      "repaired_elements": {}
+    },
+    {
+      "id": "K533-3",
+      "split": "holdout",
+      "path": "scores/kv533_3.musicxml",
+      "source_git_blob": "dfbf92fa91b58bdb2fbf867ec8c46e3e73c7395c",
+      "source_sha256": "26f8f18aab931fa507c390dd7b02d15ed84dab254eb3a1445739efdc76b4e881",
+      "input_sha256": "5ad32caf14fcf0de883ba812f197c71af2521a2048d0d9aa646e69acf69cb19c",
+      "removed_elements": {
+        "credit": 2,
+        "direction": 21,
+        "harmony": 433
+      },
+      "repaired_elements": {}
+    }
+  ]
+}

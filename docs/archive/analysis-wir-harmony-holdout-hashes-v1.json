@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "selection_sha256": "1532d3e006eaee6179b9a968210a787fcf7ba173d58ef428bffa70ecca7135dd",
+  "commit": "1c61fe41b8c2910296d7d2bcbf6476c7c1f2fe35",
+  "files": [
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/01",
+      "score_sha256": "7179b0aa86707cc2e6db004c30c5b94713b1cb0d201a58d4d70197be6311f974",
+      "score_bytes": 8831,
+      "gold_sha256": "4cec7458b5aec3e74218168f529589f3233e008d3b6dde3c3953eaca3dd23565",
+      "gold_bytes": 658
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/02",
+      "score_sha256": "e13adf687ff1b80ff801c34aa72fc4ac66312c58663364c4ac5d3bfc9aa4dc11",
+      "score_bytes": 13517,
+      "gold_sha256": "3d6047c714bc6e98b6c2cf5c5e846d57992f6ca6e0065b2d1d33297117cc90df",
+      "gold_bytes": 825
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/03",
+      "score_sha256": "b736479ee227f5e475c779a4009fb91d1c340e688855c9a42adf3f4f374fa7a1",
+      "score_bytes": 10800,
+      "gold_sha256": "09b16576ee60f17ee854debd285577ccd7924b4454db951e089491863a89dfd8",
+      "gold_bytes": 1226
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Chopin,_Frédéric/Preludes,_Op.28/20",
+      "score_sha256": "edb31d42097fdd3cef44a4e701d890810dc63aad62d33ce75d400f41acadd28c",
+      "score_bytes": 5090,
+      "gold_sha256": "1cecac711298c87b28706c55049a5280b24a0be49cc7be63f3327b2ad19458d9",
+      "gold_bytes": 812
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Chopin,_Frédéric/Études_Op.10/1",
+      "score_sha256": "0bf630276e1848e544286ede0eafa68b3ea4ba1bb2fd18ee0cf5fe61405c64b8",
+      "score_bytes": 23242,
+      "gold_sha256": "56d5c429bfeeb4dc5f6f095944ae870afbe7ac69ca00540a8987c84757886eca",
+      "gold_bytes": 1149
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Chopin,_Frédéric/Études_Op.10/12",
+      "score_sha256": "005eec6ffbf8e3b5dddb8cc939f7dcb52dd10ce12ddf65118f10acdb11534bae",
+      "score_bytes": 41106,
+      "gold_sha256": "b518302bc04bc7e3006a8fd5e92fdcab7aae88454e7a033ed755967be06e610d",
+      "gold_bytes": 1179
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Brahms,_Johannes/6_Songs,_Op.3/3_Liebe_und_Frühling_II",
+      "score_sha256": "9cc173cdb042bfbc9beecb06f5ff212fcc8bff7fed4aa3686b5df2dc7c8a7dd9",
+      "score_bytes": 20033,
+      "gold_sha256": "6bcb6339d98a0bb5c4349f33e45fe8f4f053f2da13357a16f3ffe1f1ca3d8ca6",
+      "gold_bytes": 943
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Brahms,_Johannes/7_Lieder,_Op.48/3_Liebesklage_des_Mädchens",
+      "score_sha256": "f30e0e3ef0425168da1f2cb230d76ba1bc9b7c689e0cbd07ef2fe45f623ade98",
+      "score_bytes": 13132,
+      "gold_sha256": "b1c861b8fd9685017b650dad2521f3ffa68cc078fddf06a8fd519b4455f739ee",
+      "gold_bytes": 989
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Brahms,_Johannes/Marienlieder,_Op.22/1_Der_englische_Gruss",
+      "score_sha256": "bc98f0fe009d105bb8572ae2b537947f40fe0fffa36cb0601eeb5100134d9b59",
+      "score_bytes": 17244,
+      "gold_sha256": "1d81bcebc47c4c7d38a7fa1d1a7bbdc69d1c9a87b4e715c737aacaefee2035ef",
+      "gold_bytes": 795
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Schubert,_Franz/4_Lieder,_Op.96/1_Die_Sterne,_D.939",
+      "score_sha256": "ddf371050e7c060b0c6995ea1396cb194bca8695bbfea4d6b0895d7373fb65b7",
+      "score_bytes": 38573,
+      "gold_sha256": "fd4b256605033d60029c43bf0d7cdcb245d9cd2d7b7c926b61f1b1e91636ff10",
+      "gold_bytes": 1112
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Schubert,_Franz/Die_schöne_Müllerin,_D.795/01_Das_Wandern",
+      "score_sha256": "5ed3494557a252ff4c343590d9ffb0a648c6efc543e8eb980a162994eb92d406",
+      "score_bytes": 7242,
+      "gold_sha256": "a443357d694270f84467807ba775c8ae71c1f47953f70419e8721dba75887bab",
+      "gold_bytes": 678
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Schubert,_Franz/Die_schöne_Müllerin,_D.795/02_Wohin",
+      "score_sha256": "108dc81ac31ac2155904a965f7c50f9b787026c89299fb32c345c1c6c55b1a3f",
+      "score_bytes": 25643,
+      "gold_sha256": "c07e402ce6198aaac6bf08cb8f1c41e2ee84aee813c4b834ef677d7d7cf2dae1",
+      "gold_bytes": 878
+    }
+  ]
+}

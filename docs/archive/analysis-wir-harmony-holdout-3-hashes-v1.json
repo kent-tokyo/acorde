@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "selection_sha256": "632530392285406739393f9ee4c4e3cf8b9e0815491d937961f9c9864dec82bd",
+  "commit": "1c61fe41b8c2910296d7d2bcbf6476c7c1f2fe35",
+  "files": [
+    {
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op018_No4/1",
+      "score_sha256": "fa6945212760010c790237f443fd5e86d8038a92f0149db4d62bc4603adf917c",
+      "score_bytes": 75972,
+      "gold_sha256": "7e4cc2fe2946a6ff8088a57545d1d60a88119fcc318377653144e38d7248c24c",
+      "gold_bytes": 5270
+    },
+    {
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op018_No5/1",
+      "score_sha256": "df7ced968577e2cba8d44322285cb7403147072b622bf88831fc2d0dd314d91c",
+      "score_bytes": 59559,
+      "gold_sha256": "49a3ebf9280a9ff7d2851896d1873a2f3acbd7812dfd75a2d1084db9b8bcb68c",
+      "gold_bytes": 4087
+    },
+    {
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op018_No6/1",
+      "score_sha256": "3e2b3243ebfb0863673b9957625b5e998503841062ceadf8a7f605cdb94b74b8",
+      "score_bytes": 65477,
+      "gold_sha256": "c0a8a1e39e4fe046712d92e40b05fb6c9881fab531aa6a12c702d2cbf559bf91",
+      "gold_bytes": 3432
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/07",
+      "score_sha256": "a8e386216eb89a14ed73c94c6c1d0bee0903345e4478d6f3e71340df3c1598ac",
+      "score_bytes": 23007,
+      "gold_sha256": "4b8023ff6f796d5c77c22f038072aa28a12ee0da0f18db45ced8eb107c96d0db",
+      "gold_bytes": 1980
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/08",
+      "score_sha256": "d927e102dcaedd7b26b48a8ee1a9f342d39fdaa0950baa409282a07dd2f2acf5",
+      "score_bytes": 12398,
+      "gold_sha256": "3d5f7919756ce3266f348b6bd8d5f159462a33223a727808ca4d8d1c802b182c",
+      "gold_bytes": 941
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/09",
+      "score_sha256": "d581caa7ff81c4b0b78dbf57de49b869ad414594963ef50e7e37c0699abd166b",
+      "score_bytes": 8405,
+      "gold_sha256": "859f0445d5a337912b9670661267a4ed95bde2cb0bec74f1ca89a7c1d08cf320",
+      "gold_bytes": 934
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Schumann,_Robert/5_Lieder_und_Gesänge,_Op.127/2_Dein_Angesicht",
+      "score_sha256": "4e17db51b5469cf7bb65b74d975a415fd60754baddeba7bc682f0b050e3b0d10",
+      "score_bytes": 12627,
+      "gold_sha256": "093519c17513549b94ff570d8bfbb4f5df0636f9eaa451f40555e6c2b2114865",
+      "gold_bytes": 1113
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Schumann,_Robert/Dichterliebe,_Op.48/01_Im_wunderschönen_Monat_Mai",
+      "score_sha256": "b3bc41d71b8efd5a0ee02d3c2c884576f03d6d781cdd2e4efd0a3ab0ccd59469",
+      "score_bytes": 10850,
+      "gold_sha256": "3f3b36f042963fb5f24083834e98d0ffc1fd41f06e47167a32fe0bb0105fb57b",
+      "gold_bytes": 719
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Schumann,_Robert/Frauenliebe_und_Leben,_Op.42/1_Seit_ich_ihn_gesehen",
+      "score_sha256": "690755fba20e0139822042ef0e7073f813e3bf9a50fd4d78196f050a327c8020",
+      "score_bytes": 12687,
+      "gold_sha256": "e0834e669f5f8e843f425542f3a0f46909e12390b1c33f427fe4e1e939025fb7",
+      "gold_bytes": 816
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Lang,_Josephine/3_Lieder,_Op.8/1_Schmetterling",
+      "score_sha256": "70fb030723df9533479a51c0a7570913a6bd356b64a979d629ea8e363227dee2",
+      "score_bytes": 24615,
+      "gold_sha256": "5e28ce83f5a10bc3d495bcf4812566baf13dcb7b53a90e8f89a0dce627b88ed6",
+      "gold_bytes": 1298
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Lang,_Josephine/6_Lieder,_Op.10/6_Abschied",
+      "score_sha256": "92585a8ae4bde150c431a9fa56cb7f51b10659aac3497f79771c623c03762d07",
+      "score_bytes": 17815,
+      "gold_sha256": "d99abb6b7b113b6547a03553438fbad02ffa507b11ba11014b65be44be4ae1db",
+      "gold_bytes": 804
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Lang,_Josephine/6_Lieder,_Op.12/3_Abermals_am_See",
+      "score_sha256": "b01db3feb57cdd1064cfa552221e916371586fb7ddd3d2b5ba85ef178b97b656",
+      "score_bytes": 30645,
+      "gold_sha256": "beb5ec42891d01ba02c9a863bfbfbbc70668b40852e60fc8166b106eb643e920",
+      "gold_bytes": 1294
+    }
+  ]
+}

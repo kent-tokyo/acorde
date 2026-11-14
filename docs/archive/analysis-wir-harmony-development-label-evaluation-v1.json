@@ -1,0 +1,844 @@
+{
+  "schema_version": 1,
+  "system_profiles": {
+    "acorde": {
+      "version": "ddcc51b0f0574c938396f09add8dc8ecc3adf95b479ebf6dd7175d776c44438c",
+      "command": "acorde analyze-vertical INPUT --infer-key",
+      "options": {
+        "key": "independently estimated global key"
+      }
+    },
+    "music21": {
+      "version": "10.5.2",
+      "command": "converter.parse(INPUT).analyze('key'); roman.romanNumeralFromChord(active, key)",
+      "options": {
+        "key": "independently estimated global key"
+      }
+    }
+  },
+  "provenance": {
+    "corpus_commit": "1c61fe41b8c2910296d7d2bcbf6476c7c1f2fe35",
+    "source_report_sha256": "0c9ea49504620af1647e773fc4a2efd270daf0c12da043538c7b55f794571b3f",
+    "selection_sha256": "1532d3e006eaee6179b9a968210a787fcf7ba173d58ef428bffa70ecca7135dd",
+    "task": "roman_at_primary_annotation_position",
+    "exclusion_policy": "unequal pitched timeline, ambiguous measure or duplicate source position"
+  },
+  "cases": [
+    {
+      "id": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/01",
+      "input_sha256": "7179b0aa86707cc2e6db004c30c5b94713b1cb0d201a58d4d70197be6311f974",
+      "input_verified": true,
+      "split": "development",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 35,
+          "predicted": 1,
+          "correct": 1,
+          "precision": 1.0,
+          "recall": 0.02857142857142857,
+          "f1": 0.05555555555555555,
+          "wrong_label": 0,
+          "missing": 34,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 35,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 0.02857142857142857,
+              "f1": 0.05555555555555555,
+              "wrong_label": 0,
+              "missing": 34,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 35,
+          "predicted": 35,
+          "correct": 1,
+          "precision": 0.02857142857142857,
+          "recall": 0.02857142857142857,
+          "f1": 0.02857142857142857,
+          "wrong_label": 34,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 35,
+              "predicted": 35,
+              "correct": 1,
+              "precision": 0.02857142857142857,
+              "recall": 0.02857142857142857,
+              "f1": 0.02857142857142857,
+              "wrong_label": 34,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/02",
+      "input_sha256": "e13adf687ff1b80ff801c34aa72fc4ac66312c58663364c4ac5d3bfc9aa4dc11",
+      "input_verified": true,
+      "split": "development",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 60,
+          "predicted": 6,
+          "correct": 1,
+          "precision": 0.16666666666666666,
+          "recall": 0.016666666666666666,
+          "f1": 0.030303030303030304,
+          "wrong_label": 5,
+          "missing": 54,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 60,
+              "predicted": 6,
+              "correct": 1,
+              "precision": 0.16666666666666666,
+              "recall": 0.016666666666666666,
+              "f1": 0.030303030303030304,
+              "wrong_label": 5,
+              "missing": 54,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 60,
+          "predicted": 60,
+          "correct": 5,
+          "precision": 0.08333333333333333,
+          "recall": 0.08333333333333333,
+          "f1": 0.08333333333333333,
+          "wrong_label": 55,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 60,
+              "predicted": 60,
+              "correct": 5,
+              "precision": 0.08333333333333333,
+              "recall": 0.08333333333333333,
+              "f1": 0.08333333333333333,
+              "wrong_label": 55,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/03",
+      "input_sha256": "b736479ee227f5e475c779a4009fb91d1c340e688855c9a42adf3f4f374fa7a1",
+      "input_verified": true,
+      "split": "development",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 107,
+          "predicted": 6,
+          "correct": 2,
+          "precision": 0.3333333333333333,
+          "recall": 0.018691588785046728,
+          "f1": 0.035398230088495575,
+          "wrong_label": 4,
+          "missing": 101,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 107,
+              "predicted": 6,
+              "correct": 2,
+              "precision": 0.3333333333333333,
+              "recall": 0.018691588785046728,
+              "f1": 0.035398230088495575,
+              "wrong_label": 4,
+              "missing": 101,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 107,
+          "predicted": 107,
+          "correct": 9,
+          "precision": 0.08411214953271028,
+          "recall": 0.08411214953271028,
+          "f1": 0.08411214953271028,
+          "wrong_label": 98,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 107,
+              "predicted": 107,
+              "correct": 9,
+              "precision": 0.08411214953271028,
+              "recall": 0.08411214953271028,
+              "f1": 0.08411214953271028,
+              "wrong_label": 98,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "Corpus/Keyboard_Other/Chopin,_Frédéric/Preludes,_Op.28/20",
+      "input_sha256": "edb31d42097fdd3cef44a4e701d890810dc63aad62d33ce75d400f41acadd28c",
+      "input_verified": true,
+      "split": "development",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 48,
+          "predicted": 41,
+          "correct": 28,
+          "precision": 0.6829268292682927,
+          "recall": 0.5833333333333334,
+          "f1": 0.6292134831460674,
+          "wrong_label": 13,
+          "missing": 7,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 48,
+              "predicted": 41,
+              "correct": 28,
+              "precision": 0.6829268292682927,
+              "recall": 0.5833333333333334,
+              "f1": 0.6292134831460674,
+              "wrong_label": 13,
+              "missing": 7,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 48,
+          "predicted": 48,
+          "correct": 22,
+          "precision": 0.4583333333333333,
+          "recall": 0.4583333333333333,
+          "f1": 0.4583333333333333,
+          "wrong_label": 26,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 48,
+              "predicted": 48,
+              "correct": 22,
+              "precision": 0.4583333333333333,
+              "recall": 0.4583333333333333,
+              "f1": 0.4583333333333333,
+              "wrong_label": 26,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "Corpus/Keyboard_Other/Chopin,_Frédéric/Études_Op.10/1",
+      "input_sha256": "0bf630276e1848e544286ede0eafa68b3ea4ba1bb2fd18ee0cf5fe61405c64b8",
+      "input_verified": true,
+      "split": "development",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 88,
+          "predicted": 11,
+          "correct": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "wrong_label": 11,
+          "missing": 77,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 88,
+              "predicted": 11,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 11,
+              "missing": 77,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 88,
+          "predicted": 88,
+          "correct": 7,
+          "precision": 0.07954545454545454,
+          "recall": 0.07954545454545454,
+          "f1": 0.07954545454545454,
+          "wrong_label": 81,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 88,
+              "predicted": 88,
+              "correct": 7,
+              "precision": 0.07954545454545454,
+              "recall": 0.07954545454545454,
+              "f1": 0.07954545454545454,
+              "wrong_label": 81,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "Corpus/Keyboard_Other/Chopin,_Frédéric/Études_Op.10/12",
+      "input_sha256": "005eec6ffbf8e3b5dddb8cc939f7dcb52dd10ce12ddf65118f10acdb11534bae",
+      "input_verified": true,
+      "split": "development",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 103,
+          "predicted": 40,
+          "correct": 11,
+          "precision": 0.275,
+          "recall": 0.10679611650485436,
+          "f1": 0.15384615384615385,
+          "wrong_label": 29,
+          "missing": 63,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 103,
+              "predicted": 40,
+              "correct": 11,
+              "precision": 0.275,
+              "recall": 0.10679611650485436,
+              "f1": 0.15384615384615385,
+              "wrong_label": 29,
+              "missing": 63,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 103,
+          "predicted": 103,
+          "correct": 19,
+          "precision": 0.18446601941747573,
+          "recall": 0.18446601941747573,
+          "f1": 0.18446601941747573,
+          "wrong_label": 84,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 103,
+              "predicted": 103,
+              "correct": 19,
+              "precision": 0.18446601941747573,
+              "recall": 0.18446601941747573,
+              "f1": 0.18446601941747573,
+              "wrong_label": 84,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "Corpus/OpenScore-LiederCorpus/Brahms,_Johannes/6_Songs,_Op.3/3_Liebe_und_Frühling_II",
+      "input_sha256": "9cc173cdb042bfbc9beecb06f5ff212fcc8bff7fed4aa3686b5df2dc7c8a7dd9",
+      "input_verified": true,
+      "split": "development",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 106,
+          "predicted": 27,
+          "correct": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "wrong_label": 27,
+          "missing": 79,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 106,
+              "predicted": 27,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 27,
+              "missing": 79,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 106,
+          "predicted": 104,
+          "correct": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "wrong_label": 104,
+          "missing": 2,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 106,
+              "predicted": 104,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 104,
+              "missing": 2,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "Corpus/OpenScore-LiederCorpus/Brahms,_Johannes/7_Lieder,_Op.48/3_Liebesklage_des_Mädchens",
+      "input_sha256": "f30e0e3ef0425168da1f2cb230d76ba1bc9b7c689e0cbd07ef2fe45f623ade98",
+      "input_verified": true,
+      "split": "development",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 111,
+          "predicted": 85,
+          "correct": 36,
+          "precision": 0.4235294117647059,
+          "recall": 0.32432432432432434,
+          "f1": 0.3673469387755102,
+          "wrong_label": 49,
+          "missing": 26,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 111,
+              "predicted": 85,
+              "correct": 36,
+              "precision": 0.4235294117647059,
+              "recall": 0.32432432432432434,
+              "f1": 0.3673469387755102,
+              "wrong_label": 49,
+              "missing": 26,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 111,
+          "predicted": 111,
+          "correct": 39,
+          "precision": 0.35135135135135137,
+          "recall": 0.35135135135135137,
+          "f1": 0.35135135135135137,
+          "wrong_label": 72,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 111,
+              "predicted": 111,
+              "correct": 39,
+              "precision": 0.35135135135135137,
+              "recall": 0.35135135135135137,
+              "f1": 0.35135135135135137,
+              "wrong_label": 72,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "Corpus/OpenScore-LiederCorpus/Brahms,_Johannes/Marienlieder,_Op.22/1_Der_englische_Gruss",
+      "input_sha256": "bc98f0fe009d105bb8572ae2b537947f40fe0fffa36cb0601eeb5100134d9b59",
+      "input_verified": true,
+      "split": "development",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 146,
+          "predicted": 109,
+          "correct": 68,
+          "precision": 0.6238532110091743,
+          "recall": 0.4657534246575342,
+          "f1": 0.5333333333333333,
+          "wrong_label": 41,
+          "missing": 37,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 146,
+              "predicted": 109,
+              "correct": 68,
+              "precision": 0.6238532110091743,
+              "recall": 0.4657534246575342,
+              "f1": 0.5333333333333333,
+              "wrong_label": 41,
+              "missing": 37,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 146,
+          "predicted": 146,
+          "correct": 85,
+          "precision": 0.5821917808219178,
+          "recall": 0.5821917808219178,
+          "f1": 0.5821917808219178,
+          "wrong_label": 61,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 146,
+              "predicted": 146,
+              "correct": 85,
+              "precision": 0.5821917808219178,
+              "recall": 0.5821917808219178,
+              "f1": 0.5821917808219178,
+              "wrong_label": 61,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "Corpus/OpenScore-LiederCorpus/Schubert,_Franz/4_Lieder,_Op.96/1_Die_Sterne,_D.939",
+      "input_sha256": "ddf371050e7c060b0c6995ea1396cb194bca8695bbfea4d6b0895d7373fb65b7",
+      "input_verified": true,
+      "split": "development",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 214,
+          "predicted": 176,
+          "correct": 103,
+          "precision": 0.5852272727272727,
+          "recall": 0.48130841121495327,
+          "f1": 0.5282051282051282,
+          "wrong_label": 73,
+          "missing": 38,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 214,
+              "predicted": 176,
+              "correct": 103,
+              "precision": 0.5852272727272727,
+              "recall": 0.48130841121495327,
+              "f1": 0.5282051282051282,
+              "wrong_label": 73,
+              "missing": 38,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 214,
+          "predicted": 214,
+          "correct": 107,
+          "precision": 0.5,
+          "recall": 0.5,
+          "f1": 0.5,
+          "wrong_label": 107,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 214,
+              "predicted": 214,
+              "correct": 107,
+              "precision": 0.5,
+              "recall": 0.5,
+              "f1": 0.5,
+              "wrong_label": 107,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "Corpus/OpenScore-LiederCorpus/Schubert,_Franz/Die_schöne_Müllerin,_D.795/01_Das_Wandern",
+      "input_sha256": "5ed3494557a252ff4c343590d9ffb0a648c6efc543e8eb980a162994eb92d406",
+      "input_verified": true,
+      "split": "development",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 35,
+          "predicted": 9,
+          "correct": 2,
+          "precision": 0.2222222222222222,
+          "recall": 0.05714285714285714,
+          "f1": 0.09090909090909091,
+          "wrong_label": 7,
+          "missing": 26,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 35,
+              "predicted": 9,
+              "correct": 2,
+              "precision": 0.2222222222222222,
+              "recall": 0.05714285714285714,
+              "f1": 0.09090909090909091,
+              "wrong_label": 7,
+              "missing": 26,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 35,
+          "predicted": 35,
+          "correct": 13,
+          "precision": 0.37142857142857144,
+          "recall": 0.37142857142857144,
+          "f1": 0.37142857142857144,
+          "wrong_label": 22,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 35,
+              "predicted": 35,
+              "correct": 13,
+              "precision": 0.37142857142857144,
+              "recall": 0.37142857142857144,
+              "f1": 0.37142857142857144,
+              "wrong_label": 22,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "Corpus/OpenScore-LiederCorpus/Schubert,_Franz/Die_schöne_Müllerin,_D.795/02_Wohin",
+      "input_sha256": "108dc81ac31ac2155904a965f7c50f9b787026c89299fb32c345c1c6c55b1a3f",
+      "input_verified": true,
+      "split": "development",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 106,
+          "predicted": 52,
+          "correct": 33,
+          "precision": 0.6346153846153846,
+          "recall": 0.3113207547169811,
+          "f1": 0.4177215189873418,
+          "wrong_label": 19,
+          "missing": 54,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 106,
+              "predicted": 52,
+              "correct": 33,
+              "precision": 0.6346153846153846,
+              "recall": 0.3113207547169811,
+              "f1": 0.4177215189873418,
+              "wrong_label": 19,
+              "missing": 54,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 106,
+          "predicted": 106,
+          "correct": 41,
+          "precision": 0.3867924528301887,
+          "recall": 0.3867924528301887,
+          "f1": 0.3867924528301887,
+          "wrong_label": 65,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "roman_at_primary_annotation_position": {
+              "gold": 106,
+              "predicted": 106,
+              "correct": 41,
+              "precision": 0.3867924528301887,
+              "recall": 0.3867924528301887,
+              "f1": 0.3867924528301887,
+              "wrong_label": 65,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    }
+  ],
+  "totals": {
+    "acorde": {
+      "calibration": {
+        "cases": 0,
+        "analyzed": 0,
+        "failed": 0,
+        "gold": 0,
+        "predicted": 0,
+        "correct": 0,
+        "wrong_label": 0,
+        "missing": 0,
+        "extra": 0,
+        "precision": null,
+        "recall": null,
+        "f1": null,
+        "tasks": {}
+      },
+      "development": {
+        "cases": 12,
+        "analyzed": 12,
+        "failed": 0,
+        "gold": 1159,
+        "predicted": 563,
+        "correct": 285,
+        "wrong_label": 278,
+        "missing": 596,
+        "extra": 0,
+        "precision": 0.5062166962699822,
+        "recall": 0.2459016393442623,
+        "f1": 0.3310104529616725,
+        "tasks": {
+          "roman_at_primary_annotation_position": {
+            "gold": 1159,
+            "predicted": 563,
+            "correct": 285,
+            "wrong_label": 278,
+            "missing": 596,
+            "extra": 0,
+            "precision": 0.5062166962699822,
+            "recall": 0.2459016393442623,
+            "f1": 0.3310104529616725
+          }
+        }
+      },
+      "holdout": {
+        "cases": 0,
+        "analyzed": 0,
+        "failed": 0,
+        "gold": 0,
+        "predicted": 0,
+        "correct": 0,
+        "wrong_label": 0,
+        "missing": 0,
+        "extra": 0,
+        "precision": null,
+        "recall": null,
+        "f1": null,
+        "tasks": {}
+      }
+    },
+    "music21": {
+      "calibration": {
+        "cases": 0,
+        "analyzed": 0,
+        "failed": 0,
+        "gold": 0,
+        "predicted": 0,
+        "correct": 0,
+        "wrong_label": 0,
+        "missing": 0,
+        "extra": 0,
+        "precision": null,
+        "recall": null,
+        "f1": null,
+        "tasks": {}
+      },
+      "development": {
+        "cases": 12,
+        "analyzed": 12,
+        "failed": 0,
+        "gold": 1159,
+        "predicted": 1157,
+        "correct": 348,
+        "wrong_label": 809,
+        "missing": 2,
+        "extra": 0,
+        "precision": 0.30077787381158166,
+        "recall": 0.3002588438308887,
+        "f1": 0.3005181347150259,
+        "tasks": {
+          "roman_at_primary_annotation_position": {
+            "gold": 1159,
+            "predicted": 1157,
+            "correct": 348,
+            "wrong_label": 809,
+            "missing": 2,
+            "extra": 0,
+            "precision": 0.30077787381158166,
+            "recall": 0.3002588438308887,
+            "f1": 0.3005181347150259
+          }
+        }
+      },
+      "holdout": {
+        "cases": 0,
+        "analyzed": 0,
+        "failed": 0,
+        "gold": 0,
+        "predicted": 0,
+        "correct": 0,
+        "wrong_label": 0,
+        "missing": 0,
+        "extra": 0,
+        "precision": null,
+        "recall": null,
+        "f1": null,
+        "tasks": {}
+      }
+    }
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "frozen_at_utc": "2026-11-14T14:00:52Z",
+  "cohort": "When in Rome harmony cohort 3",
+  "source_commit": "1c61fe41b8c2910296d7d2bcbf6476c7c1f2fe35",
+  "classification": "holdout",
+  "selection_sha256": "632530392285406739393f9ee4c4e3cf8b9e0815491d937961f9c9864dec82bd",
+  "source_hash_record_sha256": "e5b1050b514db5c18438f5d042414d884a5f2c6364fa5176af30aad0a5643d4c",
+  "prepared_input_record_sha256": "ebe2bfe4586e3a4b290b74df957b8e08a8050325db0cbb8fba8bc69cf2ef8d92",
+  "input_rule": "All twelve prepared MXL scores, including the three with 1,358 embedded harmony elements removed, are passed byte-for-byte to both analyzers. Gold comes only from the paired primary analysis.txt. All prepared inputs were hash-verified and accepted by both parsers where stripping occurred before gold was opened.",
+  "candidate": {
+    "acorde_binary_sha256": "57ddd1d3c536cf89a8b26b145992b734b6dbe0b835f1382ff3565a3b0ebebb24",
+    "analysis_source_sha256": "d68471cf80b2d23d7b8655443f4ffce6ff18d486dbd9e77f562c093b006bca0e",
+    "cli_source_sha256": "f18c13fb7d4ff20fd444d4d52cd5c81ea0fda08324e9ecc00d1069ddde5dffeb",
+    "core_harmony_source_sha256": "6ea5028a916b0ec25bcca08f59ad53bade8036f67837865139d22f4a2e5f3645",
+    "cargo_lock_sha256": "6b3967c77c1d734ef14df5e421343cb2d646cc3c307f478973f7f7aa6cafee24",
+    "command": "acorde analyze-vertical INPUT --infer-key --arpeggiated-bars",
+    "option": "The opt-in rule adds exact tertian bar-arpeggio labels or exact forward-completed sonorities within 0.5 quarter beat and an observed next sonority; default vertical analysis is unchanged."
+  },
+  "competitor": {
+    "name": "music21",
+    "version": "10.5.2",
+    "command": "converter.parse(INPUT).analyze('key'); roman.romanNumeralFromChord(active_pitches_at_gold_position, estimated_global_key)"
+  },
+  "evaluator": {
+    "comparison_source_sha256": "f11612c498d9025fb7ea54ecce15e35bbf7267b8aa3e0c0b9ca056f8a703e864",
+    "adapter_source_sha256": "71c66b19cacaa4374764e409abbea6f3fa5547a8043af2dcfa2bf9255cd25c49",
+    "common_evaluator_source_sha256": "f5fbe5dffca692a5a3d37994c043a2a03eb75e54680a1222a5d93faee781a68e",
+    "input_preparer_source_sha256": "69676a0b439320d2fe85c5e4c48bdddc129491435884bac8b81ea24437810b56",
+    "gold_positions": "RomanText parser's primary analysis.txt measure and beat, mapped to the common score's physical measure index; duplicated source positions are excluded as ambiguous.",
+    "alignment": "Compare complete pitched onset, duration, and MIDI-pitch multisets per physical measure. Acorde tuplet durations are accumulated as exact fractions before final six-decimal comparison. Exclude unequal or ambiguously mapped measures before inspecting either prediction.",
+    "normalization": "Whitespace, percent/half-diminished glyph, degree/diminished glyph, and 42/2 third-inversion spelling only. Retain chromatic spelling, applied chords, quality, root, inversion, and key distinctions.",
+    "comparison_task": "Roman figure at each aligned primary-annotation position. Predictions away from those positions are outside this task and are not credited or penalized."
+  },
+  "decision": {
+    "coverage_gate": "Both systems must receive all twelve prepared inputs; Acorde's parsed-case count must be at least music21's, and at least 90 percent of all parsed primary source labels must align for paired scoring. Report every excluded label and reason.",
+    "superiority_gate": "On the same aligned gold positions, Acorde must have strictly more correct canonical Roman figures and no lower exact-position precision than music21. The result is task-scoped, not overall music-analysis superiority.",
+    "stop_rule": "Run once with this candidate and these evaluator sources. If any result or score informs a fix, reclassify the entire cohort as development and freeze a new disjoint untouched holdout before another superiority claim."
+  }
+}

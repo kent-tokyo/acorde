@@ -11,6 +11,39 @@ struct literals must still update for added variants and fields.
 > longer compile in 1.2.19 or 1.2.20, despite the patch version. Pin `=1.2.18` or migrate the
 > literal before updating; do not assume a later 1.2 patch restores the old literal form.
 
+## Unreleased: analysis event alignment
+
+`AnalysisResult` schema version and analysis cache keys advance from 13 to 14.
+Voice-leading and SATB diagnostics use simultaneous written onsets in each
+physical measure. Hosts comparing saved analysis JSON, exact rule IDs, or
+category counts should regenerate their expected results. Score JSON is not
+changed by this analysis-only update.
+
+`analyze-vertical` JSON advances from schema 1 to 3. Schema 2 added
+`timeline_issues`. A physical bar with missing or unequal measures, invalid
+note duration, or an overfull voice is omitted from inferred sonorities and
+reported there. Consumers should inspect this field before treating missing
+labels as a harmonic-analysis error.
+Vertical harmony now uses concert pitches for transposing staves and active
+instruments. On equal physical bars, the default pass converts explicit
+written keys to concert keys and emits Roman numerals when contributing staves
+agree;
+otherwise it keeps the chord label without a Roman numeral. Call
+`analyze_vertical_sonorities_in_key` with a concert key when key reconciliation
+is unavailable. Regenerate expected vertical-harmony labels for transposing
+scores.
+Scores whose parts divide the same validated total duration into different
+physical bars can now produce vertical sonorities. Their output `measure` and
+`beat` refer to the first available staff; note evidence keeps its original
+part and measure. Check these coordinates when consuming `analyze-vertical`
+JSON. These scores now receive Roman numerals when the active staves' concert
+keys agree. Supply a concert key when they do not agree or cannot be inferred.
+Schema 3 adds the `arpeggiated_bars` Boolean. Its default is `false`, which
+keeps the vertical-only label pass. `--arpeggiated-bars` adds lower-confidence
+labels from exact tertian chords in short forward windows, with later-note
+evidence and separate rule IDs. Consumers that need purely simultaneous
+labels should leave the flag off.
+
 ## v1.3.12: arrangement markers and optional button labels
 
 The minimum supported Rust version remains 1.89. Preset and free-layer engine

@@ -11,6 +11,38 @@ result contains stable `NoteAddr` evidence and a rule identifier. Voice-leading 
 retain exact signed cents for microtonal motion. SATB diagnostics classify voice crossing, wide
 spacing, and parallel-perfect motion with typed severity. Key estimation returns all tied best
 candidates, so relative-major/minor ambiguity is preserved instead of inventing a single key.
+Vertical sonorities, adjacent-voice motion, and SATB spacing/crossing share written onset
+positions within each physical measure. A held note is paired with the note actually sounding
+at that beat.
+`analyze_vertical_sonorities_report` and its in-key variant report physical-bar
+alignment and malformed-duration issues. Affected measures are omitted from
+inferred sonorities; callers that need to distinguish absent harmony from
+invalid timing should use these report APIs.
+When all staves have the same validated total length, the pass also aligns
+different physical bar partitions on absolute written beats. Its `measure` and
+`beat` use the first available staff as the reference; `label.address` and
+`label.evidence` retain each note's own physical measure. The default API now
+resolves a concert key from the active contributing staves at each absolute
+onset, including their different local measure numbers. It emits a Roman
+numeral only when those keys agree. The in-key API still accepts a caller's
+concert key when the score does not supply an unambiguous one.
+Ties with a matching start in the same part at the same absolute beat and
+sounding pitch, including ties across voices or staves, sustain their pitches
+without creating an additional harmonic attack. Explicit predecessor
+locations must match. A new pitch in a partially tied chord does create an
+attack, with the held pitches included in the sonority.
+Vertical harmony combines written notes at their concert pitches using staff,
+part-instrument and measure-instrument semitone offsets. A concert key supplied
+to `analyze_vertical_sonorities_in_key` supports Roman numerals for transposing
+parts. With equal physical bars, the default pass also converts an explicitly
+stored written key on each transposing staff to concert key and emits Roman
+numerals when all contributing staves agree. Missing or conflicting concert
+keys leave the chord label but omit its Roman numeral.
+Unrepresentable concert pitches are reported as timeline issues and suppress
+inference for the affected measure.
+Authored chord symbols remain in their written spelling. When attached to a
+transposing staff, they do not receive a concert-key Roman numeral until their
+source spelling can be reconciled.
 Repeated three-note interval motifs and explicit rest-terminated phrase boundaries are also
 reported with source spans.
 
@@ -26,11 +58,22 @@ assert!(result.chords.is_empty());
 simultaneously sounding notes across parts and voices instead of treating a
 melodic sequence as a chord. It reports measure/beat and source addresses,
 and preserves authored chord symbols. `analyze_vertical_sonorities_in_key`
-accepts a separately chosen global key; the default pass follows written key
-changes. Its Roman numerals use common figured-bass inversion suffixes.
+accepts a separately chosen concert key; the default pass reconciles written
+key changes across aligned staves when possible. Its Roman numerals use
+common figured-bass inversion suffixes.
 The [BCMH development screening](../../docs/archive/analysis-bcmh-vertical-harmony.md)
 records current coverage and errors. The legacy `analyze_score` chord result
 is unchanged for existing callers.
+
+`analyze_arpeggiated_bars_report` and its in-key variant add an opt-in
+harmonic-completion pass. If no vertical chord exists at a bar start, the pass
+may infer an exact tertian chord from notes in the bar's first half. It may
+also complete an onset from notes up to the next detected sonority within half
+a beat, provided the combined notes form an exact tertian template. Each
+extra label has a lower confidence, a distinct rule ID, and addresses of the
+later notes used as evidence. Invalid bars, different physical bar partitions,
+three-note bar-start melodies, and fully tied continuations remain guarded.
+The CLI exposes this pass through `analyze-vertical --arpeggiated-bars`.
 
 `analyze_batch` preserves input order for finite collections, while `analyze_stream` returns a
 lazy iterator for host-side streaming. Both use the same deterministic result contract.

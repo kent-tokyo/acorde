@@ -113,7 +113,8 @@ def music21_measure_events(measures, index):
     return events
 
 
-def compare_one(archive, name, directory, acorde, converter, note, chord, roman, stream):
+def compare_one(archive, name, directory, acorde, converter, note, chord, roman, stream,
+                arpeggiated_bars=False):
     source = archive.read(name)
     lines = source.decode("utf-8-sig").splitlines()
     cleaned = remove_harmony_spine(lines)
@@ -133,7 +134,9 @@ def compare_one(archive, name, directory, acorde, converter, note, chord, roman,
     except Exception as error:
         row["music21_error"] = f"{type(error).__name__}: {error}"
     try:
-        a_report = json.loads(acorde_output(acorde, "analyze-vertical", path, "--infer-key"))
+        options = ("--infer-key", "--arpeggiated-bars") if arpeggiated_bars else ("--infer-key",)
+        a_report = json.loads(acorde_output(acorde, "analyze-vertical", path, *options))
+        row["acorde_timeline_issues"] = a_report.get("timeline_issues", [])
         a_import = json.loads(acorde_output(acorde, "report", path))
         a_timeline = acorde_measure_timeline(a_import["score"])
         a_key = a_report.get("global_key")
@@ -174,6 +177,7 @@ def compare_one(archive, name, directory, acorde, converter, note, chord, roman,
     row["music21_canonical_exact"] = 0
     row["both_canonical_exact"] = 0
     row["errors"] = []
+    row["aligned_rows"] = []
     for index, gold_rows in source_rows.items():
         if any(index >= len(part_measures) for part_measures in measures):
             row["unaligned_measures"] += 1
@@ -208,6 +212,10 @@ def compare_one(archive, name, directory, acorde, converter, note, chord, roman,
                 m_label = None
             a_entry = a_sonorities[index].get(beat)
             a_label = a_entry.get("roman_numeral") if a_entry else None
+            row["aligned_rows"].append({
+                "measure": index, "row": ordinal, "beat": beat,
+                "gold": gold, "acorde": a_label, "music21": m_label,
+            })
             if a_label is None:
                 if a_entry:
                     row["unlabeled_sonority_rows"] += 1
@@ -248,6 +256,7 @@ def main():
     parser.add_argument("archive", type=Path)
     parser.add_argument("acorde", type=Path)
     parser.add_argument("output", type=Path)
+    parser.add_argument("--arpeggiated-bars", action="store_true")
     args = parser.parse_args()
     from music21 import chord, converter, note, roman, stream
     import music21
@@ -267,7 +276,7 @@ def main():
                 try:
                     rows.append(compare_one(
                         archive, name, Path(temporary), args.acorde,
-                        converter, note, chord, roman, stream,
+                        converter, note, chord, roman, stream, args.arpeggiated_bars,
                     ))
                 except Exception as error:
                     rows.append({"score": Path(name).name,
@@ -310,11 +319,12 @@ def main():
         "both_canonical_exact": sum(row["both_canonical_exact"] for row in eligible),
     }
     report = {
-        "contract_version": 3,
+        "contract_version": 4,
         "corpus": "MusicCogCompLab/BCMH@97dfc249b90a8739457d83a2702644173c7eb4a8",
         "archive_sha256": ARCHIVE_SHA256,
         "acorde_binary_sha256": hashlib.sha256(args.acorde.read_bytes()).hexdigest(),
         "music21_version": music21.__version__,
+        "arpeggiated_bars": args.arpeggiated_bars,
         "conditions": "same cleaned kern; independently estimated global keys; gold row beats derived directly from **kern reciprocal durations and matched to music21 pitched onsets",
         "summary": summary,
         "rows": rows,

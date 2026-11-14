@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "source_commit": "9c5f7004c5ab1f15d64e959d011dbdf3b7863c3e",
+  "selection_sha256": "c4e22d92f54def3c4e82bdae4a63e3cebb785bbc941ec47ffc341810e96ceef6",
+  "classification": "development annotations only; holdout CSVs not fetched",
+  "annotations": [
+    {
+      "id": "K279-1",
+      "path": "score_parts_annotated/kv279_1_spart_cadence.csv",
+      "git_blob": "617de3970b922de09594a4cffb3659a4a6b0c9ab",
+      "sha256": "a9fcc211076f5a327c914acd2be06bce6ac9a98646a06e768bac0d94d4a67b32"
+    },
+    {
+      "id": "K279-2",
+      "path": "score_parts_annotated/kv279_2_spart_cadence.csv",
+      "git_blob": "26ba01b0bf90059bc487b527780744bc26c2665f",
+      "sha256": "f4fec13df34c34e2389545386e5f39425f77849b738611d251a12ee9ac6963a5"
+    },
+    {
+      "id": "K279-3",
+      "path": "score_parts_annotated/kv279_3_spart_cadence.csv",
+      "git_blob": "93eb461324d6e36f6fcdbd03fd25716b3a2043fc",
+      "sha256": "b5afdfb9e564ff9882e1d5a1a9ac25cc635e152ad42afcedccfcbbcfbace6842"
+    },
+    {
+      "id": "K280-1",
+      "path": "score_parts_annotated/kv280_1_spart_cadence.csv",
+      "git_blob": "6d006dc9493486df049920d6cb3301e77e15d399",
+      "sha256": "316a90b53a3f5df03fb32eef3d29414ea108a6d799ca866cae766546e52f98ef"
+    },
+    {
+      "id": "K280-2",
+      "path": "score_parts_annotated/kv280_2_spart_cadence.csv",
+      "git_blob": "3d83f655405da2073f971a22646a6d427d702ea6",
+      "sha256": "c704489776800e190af952639d4cddcbce7f5d65aa5c476c20cfecc48389c961"
+    },
+    {
+      "id": "K280-3",
+      "path": "score_parts_annotated/kv280_3_spart_cadence.csv",
+      "git_blob": "b9f0307f0f9a0d67eda9030d2aca46768af30e4e",
+      "sha256": "225a37d4e07ca4105cbf940f54afc525493f87c724078a86198bb1df046b83ca"
+    },
+    {
+      "id": "K281-1",
+      "path": "score_parts_annotated/kv281_1_spart_cadence.csv",
+      "git_blob": "15bcf34dd0edc23e73f07ceb0435a17be651ab26",
+      "sha256": "e7396c3fbd2e77c3db538368dfd2d09d0769edadd4c215f64703cdbaf9e2e5a1"
+    },
+    {
+      "id": "K281-2",
+      "path": "score_parts_annotated/kv281_2_spart_cadence.csv",
+      "git_blob": "38103f976a95602e8143d2a6e868e30852498b57",
+      "sha256": "85158dfb24453d1ae2b912fb92d7ffdac38c2ad04900d5d89280d5cad3de88f1"
+    },
+    {
+      "id": "K281-3",
+      "path": "score_parts_annotated/kv281_3_spart_cadence.csv",
+      "git_blob": "2f64d2a25383f3422a9a11cf6de29d911e0b1efc",
+      "sha256": "aefbb03dfd7083ba470883be781db308ecd906fc8ccc1f74898c9d6a9ac51dd1"
+    },
+    {
+      "id": "K282-1",
+      "path": "score_parts_annotated/kv282_1_spart_cadence.csv",
+      "git_blob": "a140e8bc4f52e9ec8d2cafd468fce08a8e5c1321",
+      "sha256": "53394da0472fdc644580cc1abe94605f5c5f8468d68c8d37582d200745b4f159"
+    },
+    {
+      "id": "K282-2",
+      "path": "score_parts_annotated/kv282_2_spart_cadence.csv",
+      "git_blob": "22c8cd869a05fb05eb25a2bd9c16f4aa8b195f5e",
+      "sha256": "e68bd43852c731ca42b3bf734bd10d7f1889a360570cb11765cfc0db0a0ba155"
+    },
+    {
+      "id": "K282-3",
+      "path": "score_parts_annotated/kv282_3_spart_cadence.csv",
+      "git_blob": "f32dbab12e53f6544dcba78285d930823bab7081",
+      "sha256": "791645a185acdc63190b56351e02521a174bec169bda98e24a572c44b191c98e"
+    },
+    {
+      "id": "K283-1",
+      "path": "score_parts_annotated/kv283_1_spart_cadence.csv",
+      "git_blob": "534925b1830c90aaa671a22618579044eff150d5",
+      "sha256": "669ed80f4eab7c2c8a366b73a3d7b0235888a02ad12d42dc4a316f3e949d2027"
+    },
+    {
+      "id": "K283-2",
+      "path": "score_parts_annotated/kv283_2_spart_cadence.csv",
+      "git_blob": "cde0847ac14052cfd22fded5af07cd2c8592e364",
+      "sha256": "e575a65ceaff98abcae2ea8d8890665ddda9e896ef19af4ed8a0b0dc14bdffe7"
+    },
+    {
+      "id": "K283-3",
+      "path": "score_parts_annotated/kv283_3_spart_cadence.csv",
+      "git_blob": "4cc6f8be0a2e584579327804f59f5bda85210b33",
+      "sha256": "61e00172353c9374ea5c62657ad6859c02d5fca4ac825b994acf4b872596459f"
+    },
+    {
+      "id": "K284-1",
+      "path": "score_parts_annotated/kv284_1_spart_cadence.csv",
+      "git_blob": "3f4edc6f86e123cbc761cecbaba73dfe03880000",
+      "sha256": "7ff68ad7633243b04b0013ea5b5db28f4ee11a6d1388550c7e91e567c680a182"
+    },
+    {
+      "id": "K284-2",
+      "path": "score_parts_annotated/kv284_2_spart_cadence.csv",
+      "git_blob": "71e94c8b8dc0465e00a7d4f7bffdd4856701285d",
+      "sha256": "a865acb22881d2142da021b859d83d1dd7fc185fa11bc3910de5eb165dab2d15"
+    },
+    {
+      "id": "K284-3",
+      "path": "score_parts_annotated/kv284_3_spart_cadence.csv",
+      "git_blob": "887ea1e4e85d21d873ce62740edc3bffd14ceaf3",
+      "sha256": "374e733df6ac721dc339899210b62f226f30882d64c83ef0de0282ce8e37e571"
+    }
+  ]
+}

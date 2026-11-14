@@ -128,6 +128,94 @@ and expressive playback before a broader claim.
 
 ### 3. Music analysis: music21 10.5.2
 
+The [source-positioned evaluation contract](docs/analysis-evaluation.md) now
+checks labels and locations rather than category counts, and records parse
+failures separately. The saved Beethoven global-key comparison has an adapter
+that reproduces its 57/64 versus 56/64 counts as development evidence. Other
+task adapters, frozen untouched holdouts, and the analysis improvements below
+are still required before a parity or
+superiority claim.
+
+The [current development candidate](docs/archive/analysis-wir-harmony-development-v5.md)
+uses opt-in bar-arpeggio and short forward-completion rules. On the inspected
+BCMH corpus it matches 2,193 of 4,627 aligned Roman labels versus music21
+10.5.2's 2,073; 208 labeled rows in 75 measures remain excluded. On two
+inspected 12-work When in Rome cohorts it matches 366 versus 348 of 1,159,
+and 399 versus 394 of 2,246. The second cohort's original
+[frozen evaluation](docs/archive/analysis-wir-harmony-holdout-2-v1.md) failed
+at 348 versus 394; it became development data before further tuning.
+
+The disjoint [third 12-work holdout](docs/archive/analysis-wir-harmony-holdout-3-v1.md)
+was fixed before its gold labels were scored. Both programs parsed every
+answer-free input. At 2,341 aligned primary RomanText positions, Acorde
+matched 559 figures and music21 508, with exact-position precision of 39.5%
+versus 21.8%. It passes the preregistered aggregate harmony gate for this
+specific task and candidate. Six of the 12 works favor Acorde. Other analysis
+tasks, local-key handling, and broader styles still need independent evidence
+before a claim that the library surpasses music21 in music analysis overall.
+
+Next analysis gates, in order:
+
+1. Freeze a new global-key holdout across chorales, keyboard music, and chamber
+   works, with common input hashes and independent annotations. The Beethoven
+   57/64 versus 56/64 result is one genre-specific observation; record
+   per-genre accuracy and parsing exclusions before changing the key ranker.
+2. Add local-key and modulation positions to the harmony contract. Preserve
+   absolute score addresses, compare both tools against human annotations,
+   and measure coverage as well as exact labels. The current Roman-position
+   win does not test local-key transitions.
+3. Build a cadence task from independently annotated scores. The
+   [Mozart cadence input preflight](docs/archive/analysis-mozart-cadence-preflight-v1.md)
+   freezes 36 MusicXML/cadence-CSV movement pairs from the
+   [score-aligned Batik corpus](https://github.com/huispaty/batik_plays_mozart),
+   split by complete sonata into 18 development and 18 reserved movements.
+   Both parsers accept all 36 answer-free inputs; their pitched timelines
+   disagree in six of 5,142 measures, which are recorded for exclusion before
+   reserved labels are read. Those cadence CSVs remain unread. A development
+   CSV confirms that performance repeats duplicate
+   annotated note IDs, so the evaluator must fold those positions explicitly.
+   Define how annotated cadence classes map to Acorde candidates and a pinned
+   music21 recipe; count false positives at eligible positions. The current
+   `analyze_cadences` only recognizes adjacent Roman transitions within a
+   voice. On the inspected 18-movement development split it matches just
+   7/333 cadence positions, with 122 false positives. Improve the musical
+   model before a held-out cadence comparison.
+4. For voice leading, define a shared set of two-voice note quartets with exact
+   pitches, onset, and duration. Compare located parallel fifths/octaves,
+   contrary/similar motion, and resolution checks with pinned music21
+   [`VoiceLeadingQuartet`](https://music21.org/music21docs/moduleReference/moduleVoiceLeading.html)
+   semantics on the same quartets. Include cross-bar and
+   nonadjacent voice pairs; the current pass covers adjacent voices within one
+   measure. Use separately reviewed cases for correctness, not agreement alone.
+5. Run a final untouched, multi-style suite for each task after algorithm
+   changes stop. Require no lower import coverage and report both aggregate
+   and per-work results; a single aggregate lead cannot establish broad
+   superiority. Keep reproducible Rust, CLI, and WASM outputs with source
+   addresses, rule IDs, and enough evidence to audit every prediction.
+
+The first shared written-onset traversal now feeds vertical sonorities,
+adjacent-voice motion and SATB crossing/spacing within each physical measure.
+It fixes index-paired observations when voices have different note durations.
+Vertical-sonority reports now flag missing or unequal physical bars, invalid
+note durations and overfull voices, and omit affected measures from inference.
+Ties with a matching start at the same absolute beat and sounding pitch now
+suppress duplicate harmonic attacks across voices and staves within a part;
+explicit predecessor locations are checked. New members of a partly tied
+chord still trigger an attack.
+Vertical harmony now converts common transposing instruments to concert pitch,
+including measure-local instrument changes. On equal physical bars, explicit
+written key signatures on transposing staves are converted to concert key;
+Roman numerals are emitted only when contributing staves agree or the caller
+supplies a concert key.
+Equal-total scores with different physical bar partitions now align on
+absolute written beats; source addresses retain their own measure indices.
+The absolute-timeline pass also resolves concert keys from active staves at
+each onset, and suppresses Roman numerals when their keys conflict. Remaining
+time-axis work includes incomplete or contradictory part timelines, ambiguous
+or repeat/jump partial ties, authored chord-symbol transposition and
+diagnostics for additional timing ambiguities. This is a partial Stage 2
+implementation.
+
 The [BCMH global-key baseline](docs/archive/analysis-bcmh-key-baseline.md)
 has 82 chorales with explicit labels, equal imported note/chord event counts
 and successful parses in both tools: music21 selected 76 correct keys, while

@@ -1707,7 +1707,7 @@ fn transpose_pitch(pitch: &Pitch, semitones: i8) -> Pitch {
 /// Uses the circle-of-fifths arithmetic:
 /// - `tonic_pc = (fifths * 7) mod 12`  (for major; minor adds 9 to get relative major tonic)
 /// - `new_fifths = (new_tonic_pc * 7) mod 12`, adjusted to `[-7, 7]`
-fn transpose_fifths(fifths: i8, mode: &str, semitones: i8) -> i8 {
+pub fn transpose_fifths(fifths: i8, mode: &str, semitones: i8) -> i8 {
     if semitones % 12 == 0 {
         return fifths;
     }

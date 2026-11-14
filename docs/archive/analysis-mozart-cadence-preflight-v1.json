@@ -1,0 +1,425 @@
+{
+  "schema_version": 1,
+  "classification": "input-only preflight; no cadence annotations read",
+  "source_commit": "9c5f7004c5ab1f15d64e959d011dbdf3b7863c3e",
+  "selection_sha256": "c4e22d92f54def3c4e82bdae4a63e3cebb785bbc941ec47ffc341810e96ceef6",
+  "prepared_inputs_sha256": "2a651264e34d6ff55540b198bcb00dda2266cd9e798da4dabf2d32769f0a13f5",
+  "acorde_binary_sha256": "57ddd1d3c536cf89a8b26b145992b734b6dbe0b835f1382ff3565a3b0ebebb24",
+  "music21_version": "10.5.2",
+  "summary": {
+    "cases": 36,
+    "acorde_parsed": 36,
+    "music21_parsed": 36,
+    "equal_timeline_cases": 32,
+    "compared_measures": 5142,
+    "unequal_timeline_measures": 6
+  },
+  "cases": [
+    {
+      "id": "K279-1",
+      "split": "development",
+      "input_sha256": "f8addb674c44de7638f8f1676d19e2808350e78d014edbf854ed460bca93fc85",
+      "acorde_parsed": true,
+      "acorde_error": null,
+      "music21_parsed": true,
+      "music21_error": null,
+      "total_measures": 100,
+      "unequal_timeline_measures": []
+    },
+    {
+      "id": "K279-2",
+      "split": "development",
+      "input_sha256": "97cf19034032e7bd47e490f58ba2721010cbdd440173e1b9867617320cf07502",
+      "acorde_parsed": true,
+      "acorde_error": null,
+      "music21_parsed": true,
+      "music21_error": null,
+      "total_measures": 76,
+      "unequal_timeline_measures": []
+    },
+    {
+      "id": "K279-3",
+      "split": "development",
+      "input_sha256": "2eff60a22fd694db49a600c716ef20b039b66d862c74f608a4052a2f3fe72fec",
+      "acorde_parsed": true,
+      "acorde_error": null,
+      "music21_parsed": true,
+      "music21_error": null,
+      "total_measures": 160,
+      "unequal_timeline_measures": [
+        79
+      ]
+    },
+    {
+      "id": "K280-1",
+      "split": "development",
+      "input_sha256": "8cd09be7ab2f31214ca5fbc2b3300ce47893684ec75341868db9509171c6a827",
+      "acorde_parsed": true,
+      "acorde_error": null,
+      "music21_parsed": true,
+      "music21_error": null,
+      "total_measures": 144,
+      "unequal_timeline_measures": []
+    },
+    {
+      "id": "K280-2",
+      "split": "development",
+      "input_sha256": "5a81d90fda000a19121a7804422072798197822db8e34d04abe04aa62d888dfb",
+      "acorde_parsed": true,
+      "acorde_error": null,
+      "music21_parsed": true,
+      "music21_error": null,
+      "total_measures": 60,
+      "unequal_timeline_measures": []
+    },
+    {
+      "id": "K280-3",
+      "split": "development",
+      "input_sha256": "641b976ace2f47f6ccf4a3a6acf9e36890c8d9e315d8313bfb9961e992870380",
+      "acorde_parsed": true,
+      "acorde_error": null,
+      "music21_parsed": true,
+      "music21_error": null,
+      "total_measures": 192,
+      "unequal_timeline_measures": []
+    },
+    {
+      "id": "K281-1",
+      "split": "development",
+      "input_sha256": "913f01ebb40b633d5f2d599dafb01ffed30724d4470e8534d456c172a4f509ec",
+      "acorde_parsed": true,
+      "acorde_error": null,
+      "music21_parsed": true,
+      "music21_error": null,
+      "total_measures": 109,
+      "unequal_timeline_measures": []
+    },
+    {
+      "id": "K281-2",
+      "split": "development",
+      "input_sha256": "a2d727e073aabd9103788a8149fbe60cf0daf8a21421242a9fcd07fe21a9dcee",
+      "acorde_parsed": true,
+      "acorde_error": null,
+      "music21_parsed": true,
+      "music21_error": null,
+      "total_measures": 106,
+      "unequal_timeline_measures": []
+    },
+    {
+      "id": "K281-3",
+      "split": "development",
+      "input_sha256": "7c547b17f0baf371b4846a58e58c50faf97316b01aaa4772dafe6c17394f1919",
+      "acorde_parsed": true,
+      "acorde_error": null,
+      "music21_parsed": true,
+      "music21_error": null,
+      "total_measures": 163,
+      "unequal_timeline_measures": []
+    },
+    {
+      "id": "K282-1",
+      "split": "development",
+      "input_sha256": "d12f8fbc801f1649e9659e232b848a70e6860dcbd75206e21a816a68366a349b",
+      "acorde_parsed": true,
+      "acorde_error": null,
+      "music21_parsed": true,
+      "music21_error": null,
+      "total_measures": 36,
+      "unequal_timeline_measures": []
+    },
+    {
+      "id": "K282-2",
+      "split": "development",
+      "input_sha256": "313f0ab2c6100364b740702be38c94b2a99dbeea40dab78eb3da4b153372b60e",
+      "acorde_parsed": true,
+      "acorde_error": null,
+      "music21_parsed": true,
+      "music21_error": null,
+      "total_measures": 76,
+      "unequal_timeline_measures": []
+    },
+    {
+      "id": "K282-3",
+      "split": "development",
+      "input_sha256": "03f788b1945350051ce1c84c458717a65fc20ece8aaf0951ff5c785bc7919688",
+      "acorde_parsed": true,
+      "acorde_error": null,
+      "music21_parsed": true,
+      "music21_error": null,
+      "total_measures": 104,
+      "unequal_timeline_measures": []
+    },
+    {
+      "id": "K283-1",
+      "split": "development",
+      "input_sha256": "c59c0b2dfbc562df33355decff90b73b8e8a3ebfcb447a6b57c815f5660652f2",
+      "acorde_parsed": true,
+      "acorde_error": null,
+      "music21_parsed": true,
+      "music21_error": null,
+      "total_measures": 122,
+      "unequal_timeline_measures": []
+    },
+    {
+      "id": "K283-2",
+      "split": "development",
+      "input_sha256": "a0690bf77a093c4722a53fef5c62c6f70ee226acdd132e99e8222645fb371b2f",
+      "acorde_parsed": true,
+      "acorde_error": null,
+      "music21_parsed": true,
+      "music21_error": null,
+      "total_measures": 41,
+      "unequal_timeline_measures": []
+    },
+    {
+      "id": "K283-3",
+      "split": "development",
+      "input_sha256": "bb4bdd81c7fa01eb31fcb1a2b9c780a2f20eadb44a28c4b45c6d0e7149097287",
+      "acorde_parsed": true,
+      "acorde_error": null,
+      "music21_parsed": true,
+      "music21_error": null,
+      "total_measures": 277,
+      "unequal_timeline_measures": []
+    },
+    {
+      "id": "K284-1",
+      "split": "development",
+      "input_sha256": "ee84c40d01f800d6f04a41efee08e5a1e96218f6ca68e8830c793f99a97f9eed",
+      "acorde_parsed": true,
+      "acorde_error": null,
+      "music21_parsed": true,
+      "music21_error": null,
+      "total_measures": 127,
+      "unequal_timeline_measures": []
+    },
+    {
+      "id": "K284-2",
+      "split": "development",
+      "input_sha256": "86766da16f906719d69ddf8baa4a34d93d5924ec9b7213a09ff4d86f08066669",
+      "acorde_parsed": true,
+      "acorde_error": null,
+      "music21_parsed": true,
+      "music21_error": null,
+      "total_measures": 92,
+      "unequal_timeline_measures": []
+    },
+    {
+      "id": "K284-3",
+      "split": "development",
+      "input_sha256": "0d771148cfcb31dacaae70ae64dd2c3da78ed06ab08b957a77a6c2a5bc26610e",
+      "acorde_parsed": true,
+      "acorde_error": null,
+      "music21_parsed": true,
+      "music21_error": null,
+      "total_measures": 287,
+      "unequal_timeline_measures": []
+    },
+    {
+      "id": "K330-1",
+      "split": "holdout",
+      "input_sha256": "ad532005a269c993d528f8eb0974d5ef6aea3fb067b3f16d3374325a3d19b343",
+      "acorde_parsed": true,
+      "acorde_error": null,
+      "music21_parsed": true,
+      "music21_error": null,
+      "total_measures": 150,
+      "unequal_timeline_measures": []
+    },
+    {
+      "id": "K330-2",
+      "split": "holdout",
+      "input_sha256": "3768be7593bcb8a2dab34053cb44ec656149234ad160e5800fa794b579790132",
+      "acorde_parsed": true,
+      "acorde_error": null,
+      "music21_parsed": true,
+      "music21_error": null,
+      "total_measures": 70,
+      "unequal_timeline_measures": []
+    },
+    {
+      "id": "K330-3",
+      "split": "holdout",
+      "input_sha256": "67755ce3acfa8aa97776e1c8099749c2d68b69cb0d2bd3917dde862b2b61c73a",
+      "acorde_parsed": true,
+      "acorde_error": null,
+      "music21_parsed": true,
+      "music21_error": null,
+      "total_measures": 171,
+      "unequal_timeline_measures": []
+    },
+    {
+      "id": "K331-1",
+      "split": "holdout",
+      "input_sha256": "bf69b282bc593f45d8e9590936a755f63455cce47c588a4054ed7571b5964ceb",
+      "acorde_parsed": true,
+      "acorde_error": null,
+      "music21_parsed": true,
+      "music21_error": null,
+      "total_measures": 137,
+      "unequal_timeline_measures": []
+    },
+    {
+      "id": "K331-2",
+      "split": "holdout",
+      "input_sha256": "4f40ab3017729cbd64400ed408418c645091591a212ff0da76877e8dd4796922",
+      "acorde_parsed": true,
+      "acorde_error": null,
+      "music21_parsed": true,
+      "music21_error": null,
+      "total_measures": 101,
+      "unequal_timeline_measures": []
+    },
+    {
+      "id": "K331-3",
+      "split": "holdout",
+      "input_sha256": "6e6a8d4d95b82f7a62f635dfd62c82671c87dd158233c74d4a0aff8e35996551",
+      "acorde_parsed": true,
+      "acorde_error": null,
+      "music21_parsed": true,
+      "music21_error": null,
+      "total_measures": 137,
+      "unequal_timeline_measures": []
+    },
+    {
+      "id": "K332-1",
+      "split": "holdout",
+      "input_sha256": "a1226cb2bc4acacbd5d641828449e1b2c27c316529463ecc4b709a500b278786",
+      "acorde_parsed": true,
+      "acorde_error": null,
+      "music21_parsed": true,
+      "music21_error": null,
+      "total_measures": 229,
+      "unequal_timeline_measures": [
+        71
+      ]
+    },
+    {
+      "id": "K332-2",
+      "split": "holdout",
+      "input_sha256": "fddffeccaf1d27eac6953e3fd27ce733e67f383ce74c1a3d7c7947242e04cc43",
+      "acorde_parsed": true,
+      "acorde_error": null,
+      "music21_parsed": true,
+      "music21_error": null,
+      "total_measures": 40,
+      "unequal_timeline_measures": []
+    },
+    {
+      "id": "K332-3",
+      "split": "holdout",
+      "input_sha256": "b14ea3c8878f9eaf1ee43bfaf58fb340b7ce4b6fa538655b1b4d1ced2fcbf2fc",
+      "acorde_parsed": true,
+      "acorde_error": null,
+      "music21_parsed": true,
+      "music21_error": null,
+      "total_measures": 245,
+      "unequal_timeline_measures": []
+    },
+    {
+      "id": "K333-1",
+      "split": "holdout",
+      "input_sha256": "b992618d7ef93b3e8f2c6a8ed00c01a91a66ee7bf6c3e3cfbbab018f3d508e3b",
+      "acorde_parsed": true,
+      "acorde_error": null,
+      "music21_parsed": true,
+      "music21_error": null,
+      "total_measures": 167,
+      "unequal_timeline_measures": []
+    },
+    {
+      "id": "K333-2",
+      "split": "holdout",
+      "input_sha256": "7e515bc20e5399b1a4405433cd08562d7cd93343b7a3a233b9c0c27424812746",
+      "acorde_parsed": true,
+      "acorde_error": null,
+      "music21_parsed": true,
+      "music21_error": null,
+      "total_measures": 83,
+      "unequal_timeline_measures": []
+    },
+    {
+      "id": "K333-3",
+      "split": "holdout",
+      "input_sha256": "006a90c0b378304c6c87f84c48c5864f568a5bea9c02d51e6e590a94a772471f",
+      "acorde_parsed": true,
+      "acorde_error": null,
+      "music21_parsed": true,
+      "music21_error": null,
+      "total_measures": 227,
+      "unequal_timeline_measures": []
+    },
+    {
+      "id": "K457-1",
+      "split": "holdout",
+      "input_sha256": "fdab20292f5e00d35e4b54fd60ca41171413092dc0f1c981409364e29dc87421",
+      "acorde_parsed": true,
+      "acorde_error": null,
+      "music21_parsed": true,
+      "music21_error": null,
+      "total_measures": 185,
+      "unequal_timeline_measures": []
+    },
+    {
+      "id": "K457-2",
+      "split": "holdout",
+      "input_sha256": "38ad7f7497072ab83fe4ca2f016e6a4af917b5ab33f5550dd89f93f277dc36e5",
+      "acorde_parsed": true,
+      "acorde_error": null,
+      "music21_parsed": true,
+      "music21_error": null,
+      "total_measures": 57,
+      "unequal_timeline_measures": []
+    },
+    {
+      "id": "K457-3",
+      "split": "holdout",
+      "input_sha256": "ab5db21cd298c71468978adb403e23e55bf5d31f70d953726a3c7bba9d55ba10",
+      "acorde_parsed": true,
+      "acorde_error": null,
+      "music21_parsed": true,
+      "music21_error": null,
+      "total_measures": 320,
+      "unequal_timeline_measures": []
+    },
+    {
+      "id": "K533-1",
+      "split": "holdout",
+      "input_sha256": "8b376e4367ae93fa377fafd79fb26732d1d934535eb7acef0f36bc615ed59b27",
+      "acorde_parsed": true,
+      "acorde_error": null,
+      "music21_parsed": true,
+      "music21_error": null,
+      "total_measures": 241,
+      "unequal_timeline_measures": [
+        45,
+        168,
+        173
+      ]
+    },
+    {
+      "id": "K533-2",
+      "split": "holdout",
+      "input_sha256": "2cc886f8811f4b88ab9d8ee08a29438e63edc9ee66248383a8274c0cd7398190",
+      "acorde_parsed": true,
+      "acorde_error": null,
+      "music21_parsed": true,
+      "music21_error": null,
+      "total_measures": 122,
+      "unequal_timeline_measures": [
+        53
+      ]
+    },
+    {
+      "id": "K533-3",
+      "split": "holdout",
+      "input_sha256": "5ad32caf14fcf0de883ba812f197c71af2521a2048d0d9aa646e69acf69cb19c",
+      "acorde_parsed": true,
+      "acorde_error": null,
+      "music21_parsed": true,
+      "music21_error": null,
+      "total_measures": 188,
+      "unequal_timeline_measures": []
+    }
+  ]
+}

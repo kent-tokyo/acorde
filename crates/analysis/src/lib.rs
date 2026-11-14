@@ -1,15 +1,15 @@
 //! Deterministic, explainable music analysis over [`acorde_core::Score`].
 
 use acorde_core::{
-    ChangeHint, ChordSymbol, KeySignature, NoteAddr, Pitch, Score, detect_chord, roman_numeral,
-    roman_numeral_figured,
+    ChangeHint, ChordSymbol, KeySignature, NoteAddr, Pitch, Score, Step, detect_chord,
+    roman_numeral, roman_numeral_figured, transpose_fifths,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use thiserror::Error;
 
 /// Version of the serialized analysis result contract.
-pub const ANALYSIS_SCHEMA_VERSION: u32 = 13;
+pub const ANALYSIS_SCHEMA_VERSION: u32 = 14;
 
 /// A chord label with source evidence and the rule that produced it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -686,25 +686,522 @@ fn analyze_chords_only(score: &Score) -> Vec<ChordLabel> {
 /// One chord heard at a written beat, using notes active across all parts and voices.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct VerticalSonority {
+    /// Physical measure in the first available staff. For unequal but
+    /// time-aligned bar partitions, this is the reference coordinate rather
+    /// than the measure containing `label.address`.
     pub measure: usize,
+    /// Beat from the start of that reference measure.
     pub beat: f64,
     pub label: ChordLabel,
 }
 
-struct SoundingPitchEvent {
+/// A part/staff whose physical bar cannot safely be aligned with the others.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct VerticalTimelineIssue {
+    pub measure: usize,
+    pub part: usize,
+    pub staff: usize,
+    pub kind: VerticalTimelineIssueKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum VerticalTimelineIssueKind {
+    MissingMeasure,
+    DifferentStart,
+    DifferentLength,
+    InvalidLength,
+    InvalidNoteDuration,
+    OverfullVoice,
+    UnrepresentableConcertPitch,
+}
+
+/// Sonorities and physical-bar alignment diagnostics in source order.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct VerticalAnalysisReport {
+    pub sonorities: Vec<VerticalSonority>,
+    pub timeline_issues: Vec<VerticalTimelineIssue>,
+}
+
+fn vertical_measure_starts(score: &Score) -> Vec<Vec<Vec<f64>>> {
+    score
+        .parts
+        .iter()
+        .map(|part| {
+            part.staves
+                .iter()
+                .map(|staff| {
+                    let mut start = 0.0;
+                    (0..staff.measures.len())
+                        .map(|index| {
+                            let current = start;
+                            start += staff.measure_beats(index, &score.settings.time_signature);
+                            current
+                        })
+                        .collect()
+                })
+                .collect()
+        })
+        .collect()
+}
+
+fn vertical_measure_alignment_issues(
+    score: &Score,
+    starts: &[Vec<Vec<f64>>],
+    measure_index: usize,
+) -> Vec<VerticalTimelineIssue> {
+    const EPSILON: f64 = 1e-7;
+    let mut reference: Option<(f64, f64)> = None;
+    let mut issues = Vec::new();
+    for (part_index, part) in score.parts.iter().enumerate() {
+        for (staff_index, staff) in part.staves.iter().enumerate() {
+            let Some(measure) = staff.measures.get(measure_index) else {
+                issues.push(VerticalTimelineIssue {
+                    measure: measure_index,
+                    part: part_index,
+                    staff: staff_index,
+                    kind: VerticalTimelineIssueKind::MissingMeasure,
+                });
+                continue;
+            };
+            let start = starts[part_index][staff_index][measure_index];
+            let length = staff.measure_beats(measure_index, &score.settings.time_signature);
+            if !start.is_finite()
+                || !length.is_finite()
+                || length <= 0.0
+                || measure
+                    .actual_length
+                    .is_some_and(|value| value.beats().is_none())
+            {
+                issues.push(VerticalTimelineIssue {
+                    measure: measure_index,
+                    part: part_index,
+                    staff: staff_index,
+                    kind: VerticalTimelineIssueKind::InvalidLength,
+                });
+                continue;
+            }
+            for voice in &measure.voices {
+                let mut elapsed = 0.0;
+                let mut invalid = false;
+                for note in voice {
+                    let duration = if voice.len() == 1 && note.is_plain_whole_rest() {
+                        length
+                    } else {
+                        note.beats()
+                    };
+                    if !duration.is_finite() || duration < 0.0 {
+                        issues.push(VerticalTimelineIssue {
+                            measure: measure_index,
+                            part: part_index,
+                            staff: staff_index,
+                            kind: VerticalTimelineIssueKind::InvalidNoteDuration,
+                        });
+                        invalid = true;
+                        break;
+                    }
+                    elapsed += duration;
+                }
+                if !invalid && elapsed > length + EPSILON {
+                    issues.push(VerticalTimelineIssue {
+                        measure: measure_index,
+                        part: part_index,
+                        staff: staff_index,
+                        kind: VerticalTimelineIssueKind::OverfullVoice,
+                    });
+                }
+            }
+            if let Some((reference_start, reference_length)) = reference {
+                if (start - reference_start).abs() > EPSILON {
+                    issues.push(VerticalTimelineIssue {
+                        measure: measure_index,
+                        part: part_index,
+                        staff: staff_index,
+                        kind: VerticalTimelineIssueKind::DifferentStart,
+                    });
+                }
+                if (length - reference_length).abs() > EPSILON {
+                    issues.push(VerticalTimelineIssue {
+                        measure: measure_index,
+                        part: part_index,
+                        staff: staff_index,
+                        kind: VerticalTimelineIssueKind::DifferentLength,
+                    });
+                }
+            } else {
+                reference = Some((start, length));
+            }
+        }
+    }
+    issues
+}
+
+struct WrittenEvent<'a> {
     start: f64,
     end: f64,
     address: NoteAddr,
-    pitches: Vec<Pitch>,
+    note: &'a acorde_core::Note,
+}
+
+/// Shared written-position traversal for analysis passes within one physical bar.
+/// A lone plain whole rest occupies the actual bar length, including a pickup.
+fn written_measure_events(score: &Score, measure_index: usize) -> Vec<WrittenEvent<'_>> {
+    let mut events = Vec::new();
+    for (part_index, part) in score.parts.iter().enumerate() {
+        for staff_index in 0..part.staves.len() {
+            events.extend(written_staff_measure_events(
+                score,
+                part_index,
+                staff_index,
+                measure_index,
+            ));
+        }
+    }
+    events
+}
+
+fn written_staff_measure_events(
+    score: &Score,
+    part_index: usize,
+    staff_index: usize,
+    measure_index: usize,
+) -> Vec<WrittenEvent<'_>> {
+    let Some(staff) = score
+        .parts
+        .get(part_index)
+        .and_then(|part| part.staves.get(staff_index))
+    else {
+        return Vec::new();
+    };
+    let Some(measure) = staff.measures.get(measure_index) else {
+        return Vec::new();
+    };
+    let bar_beats = staff.measure_beats(measure_index, &score.settings.time_signature);
+    let mut events = Vec::new();
+    for (voice_index, voice) in measure.voices.iter().enumerate() {
+        let mut beat = 0.0;
+        for (note_index, note) in voice.iter().enumerate() {
+            let duration = if voice.len() == 1 && note.is_plain_whole_rest() {
+                bar_beats
+            } else {
+                note.beats()
+            };
+            if !duration.is_finite() || duration < 0.0 {
+                continue;
+            }
+            events.push(WrittenEvent {
+                start: beat,
+                end: beat + duration,
+                address: NoteAddr {
+                    part: part_index,
+                    staff: staff_index,
+                    measure: measure_index,
+                    voice: voice_index,
+                    note: note_index,
+                },
+                note,
+            });
+            beat += duration;
+        }
+    }
+    events
+}
+
+fn sounding_transpose(score: &Score, address: &NoteAddr) -> Option<i8> {
+    let part = score.parts.get(address.part)?;
+    let staff = part.staves.get(address.staff)?;
+    let measure = staff.measures.get(address.measure)?;
+    let instrument = measure
+        .instrument_change
+        .as_ref()
+        .or(part.instrument.as_ref());
+    let channel = instrument.map_or(part.midi_channel, |value| value.midi_channel);
+    Some(if channel == 9 {
+        0
+    } else {
+        staff
+            .transpose_semitones
+            .saturating_add(instrument.map_or(0, |value| value.transpose_semitones))
+    })
+}
+
+fn concert_key_at_measure(
+    score: &Score,
+    part_index: usize,
+    staff_index: usize,
+    measure_index: usize,
+) -> Option<KeySignature> {
+    let staff = score.parts.get(part_index)?.staves.get(staff_index)?;
+    let measure = staff.measures.get(measure_index)?;
+    let address = NoteAddr {
+        part: part_index,
+        staff: staff_index,
+        measure: measure_index,
+        voice: 0,
+        note: 0,
+    };
+    let semitones = sounding_transpose(score, &address)?;
+    if measure.key_sig.is_none()
+        && let Some(previous_index) = measure_index.checked_sub(1)
+        && sounding_transpose(
+            score,
+            &NoteAddr {
+                measure: previous_index,
+                ..address.clone()
+            },
+        ) != Some(semitones)
+    {
+        return None;
+    }
+    let explicit = staff
+        .measures
+        .iter()
+        .take(measure_index + 1)
+        .rev()
+        .find_map(|measure| measure.key_sig.as_ref());
+    // A global score key is not enough to tell whether a transposing staff's
+    // written key has already been converted to concert pitch.
+    let written = if semitones == 0 {
+        explicit.unwrap_or(&score.settings.key_signature)
+    } else {
+        explicit?
+    };
+    Some(KeySignature {
+        fifths: transpose_fifths(written.fifths, &written.mode, semitones),
+        mode: written.mode.clone(),
+    })
+}
+
+fn agreed_concert_key_at_measure(score: &Score, measure_index: usize) -> Option<KeySignature> {
+    let mut agreed: Option<KeySignature> = None;
+    for (part_index, part) in score.parts.iter().enumerate() {
+        for (staff_index, staff) in part.staves.iter().enumerate() {
+            let measure = staff.measures.get(measure_index)?;
+            let contributes = measure.voices.iter().flatten().any(|note| {
+                (!note.is_rest && !note.is_unpitched && !note.pitches.is_empty())
+                    || note.chord_symbol.is_some()
+            });
+            if !contributes {
+                continue;
+            }
+            let candidate = concert_key_at_measure(score, part_index, staff_index, measure_index)?;
+            if let Some(previous) = &agreed
+                && previous != &candidate
+            {
+                return None;
+            }
+            agreed = Some(candidate);
+        }
+    }
+    agreed
+}
+
+fn agreed_concert_key_for_addresses<'a>(
+    score: &Score,
+    addresses: impl IntoIterator<Item = &'a NoteAddr>,
+) -> Option<KeySignature> {
+    let mut agreed: Option<KeySignature> = None;
+    for address in addresses {
+        let candidate =
+            concert_key_at_measure(score, address.part, address.staff, address.measure)?;
+        if agreed
+            .as_ref()
+            .is_some_and(|previous| previous != &candidate)
+        {
+            return None;
+        }
+        agreed = Some(candidate);
+    }
+    agreed
+}
+
+struct TieStartCandidate {
+    address: NoteAddr,
+    within_measure_start: f64,
+    absolute_end: f64,
+}
+
+type TieStartIndex = HashMap<(usize, i32), Vec<TieStartCandidate>>;
+
+fn tie_start_index(score: &Score, starts: &[Vec<Vec<f64>>]) -> TieStartIndex {
+    const EPSILON: f64 = 1e-7;
+    let mut index: TieStartIndex = HashMap::new();
+    for (part_index, part) in score.parts.iter().enumerate() {
+        for (staff_index, staff) in part.staves.iter().enumerate() {
+            for (measure_index, &measure_start) in
+                starts[part_index][staff_index].iter().enumerate()
+            {
+                let bar_length = staff.measure_beats(measure_index, &score.settings.time_signature);
+                for event in
+                    written_staff_measure_events(score, part_index, staff_index, measure_index)
+                {
+                    if event.note.is_rest
+                        || event.note.is_unpitched
+                        || event.end - event.start <= EPSILON
+                        || event.end > bar_length + EPSILON
+                        || !measure_start.is_finite()
+                    {
+                        continue;
+                    }
+                    let Some(transpose) = sounding_transpose(score, &event.address) else {
+                        continue;
+                    };
+                    for (pitch_index, pitch) in event.note.pitches.iter().enumerate() {
+                        if event.note.pitch_tie_start(pitch_index) {
+                            let cents = pitch.to_midi_cents() + i32::from(transpose) * 100;
+                            index
+                                .entry((part_index, cents))
+                                .or_default()
+                                .push(TieStartCandidate {
+                                    address: event.address.clone(),
+                                    within_measure_start: event.start,
+                                    absolute_end: measure_start + event.end,
+                                });
+                        }
+                    }
+                }
+            }
+        }
+    }
+    index
+}
+
+/// A continuation needs a matching tie start in the same part at the same
+/// absolute beat and sounding pitch. It may cross voices or staves. If the
+/// source explicitly identifies its predecessor, that location must match.
+fn is_tied_continuation(
+    score: &Score,
+    event: &WrittenEvent<'_>,
+    pitch_index: usize,
+    starts: &[Vec<Vec<f64>>],
+    tie_starts: &TieStartIndex,
+) -> bool {
+    const EPSILON: f64 = 1e-7;
+    if !event.note.pitch_tie_end(pitch_index) {
+        return false;
+    }
+    let Some(pitch) = event.note.pitches.get(pitch_index) else {
+        return false;
+    };
+    let Some(transpose) = sounding_transpose(score, &event.address) else {
+        return false;
+    };
+    let Some(&measure_start) = starts
+        .get(event.address.part)
+        .and_then(|part| part.get(event.address.staff))
+        .and_then(|staff| staff.get(event.address.measure))
+    else {
+        return false;
+    };
+    let absolute_start = measure_start + event.start;
+    if !absolute_start.is_finite() {
+        return false;
+    }
+    let cents = pitch.to_midi_cents() + i32::from(transpose) * 100;
+    let explicit_source = event
+        .note
+        .pitch_tie_sources
+        .get(pitch_index)
+        .and_then(Option::as_ref);
+    tie_starts
+        .get(&(event.address.part, cents))
+        .is_some_and(|candidates| {
+            candidates.iter().any(|candidate| {
+                (candidate.absolute_end - absolute_start).abs() < EPSILON
+                    && explicit_source.is_none_or(|source| {
+                        source.matches(
+                            &event.address,
+                            &candidate.address,
+                            candidate.within_measure_start - event.start,
+                        )
+                    })
+            })
+        })
+}
+
+fn has_new_pitched_attack(
+    score: &Score,
+    event: &WrittenEvent<'_>,
+    starts: &[Vec<Vec<f64>>],
+    tie_starts: &TieStartIndex,
+) -> bool {
+    event
+        .note
+        .pitches
+        .iter()
+        .enumerate()
+        .any(|(index, _)| !is_tied_continuation(score, event, index, starts, tie_starts))
+}
+
+/// Use the same written-to-sounding semitone offsets as playback. The
+/// original spelling is retained when there is no transposition; otherwise
+/// enharmonic spelling follows the concert key used for this analysis pass.
+fn concert_pitch(
+    score: &Score,
+    event: &WrittenEvent<'_>,
+    pitch: &Pitch,
+    key: &KeySignature,
+) -> Option<Pitch> {
+    let semitones = sounding_transpose(score, &event.address)?;
+    if semitones == 0 {
+        return Some(pitch.clone());
+    }
+    let base =
+        (pitch.to_midi_cents() - i32::from(pitch.microtone_cents)) / 100 + i32::from(semitones);
+    let step_index = match pitch.step {
+        Step::C => 0,
+        Step::D => 1,
+        Step::E => 2,
+        Step::F => 3,
+        Step::G => 4,
+        Step::A => 5,
+        Step::B => 6,
+    };
+    // Diatonic interval for the chromatic shift. For example, -2 is a major
+    // second down and -9 is a major sixth down, preserving C -> Eb for an
+    // E-flat instrument even when the global key has no flats.
+    const DIATONIC_STEPS: [i32; 12] = [0, 0, 1, 2, 2, 3, 3, 4, 5, 5, 6, 6];
+    let shift =
+        semitones.div_euclid(12) as i32 * 7 + DIATONIC_STEPS[semitones.rem_euclid(12) as usize];
+    let diatonic = i32::from(pitch.octave) * 7 + step_index + shift;
+    let step = match diatonic.rem_euclid(7) {
+        0 => Step::C,
+        1 => Step::D,
+        2 => Step::E,
+        3 => Step::F,
+        4 => Step::G,
+        5 => Step::A,
+        _ => Step::B,
+    };
+    let octave = diatonic.div_euclid(7);
+    let alter = base - (octave + 1) * 12 - i32::from(step.to_semitone());
+    if let (Ok(octave), Ok(alter)) = (i8::try_from(octave), i8::try_from(alter))
+        && (-2..=2).contains(&alter)
+    {
+        return Pitch::try_with_microtone(step, octave, alter, pitch.microtone_cents);
+    }
+    let mut result = Pitch::from_midi((60 + base.rem_euclid(12)) as u8, key.fifths < 0);
+    let octave =
+        (base - i32::from(result.step.to_semitone()) - i32::from(result.alter)).div_euclid(12) - 1;
+    result.octave = i8::try_from(octave).ok()?;
+    result.microtone_cents = pitch.microtone_cents;
+    Some(result)
 }
 
 /// Infer chords from simultaneous sounding notes, retaining authored chord symbols.
 ///
 /// This opt-in pass groups all parts, staves and voices at each written pitched
 /// onset. It avoids treating consecutive notes of a melody as one chord. It does
-/// not expand repeats or infer a harmonic rhythm where no note starts. Physical
-/// measure indices must align across parts for the vertical grouping to be valid.
+/// not expand repeats or infer a harmonic rhythm where no note starts. Unequal
+/// bar partitions are aligned by absolute written beats when every staff has
+/// the same validated total length. Roman numerals use the concert key only
+/// when all active contributing staves agree, or when the caller supplies one.
+/// Output positions use the first available staff's bars.
 pub fn analyze_vertical_sonorities(score: &Score) -> Vec<VerticalSonority> {
+    analyze_vertical_sonorities_report(score).sonorities
+}
+
+pub fn analyze_vertical_sonorities_report(score: &Score) -> VerticalAnalysisReport {
     analyze_vertical_sonorities_with_key(score, None)
 }
 
@@ -716,13 +1213,543 @@ pub fn analyze_vertical_sonorities_in_key(
     score: &Score,
     key: &KeySignature,
 ) -> Vec<VerticalSonority> {
+    analyze_vertical_sonorities_in_key_report(score, key).sonorities
+}
+
+pub fn analyze_vertical_sonorities_in_key_report(
+    score: &Score,
+    key: &KeySignature,
+) -> VerticalAnalysisReport {
     analyze_vertical_sonorities_with_key(score, Some(key))
+}
+
+/// Add conservative opt-in chords when notes within a bar arpeggiate a complete
+/// tertian chord. A bar start uses its first half, and a later onset may use
+/// notes up to the next detected sonority within half a beat. A three-note
+/// melody is never promoted by the bar-start rule. Evidence includes the later
+/// notes used for each inference.
+pub fn analyze_arpeggiated_bars_report(score: &Score) -> VerticalAnalysisReport {
+    analyze_arpeggiated_bars_with_key(score, None)
+}
+
+/// As [`analyze_arpeggiated_bars_report`], using a caller-supplied concert key.
+pub fn analyze_arpeggiated_bars_in_key_report(
+    score: &Score,
+    key: &KeySignature,
+) -> VerticalAnalysisReport {
+    analyze_arpeggiated_bars_with_key(score, Some(key))
+}
+
+fn analyze_arpeggiated_bars_with_key(
+    score: &Score,
+    key_override: Option<&KeySignature>,
+) -> VerticalAnalysisReport {
+    const EPSILON: f64 = 1e-7;
+    let mut report = analyze_vertical_sonorities_with_key(score, key_override);
+    let starts = vertical_measure_starts(score);
+    // A physical bar in one staff must not be mistaken for the same time span
+    // in another staff when their bar partitions differ.
+    if valid_alternate_bar_partition(score, &starts).is_some() {
+        return report;
+    }
+    let tie_starts = tie_start_index(score, &starts);
+    let Some(reference) = score.parts.first().and_then(|part| part.staves.first()) else {
+        return report;
+    };
+    for measure_index in 0..reference.measures.len() {
+        if report
+            .timeline_issues
+            .iter()
+            .any(|issue| issue.measure == measure_index)
+            || report
+                .sonorities
+                .iter()
+                .any(|item| item.measure == measure_index && item.beat.abs() < EPSILON)
+        {
+            continue;
+        }
+        let length = reference.measure_beats(measure_index, &score.settings.time_signature);
+        if !length.is_finite() || length <= 0.0 {
+            continue;
+        }
+        let window = (length / 2.0).min(2.0);
+        let written = written_measure_events(score, measure_index);
+        let opening: Vec<_> = written
+            .iter()
+            .filter(|event| {
+                !event.note.is_rest
+                    && !event.note.is_unpitched
+                    && !event.note.pitches.is_empty()
+                    && event.end > event.start + EPSILON
+                    && event.start < window - EPSILON
+            })
+            .collect();
+        if opening.len() < 4
+            || !opening.iter().any(|event| {
+                event.start.abs() < EPSILON
+                    && has_new_pitched_attack(score, event, &starts, &tie_starts)
+            })
+            || opening
+                .iter()
+                .any(|event| event.start > EPSILON && event.note.chord_symbol.is_some())
+        {
+            continue;
+        }
+        let resolved_key = key_override
+            .cloned()
+            .or_else(|| agreed_concert_key_at_measure(score, measure_index));
+        let spelling_key = resolved_key
+            .as_ref()
+            .unwrap_or(&score.settings.key_signature);
+        let Some(pitches): Option<Vec<_>> = opening
+            .iter()
+            .flat_map(|event| {
+                event
+                    .note
+                    .pitches
+                    .iter()
+                    .map(|pitch| concert_pitch(score, event, pitch, spelling_key))
+            })
+            .collect()
+        else {
+            continue;
+        };
+        let Some(chord) = detect_chord(&pitches) else {
+            continue;
+        };
+        if !matches!(
+            chord.kind.as_str(),
+            "major"
+                | "minor"
+                | "diminished"
+                | "augmented"
+                | "dominant"
+                | "major-seventh"
+                | "minor-seventh"
+                | "diminished-seventh"
+                | "half-diminished"
+        ) {
+            continue;
+        }
+        let Some(anchor) = opening.iter().find(|event| event.start.abs() < EPSILON) else {
+            continue;
+        };
+        report.sonorities.push(VerticalSonority {
+            measure: measure_index,
+            beat: 0.0,
+            label: ChordLabel {
+                address: anchor.address.clone(),
+                name: chord_name(&chord),
+                roman_numeral: resolved_key
+                    .as_ref()
+                    .and_then(|key| roman_numeral_figured(&chord, key)),
+                chord,
+                confidence: 55,
+                rule_id: "bar-arpeggio-template".to_string(),
+                evidence: opening.iter().map(|event| event.address.clone()).collect(),
+            },
+        });
+    }
+    // A note that begins shortly before an identified vertical chord can be
+    // its arpeggiated opening. Complete only when the intervening pitches form
+    // an exact tertian template; a chromatic approach note rejects it.
+    for measure_index in 0..reference.measures.len() {
+        if report
+            .timeline_issues
+            .iter()
+            .any(|issue| issue.measure == measure_index)
+        {
+            continue;
+        }
+        let written = written_measure_events(score, measure_index);
+        let known: Vec<_> = report
+            .sonorities
+            .iter()
+            .filter(|item| item.measure == measure_index)
+            .cloned()
+            .collect();
+        let mut onsets: Vec<_> = written
+            .iter()
+            .filter(|event| {
+                !event.note.is_rest
+                    && !event.note.is_unpitched
+                    && !event.note.pitches.is_empty()
+                    && event.end > event.start + EPSILON
+                    && has_new_pitched_attack(score, event, &starts, &tie_starts)
+            })
+            .map(|event| event.start)
+            .collect();
+        onsets.sort_by(f64::total_cmp);
+        onsets.dedup_by(|left, right| (*left - *right).abs() < EPSILON);
+        for onset in onsets {
+            if known.iter().any(|item| (item.beat - onset).abs() < EPSILON) {
+                continue;
+            }
+            let Some(next) = known
+                .iter()
+                .find(|item| item.beat > onset + EPSILON && item.beat <= onset + 0.5 + EPSILON)
+            else {
+                continue;
+            };
+            let opening: Vec<_> = written
+                .iter()
+                .filter(|event| {
+                    !event.note.is_rest
+                        && !event.note.is_unpitched
+                        && !event.note.pitches.is_empty()
+                        && event.end > onset + EPSILON
+                        && event.start <= next.beat + EPSILON
+                })
+                .collect();
+            let resolved_key = key_override
+                .cloned()
+                .or_else(|| agreed_concert_key_at_measure(score, measure_index));
+            let spelling_key = resolved_key
+                .as_ref()
+                .unwrap_or(&score.settings.key_signature);
+            let Some(pitches): Option<Vec<_>> = opening
+                .iter()
+                .flat_map(|event| {
+                    event
+                        .note
+                        .pitches
+                        .iter()
+                        .map(|pitch| concert_pitch(score, event, pitch, spelling_key))
+                })
+                .collect()
+            else {
+                continue;
+            };
+            let Some(chord) = detect_chord(&pitches) else {
+                continue;
+            };
+            if !matches!(
+                chord.kind.as_str(),
+                "major"
+                    | "minor"
+                    | "diminished"
+                    | "augmented"
+                    | "dominant"
+                    | "major-seventh"
+                    | "minor-seventh"
+                    | "diminished-seventh"
+                    | "half-diminished"
+            ) {
+                continue;
+            }
+            let Some(anchor) = opening.iter().find(|event| {
+                (event.start - onset).abs() < EPSILON
+                    && has_new_pitched_attack(score, event, &starts, &tie_starts)
+            }) else {
+                continue;
+            };
+            report.sonorities.push(VerticalSonority {
+                measure: measure_index,
+                beat: onset,
+                label: ChordLabel {
+                    address: anchor.address.clone(),
+                    name: chord_name(&chord),
+                    roman_numeral: resolved_key
+                        .as_ref()
+                        .and_then(|key| roman_numeral_figured(&chord, key)),
+                    chord,
+                    confidence: 45,
+                    rule_id: "forward-completed-sonority".to_string(),
+                    evidence: opening.iter().map(|event| event.address.clone()).collect(),
+                },
+            });
+        }
+    }
+    report.sonorities.sort_by(|left, right| {
+        left.measure
+            .cmp(&right.measure)
+            .then_with(|| left.beat.total_cmp(&right.beat))
+    });
+    report
+}
+
+struct AbsoluteWrittenEvent<'a> {
+    start: f64,
+    end: f64,
+    written: WrittenEvent<'a>,
+}
+
+/// A different physical bar partition is usable only when every staff spans
+/// the same finite score length and every local note fits its own bar.
+fn valid_alternate_bar_partition(
+    score: &Score,
+    starts: &[Vec<Vec<f64>>],
+) -> Option<(usize, usize)> {
+    const EPSILON: f64 = 1e-7;
+    let (reference_part, reference_staff, reference) = score
+        .parts
+        .iter()
+        .enumerate()
+        .flat_map(|(part_index, part)| {
+            part.staves
+                .iter()
+                .enumerate()
+                .map(move |(staff_index, staff)| (part_index, staff_index, staff))
+        })
+        .next()?;
+    if reference.measures.is_empty() {
+        return None;
+    }
+    let reference_starts = starts.get(reference_part)?.get(reference_staff)?;
+    let reference_last = reference.measures.len() - 1;
+    let reference_total = reference_starts.get(reference_last)?
+        + reference.measure_beats(reference_last, &score.settings.time_signature);
+    if !reference_total.is_finite() || reference_total <= 0.0 {
+        return None;
+    }
+    let mut differs = false;
+    for (part_index, part) in score.parts.iter().enumerate() {
+        for (staff_index, staff) in part.staves.iter().enumerate() {
+            let staff_starts = starts.get(part_index)?.get(staff_index)?;
+            let last = staff.measures.len().checked_sub(1)?;
+            let total =
+                staff_starts.get(last)? + staff.measure_beats(last, &score.settings.time_signature);
+            if !total.is_finite() || (total - reference_total).abs() > EPSILON {
+                return None;
+            }
+            differs |= staff.measures.len() != reference.measures.len();
+            for (measure_index, measure) in staff.measures.iter().enumerate() {
+                let start = *staff_starts.get(measure_index)?;
+                let length = staff.measure_beats(measure_index, &score.settings.time_signature);
+                if !start.is_finite()
+                    || !length.is_finite()
+                    || length <= 0.0
+                    || measure
+                        .actual_length
+                        .is_some_and(|actual| actual.beats().is_none())
+                {
+                    return None;
+                }
+                if let Some(reference_start) = reference_starts.get(measure_index) {
+                    differs |= (start - reference_start).abs() > EPSILON;
+                    differs |= (length
+                        - reference.measure_beats(measure_index, &score.settings.time_signature))
+                    .abs()
+                        > EPSILON;
+                }
+                for voice in &measure.voices {
+                    let mut elapsed = 0.0;
+                    for note in voice {
+                        let duration = if voice.len() == 1 && note.is_plain_whole_rest() {
+                            length
+                        } else {
+                            note.beats()
+                        };
+                        if !duration.is_finite() || duration < 0.0 {
+                            return None;
+                        }
+                        elapsed += duration;
+                    }
+                    if elapsed > length + EPSILON {
+                        return None;
+                    }
+                }
+            }
+        }
+    }
+    differs.then_some((reference_part, reference_staff))
+}
+
+fn analyze_vertical_sonorities_on_absolute_timeline(
+    score: &Score,
+    starts: &[Vec<Vec<f64>>],
+    tie_starts: &TieStartIndex,
+    reference_part: usize,
+    reference_staff: usize,
+    key_override: Option<&KeySignature>,
+) -> VerticalAnalysisReport {
+    const EPSILON: f64 = 1e-7;
+    let reference = &score.parts[reference_part].staves[reference_staff];
+    let reference_starts = &starts[reference_part][reference_staff];
+    let mut events = Vec::new();
+    for (part_index, part) in score.parts.iter().enumerate() {
+        for (staff_index, staff) in part.staves.iter().enumerate() {
+            for (measure_index, &measure_start) in starts[part_index][staff_index]
+                .iter()
+                .enumerate()
+                .take(staff.measures.len())
+            {
+                for written in
+                    written_staff_measure_events(score, part_index, staff_index, measure_index)
+                {
+                    events.push(AbsoluteWrittenEvent {
+                        start: measure_start + written.start,
+                        end: measure_start + written.end,
+                        written,
+                    });
+                }
+            }
+        }
+    }
+    let mut key = key_override
+        .cloned()
+        .unwrap_or_else(|| score.settings.key_signature.clone());
+    let mut result = Vec::new();
+    let mut timeline_issues = Vec::new();
+    for (measure_index, measure) in reference.measures.iter().enumerate() {
+        let bar_start = reference_starts[measure_index];
+        let bar_end =
+            bar_start + reference.measure_beats(measure_index, &score.settings.time_signature);
+        if key_override.is_none()
+            && let Some(next_key) = &measure.key_sig
+        {
+            key = next_key.clone();
+        }
+        let window: Vec<_> = events
+            .iter()
+            .filter(|event| {
+                (event.start < bar_end - EPSILON && event.end > bar_start + EPSILON)
+                    || (event.start >= bar_start - EPSILON
+                        && event.start < bar_end - EPSILON
+                        && event.written.note.chord_symbol.is_some())
+            })
+            .collect();
+        let mut invalid = false;
+        for event in &window {
+            if event.written.note.is_rest || event.written.note.is_unpitched {
+                continue;
+            }
+            if event
+                .written
+                .note
+                .pitches
+                .iter()
+                .any(|pitch| concert_pitch(score, &event.written, pitch, &key).is_none())
+            {
+                timeline_issues.push(VerticalTimelineIssue {
+                    measure: event.written.address.measure,
+                    part: event.written.address.part,
+                    staff: event.written.address.staff,
+                    kind: VerticalTimelineIssueKind::UnrepresentableConcertPitch,
+                });
+                invalid = true;
+            }
+        }
+        if invalid {
+            continue;
+        }
+        let mut authored = Vec::new();
+        let mut sounding = Vec::new();
+        let mut onsets = Vec::new();
+        for event in &window {
+            if event.start >= bar_start - EPSILON
+                && let Some(chord) = &event.written.note.chord_symbol
+            {
+                authored.push((event.start, event.written.address.clone(), chord));
+                onsets.push(event.start);
+            }
+            if !event.written.note.is_rest
+                && !event.written.note.is_unpitched
+                && !event.written.note.pitches.is_empty()
+                && event.end - event.start > EPSILON
+            {
+                sounding.push(*event);
+                if event.start >= bar_start - EPSILON
+                    && has_new_pitched_attack(score, &event.written, starts, tie_starts)
+                {
+                    onsets.push(event.start);
+                }
+            }
+        }
+        onsets.sort_by(f64::total_cmp);
+        onsets.dedup_by(|left, right| (*left - *right).abs() < EPSILON);
+        for onset in onsets {
+            let authored_here: Vec<_> = authored
+                .iter()
+                .filter(|(start, _, _)| (*start - onset).abs() < EPSILON)
+                .collect();
+            let active: Vec<_> = sounding
+                .iter()
+                .filter(|event| event.start <= onset + EPSILON && event.end > onset + EPSILON)
+                .collect();
+            let resolved_key = key_override.cloned().or_else(|| {
+                agreed_concert_key_for_addresses(
+                    score,
+                    active
+                        .iter()
+                        .map(|event| &event.written.address)
+                        .chain(authored_here.iter().map(|entry| &entry.1)),
+                )
+            });
+            if !authored_here.is_empty() {
+                result.extend(authored_here.into_iter().map(|(_, address, chord)| {
+                    VerticalSonority {
+                        measure: measure_index,
+                        beat: onset - bar_start,
+                        label: ChordLabel {
+                            address: address.clone(),
+                            chord: (*chord).clone(),
+                            name: chord_name(chord),
+                            roman_numeral: resolved_key
+                                .as_ref()
+                                .filter(|_| sounding_transpose(score, address) == Some(0))
+                                .and_then(|key| roman_numeral_figured(chord, key)),
+                            confidence: 100,
+                            rule_id: "authored-chord-symbol".to_string(),
+                            evidence: vec![address.clone()],
+                        },
+                    }
+                }));
+                continue;
+            }
+            let Some(pitches): Option<Vec<_>> = active
+                .iter()
+                .flat_map(|event| {
+                    event
+                        .written
+                        .note
+                        .pitches
+                        .iter()
+                        .map(|pitch| concert_pitch(score, &event.written, pitch, &key))
+                })
+                .collect()
+            else {
+                continue;
+            };
+            let Some(chord) = detect_chord(&pitches) else {
+                continue;
+            };
+            let Some(anchor) = active.iter().find(|event| {
+                (event.start - onset).abs() < EPSILON
+                    && has_new_pitched_attack(score, &event.written, starts, tie_starts)
+            }) else {
+                continue;
+            };
+            result.push(VerticalSonority {
+                measure: measure_index,
+                beat: onset - bar_start,
+                label: ChordLabel {
+                    address: anchor.written.address.clone(),
+                    name: chord_name(&chord),
+                    roman_numeral: resolved_key
+                        .as_ref()
+                        .and_then(|key| roman_numeral_figured(&chord, key)),
+                    chord,
+                    confidence: 70,
+                    rule_id: "vertical-sonority-template".to_string(),
+                    evidence: active
+                        .iter()
+                        .map(|event| event.written.address.clone())
+                        .collect(),
+                },
+            });
+        }
+    }
+    VerticalAnalysisReport {
+        sonorities: result,
+        timeline_issues,
+    }
 }
 
 fn analyze_vertical_sonorities_with_key(
     score: &Score,
     key_override: Option<&KeySignature>,
-) -> Vec<VerticalSonority> {
+) -> VerticalAnalysisReport {
     const EPSILON: f64 = 1e-7;
     let measure_count = score
         .parts
@@ -735,8 +1762,26 @@ fn analyze_vertical_sonorities_with_key(
         .cloned()
         .unwrap_or_else(|| score.settings.key_signature.clone());
     let mut result = Vec::new();
+    let mut timeline_issues = Vec::new();
+    let starts = vertical_measure_starts(score);
+    let tie_starts = tie_start_index(score, &starts);
+    if let Some((reference_part, reference_staff)) = valid_alternate_bar_partition(score, &starts) {
+        return analyze_vertical_sonorities_on_absolute_timeline(
+            score,
+            &starts,
+            &tie_starts,
+            reference_part,
+            reference_staff,
+            key_override,
+        );
+    }
 
     for measure_index in 0..measure_count {
+        let issues = vertical_measure_alignment_issues(score, &starts, measure_index);
+        if !issues.is_empty() {
+            timeline_issues.extend(issues);
+            continue;
+        }
         if key_override.is_none()
             && let Some(next_key) = score
                 .parts
@@ -747,55 +1792,62 @@ fn analyze_vertical_sonorities_with_key(
         {
             key = next_key.clone();
         }
+        let resolved_key = key_override
+            .cloned()
+            .or_else(|| agreed_concert_key_at_measure(score, measure_index));
+        let spelling_key = resolved_key.as_ref().unwrap_or(&key);
+        let written = written_measure_events(score, measure_index);
+        let mut unrepresentable = Vec::new();
+        for event in &written {
+            if event.note.is_rest || event.note.is_unpitched {
+                continue;
+            }
+            for pitch in &event.note.pitches {
+                if concert_pitch(score, event, pitch, spelling_key).is_none() {
+                    unrepresentable.push(VerticalTimelineIssue {
+                        measure: measure_index,
+                        part: event.address.part,
+                        staff: event.address.staff,
+                        kind: VerticalTimelineIssueKind::UnrepresentableConcertPitch,
+                    });
+                }
+            }
+        }
+        if !unrepresentable.is_empty() {
+            timeline_issues.extend(unrepresentable);
+            continue;
+        }
         let mut sounding = Vec::new();
         let mut authored = Vec::new();
         let mut onsets = Vec::new();
-        for (part_index, part) in score.parts.iter().enumerate() {
-            for (staff_index, staff) in part.staves.iter().enumerate() {
-                let Some(measure) = staff.measures.get(measure_index) else {
-                    continue;
-                };
-                for (voice_index, voice) in measure.voices.iter().enumerate() {
-                    let mut beat = 0.0;
-                    for (note_index, note) in voice.iter().enumerate() {
-                        let duration = note.beats();
-                        let address = NoteAddr {
-                            part: part_index,
-                            staff: staff_index,
-                            measure: measure_index,
-                            voice: voice_index,
-                            note: note_index,
-                        };
-                        if let Some(chord) = &note.chord_symbol {
-                            authored.push((
-                                beat,
-                                ChordLabel {
-                                    address: address.clone(),
-                                    chord: chord.clone(),
-                                    name: chord_name(chord),
-                                    roman_numeral: roman_numeral_figured(chord, &key),
-                                    confidence: 100,
-                                    rule_id: "authored-chord-symbol".to_string(),
-                                    evidence: vec![address.clone()],
-                                },
-                            ));
-                            onsets.push(beat);
-                        }
-                        if !note.is_rest
-                            && !note.is_unpitched
-                            && !note.pitches.is_empty()
-                            && duration > EPSILON
-                        {
-                            sounding.push(SoundingPitchEvent {
-                                start: beat,
-                                end: beat + duration,
-                                address,
-                                pitches: note.pitches.clone(),
-                            });
-                            onsets.push(beat);
-                        }
-                        beat += duration;
-                    }
+        for event in &written {
+            if let Some(chord) = &event.note.chord_symbol {
+                let authored_key = resolved_key
+                    .as_ref()
+                    .filter(|_| sounding_transpose(score, &event.address) == Some(0));
+                authored.push((
+                    event.start,
+                    ChordLabel {
+                        address: event.address.clone(),
+                        chord: chord.clone(),
+                        name: chord_name(chord),
+                        roman_numeral: authored_key
+                            .and_then(|key| roman_numeral_figured(chord, key)),
+                        confidence: 100,
+                        rule_id: "authored-chord-symbol".to_string(),
+                        evidence: vec![event.address.clone()],
+                    },
+                ));
+                onsets.push(event.start);
+            }
+            if !event.note.is_rest
+                && !event.note.is_unpitched
+                && !event.note.pitches.is_empty()
+                && event.end - event.start > EPSILON
+            {
+                sounding.push(event);
+                if has_new_pitched_attack(score, event, &starts, &tie_starts) {
+                    onsets.push(event.start);
                 }
             }
         }
@@ -822,17 +1874,26 @@ fn analyze_vertical_sonorities_with_key(
                 .iter()
                 .filter(|event| event.start <= beat + EPSILON && event.end > beat + EPSILON)
                 .collect();
-            let pitches: Vec<_> = active
+            let Some(pitches): Option<Vec<_>> = active
                 .iter()
-                .flat_map(|event| event.pitches.iter().cloned())
-                .collect();
+                .flat_map(|event| {
+                    event
+                        .note
+                        .pitches
+                        .iter()
+                        .map(|pitch| concert_pitch(score, event, pitch, spelling_key))
+                })
+                .collect()
+            else {
+                continue;
+            };
             let Some(chord) = detect_chord(&pitches) else {
                 continue;
             };
-            let Some(anchor) = active
-                .iter()
-                .find(|event| (event.start - beat).abs() < EPSILON)
-            else {
+            let Some(anchor) = active.iter().find(|event| {
+                (event.start - beat).abs() < EPSILON
+                    && has_new_pitched_attack(score, event, &starts, &tie_starts)
+            }) else {
                 continue;
             };
             result.push(VerticalSonority {
@@ -841,7 +1902,9 @@ fn analyze_vertical_sonorities_with_key(
                 label: ChordLabel {
                     address: anchor.address.clone(),
                     name: chord_name(&chord),
-                    roman_numeral: roman_numeral_figured(&chord, &key),
+                    roman_numeral: resolved_key
+                        .as_ref()
+                        .and_then(|key| roman_numeral_figured(&chord, key)),
                     chord,
                     confidence: 70,
                     rule_id: "vertical-sonority-template".to_string(),
@@ -850,7 +1913,10 @@ fn analyze_vertical_sonorities_with_key(
             });
         }
     }
-    result
+    VerticalAnalysisReport {
+        sonorities: result,
+        timeline_issues,
+    }
 }
 
 /// Analyze chord labels only inside an optional part/staff measure region.
@@ -1653,6 +2719,7 @@ pub fn analyze_satb_in_region(
     voice_leading: &[VoiceLeadingObservation],
     region: Option<&AnalysisRegion>,
 ) -> Vec<SatbDiagnostic> {
+    const EPSILON: f64 = 1e-7;
     let mut diagnostics = Vec::new();
     for (part_index, part) in score.parts.iter().enumerate() {
         for (staff_index, staff) in part.staves.iter().enumerate() {
@@ -1665,31 +2732,46 @@ pub fn analyze_satb_in_region(
                 {
                     continue;
                 }
-                for (upper_index, upper_voice) in measure.voices.iter().enumerate() {
-                    let Some(lower_voice) = measure.voices.get(upper_index + 1) else {
-                        continue;
-                    };
-                    for note_index in 0..upper_voice.len().min(lower_voice.len()) {
-                        let Some(upper) = upper_voice[note_index].pitches.first() else {
+                let written =
+                    written_staff_measure_events(score, part_index, staff_index, measure_index);
+                for upper_index in 0..measure.voices.len().saturating_sub(1) {
+                    let pair: Vec<_> = written
+                        .iter()
+                        .filter(|event| {
+                            event.address.part == part_index
+                                && event.address.staff == staff_index
+                                && (event.address.voice == upper_index
+                                    || event.address.voice == upper_index + 1)
+                        })
+                        .collect();
+                    let mut onsets: Vec<_> = pair.iter().map(|event| event.start).collect();
+                    onsets.sort_by(f64::total_cmp);
+                    onsets.dedup_by(|left, right| (*left - *right).abs() < EPSILON);
+                    for beat in onsets {
+                        let active = |voice_index: usize| {
+                            pair.iter()
+                                .find(|event| {
+                                    event.address.voice == voice_index
+                                        && event.start <= beat + EPSILON
+                                        && event.end > beat + EPSILON
+                                        && !event.note.is_rest
+                                        && !event.note.is_unpitched
+                                })
+                                .copied()
+                        };
+                        let (Some(upper_event), Some(lower_event)) =
+                            (active(upper_index), active(upper_index + 1))
+                        else {
                             continue;
                         };
-                        let Some(lower) = lower_voice[note_index].pitches.first() else {
+                        let (Some(upper), Some(lower)) = (
+                            upper_event.note.pitches.first(),
+                            lower_event.note.pitches.first(),
+                        ) else {
                             continue;
                         };
-                        let upper_addr = NoteAddr {
-                            part: part_index,
-                            staff: staff_index,
-                            measure: measure_index,
-                            voice: upper_index,
-                            note: note_index,
-                        };
-                        let lower_addr = NoteAddr {
-                            part: part_index,
-                            staff: staff_index,
-                            measure: measure_index,
-                            voice: upper_index + 1,
-                            note: note_index,
-                        };
+                        let upper_addr = upper_event.address.clone();
+                        let lower_addr = lower_event.address.clone();
                         let distance = upper.to_midi() - lower.to_midi();
                         if distance < 0 {
                             diagnostics.push(satb_diagnostic(
@@ -1905,7 +2987,7 @@ fn roman_figure(roman: &str) -> &str {
     roman.find('/').map_or(roman, |index| &roman[..index])
 }
 
-/// Check aligned notes in adjacent voices for motion and parallel perfect intervals.
+/// Check simultaneously sounding notes in adjacent voices for motion and parallel intervals.
 pub fn analyze_voice_leading(score: &Score) -> Vec<VoiceLeadingObservation> {
     analyze_voice_leading_in_region(score, None)
 }
@@ -1915,6 +2997,7 @@ pub fn analyze_voice_leading_in_region(
     score: &Score,
     region: Option<&AnalysisRegion>,
 ) -> Vec<VoiceLeadingObservation> {
+    const EPSILON: f64 = 1e-7;
     let mut observations = Vec::new();
     for (part_index, part) in score.parts.iter().enumerate() {
         for (staff_index, staff) in part.staves.iter().enumerate() {
@@ -1927,72 +3010,86 @@ pub fn analyze_voice_leading_in_region(
                 {
                     continue;
                 }
-                for (upper_index, upper_voice) in measure.voices.iter().enumerate() {
-                    let Some(lower_voice) = measure.voices.get(upper_index + 1) else {
-                        continue;
+                let written =
+                    written_staff_measure_events(score, part_index, staff_index, measure_index);
+                for upper_index in 0..measure.voices.len().saturating_sub(1) {
+                    let pair: Vec<_> = written
+                        .iter()
+                        .filter(|event| {
+                            event.address.part == part_index
+                                && event.address.staff == staff_index
+                                && (event.address.voice == upper_index
+                                    || event.address.voice == upper_index + 1)
+                        })
+                        .collect();
+                    let mut onsets: Vec<_> = pair.iter().map(|event| event.start).collect();
+                    onsets.sort_by(f64::total_cmp);
+                    onsets.dedup_by(|left, right| (*left - *right).abs() < EPSILON);
+                    let active = |voice_index: usize, beat: f64| {
+                        pair.iter()
+                            .find(|event| {
+                                event.address.voice == voice_index
+                                    && event.start <= beat + EPSILON
+                                    && event.end > beat + EPSILON
+                                    && !event.note.is_rest
+                                    && !event.note.is_unpitched
+                                    && !event.note.pitches.is_empty()
+                            })
+                            .copied()
                     };
-                    let count = upper_voice.len().min(lower_voice.len());
-                    for note_index in 0..count {
-                        let Some(upper) = upper_voice[note_index].pitches.first() else {
+                    let mut previous = None;
+                    for beat in onsets {
+                        let (Some(upper), Some(lower)) =
+                            (active(upper_index, beat), active(upper_index + 1, beat))
+                        else {
+                            previous = None;
                             continue;
                         };
-                        let Some(lower) = lower_voice[note_index].pitches.first() else {
-                            continue;
-                        };
-                        let Some(next_upper_note) = upper_voice.get(note_index + 1) else {
-                            continue;
-                        };
-                        let Some(next_lower_note) = lower_voice.get(note_index + 1) else {
-                            continue;
-                        };
-                        if next_upper_note.is_rest || next_lower_note.is_rest {
-                            continue;
+                        if let Some((prev_upper, prev_lower)) = previous {
+                            let prev_upper: &WrittenEvent<'_> = prev_upper;
+                            let prev_lower: &WrittenEvent<'_> = prev_lower;
+                            if prev_upper.end + EPSILON >= beat
+                                && prev_lower.end + EPSILON >= beat
+                                && (prev_upper.address != upper.address
+                                    || prev_lower.address != lower.address)
+                            {
+                                let (Some(u0), Some(l0), Some(u1), Some(l1)) = (
+                                    prev_upper.note.pitches.first(),
+                                    prev_lower.note.pitches.first(),
+                                    upper.note.pitches.first(),
+                                    lower.note.pitches.first(),
+                                ) else {
+                                    previous = Some((upper, lower));
+                                    continue;
+                                };
+                                let upper_motion_cents = u1.to_midi_cents() - u0.to_midi_cents();
+                                let lower_motion_cents = l1.to_midi_cents() - l0.to_midi_cents();
+                                let initial =
+                                    (u0.to_midi_cents() - l0.to_midi_cents()).unsigned_abs() % 1200;
+                                let next =
+                                    (u1.to_midi_cents() - l1.to_midi_cents()).unsigned_abs() % 1200;
+                                observations.push(VoiceLeadingObservation {
+                                    upper: prev_upper.address.clone(),
+                                    lower: prev_lower.address.clone(),
+                                    upper_motion: u1.to_midi() - u0.to_midi(),
+                                    lower_motion: l1.to_midi() - l0.to_midi(),
+                                    upper_motion_cents,
+                                    lower_motion_cents,
+                                    parallel_perfect: matches!(initial, 0 | 700)
+                                        && initial == next
+                                        && upper_motion_cents != 0
+                                        && upper_motion_cents.signum()
+                                            == lower_motion_cents.signum(),
+                                    confidence: 100,
+                                    rule_id: "time-aligned-adjacent-voice-leading".to_string(),
+                                    evidence: vec![
+                                        prev_upper.address.clone(),
+                                        prev_lower.address.clone(),
+                                    ],
+                                });
+                            }
                         }
-                        let next_upper = next_upper_note.pitches.first();
-                        let next_lower = next_lower_note.pitches.first();
-                        let (Some(next_upper), Some(next_lower)) = (next_upper, next_lower) else {
-                            continue;
-                        };
-                        let upper_addr = NoteAddr {
-                            part: part_index,
-                            staff: staff_index,
-                            measure: measure_index,
-                            voice: upper_index,
-                            note: note_index,
-                        };
-                        let lower_addr = NoteAddr {
-                            part: part_index,
-                            staff: staff_index,
-                            measure: measure_index,
-                            voice: upper_index + 1,
-                            note: note_index,
-                        };
-                        let upper_next_midi = next_upper.to_midi();
-                        let lower_next_midi = next_lower.to_midi();
-                        let upper_motion = upper_next_midi - upper.to_midi();
-                        let lower_motion = lower_next_midi - lower.to_midi();
-                        let upper_motion_cents = next_upper.to_midi_cents() - upper.to_midi_cents();
-                        let lower_motion_cents = next_lower.to_midi_cents() - lower.to_midi_cents();
-                        let initial =
-                            (upper.to_midi_cents() - lower.to_midi_cents()).unsigned_abs() % 1200;
-                        let next = (next_upper.to_midi_cents() - next_lower.to_midi_cents())
-                            .unsigned_abs()
-                            % 1200;
-                        observations.push(VoiceLeadingObservation {
-                            upper: upper_addr.clone(),
-                            lower: lower_addr.clone(),
-                            upper_motion,
-                            lower_motion,
-                            upper_motion_cents,
-                            lower_motion_cents,
-                            parallel_perfect: matches!(initial, 0 | 700)
-                                && initial == next
-                                && upper_motion_cents != 0
-                                && upper_motion_cents.signum() == lower_motion_cents.signum(),
-                            confidence: 100,
-                            rule_id: "aligned-adjacent-voice-leading".to_string(),
-                            evidence: vec![upper_addr, lower_addr],
-                        });
+                        previous = Some((upper, lower));
                     }
                 }
             }
@@ -2324,7 +3421,7 @@ pub fn chord_name(chord: &ChordSymbol) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use acorde_core::{Duration, Note, Pitch, Score, Step};
+    use acorde_core::{Duration, MeasureLength, Note, Pitch, Score, Step, TupletInfo};
 
     #[test]
     fn labels_chord_with_note_addresses_and_roman_numeral() {
@@ -2357,6 +3454,107 @@ mod tests {
         assert!(analyze_vertical_sonorities(&score).is_empty());
         // The legacy pass still has its original behavior for existing callers.
         assert_eq!(analyze_chords(&score).chords.len(), 1);
+    }
+
+    #[test]
+    fn opt_in_arpeggiated_bar_labels_its_downbeat_with_later_note_evidence() {
+        let mut score = Score::new("arpeggio", 120, 4, 4, 0, 1);
+        let voice = &mut score.parts[0].staves[0].measures[0].voices[0];
+        *voice = [(Step::C, 4), (Step::E, 4), (Step::G, 4), (Step::C, 5)]
+            .into_iter()
+            .map(|(step, octave)| Note::new(Pitch::new(step, octave), Duration::Eighth))
+            .collect();
+        voice.push(Note::rest(Duration::Half));
+
+        assert!(analyze_vertical_sonorities(&score).is_empty());
+        let report = analyze_arpeggiated_bars_report(&score);
+        assert!(report.timeline_issues.is_empty());
+        assert_eq!(report.sonorities.len(), 1);
+        let inferred = &report.sonorities[0];
+        assert_eq!((inferred.measure, inferred.beat), (0, 0.0));
+        assert_eq!(inferred.label.roman_numeral.as_deref(), Some("I"));
+        assert_eq!(inferred.label.rule_id, "bar-arpeggio-template");
+        assert_eq!(inferred.label.evidence.len(), 4);
+
+        // The exact-template rule does not silently turn a changed pitch into
+        // a C-major harmony merely because three of the notes still fit.
+        score.parts[0].staves[0].measures[0].voices[0][3].pitches[0] = Pitch::new(Step::F, 4);
+        assert!(
+            analyze_arpeggiated_bars_report(&score)
+                .sonorities
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn opt_in_forward_completion_requires_an_exact_tertian_window() {
+        let mut score = Score::new("staggered chord", 120, 4, 4, 0, 1);
+        let measure = &mut score.parts[0].staves[0].measures[0];
+        measure.voices[0] = vec![
+            Note::new(Pitch::new(Step::C, 4), Duration::Quarter),
+            Note::rest(Duration::Half),
+            Note::rest(Duration::Quarter),
+        ];
+        let mut upper = Note::new(Pitch::new(Step::E, 4), Duration::Eighth);
+        upper.pitches.push(Pitch::new(Step::G, 4));
+        measure.voices[1] = vec![
+            Note::rest(Duration::Eighth),
+            upper,
+            Note::rest(Duration::Half),
+            Note::rest(Duration::Quarter),
+        ];
+
+        let baseline = analyze_vertical_sonorities(&score);
+        assert_eq!(baseline.len(), 1);
+        assert_eq!(baseline[0].beat, 0.5);
+        let inferred = analyze_arpeggiated_bars_report(&score);
+        assert_eq!(inferred.sonorities.len(), 2);
+        assert_eq!(inferred.sonorities[0].beat, 0.0);
+        assert_eq!(
+            inferred.sonorities[0].label.roman_numeral.as_deref(),
+            Some("I")
+        );
+        assert_eq!(
+            inferred.sonorities[0].label.rule_id,
+            "forward-completed-sonority"
+        );
+        assert_eq!(inferred.sonorities[0].label.evidence.len(), 2);
+
+        let mut shifted = score.clone();
+        let upper = shifted.parts[0].staves[0].measures[0].voices[1][1].clone();
+        shifted.parts[0].staves[0].measures[0].voices[0] = vec![
+            Note::rest(Duration::Eighth),
+            Note::new(Pitch::new(Step::C, 4), Duration::Quarter),
+            Note::rest(Duration::Half),
+            Note::rest(Duration::Eighth),
+        ];
+        shifted.parts[0].staves[0].measures[0].voices[1] = vec![
+            Note::rest(Duration::Quarter),
+            upper,
+            Note::rest(Duration::Half),
+            Note::rest(Duration::Eighth),
+        ];
+        let offbeat = analyze_arpeggiated_bars_report(&shifted);
+        assert_eq!(offbeat.sonorities[0].beat, 0.5);
+        assert_eq!(
+            offbeat.sonorities[0].label.rule_id,
+            "forward-completed-sonority"
+        );
+
+        // F-sharp approaches an otherwise complete C-major chord at beat 0.5.
+        score.parts[0].staves[0].measures[0].voices[0] = vec![
+            Note::new(Pitch::with_alter(Step::F, 4, 1), Duration::Eighth),
+            Note::new(Pitch::new(Step::C, 4), Duration::Eighth),
+            Note::rest(Duration::Half),
+            Note::rest(Duration::Quarter),
+        ];
+        let changed = analyze_arpeggiated_bars_report(&score);
+        assert!(
+            changed
+                .sonorities
+                .iter()
+                .all(|item| item.label.rule_id != "forward-completed-sonority")
+        );
     }
 
     #[test]
@@ -2415,6 +3613,15 @@ mod tests {
         assert_eq!(sonorities[0].label.rule_id, "authored-chord-symbol");
         assert_eq!(sonorities[0].label.chord.root, "D");
         assert_eq!(sonorities[0].label.confidence, 100);
+
+        score.parts[0].staves[0].transpose_semitones = -2;
+        let key = KeySignature {
+            fifths: 0,
+            mode: "major".to_string(),
+        };
+        let transposing = analyze_vertical_sonorities_in_key(&score, &key);
+        assert_eq!(transposing[0].label.chord.root, "D");
+        assert_eq!(transposing[0].label.roman_numeral, None);
     }
 
     #[test]
@@ -2449,6 +3656,511 @@ mod tests {
                 .roman_numeral
                 .as_deref(),
             Some("i")
+        );
+    }
+
+    #[test]
+    fn vertical_sonorities_report_unequal_part_bar_lengths() {
+        let mut score = Score::new("unequal", 120, 4, 4, 0, 2);
+        let part = score.parts[0].clone();
+        score.parts.push(part.clone());
+        score.parts.push(part);
+        for (part_index, step) in [Step::C, Step::E, Step::G].into_iter().enumerate() {
+            score.parts[part_index].staves[0].measures[0].voices[0] =
+                vec![Note::new(Pitch::new(step, 4), Duration::Quarter)];
+        }
+        score.parts[2].staves[0].measures[0].actual_length = Some(MeasureLength {
+            numerator: 3,
+            denominator: 4,
+        });
+        let report = analyze_vertical_sonorities_report(&score);
+        assert!(report.sonorities.iter().all(|item| item.measure != 0));
+        assert_eq!(report.timeline_issues[0].part, 2);
+        assert_eq!(
+            report.timeline_issues[0].kind,
+            VerticalTimelineIssueKind::DifferentLength
+        );
+        assert!(report.timeline_issues.iter().any(|issue| {
+            issue.measure == 1 && issue.kind == VerticalTimelineIssueKind::DifferentStart
+        }));
+        assert_eq!(analyze_vertical_sonorities(&score), report.sonorities);
+    }
+
+    #[test]
+    fn vertical_harmony_aligns_two_short_bars_with_one_long_bar() {
+        let mut score = Score::new("mixed bar partitions", 120, 4, 4, 0, 2);
+        let part = score.parts[0].clone();
+        score.parts.push(part.clone());
+        score.parts.push(part);
+
+        let mut first_c = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+        first_c.tie_start = true;
+        let mut second_c = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+        second_c.tie_end = true;
+        score.parts[0].staves[0].measures[0].voices[0] = vec![first_c];
+        score.parts[0].staves[0].measures[1].voices[0] = vec![second_c];
+
+        score.parts[1].staves[0].measures.truncate(1);
+        score.parts[1].staves[0].measures[0].actual_length = Some(MeasureLength {
+            numerator: 2,
+            denominator: 1,
+        });
+        score.parts[1].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::E, 4), Duration::Breve)];
+
+        for measure_index in 0..2 {
+            score.parts[2].staves[0].measures[measure_index].voices[0] =
+                vec![Note::new(Pitch::new(Step::G, 4), Duration::Whole)];
+        }
+
+        let key = KeySignature {
+            fifths: 0,
+            mode: "major".to_string(),
+        };
+        let report = analyze_vertical_sonorities_in_key_report(&score, &key);
+        assert!(report.timeline_issues.is_empty());
+        assert_eq!(report.sonorities.len(), 2);
+        assert_eq!(
+            (report.sonorities[1].measure, report.sonorities[1].beat),
+            (1, 0.0)
+        );
+        assert_eq!(report.sonorities[1].label.chord.root, "C");
+        assert_eq!(
+            report.sonorities[1].label.roman_numeral.as_deref(),
+            Some("I")
+        );
+        assert!(
+            report.sonorities[1]
+                .label
+                .evidence
+                .iter()
+                .any(|address| address.part == 1 && address.measure == 0)
+        );
+
+        let without_key = analyze_vertical_sonorities_report(&score);
+        assert_eq!(without_key.sonorities.len(), 2);
+        assert_eq!(
+            without_key.sonorities[1].label.roman_numeral.as_deref(),
+            Some("I")
+        );
+
+        let mut transposing = score.clone();
+        transposing.parts[2].staves[0].transpose_semitones = -2;
+        for measure in &mut transposing.parts[2].staves[0].measures {
+            measure.key_sig = Some(KeySignature {
+                fifths: 2,
+                mode: "major".to_string(),
+            });
+            measure.voices[0][0].pitches[0] = Pitch::new(Step::A, 4);
+        }
+        let converted = analyze_vertical_sonorities_report(&transposing);
+        assert_eq!(converted.sonorities.len(), 2);
+        assert_eq!(
+            converted.sonorities[1].label.roman_numeral.as_deref(),
+            Some("I")
+        );
+
+        score.parts[2].staves[0].measures[1].key_sig = Some(KeySignature {
+            fifths: 1,
+            mode: "major".to_string(),
+        });
+        let conflicting = analyze_vertical_sonorities_report(&score);
+        assert_eq!(conflicting.sonorities.len(), 2);
+        assert_eq!(
+            conflicting.sonorities[0].label.roman_numeral.as_deref(),
+            Some("I")
+        );
+        assert_eq!(conflicting.sonorities[1].label.roman_numeral, None);
+    }
+
+    #[test]
+    fn vertical_harmony_uses_long_reference_bar_coordinates() {
+        let mut score = Score::new("long reference bar", 120, 4, 4, 0, 2);
+        let part = score.parts[0].clone();
+        score.parts.push(part.clone());
+        score.parts.push(part);
+        score.parts[0].staves[0].measures.truncate(1);
+        score.parts[0].staves[0].measures[0].actual_length = Some(MeasureLength {
+            numerator: 2,
+            denominator: 1,
+        });
+        score.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::C, 4), Duration::Breve)];
+        for measure_index in 0..2 {
+            score.parts[1].staves[0].measures[measure_index].voices[0] =
+                vec![Note::new(Pitch::new(Step::E, 4), Duration::Whole)];
+            score.parts[2].staves[0].measures[measure_index].voices[0] =
+                vec![Note::new(Pitch::new(Step::G, 4), Duration::Whole)];
+        }
+
+        let report = analyze_vertical_sonorities_report(&score);
+        assert!(report.timeline_issues.is_empty());
+        assert_eq!(report.sonorities.len(), 2);
+        assert_eq!(
+            (report.sonorities[1].measure, report.sonorities[1].beat),
+            (0, 4.0)
+        );
+        assert_eq!(report.sonorities[1].label.chord.root, "C");
+        assert_eq!(report.sonorities[1].label.address.measure, 1);
+    }
+
+    #[test]
+    fn vertical_sonorities_do_not_relabel_a_fully_tied_barline() {
+        let mut score = Score::new("ties", 120, 4, 4, 0, 2);
+        let mut first = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+        first
+            .pitches
+            .extend([Pitch::new(Step::E, 4), Pitch::new(Step::G, 4)]);
+        first.set_pitch_ties(&[true, true, true], &[false, false, false]);
+        let mut second = first.clone();
+        second.set_pitch_ties(&[false, false, false], &[true, true, true]);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![first];
+        score.parts[0].staves[0].measures[1].voices[0] = vec![second];
+        let report = analyze_vertical_sonorities_report(&score);
+        assert!(report.timeline_issues.is_empty());
+        assert_eq!(report.sonorities.len(), 1);
+        assert_eq!(report.sonorities[0].measure, 0);
+        let opt_in = analyze_arpeggiated_bars_report(&score);
+        assert_eq!(opt_in.sonorities.len(), 1);
+        assert_eq!(opt_in.sonorities[0].measure, 0);
+    }
+
+    #[test]
+    fn vertical_harmony_recognizes_tie_across_voices() {
+        let mut score = Score::new("voice crossing tie", 120, 4, 4, 0, 2);
+        let mut first = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+        first
+            .pitches
+            .extend([Pitch::new(Step::E, 4), Pitch::new(Step::G, 4)]);
+        first.set_pitch_ties(&[true, true, true], &[false, false, false]);
+        let mut second = first.clone();
+        second.set_pitch_ties(&[false, false, false], &[true, true, true]);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![first];
+        score.parts[0].staves[0].measures[1].voices[1] = vec![second];
+
+        let report = analyze_vertical_sonorities_report(&score);
+        assert!(report.timeline_issues.is_empty());
+        assert_eq!(report.sonorities.len(), 1);
+        assert_eq!(report.sonorities[0].measure, 0);
+    }
+
+    #[test]
+    fn cross_staff_tie_uses_explicit_source_location() {
+        let mut score = Score::new("staff crossing tie", 120, 4, 4, 0, 2);
+        let other_staff = score.parts[0].staves[0].clone();
+        score.parts[0].staves.push(other_staff);
+        let mut first = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        first
+            .pitches
+            .extend([Pitch::new(Step::E, 4), Pitch::new(Step::G, 4)]);
+        first.set_pitch_ties(&[true, true, true], &[false, false, false]);
+        let mut second = first.clone();
+        second.set_pitch_ties(&[false, false, false], &[true, true, true]);
+        let source = acorde_core::TieSourceLocation {
+            measures: -1,
+            staves: -1,
+            fractions: Some("3/4".to_string()),
+            ..Default::default()
+        };
+        second.pitch_tie_sources = vec![Some(source); 3];
+        score.parts[0].staves[0].measures[0].voices[0] = vec![
+            Note::rest(Duration::Quarter),
+            Note::rest(Duration::Quarter),
+            Note::rest(Duration::Quarter),
+            first,
+        ];
+        score.parts[0].staves[1].measures[1].voices[0] = vec![second];
+
+        let report = analyze_vertical_sonorities_report(&score);
+        assert!(report.timeline_issues.is_empty());
+        assert_eq!(report.sonorities.len(), 1);
+        assert_eq!(report.sonorities[0].beat, 3.0);
+
+        for source in &mut score.parts[0].staves[1].measures[1].voices[0][0].pitch_tie_sources {
+            source.as_mut().expect("source exists").staves = 0;
+        }
+        let invalid_source = analyze_vertical_sonorities_report(&score);
+        assert_eq!(invalid_source.sonorities.len(), 2);
+        assert_eq!(invalid_source.sonorities[1].measure, 1);
+    }
+
+    #[test]
+    fn partial_or_dangling_ties_keep_new_harmonic_attacks() {
+        let mut score = Score::new("partial ties", 120, 4, 4, 0, 2);
+        let mut first = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+        first
+            .pitches
+            .extend([Pitch::new(Step::E, 4), Pitch::new(Step::G, 4)]);
+        first.set_pitch_ties(&[true, false, false], &[false, false, false]);
+        let mut second = first.clone();
+        second.set_pitch_ties(&[false, false, false], &[true, false, false]);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![first];
+        score.parts[0].staves[0].measures[1].voices[0] = vec![second.clone()];
+        let report = analyze_vertical_sonorities_report(&score);
+        assert_eq!(report.sonorities.len(), 2);
+        assert_eq!(report.sonorities[1].measure, 1);
+
+        score.parts[0].staves[0].measures[0].voices[0][0]
+            .set_pitch_ties(&[false, false, false], &[false, false, false]);
+        second.set_pitch_ties(&[false, false, false], &[true, true, true]);
+        score.parts[0].staves[0].measures[1].voices[0] = vec![second];
+        let report = analyze_vertical_sonorities_report(&score);
+        assert_eq!(report.sonorities.len(), 2);
+    }
+
+    #[test]
+    fn tie_end_in_newly_used_voice_is_an_attack_without_a_predecessor() {
+        let mut score = Score::new("new voice", 120, 4, 4, 0, 2);
+        let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+        note.pitches
+            .extend([Pitch::new(Step::E, 4), Pitch::new(Step::G, 4)]);
+        note.set_pitch_ties(&[false, false, false], &[true, true, true]);
+        score.parts[0].staves[0].measures[1].voices[1] = vec![note];
+
+        let report = analyze_vertical_sonorities_report(&score);
+        assert!(report.timeline_issues.is_empty());
+        assert_eq!(report.sonorities.len(), 1);
+        assert_eq!(report.sonorities[0].measure, 1);
+        assert_eq!(report.sonorities[0].label.address.voice, 1);
+    }
+
+    #[test]
+    fn instrument_change_breaks_a_written_pitch_tie_for_harmony() {
+        let mut score = Score::new("changed sounding pitch", 120, 4, 4, 0, 2);
+        let mut first = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+        first
+            .pitches
+            .extend([Pitch::new(Step::E, 4), Pitch::new(Step::G, 4)]);
+        first.set_pitch_ties(&[true, true, true], &[false, false, false]);
+        let mut second = first.clone();
+        second.set_pitch_ties(&[false, false, false], &[true, true, true]);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![first];
+        score.parts[0].staves[0].measures[1].voices[0] = vec![second];
+        let mut clarinet = acorde_core::InstrumentDefinition::new("clarinet", "Clarinet");
+        clarinet.transpose_semitones = -2;
+        score.parts[0].staves[0].measures[1].instrument_change = Some(clarinet);
+
+        let report = analyze_vertical_sonorities_report(&score);
+        assert!(report.timeline_issues.is_empty());
+        assert_eq!(report.sonorities.len(), 2);
+        assert_eq!(report.sonorities[0].label.chord.root, "C");
+        assert_eq!(report.sonorities[1].label.chord.root, "Bb");
+    }
+
+    #[test]
+    fn new_attack_combines_with_tied_pitches_across_parts() {
+        let mut score = Score::new("held harmony", 120, 4, 4, 0, 2);
+        let part = score.parts[0].clone();
+        score.parts.push(part.clone());
+        score.parts.push(part);
+        for (part_index, step) in [Step::C, Step::E, Step::G].into_iter().enumerate() {
+            let mut first = Note::new(Pitch::new(step, 4), Duration::Whole);
+            let mut second = first.clone();
+            if part_index < 2 {
+                first.tie_start = true;
+                second.tie_end = true;
+            }
+            score.parts[part_index].staves[0].measures[0].voices[0] = vec![first];
+            score.parts[part_index].staves[0].measures[1].voices[0] = vec![second];
+        }
+        let report = analyze_vertical_sonorities_report(&score);
+        assert!(report.timeline_issues.is_empty());
+        let second = report
+            .sonorities
+            .iter()
+            .find(|sonority| sonority.measure == 1)
+            .expect("the new G attack triggers a sonority");
+        assert_eq!(second.label.evidence.len(), 3);
+        assert_eq!(second.label.address.part, 2);
+    }
+
+    #[test]
+    fn vertical_harmony_uses_concert_pitches_for_transposing_parts() {
+        let mut score = Score::new("clarinet and piano", 120, 4, 4, 0, 1);
+        let part = score.parts[0].clone();
+        score.parts.push(part.clone());
+        score.parts.push(part);
+        score.parts[0].staves[0].transpose_semitones = -2;
+        for (part_index, step) in [Step::D, Step::E, Step::G].into_iter().enumerate() {
+            score.parts[part_index].staves[0].measures[0].voices[0] =
+                vec![Note::new(Pitch::new(step, 4), Duration::Quarter)];
+        }
+        let key = KeySignature {
+            fifths: 0,
+            mode: "major".to_string(),
+        };
+        let in_key = analyze_vertical_sonorities_in_key_report(&score, &key);
+        assert!(in_key.timeline_issues.is_empty());
+        assert_eq!(in_key.sonorities.len(), 1);
+        assert_eq!(in_key.sonorities[0].label.chord.root, "C");
+        assert_eq!(
+            in_key.sonorities[0].label.roman_numeral.as_deref(),
+            Some("I")
+        );
+
+        let without_concert_key = analyze_vertical_sonorities_report(&score);
+        assert_eq!(without_concert_key.sonorities[0].label.chord.root, "C");
+        assert_eq!(without_concert_key.sonorities[0].label.roman_numeral, None);
+
+        score.parts[0].staves[0].measures[0].key_sig = Some(KeySignature {
+            fifths: 2,
+            mode: "major".to_string(),
+        });
+        let reconciled = analyze_vertical_sonorities_report(&score);
+        assert_eq!(
+            reconciled.sonorities[0].label.roman_numeral.as_deref(),
+            Some("I")
+        );
+
+        let mut silent = score.parts[1].clone();
+        silent.staves[0].measures[0].voices[0] = vec![Note::rest(Duration::Whole)];
+        silent.staves[0].measures[0].key_sig = Some(KeySignature {
+            fifths: 1,
+            mode: "major".to_string(),
+        });
+        score.parts.push(silent);
+        let silent_conflict = analyze_vertical_sonorities_report(&score);
+        assert_eq!(
+            silent_conflict.sonorities[0].label.roman_numeral.as_deref(),
+            Some("I")
+        );
+
+        score.parts[1].staves[0].measures[0].key_sig = Some(KeySignature {
+            fifths: 1,
+            mode: "major".to_string(),
+        });
+        let conflicting = analyze_vertical_sonorities_report(&score);
+        assert_eq!(conflicting.sonorities[0].label.roman_numeral, None);
+    }
+
+    #[test]
+    fn vertical_harmony_uses_measure_instrument_change() {
+        let mut score = Score::new("changing instrument", 120, 4, 4, 0, 2);
+        let part = score.parts[0].clone();
+        score.parts.push(part.clone());
+        score.parts.push(part);
+        let mut clarinet = acorde_core::InstrumentDefinition::new("clarinet", "Clarinet");
+        clarinet.transpose_semitones = -2;
+        score.parts[0].instrument = Some(clarinet);
+        score.parts[0].staves[0].measures[1].instrument_change =
+            Some(acorde_core::InstrumentDefinition::new("piano", "Piano"));
+        for measure_index in 0..2 {
+            for (part_index, step) in [Step::D, Step::E, Step::G].into_iter().enumerate() {
+                let written = if measure_index == 1 && part_index == 0 {
+                    Step::C
+                } else {
+                    step
+                };
+                score.parts[part_index].staves[0].measures[measure_index].voices[0] =
+                    vec![Note::new(Pitch::new(written, 4), Duration::Quarter)];
+            }
+        }
+        let key = KeySignature {
+            fifths: 0,
+            mode: "major".to_string(),
+        };
+        let report = analyze_vertical_sonorities_in_key_report(&score, &key);
+        assert!(report.timeline_issues.is_empty());
+        assert_eq!(report.sonorities.len(), 2);
+        assert!(
+            report
+                .sonorities
+                .iter()
+                .all(|item| item.label.chord.root == "C")
+        );
+
+        score.parts[0].staves[0].measures[0].key_sig = Some(KeySignature {
+            fifths: 2,
+            mode: "major".to_string(),
+        });
+        let ambiguous = analyze_vertical_sonorities_report(&score);
+        assert_eq!(
+            ambiguous.sonorities[0].label.roman_numeral.as_deref(),
+            Some("I")
+        );
+        assert_eq!(ambiguous.sonorities[1].label.roman_numeral, None);
+
+        score.parts[0].staves[0].measures[1].key_sig = Some(key);
+        let reconciled = analyze_vertical_sonorities_report(&score);
+        assert_eq!(
+            reconciled.sonorities[1].label.roman_numeral.as_deref(),
+            Some("I")
+        );
+    }
+
+    #[test]
+    fn e_flat_instrument_keeps_concert_chord_spelling() {
+        let mut score = Score::new("alto sax and piano", 120, 4, 4, 0, 1);
+        let part = score.parts[0].clone();
+        score.parts.push(part.clone());
+        score.parts.push(part);
+        score.parts[0].staves[0].transpose_semitones = -9;
+        for (part_index, pitch) in [
+            Pitch::new(Step::C, 5),
+            Pitch::new(Step::G, 4),
+            Pitch::with_alter(Step::B, 4, -1),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            score.parts[part_index].staves[0].measures[0].voices[0] =
+                vec![Note::new(pitch, Duration::Quarter)];
+        }
+        let report = analyze_vertical_sonorities_report(&score);
+        assert!(report.timeline_issues.is_empty());
+        assert_eq!(report.sonorities[0].label.chord.root, "Eb");
+    }
+
+    #[test]
+    fn unrepresentable_concert_pitch_omits_the_measure() {
+        let mut score = Score::new("out of range", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].transpose_semitones = 12;
+        score.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::B, 127), Duration::Quarter)];
+
+        let report = analyze_vertical_sonorities_report(&score);
+        assert!(report.sonorities.is_empty());
+        assert_eq!(
+            report.timeline_issues[0].kind,
+            VerticalTimelineIssueKind::UnrepresentableConcertPitch
+        );
+    }
+
+    #[test]
+    fn vertical_sonorities_report_invalid_and_overfull_voice_timing() {
+        let mut score = Score::default();
+        score.parts[0].staves[0].measures[0].voices[0] = (0..5)
+            .map(|_| Note::new(Pitch::new(Step::C, 4), Duration::Quarter))
+            .collect();
+        let report = analyze_vertical_sonorities_report(&score);
+        assert!(report.sonorities.is_empty());
+        assert_eq!(
+            report.timeline_issues[0].kind,
+            VerticalTimelineIssueKind::OverfullVoice
+        );
+
+        let mut malformed = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
+        malformed.tuplet = Some(TupletInfo {
+            actual_notes: 0,
+            normal_notes: 2,
+        });
+        score.parts[0].staves[0].measures[0].voices[0] = vec![malformed];
+        let report = analyze_vertical_sonorities_report(&score);
+        assert!(report.sonorities.is_empty());
+        assert_eq!(
+            report.timeline_issues[0].kind,
+            VerticalTimelineIssueKind::InvalidNoteDuration
+        );
+
+        score.parts[0].staves[0].measures[0].voices[0].clear();
+        score.parts[0].staves[0].measures[0].actual_length = Some(MeasureLength {
+            numerator: 1,
+            denominator: 0,
+        });
+        let report = analyze_vertical_sonorities_report(&score);
+        assert_eq!(
+            report.timeline_issues[0].kind,
+            VerticalTimelineIssueKind::InvalidLength
         );
     }
 
@@ -2608,7 +4320,7 @@ mod tests {
     #[test]
     fn cache_key_includes_schema_and_score_identity() {
         let result = analyze_score(&Score::default());
-        assert!(result.cache_key().starts_with("analysis-v13-fnv1a64-"));
+        assert!(result.cache_key().starts_with("analysis-v14-fnv1a64-"));
         assert_eq!(result.cache_key(), analysis_cache_key(&Score::default()));
         let mut changed = result.clone();
         changed.schema_version = ANALYSIS_SCHEMA_VERSION + 1;
@@ -3268,6 +4980,52 @@ mod tests {
             voice.push(Note::new(Pitch::new(Step::D, 4), Duration::Quarter));
         }
         assert!(analyze_voice_leading(&score).is_empty());
+    }
+
+    #[test]
+    fn voice_leading_uses_written_onsets_instead_of_matching_note_indices() {
+        let mut score = Score::default();
+        let measure = &mut score.parts[0].staves[0].measures[0];
+        measure.voices[0] = vec![
+            Note::new(Pitch::new(Step::C, 4), Duration::Quarter),
+            Note::new(Pitch::new(Step::D, 4), Duration::Quarter),
+        ];
+        measure.voices[1] = vec![
+            Note::new(Pitch::new(Step::C, 3), Duration::Half),
+            Note::new(Pitch::new(Step::D, 3), Duration::Quarter),
+        ];
+        let observations = analyze_voice_leading(&score);
+        assert_eq!(observations.len(), 1);
+        assert_eq!(observations[0].upper_motion_cents, 200);
+        assert_eq!(observations[0].lower_motion_cents, 0);
+        assert!(!observations[0].parallel_perfect);
+        assert_eq!(observations[0].lower.note, 0);
+    }
+
+    #[test]
+    fn satb_does_not_compare_notes_at_different_written_beats() {
+        let mut score = Score::default();
+        let measure = &mut score.parts[0].staves[0].measures[0];
+        measure.voices[0] = vec![
+            Note::new(Pitch::new(Step::C, 4), Duration::Quarter),
+            Note::new(Pitch::new(Step::D, 4), Duration::Quarter),
+        ];
+        measure.voices[1] = vec![
+            Note::new(Pitch::new(Step::C, 3), Duration::Half),
+            Note::new(Pitch::new(Step::D, 5), Duration::Quarter),
+        ];
+        assert!(analyze_satb(&score).is_empty());
+    }
+
+    #[test]
+    fn written_timeline_uses_actual_length_for_a_lone_whole_rest() {
+        let mut score = Score::new("pickup", 120, 3, 4, 0, 1);
+        let measure = &mut score.parts[0].staves[0].measures[0];
+        measure.voices[0] = vec![Note::rest(Duration::Whole)];
+        let events = written_measure_events(&score, 0);
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].start, 0.0);
+        assert_eq!(events[0].end, 3.0);
     }
 
     #[test]

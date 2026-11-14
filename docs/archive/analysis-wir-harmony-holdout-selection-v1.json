@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "source": "https://github.com/MarkGotham/When-in-Rome",
+  "commit": "1c61fe41b8c2910296d7d2bcbf6476c7c1f2fe35",
+  "tree_sha": "825c2d104f0c060974e878aa43d7f77770717ddd",
+  "split": "holdout",
+  "selection": "First three lexicographic work directories per fixed composer prefix with score.mxl and analysis.txt, chosen from the pinned complete Git tree without reading file contents or predictions.",
+  "musical_input": "score.mxl only; never analysis_on_score.mxl or analysis_automatic.rntxt",
+  "gold": "analysis.txt only; never automatic or alternate analyses",
+  "unit": "work directory; no movement or transposition leaks between splits",
+  "task": "Roman numeral at human-annotated positions; score only at source positions; report all parser/alignment exclusions",
+  "normalization": "Freeze before evaluating: Roman glyph (%/ø, °/o), inversion 42/2, and whitespace only; preserve root, quality, applied chord, key, and chromatic spelling distinctions.",
+  "stop_rule": "Do not tune against these works. If a result informs a fix, reclassify all twelve works as development and freeze a new untouched holdout before a superiority claim.",
+  "works": [
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/01",
+      "score_path": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/01/score.mxl",
+      "score_git_blob": "a6d330c5eaff215de337580f3399aeb5375b1496",
+      "gold_path": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/01/analysis.txt",
+      "gold_git_blob": "ec17fe9d24ff0907402a55ebd6dfa831bfc1de07"
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/02",
+      "score_path": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/02/score.mxl",
+      "score_git_blob": "1eb7fb322ddcdb25ca8678cea3063ef8970d65b4",
+      "gold_path": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/02/analysis.txt",
+      "gold_git_blob": "52cc0373170a778c9248f31f2a31921fa997814f"
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/03",
+      "score_path": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/03/score.mxl",
+      "score_git_blob": "dc5911878521dac939beb0709a9f09ffff91bb2c",
+      "gold_path": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/03/analysis.txt",
+      "gold_git_blob": "84f5fa1c364b89bf3b9b5a1a94818c13813721f5"
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Chopin,_Frédéric/Preludes,_Op.28/20",
+      "score_path": "Corpus/Keyboard_Other/Chopin,_Frédéric/Preludes,_Op.28/20/score.mxl",
+      "score_git_blob": "f1ac3f55e0b94f28f80a5fc06ac26e2ccf364a55",
+      "gold_path": "Corpus/Keyboard_Other/Chopin,_Frédéric/Preludes,_Op.28/20/analysis.txt",
+      "gold_git_blob": "e9b6e38649ac41655a46ae2f30b3628de4c00839"
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Chopin,_Frédéric/Études_Op.10/1",
+      "score_path": "Corpus/Keyboard_Other/Chopin,_Frédéric/Études_Op.10/1/score.mxl",
+      "score_git_blob": "408cdaf57337d4f3fbc79453c6831c9a9161ffe5",
+      "gold_path": "Corpus/Keyboard_Other/Chopin,_Frédéric/Études_Op.10/1/analysis.txt",
+      "gold_git_blob": "5a8692d3539622300bd09029cf29cbdcce308644"
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Chopin,_Frédéric/Études_Op.10/12",
+      "score_path": "Corpus/Keyboard_Other/Chopin,_Frédéric/Études_Op.10/12/score.mxl",
+      "score_git_blob": "c9c5545268f91ef3a69bd3ce54e4d29c71000d97",
+      "gold_path": "Corpus/Keyboard_Other/Chopin,_Frédéric/Études_Op.10/12/analysis.txt",
+      "gold_git_blob": "916934cafc177e3bd0e52e8da773329afa30b23e"
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Brahms,_Johannes/6_Songs,_Op.3/3_Liebe_und_Frühling_II",
+      "score_path": "Corpus/OpenScore-LiederCorpus/Brahms,_Johannes/6_Songs,_Op.3/3_Liebe_und_Frühling_II/score.mxl",
+      "score_git_blob": "1df2f4123d4413e86a02be9e12d414b8a229c541",
+      "gold_path": "Corpus/OpenScore-LiederCorpus/Brahms,_Johannes/6_Songs,_Op.3/3_Liebe_und_Frühling_II/analysis.txt",
+      "gold_git_blob": "8db6264541aa94005bd07123477169d789b18829"
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Brahms,_Johannes/7_Lieder,_Op.48/3_Liebesklage_des_Mädchens",
+      "score_path": "Corpus/OpenScore-LiederCorpus/Brahms,_Johannes/7_Lieder,_Op.48/3_Liebesklage_des_Mädchens/score.mxl",
+      "score_git_blob": "8308b20174ec74f9b250e7463c9d9e92ba591551",
+      "gold_path": "Corpus/OpenScore-LiederCorpus/Brahms,_Johannes/7_Lieder,_Op.48/3_Liebesklage_des_Mädchens/analysis.txt",
+      "gold_git_blob": "deda3e7d4c840bc26b003401f0484a9449baf227"
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Brahms,_Johannes/Marienlieder,_Op.22/1_Der_englische_Gruss",
+      "score_path": "Corpus/OpenScore-LiederCorpus/Brahms,_Johannes/Marienlieder,_Op.22/1_Der_englische_Gruss/score.mxl",
+      "score_git_blob": "c00bb98397030ebb6bb7128d160422e66db38933",
+      "gold_path": "Corpus/OpenScore-LiederCorpus/Brahms,_Johannes/Marienlieder,_Op.22/1_Der_englische_Gruss/analysis.txt",
+      "gold_git_blob": "7b771f3806fac2d440419626098b9e4d57bb8f92"
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Schubert,_Franz/4_Lieder,_Op.96/1_Die_Sterne,_D.939",
+      "score_path": "Corpus/OpenScore-LiederCorpus/Schubert,_Franz/4_Lieder,_Op.96/1_Die_Sterne,_D.939/score.mxl",
+      "score_git_blob": "ed2128572b762034b1cfa1c51c2b704e5224da48",
+      "gold_path": "Corpus/OpenScore-LiederCorpus/Schubert,_Franz/4_Lieder,_Op.96/1_Die_Sterne,_D.939/analysis.txt",
+      "gold_git_blob": "4d448062363f7b3b74cfe211b4faeb2ee5dc197e"
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Schubert,_Franz/Die_schöne_Müllerin,_D.795/01_Das_Wandern",
+      "score_path": "Corpus/OpenScore-LiederCorpus/Schubert,_Franz/Die_schöne_Müllerin,_D.795/01_Das_Wandern/score.mxl",
+      "score_git_blob": "096e7e6946099d104521a6d348611c19bd3cbf53",
+      "gold_path": "Corpus/OpenScore-LiederCorpus/Schubert,_Franz/Die_schöne_Müllerin,_D.795/01_Das_Wandern/analysis.txt",
+      "gold_git_blob": "16b779e8bd546886813d46cc1a1a32fada047a40"
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Schubert,_Franz/Die_schöne_Müllerin,_D.795/02_Wohin",
+      "score_path": "Corpus/OpenScore-LiederCorpus/Schubert,_Franz/Die_schöne_Müllerin,_D.795/02_Wohin/score.mxl",
+      "score_git_blob": "743b98563b9c13be3a96dd10713b8609a7387e74",
+      "gold_path": "Corpus/OpenScore-LiederCorpus/Schubert,_Franz/Die_schöne_Müllerin,_D.795/02_Wohin/analysis.txt",
+      "gold_git_blob": "b4f82fc36b3b38dbcd46b82018ec10785c1ecfe0"
+    }
+  ]
+}

@@ -4,7 +4,7 @@
   "base_release": "1.3.11",
   "contracts": {
     "svg_render_metadata": 22,
-    "analysis_result": 13,
+    "analysis_result": 14,
     "print_layout": 34,
     "glyph_resource": 1,
     "tab_performance": 4
@@ -58,7 +58,7 @@
   "evidence": {
     "coverage_matrix": "docs/notation-coverage.md",
     "engraving_baseline": "docs/verovio-engraving-baseline.md (same paper and input; page count is not an engraving-quality score)",
-    "analysis_corpus": "benchmarks/analysis.json (synthetic local benchmark; independent corpus pending)",
+    "analysis_corpus": "benchmarks/analysis.json (synthetic counts); docs/archive/analysis-wir-harmony-development-v5.md (BCMH and two inspected When in Rome development cohorts); docs/archive/analysis-wir-harmony-holdout-2-v1.md (failed original frozen cohort); docs/archive/analysis-wir-harmony-holdout-3-v1.md (12-work fixed harmony task holdout, 559 versus 508 correct at 2341 positions, all prepared inputs verified); docs/archive/analysis-mozart-cadence-preflight-v1.md (36 answer-free inputs, development diagnostic only, 18 cadence-label movements reserved); other analysis task holdouts pending",
     "security_checks": [
       "cargo fmt --all -- --check",
       "cargo test --all-features --locked",

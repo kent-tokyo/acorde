@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "selection_sha256": "0f4db2819434e685feb4946ce00ece39e0480bdc47f2eedfeb3d283aad5eec57",
+  "commit": "1c61fe41b8c2910296d7d2bcbf6476c7c1f2fe35",
+  "files": [
+    {
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op018_No1/1",
+      "score_sha256": "40a61973ce6566414a60aa4a3a885da2c20be56b494570463036608280b7d8ba",
+      "score_bytes": 82617,
+      "gold_sha256": "67e0dd498f97045555ca9a00ad5c80221bc7a8212bf0124a8055c9f9135ca0f5",
+      "gold_bytes": 4053
+    },
+    {
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op018_No2/1",
+      "score_sha256": "245706a57b456b1713de731e0bfa9718518d5f1d57f3bda29866103538a91a4d",
+      "score_bytes": 68694,
+      "gold_sha256": "0b23bf5e8e4a3298a7c0ea3471678880210a7a9089db8a1c1f836f06609543ee",
+      "gold_bytes": 4599
+    },
+    {
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op018_No3/1",
+      "score_sha256": "71a26badfbc6508c88181b61af476b2676cfd2d15ab134afa1d8e7cf3ca8a9ab",
+      "score_bytes": 64588,
+      "gold_sha256": "50ff855834bf49eeaad974a464f45319eaba4b4dcc4345ec3cfa6cabb2f3ba01",
+      "gold_bytes": 3806
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/04",
+      "score_sha256": "3a8471d25c3f71a71af2de19f351c95f945d3de4fb919b4c7ef92bc4149855a0",
+      "score_bytes": 12160,
+      "gold_sha256": "7f88e37da84a8742c2f98ddaf88f899a9c66e348a801e1c7a66b89cf3df4b5e2",
+      "gold_bytes": 1151
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/05",
+      "score_sha256": "a522bed78e8d045b803d65167271668defc5a106e6aaace9d7c354e46d316f53",
+      "score_bytes": 10380,
+      "gold_sha256": "daefb1862be3b76bc321a6a781c6c64582ca1754bbf816dcbb983b6b4509acf7",
+      "gold_bytes": 1862
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/06",
+      "score_sha256": "4de7ea61b6c90bc231923c926cf8a36ecd2b2aa2829c4d5bdb5e05f336e037f1",
+      "score_bytes": 14180,
+      "gold_sha256": "65fe8f6970448e4f34b7278200872019295bb2f323d690ab879ab6c89d17b43b",
+      "gold_bytes": 1296
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Hensel,_Fanny_(Mendelssohn)/3_Lieder/1_Sehnsucht",
+      "score_sha256": "007bb104dadbeb92fe868cd5492016794f252ff59ff64b1b72a4fc4f9946d63a",
+      "score_bytes": 8247,
+      "gold_sha256": "0179e77a38bf5fa1c8045e9b63906dc464e1af40dc179c75784e7cd5f0ff5e3e",
+      "gold_bytes": 622
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Hensel,_Fanny_(Mendelssohn)/5_Lieder,_Op.10/1_Nach_Süden",
+      "score_sha256": "4ab204b2d38435180646fe1a5a4b0ead696c925bd4a6f9b19bce2ffb9799536e",
+      "score_bytes": 25975,
+      "gold_sha256": "343d3e2369261aa7d8ffecb1446999e45a84f2c1dacae16ceb06923ffa5de72c",
+      "gold_bytes": 1201
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Hensel,_Fanny_(Mendelssohn)/6_Lieder,_Op.1/1_Schwanenlied",
+      "score_sha256": "e15d3d70c64ff9169037321e664c5b59f6b0ac81f7af84668a1a53fc0573bbfc",
+      "score_bytes": 19888,
+      "gold_sha256": "c76821fe5bce51404550a8ca7f49005a076effc32944c454ddeda64544d20f11",
+      "gold_bytes": 1000
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Schumann,_Clara/6_Lieder,_Op.13/1_Ich_stand_in_dunklen_Träumen",
+      "score_sha256": "8a0c5f93aa1aa50c1c9b04f9e36a3a28c93ed60500575edb8d2e7b95aacff63c",
+      "score_bytes": 16151,
+      "gold_sha256": "bbabbe1073a98c3aae60f601e6d472fb002db160dea3a92b5f3a6f56b4c65547",
+      "gold_bytes": 1125
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Schumann,_Clara/6_Lieder,_Op.23/4_Auf_einem_grünen_Hügel",
+      "score_sha256": "7ddad682c4ada79518498142d0145e82c0873843a77652352fc464c3c0963aed",
+      "score_bytes": 10798,
+      "gold_sha256": "93917f9f6dc429553bc606b9b65e936275ba636deaf0a2491a5176cc37cd5e75",
+      "gold_bytes": 1219
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Schumann,_Clara/Lieder,_Op.12/04_Liebst_du_um_Schönheit",
+      "score_sha256": "65d3d1f8ca2d00237d6760fe99843937c79934438678ea4dd2a7d52072c24151",
+      "score_bytes": 17975,
+      "gold_sha256": "8805cf640f91b385f20f2fe2033dcfe5df0a34ca4d121793613227a006a25637",
+      "gold_bytes": 1338
+    }
+  ]
+}
