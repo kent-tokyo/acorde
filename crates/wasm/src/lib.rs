@@ -1616,6 +1616,17 @@ pub fn profile_chord_plan(plan_json: &str, profile_json: &str, allow_omissions: 
         .map_err(|error| js_err(format!("profiled chord plan serialization failed: {error}")))
 }
 
+/// Generate simultaneous standard-bass actions with caller-supplied button labels.
+#[wasm_bindgen]
+pub fn arrange_standard_bass_with_annotations(score_json: &str, options_json: &str) -> Result<String, JsValue> {
+    use acorde_core::model::standard_bass_annotations::arrange_standard_bass_with_annotations;
+    use acorde_core::model::standard_bass_arrangement::StandardBassArrangementOptions;
+    let score = score_from_json(score_json)?;
+    let options: StandardBassArrangementOptions = parse_json(options_json, "standard-bass arrangement options", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&arrange_standard_bass_with_annotations(&score, &options))
+        .map_err(|error| js_err(format!("annotated standard-bass arrangement serialization failed: {error}")))
+}
+
 /// Generate a bass-pulse preset using an explicit standard-bass button profile.
 #[wasm_bindgen]
 pub fn arrange_profiled_bass_pulse(score_json: &str, options_json: &str) -> Result<String, JsValue> {

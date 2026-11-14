@@ -317,3 +317,7 @@ supplied profile only, not the playability of the piece.
 `arrange_standard_bass_located_selected_screened` additionally accepts explicit pitch choices for chords in the selected melody voice. It reports each omitted source pitch and checks the chosen melody against source playback before screening expanded button transitions. The search remains greedy and requires performer review; a rejected result does not rule out other arrangements.
 
 `find_located_standard_bass_path` extends that selected-melody workflow with bounded alternate-button search over repeat-expanded transitions. By default, replacement buttons must sound the same MIDI notes; the caller may explicitly allow different voicings with the same bass MIDI and chord pitch classes. Exhausting a search limit is reported as incomplete, and no candidate proves fingering or reach without performer review.
+
+### Simultaneous button annotations
+
+`model::standard_bass_annotations::arrange_standard_bass_with_annotations` and its WASM binding generate the existing simultaneous-button arrangement with a technique label formed from the two profile button IDs. Supply readable, instrument-specific IDs such as `C bass` and `Em chord`; IDs are not inferred fingering or physical reach. The original chord symbol remains in the score, and tied continuations do not add a new attack label. MusicXML exports the label as other technical text.
