@@ -173,6 +173,12 @@ verifies both music21 10.5.2 and Acorde parse all 36 prepared scores. Cadence
 annotations in the reserved split have not been read. Score-level prior
 exposure from the separate global-key work is disclosed in the selection.
 
+The opt-in [Acorde cadence development rerun](archive/analysis-mozart-cadence-acorde-development-v2.json)
+finds 30/333 annotated positions with 29 false positives after the fixed
+timeline exclusions. The earlier [legacy pass](archive/analysis-mozart-cadence-acorde-development-v1.json)
+found 7 with 122 false positives. Both reports are Acorde-only development
+diagnostics, not a comparison with music21.
+
 Before running a cadence comparison, map repeated performance-note IDs back
 to the folded MusicXML note IDs, define exact score positions and class mapping,
 and score false positives over the same eligible positions. Pin the music21

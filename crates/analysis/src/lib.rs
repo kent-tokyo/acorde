@@ -723,6 +723,13 @@ pub struct VerticalAnalysisReport {
     pub timeline_issues: Vec<VerticalTimelineIssue>,
 }
 
+/// Opt-in cadence candidates inferred from located vertical sonorities.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct VerticalCadenceReport {
+    pub cadence_candidates: Vec<CadenceCandidate>,
+    pub timeline_issues: Vec<VerticalTimelineIssue>,
+}
+
 fn vertical_measure_starts(score: &Score) -> Vec<Vec<Vec<f64>>> {
     score
         .parts
@@ -1238,6 +1245,152 @@ pub fn analyze_arpeggiated_bars_in_key_report(
     key: &KeySignature,
 ) -> VerticalAnalysisReport {
     analyze_arpeggiated_bars_with_key(score, Some(key))
+}
+
+/// Find conservative dominant-to-tonic resolutions from opt-in vertical chords.
+///
+/// A candidate requires a preceding un-applied dominant, a tonic chord, a
+/// sounding bass pitch class to rise by five semitones modulo 12, and the
+/// outer voices to finish in the same pitch class. This identifies a supported
+/// authentic-cadence *candidate*; it does not distinguish perfect from
+/// imperfect authentic cadence or assert a phrase ending.
+pub fn analyze_vertical_cadences_report(score: &Score) -> VerticalCadenceReport {
+    analyze_vertical_cadences_with_key(score, None)
+}
+
+/// As [`analyze_vertical_cadences_report`], with a caller-supplied concert key.
+pub fn analyze_vertical_cadences_in_key_report(
+    score: &Score,
+    key: &KeySignature,
+) -> VerticalCadenceReport {
+    analyze_vertical_cadences_with_key(score, Some(key))
+}
+
+fn is_plain_roman(roman: &str, numeral: &str) -> bool {
+    if roman.contains('/') {
+        return false;
+    }
+    roman.strip_prefix(numeral).is_some_and(|suffix| {
+        suffix.is_empty() || suffix.starts_with(|character: char| character.is_ascii_digit())
+    })
+}
+
+fn active_outer_sounding_semitones(score: &Score, measure: usize, beat: f64) -> Option<(i32, i32)> {
+    const EPSILON: f64 = 1e-7;
+    let mut bass = None;
+    let mut top = None;
+    for event in written_measure_events(score, measure) {
+        if event.start > beat + EPSILON
+            || event.end <= beat + EPSILON
+            || event.note.is_rest
+            || event.note.is_unpitched
+        {
+            continue;
+        }
+        let transpose = i32::from(sounding_transpose(score, &event.address)?);
+        for pitch in &event.note.pitches {
+            let cents = pitch.to_midi_cents() + transpose * 100;
+            if cents.rem_euclid(100) != 0 {
+                return None;
+            }
+            let semitone = cents / 100;
+            bass = Some(bass.map_or(semitone, |low: i32| low.min(semitone)));
+            top = Some(top.map_or(semitone, |high: i32| high.max(semitone)));
+        }
+    }
+    Some((bass?, top?))
+}
+
+fn analyze_vertical_cadences_with_key(
+    score: &Score,
+    key_override: Option<&KeySignature>,
+) -> VerticalCadenceReport {
+    let report = analyze_arpeggiated_bars_with_key(score, key_override);
+    let mut result = VerticalCadenceReport {
+        cadence_candidates: Vec::new(),
+        timeline_issues: report.timeline_issues,
+    };
+    // The outer-pitch helper uses each staff's physical measure index.
+    if valid_alternate_bar_partition(score, &vertical_measure_starts(score)).is_some() {
+        return result;
+    }
+    let mut sonorities: Vec<_> = report.sonorities.iter().collect();
+    sonorities.sort_by(|left, right| {
+        left.measure
+            .cmp(&right.measure)
+            .then_with(|| left.beat.total_cmp(&right.beat))
+    });
+    for (index, current) in sonorities.iter().enumerate() {
+        if result
+            .timeline_issues
+            .iter()
+            .any(|issue| issue.measure == current.measure)
+        {
+            continue;
+        }
+        let Some(roman) = current.label.roman_numeral.as_deref() else {
+            continue;
+        };
+        if !is_plain_roman(roman, "I") {
+            continue;
+        }
+        let previous = sonorities[index.saturating_sub(8)..index]
+            .iter()
+            .rev()
+            .find(|previous| {
+                current.measure.saturating_sub(previous.measure) <= 1
+                    && previous
+                        .label
+                        .roman_numeral
+                        .as_deref()
+                        .is_some_and(|label| label != roman)
+            });
+        let Some(previous) = previous else {
+            continue;
+        };
+        if result
+            .timeline_issues
+            .iter()
+            .any(|issue| issue.measure == previous.measure)
+            || !previous
+                .label
+                .roman_numeral
+                .as_deref()
+                .is_some_and(|label| is_plain_roman(label, "V"))
+        {
+            continue;
+        }
+        let Some((previous_bass, _)) =
+            active_outer_sounding_semitones(score, previous.measure, previous.beat)
+        else {
+            continue;
+        };
+        let Some((current_bass, current_top)) =
+            active_outer_sounding_semitones(score, current.measure, current.beat)
+        else {
+            continue;
+        };
+        if (current_bass - previous_bass).rem_euclid(12) != 5
+            || (current_top - current_bass).rem_euclid(12) != 0
+        {
+            continue;
+        }
+        let mut evidence = previous.label.evidence.clone();
+        for address in &current.label.evidence {
+            if !evidence.contains(address) {
+                evidence.push(address.clone());
+            }
+        }
+        result.cadence_candidates.push(CadenceCandidate {
+            from: previous.label.address.clone(),
+            to: current.label.address.clone(),
+            kind: CadenceKind::Authentic,
+            confidence: if current.beat.abs() < 1e-7 { 70 } else { 55 },
+            rule_id: "vertical-dominant-tonic-outer-voices".to_string(),
+            evidence,
+        });
+    }
+    result
 }
 
 fn analyze_arpeggiated_bars_with_key(
@@ -3554,6 +3707,59 @@ mod tests {
                 .sonorities
                 .iter()
                 .all(|item| item.label.rule_id != "forward-completed-sonority")
+        );
+    }
+
+    #[test]
+    fn opt_in_vertical_cadence_uses_bass_and_outer_voice_resolution() {
+        let mut score = Score::new("dominant tonic", 120, 4, 4, 0, 2);
+        for (measure_index, bass_step, bass_octave, upper_pitches) in [
+            (
+                0,
+                Step::G,
+                3,
+                vec![
+                    Pitch::new(Step::B, 4),
+                    Pitch::new(Step::D, 5),
+                    Pitch::new(Step::G, 5),
+                ],
+            ),
+            (
+                1,
+                Step::C,
+                3,
+                vec![
+                    Pitch::new(Step::E, 4),
+                    Pitch::new(Step::G, 4),
+                    Pitch::new(Step::C, 5),
+                ],
+            ),
+        ] {
+            let measure = &mut score.parts[0].staves[0].measures[measure_index];
+            measure.voices[0] = vec![Note::new(
+                Pitch::new(bass_step, bass_octave),
+                Duration::Whole,
+            )];
+            let mut upper = Note::new(upper_pitches[0].clone(), Duration::Whole);
+            upper.pitches.extend(upper_pitches.into_iter().skip(1));
+            measure.voices[1] = vec![upper];
+        }
+
+        let report = analyze_vertical_cadences_report(&score);
+        assert!(report.timeline_issues.is_empty());
+        assert_eq!(report.cadence_candidates.len(), 1);
+        let candidate = &report.cadence_candidates[0];
+        assert_eq!(candidate.kind, CadenceKind::Authentic);
+        assert_eq!(candidate.from.measure, 0);
+        assert_eq!(candidate.to.measure, 1);
+        assert_eq!(candidate.rule_id, "vertical-dominant-tonic-outer-voices");
+
+        let upper = &mut score.parts[0].staves[0].measures[1].voices[1][0];
+        upper.pitches.retain(|pitch| pitch.step != Step::C);
+        assert!(
+            analyze_vertical_cadences_report(&score)
+                .cadence_candidates
+                .is_empty()
         );
     }
 

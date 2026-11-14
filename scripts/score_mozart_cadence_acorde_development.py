@@ -87,6 +87,8 @@ def main():
     parser.add_argument("input_dir", type=Path)
     parser.add_argument("acorde", type=Path)
     parser.add_argument("output", type=Path)
+    parser.add_argument("--vertical-cadences", action="store_true",
+                        help="use the opt-in vertical cadence command instead of legacy analyze")
     args = parser.parse_args()
     projection = json.loads(args.projection.read_text())
     preflight = json.loads(args.preflight.read_text())
@@ -106,7 +108,10 @@ def main():
         if sha256(score_path) != case["score_input_sha256"]:
             parser.error(f"file hash mismatch: {case['id']}")
         try:
-            analysis = json.loads(subprocess.check_output([str(args.acorde.resolve()), "analyze", str(score_path)]))
+            command = ([str(args.acorde.resolve()), "analyze-cadences", str(score_path), "--infer-key"]
+                       if args.vertical_cadences else
+                       [str(args.acorde.resolve()), "analyze", str(score_path)])
+            analysis = json.loads(subprocess.check_output(command))
             report = json.loads(subprocess.check_output([str(args.acorde.resolve()), "report", str(score_path)]))
             counts, rows = score_case(case, analysis["cadence_candidates"],
                                       report["score"], set(checked["unequal_timeline_measures"]))
@@ -123,6 +128,7 @@ def main():
     summary["cases"] = len(results)
     summary["failures"] = sum("error" in case for case in results)
     result = {"schema_version": 1, "classification": "development diagnostic, Acorde only",
+              "mode": "vertical-cadences" if args.vertical_cadences else "legacy-analyze",
               "source_commit": projection["source_commit"],
               "projection_sha256": sha256(args.projection),
               "preflight_sha256": sha256(args.preflight),

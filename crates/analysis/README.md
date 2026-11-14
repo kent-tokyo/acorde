@@ -75,6 +75,17 @@ later notes used as evidence. Invalid bars, different physical bar partitions,
 three-note bar-start melodies, and fully tied continuations remain guarded.
 The CLI exposes this pass through `analyze-vertical --arpeggiated-bars`.
 
+`analyze_vertical_cadences_report` and its in-key variant add opt-in
+authentic-cadence candidates from those located vertical chords. A candidate
+requires a plain dominant followed by a tonic, sounding bass motion of five
+semitones modulo 12, and outer voices ending in the same
+pitch class. The report keeps timeline issues and source-note evidence; it
+does not assert a phrase ending or distinguish perfect from imperfect
+authentic cadences. The CLI exposes it through `analyze-cadences [--infer-key]`.
+On the inspected Mozart cadence development split, it finds 30 of 333
+annotated cadences with 29 false positives at 18,467 eligible positions. This
+is not a music21 comparison or held-out accuracy result.
+
 `analyze_batch` preserves input order for finite collections, while `analyze_stream` returns a
 lazy iterator for host-side streaming. Both use the same deterministic result contract.
 

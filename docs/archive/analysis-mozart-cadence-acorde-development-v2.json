@@ -1,0 +1,4477 @@
+{
+  "schema_version": 1,
+  "classification": "development diagnostic, Acorde only",
+  "mode": "vertical-cadences",
+  "source_commit": "9c5f7004c5ab1f15d64e959d011dbdf3b7863c3e",
+  "projection_sha256": "ee9f97ccbfe4452334150c582093f2e91bb983288461b51922256a29b95214bc",
+  "preflight_sha256": "f2526225e1ff07d296a2a0e0f212014ebf61a1c5f5d17c2ef2eb373b7a287102",
+  "acorde_binary_sha256": "f9c5cbc01595699cdb5c3dab0d7c2cac66ac7358b78541a2d8368cc4b3265612",
+  "class_mapping": {
+    "PAC": "Authentic",
+    "IAC": "Authentic",
+    "HC": "Half",
+    "DC": "Deceptive",
+    "EC": "Evaded",
+    "PC": "Plagal"
+  },
+  "summary": {
+    "eligible": 18467,
+    "gold_positive": 333,
+    "predicted_positions": 59,
+    "correct": 30,
+    "wrong_label": 0,
+    "false_positive": 29,
+    "missed": 303,
+    "true_negative": 18105,
+    "ambiguous_prediction": 0,
+    "outside_eligible_candidates": 0,
+    "cases": 18,
+    "failures": 0
+  },
+  "cases": [
+    {
+      "id": "K279-1",
+      "input_sha256": "f8addb674c44de7638f8f1676d19e2808350e78d014edbf854ed460bca93fc85",
+      "excluded_timeline_measures": [],
+      "counts": {
+        "eligible": 1441,
+        "gold_positive": 20,
+        "predicted_positions": 9,
+        "correct": 6,
+        "wrong_label": 0,
+        "false_positive": 3,
+        "missed": 14,
+        "true_negative": 1418,
+        "ambiguous_prediction": 0,
+        "outside_eligible_candidates": 0
+      },
+      "rows": [
+        {
+          "part": 0,
+          "measure": 2,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 2,
+          "offset_quarter": [
+            1,
+            4
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 4,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 6,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 9,
+          "offset_quarter": [
+            3,
+            1
+          ],
+          "gold": "DC",
+          "gold_coarse": "Deceptive",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 11,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 15,
+          "offset_quarter": [
+            1,
+            2
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 23,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 30,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 32,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 34,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 36,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 50,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 59,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 59,
+          "offset_quarter": [
+            1,
+            4
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 61,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 66,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 77,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 85,
+          "offset_quarter": [
+            1,
+            2
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 91,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 93,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 95,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 97,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        }
+      ]
+    },
+    {
+      "id": "K279-2",
+      "input_sha256": "97cf19034032e7bd47e490f58ba2721010cbdd440173e1b9867617320cf07502",
+      "excluded_timeline_measures": [],
+      "counts": {
+        "eligible": 682,
+        "gold_positive": 20,
+        "predicted_positions": 5,
+        "correct": 4,
+        "wrong_label": 0,
+        "false_positive": 1,
+        "missed": 16,
+        "true_negative": 661,
+        "ambiguous_prediction": 0,
+        "outside_eligible_candidates": 0
+      },
+      "rows": [
+        {
+          "part": 0,
+          "measure": 4,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 6,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 10,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 17,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 21,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 26,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 27,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 28,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 33,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 36,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 38,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 42,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 47,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 51,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 53,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 58,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 62,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 69,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 73,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 74,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 75,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": [
+            "Authentic"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "K279-3",
+      "input_sha256": "2eff60a22fd694db49a600c716ef20b039b66d862c74f608a4052a2f3fe72fec",
+      "excluded_timeline_measures": [
+        79
+      ],
+      "counts": {
+        "eligible": 898,
+        "gold_positive": 25,
+        "predicted_positions": 5,
+        "correct": 0,
+        "wrong_label": 0,
+        "false_positive": 5,
+        "missed": 25,
+        "true_negative": 868,
+        "ambiguous_prediction": 0,
+        "outside_eligible_candidates": 0
+      },
+      "rows": [
+        {
+          "part": 0,
+          "measure": 4,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 5,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 10,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 18,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 20,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 22,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 30,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 34,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "DC",
+          "gold_coarse": "Deceptive",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 38,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 40,
+          "offset_quarter": [
+            3,
+            4
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 46,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 50,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 54,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 71,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 73,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 91,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 92,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 97,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 105,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 107,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 109,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 117,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 121,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "DC",
+          "gold_coarse": "Deceptive",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 125,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 133,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 148,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 152,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 156,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 157,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 159,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "predicted": [
+            "Authentic"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "K280-1",
+      "input_sha256": "8cd09be7ab2f31214ca5fbc2b3300ce47893684ec75341868db9509171c6a827",
+      "excluded_timeline_measures": [],
+      "counts": {
+        "eligible": 1208,
+        "gold_positive": 13,
+        "predicted_positions": 2,
+        "correct": 2,
+        "wrong_label": 0,
+        "false_positive": 0,
+        "missed": 11,
+        "true_negative": 1195,
+        "ambiguous_prediction": 0,
+        "outside_eligible_candidates": 0
+      },
+      "rows": [
+        {
+          "part": 0,
+          "measure": 9,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 12,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 25,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 42,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 47,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 53,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 77,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 91,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 94,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 107,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 130,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 135,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 141,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": [
+            "Authentic"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "K280-2",
+      "input_sha256": "5a81d90fda000a19121a7804422072798197822db8e34d04abe04aa62d888dfb",
+      "excluded_timeline_measures": [],
+      "counts": {
+        "eligible": 502,
+        "gold_positive": 14,
+        "predicted_positions": 1,
+        "correct": 1,
+        "wrong_label": 0,
+        "false_positive": 0,
+        "missed": 13,
+        "true_negative": 488,
+        "ambiguous_prediction": 0,
+        "outside_eligible_candidates": 0
+      },
+      "rows": [
+        {
+          "part": 0,
+          "measure": 7,
+          "offset_quarter": [
+            3,
+            2
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 11,
+          "offset_quarter": [
+            3,
+            2
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 18,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "DC",
+          "gold_coarse": "Deceptive",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 20,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 21,
+          "offset_quarter": [
+            3,
+            2
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 23,
+          "offset_quarter": [
+            3,
+            2
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 31,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 41,
+          "offset_quarter": [
+            3,
+            2
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 45,
+          "offset_quarter": [
+            3,
+            2
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 52,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 54,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "DC",
+          "gold_coarse": "Deceptive",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 56,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 57,
+          "offset_quarter": [
+            3,
+            2
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 59,
+          "offset_quarter": [
+            3,
+            2
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        }
+      ]
+    },
+    {
+      "id": "K280-3",
+      "input_sha256": "641b976ace2f47f6ccf4a3a6acf9e36890c8d9e315d8313bfb9961e992870380",
+      "excluded_timeline_measures": [],
+      "counts": {
+        "eligible": 799,
+        "gold_positive": 16,
+        "predicted_positions": 0,
+        "correct": 0,
+        "wrong_label": 0,
+        "false_positive": 0,
+        "missed": 16,
+        "true_negative": 783,
+        "ambiguous_prediction": 0,
+        "outside_eligible_candidates": 0
+      },
+      "rows": [
+        {
+          "part": 0,
+          "measure": 8,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 16,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 32,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 49,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 62,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 66,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 72,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 86,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 104,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 116,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 124,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 144,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 161,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 174,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 178,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 184,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        }
+      ]
+    },
+    {
+      "id": "K281-1",
+      "input_sha256": "913f01ebb40b633d5f2d599dafb01ffed30724d4470e8534d456c172a4f509ec",
+      "excluded_timeline_measures": [],
+      "counts": {
+        "eligible": 1335,
+        "gold_positive": 18,
+        "predicted_positions": 2,
+        "correct": 0,
+        "wrong_label": 0,
+        "false_positive": 2,
+        "missed": 18,
+        "true_negative": 1315,
+        "ambiguous_prediction": 0,
+        "outside_eligible_candidates": 0
+      },
+      "rows": [
+        {
+          "part": 0,
+          "measure": 3,
+          "offset_quarter": [
+            1,
+            2
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 7,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 15,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 29,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 33,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 35,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 37,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 47,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 58,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 60,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 67,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 72,
+          "offset_quarter": [
+            1,
+            2
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 76,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 84,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 96,
+          "offset_quarter": [
+            3,
+            8
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 98,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 100,
+          "offset_quarter": [
+            3,
+            8
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 102,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 104,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 106,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        }
+      ]
+    },
+    {
+      "id": "K281-2",
+      "input_sha256": "a2d727e073aabd9103788a8149fbe60cf0daf8a21421242a9fcd07fe21a9dcee",
+      "excluded_timeline_measures": [],
+      "counts": {
+        "eligible": 685,
+        "gold_positive": 19,
+        "predicted_positions": 5,
+        "correct": 2,
+        "wrong_label": 0,
+        "false_positive": 3,
+        "missed": 17,
+        "true_negative": 663,
+        "ambiguous_prediction": 0,
+        "outside_eligible_candidates": 0
+      },
+      "rows": [
+        {
+          "part": 0,
+          "measure": 7,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 11,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 13,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 13,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 20,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 22,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 25,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 34,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "DC",
+          "gold_coarse": "Deceptive",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 38,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 40,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 42,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 54,
+          "offset_quarter": [
+            1,
+            2
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 65,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 69,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 71,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 85,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 94,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "DC",
+          "gold_coarse": "Deceptive",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 98,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 100,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 102,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 103,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 104,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "predicted": [
+            "Authentic"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "K281-3",
+      "input_sha256": "7c547b17f0baf371b4846a58e58c50faf97316b01aaa4772dafe6c17394f1919",
+      "excluded_timeline_measures": [],
+      "counts": {
+        "eligible": 1295,
+        "gold_positive": 31,
+        "predicted_positions": 4,
+        "correct": 4,
+        "wrong_label": 0,
+        "false_positive": 0,
+        "missed": 27,
+        "true_negative": 1264,
+        "ambiguous_prediction": 0,
+        "outside_eligible_candidates": 0
+      },
+      "rows": [
+        {
+          "part": 0,
+          "measure": 4,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 8,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 10,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 12,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 14,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 16,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 27,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 39,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 47,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 51,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 59,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 63,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 67,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 69,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 75,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 79,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 81,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 83,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 85,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 87,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 101,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 109,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 118,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 123,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 136,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 146,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 150,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 152,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 154,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 156,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 158,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        }
+      ]
+    },
+    {
+      "id": "K282-1",
+      "input_sha256": "d12f8fbc801f1649e9659e232b848a70e6860dcbd75206e21a816a68366a349b",
+      "excluded_timeline_measures": [],
+      "counts": {
+        "eligible": 602,
+        "gold_positive": 11,
+        "predicted_positions": 3,
+        "correct": 1,
+        "wrong_label": 0,
+        "false_positive": 2,
+        "missed": 10,
+        "true_negative": 589,
+        "ambiguous_prediction": 0,
+        "outside_eligible_candidates": 0
+      },
+      "rows": [
+        {
+          "part": 0,
+          "measure": 1,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 3,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 7,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 12,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "DC",
+          "gold_coarse": "Deceptive",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 14,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 19,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 25,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 26,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 26,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 30,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "DC",
+          "gold_coarse": "Deceptive",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 32,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 34,
+          "offset_quarter": [
+            1,
+            2
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 35,
+          "offset_quarter": [
+            3,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        }
+      ]
+    },
+    {
+      "id": "K282-2",
+      "input_sha256": "313f0ab2c6100364b740702be38c94b2a99dbeea40dab78eb3da4b153372b60e",
+      "excluded_timeline_measures": [],
+      "counts": {
+        "eligible": 421,
+        "gold_positive": 9,
+        "predicted_positions": 1,
+        "correct": 0,
+        "wrong_label": 0,
+        "false_positive": 1,
+        "missed": 9,
+        "true_negative": 411,
+        "ambiguous_prediction": 0,
+        "outside_eligible_candidates": 0
+      },
+      "rows": [
+        {
+          "part": 0,
+          "measure": 10,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 19,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 20,
+          "offset_quarter": [
+            1,
+            2
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 29,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 33,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 42,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 50,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 58,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 67,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 75,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        }
+      ]
+    },
+    {
+      "id": "K282-3",
+      "input_sha256": "03f788b1945350051ce1c84c458717a65fc20ece8aaf0951ff5c785bc7919688",
+      "excluded_timeline_measures": [],
+      "counts": {
+        "eligible": 621,
+        "gold_positive": 15,
+        "predicted_positions": 1,
+        "correct": 0,
+        "wrong_label": 0,
+        "false_positive": 1,
+        "missed": 15,
+        "true_negative": 605,
+        "ambiguous_prediction": 0,
+        "outside_eligible_candidates": 0
+      },
+      "rows": [
+        {
+          "part": 0,
+          "measure": 8,
+          "offset_quarter": [
+            1,
+            2
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 15,
+          "offset_quarter": [
+            1,
+            2
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 23,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 31,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "DC",
+          "gold_coarse": "Deceptive",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 35,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 39,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 60,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 70,
+          "offset_quarter": [
+            1,
+            2
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 77,
+          "offset_quarter": [
+            1,
+            2
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 85,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 89,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "DC",
+          "gold_coarse": "Deceptive",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 93,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "DC",
+          "gold_coarse": "Deceptive",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 97,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 99,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 101,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 102,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "predicted": [
+            "Authentic"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "K283-1",
+      "input_sha256": "c59c0b2dfbc562df33355decff90b73b8e8a3ebfcb447a6b57c815f5660652f2",
+      "excluded_timeline_measures": [],
+      "counts": {
+        "eligible": 971,
+        "gold_positive": 17,
+        "predicted_positions": 0,
+        "correct": 0,
+        "wrong_label": 0,
+        "false_positive": 0,
+        "missed": 17,
+        "true_negative": 954,
+        "ambiguous_prediction": 0,
+        "outside_eligible_candidates": 0
+      },
+      "rows": [
+        {
+          "part": 0,
+          "measure": 10,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 16,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 22,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 26,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 30,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 38,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 43,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 48,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 51,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 63,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 90,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 94,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 98,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 106,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 111,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 116,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 119,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        }
+      ]
+    },
+    {
+      "id": "K283-2",
+      "input_sha256": "a0690bf77a093c4722a53fef5c62c6f70ee226acdd132e99e8222645fb371b2f",
+      "excluded_timeline_measures": [],
+      "counts": {
+        "eligible": 673,
+        "gold_positive": 9,
+        "predicted_positions": 2,
+        "correct": 2,
+        "wrong_label": 0,
+        "false_positive": 0,
+        "missed": 7,
+        "true_negative": 664,
+        "ambiguous_prediction": 0,
+        "outside_eligible_candidates": 0
+      },
+      "rows": [
+        {
+          "part": 0,
+          "measure": 3,
+          "offset_quarter": [
+            3,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 7,
+          "offset_quarter": [
+            3,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 13,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 14,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 22,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 31,
+          "offset_quarter": [
+            3,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 37,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 38,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 40,
+          "offset_quarter": [
+            3,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": [
+            "Authentic"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "K283-3",
+      "input_sha256": "bb4bdd81c7fa01eb31fcb1a2b9c780a2f20eadb44a28c4b45c6d0e7149097287",
+      "excluded_timeline_measures": [],
+      "counts": {
+        "eligible": 1109,
+        "gold_positive": 18,
+        "predicted_positions": 1,
+        "correct": 1,
+        "wrong_label": 0,
+        "false_positive": 0,
+        "missed": 17,
+        "true_negative": 1091,
+        "ambiguous_prediction": 0,
+        "outside_eligible_candidates": 0
+      },
+      "rows": [
+        {
+          "part": 0,
+          "measure": 23,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 38,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 72,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 80,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 96,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 100,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 122,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 137,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 141,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 151,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "DC",
+          "gold_coarse": "Deceptive",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 159,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 167,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 194,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 209,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 243,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 251,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 267,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 271,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        }
+      ]
+    },
+    {
+      "id": "K284-1",
+      "input_sha256": "ee84c40d01f800d6f04a41efee08e5a1e96218f6ca68e8830c793f99a97f9eed",
+      "excluded_timeline_measures": [],
+      "counts": {
+        "eligible": 1570,
+        "gold_positive": 12,
+        "predicted_positions": 1,
+        "correct": 0,
+        "wrong_label": 0,
+        "false_positive": 1,
+        "missed": 12,
+        "true_negative": 1557,
+        "ambiguous_prediction": 0,
+        "outside_eligible_candidates": 0
+      },
+      "rows": [
+        {
+          "part": 0,
+          "measure": 16,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 33,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 40,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 43,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 49,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 69,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 87,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 105,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 112,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 115,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 119,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 125,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 126,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "predicted": [
+            "Authentic"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "K284-2",
+      "input_sha256": "86766da16f906719d69ddf8baa4a34d93d5924ec9b7213a09ff4d86f08066669",
+      "excluded_timeline_measures": [],
+      "counts": {
+        "eligible": 885,
+        "gold_positive": 13,
+        "predicted_positions": 9,
+        "correct": 2,
+        "wrong_label": 0,
+        "false_positive": 7,
+        "missed": 11,
+        "true_negative": 865,
+        "ambiguous_prediction": 0,
+        "outside_eligible_candidates": 0
+      },
+      "rows": [
+        {
+          "part": 0,
+          "measure": 7,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 8,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 8,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 15,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 24,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 29,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 37,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 38,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 38,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 45,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 51,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 58,
+          "offset_quarter": [
+            1,
+            2
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 60,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 68,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 69,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 75,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 84,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "DC",
+          "gold_coarse": "Deceptive",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 86,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "DC",
+          "gold_coarse": "Deceptive",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 90,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 91,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "predicted": [
+            "Authentic"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "K284-3",
+      "input_sha256": "0d771148cfcb31dacaae70ae64dd2c3da78ed06ab08b957a77a6c2a5bc26610e",
+      "excluded_timeline_measures": [],
+      "counts": {
+        "eligible": 2770,
+        "gold_positive": 53,
+        "predicted_positions": 8,
+        "correct": 5,
+        "wrong_label": 0,
+        "false_positive": 3,
+        "missed": 48,
+        "true_negative": 2714,
+        "ambiguous_prediction": 0,
+        "outside_eligible_candidates": 0
+      },
+      "rows": [
+        {
+          "part": 0,
+          "measure": 4,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 8,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 13,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 18,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 23,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 27,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 32,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 36,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 37,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 42,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 46,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 51,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 56,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 60,
+          "offset_quarter": [
+            1,
+            4
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 61,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 65,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 70,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 75,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 80,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 81,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 84,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 89,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 94,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 99,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 103,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 108,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 113,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 118,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 127,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 132,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 137,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 141,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 151,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 156,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 160,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 166,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 170,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 194,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 198,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 203,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 208,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 213,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 217,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 222,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 226,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 235,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 236,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 245,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 246,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": [
+            "Authentic"
+          ]
+        },
+        {
+          "part": 0,
+          "measure": 251,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 259,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 263,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 276,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 281,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "DC",
+          "gold_coarse": "Deceptive",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 283,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "DC",
+          "gold_coarse": "Deceptive",
+          "predicted": []
+        },
+        {
+          "part": 0,
+          "measure": 285,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "predicted": []
+        }
+      ]
+    }
+  ]
+}

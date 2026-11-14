@@ -26,6 +26,7 @@ regression tests must change together.
   result does not establish overall analysis superiority; other analysis tasks
   need independent holdouts. A separate Mozart cadence corpus has 36 verified
   answer-free inputs, but its 18-movement development baseline exposes a large
-  cadence recall gap; the reserved cadence labels remain unread.
+  cadence recall gap: the opt-in resolution rule matches 30/333 with 29 false
+  positives. The reserved cadence labels remain unread.
 - `evidence.security_checks` mirrors local release gates. Browser E2E, raster fidelity, latency,
   publication, and downstream adoption need their own evidence.

@@ -325,6 +325,14 @@ enum Commands {
         #[arg(long)]
         arpeggiated_bars: bool,
     },
+    /// Locate conservative authentic-cadence candidates from vertical chords
+    AnalyzeCadences {
+        /// Input score file
+        input: PathBuf,
+        /// Use the first Aarden-Essen global-key candidate instead of the written key
+        #[arg(long)]
+        infer_key: bool,
+    },
     /// Run a local analysis benchmark manifest and print its JSON report
     Benchmark {
         /// Manifest JSON containing benchmark cases and expected category counts
@@ -697,6 +705,7 @@ fn run(cli: &Cli) -> Result<(), String> {
             infer_key,
             arpeggiated_bars,
         } => cmd_analyze_vertical(input, *infer_key, *arpeggiated_bars),
+        Commands::AnalyzeCadences { input, infer_key } => cmd_analyze_cadences(input, *infer_key),
         Commands::Benchmark {
             manifest,
             fail_on_mismatch,
@@ -1178,6 +1187,34 @@ fn cmd_analyze_vertical(
     });
     let json = serde_json::to_string_pretty(&report)
         .map_err(|error| format!("vertical analysis serialization failed: {error}"))?;
+    println!("{json}");
+    Ok(())
+}
+
+fn cmd_analyze_cadences(input: &Path, infer_key: bool) -> Result<(), String> {
+    let score = parse_score(input)?;
+    let inferred_key = if infer_key {
+        acorde_analysis::estimate_keys_with_aarden_essen_profile(&score)
+            .first()
+            .map(|candidate| candidate.key.clone())
+    } else {
+        None
+    };
+    let analysis = match inferred_key.as_ref() {
+        Some(key) => acorde_analysis::analyze_vertical_cadences_in_key_report(&score, key),
+        None => acorde_analysis::analyze_vertical_cadences_report(&score),
+    };
+    let report = serde_json::json!({
+        "schema_version": 1,
+        "score_fingerprint": acorde_analysis::score_fingerprint(&score),
+        "key_source": if inferred_key.is_some() { "aarden-essen-first-candidate" } else { "written" },
+        "global_key": inferred_key,
+        "vertical_chord_mode": "arpeggiated-bars",
+        "cadence_candidates": analysis.cadence_candidates,
+        "timeline_issues": analysis.timeline_issues,
+    });
+    let json = serde_json::to_string_pretty(&report)
+        .map_err(|error| format!("cadence analysis serialization failed: {error}"))?;
     println!("{json}");
     Ok(())
 }

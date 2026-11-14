@@ -33,3 +33,10 @@ measure. At 18,467 eligible note onsets, it produces 141 cadence positions:
 out of 333. The existing cadence pass aggregates pitches within each voice
 and applies adjacent Roman-transition rules; this result is a diagnostic of
 that implementation. It is **not** a music21 comparison or holdout result.
+
+An opt-in [vertical-resolution rerun](analysis-mozart-cadence-acorde-development-v2.json)
+uses the same 18 development movements, input hashes, position projection and
+timeline exclusions. It matches 30 of 333 gold cadences, produces 29 false
+positives, and misses 303. All 30 matches are PAC; the rule does not yet
+classify half, deceptive or evaded cadences, and the Authentic API type does
+not distinguish PAC from IAC. This remains Acorde-only development evidence.

@@ -176,10 +176,12 @@ Next analysis gates, in order:
    annotated note IDs, so the evaluator must fold those positions explicitly.
    Define how annotated cadence classes map to Acorde candidates and a pinned
    music21 recipe; count false positives at eligible positions. The current
-   `analyze_cadences` only recognizes adjacent Roman transitions within a
-   voice. On the inspected 18-movement development split it matches just
-   7/333 cadence positions, with 122 false positives. Improve the musical
-   model before a held-out cadence comparison.
+   legacy `analyze_cadences` only recognizes adjacent Roman transitions
+   within a voice. On the inspected 18-movement development split it matches
+   7/333 cadence positions with 122 false positives. The opt-in
+   `analyze-cadences` bass/outer-voice rule reaches 30/333 with 29 false
+   positives, but misses 303 annotated cadences. Improve half, imperfect,
+   deceptive and evaded cadence handling before a held-out comparison.
 4. For voice leading, define a shared set of two-voice note quartets with exact
    pitches, onset, and duration. Compare located parallel fifths/octaves,
    contrary/similar motion, and resolution checks with pinned music21

@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+- Add opt-in `analyze-cadences [--infer-key]` and Rust report APIs for located
+  dominant-to-tonic outer-voice resolutions. Each candidate retains source
+  evidence and lower confidence; the existing `analyze` output is unchanged.
+  In 18 inspected Mozart movements this raises correct cadence positions from
+  7 to 30 and reduces false positives from 122 to 29, while leaving 303 of
+  333 gold cadences undetected. This is a development diagnostic only.
 - An opt-in `analyze-vertical --arpeggiated-bars` mode completes exact tertian
   chords from short forward note windows and bar openings. Each added label
   records future note addresses and a lower-confidence rule ID. The default
