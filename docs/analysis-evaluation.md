@@ -86,6 +86,15 @@ does not include the 64 converted XML files, so those input hashes cannot be
 rechecked by this command alone. The next untouched key holdout must use
 retained, hash-verified common inputs and a preregistered split.
 
+The later [three-style global-key holdout](archive/analysis-global-key-holdout-v1.md)
+does retain twelve common, hash-verified MusicXML inputs and a protocol
+committed before the selected labels were opened. Both analyzers parse all
+twelve; one chorale is excluded under the frozen reference rule. Acorde and
+music21 10.5.2 each match 10 of 11 eligible keys, with equal coverage. The
+preregistered superiority gate therefore fails. Chorale, keyboard, and chamber
+counts are reported separately; the cohort must be treated as development
+after any tuning informed by this result.
+
 ## BCMH harmony development adapter
 
 `scripts/compare_bcmh_harmony_music21.py` contract 4 retains every accepted

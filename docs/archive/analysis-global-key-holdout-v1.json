@@ -1,0 +1,241 @@
+{
+  "schema_version": 1,
+  "classification": "fixed global-key label holdout",
+  "gate_passed": false,
+  "summary": {
+    "selected": 12,
+    "excluded": 1,
+    "eligible": 11,
+    "paired": 11,
+    "acorde_available": 11,
+    "music21_available": 11,
+    "acorde_exact": 10,
+    "music21_exact": 10,
+    "acorde_exact_paired": 10,
+    "music21_exact_paired": 10,
+    "acorde_pc_mode": 10,
+    "music21_pc_mode": 10
+  },
+  "by_group": {
+    "chorale": {
+      "eligible": 3,
+      "paired": 3,
+      "acorde_exact": 2,
+      "music21_exact": 2
+    },
+    "keyboard": {
+      "eligible": 4,
+      "paired": 4,
+      "acorde_exact": 4,
+      "music21_exact": 4
+    },
+    "chamber": {
+      "eligible": 4,
+      "paired": 4,
+      "acorde_exact": 4,
+      "music21_exact": 4
+    }
+  },
+  "rows": [
+    {
+      "group": "chorale",
+      "piece": "200",
+      "input_sha256": "f4670b45f71598123fbf168bc5c8116d4143f9c558dc92cd1b26206c68ba9cf9",
+      "gold": "C major",
+      "exclusion": null,
+      "acorde": {
+        "key": "G minor"
+      },
+      "music21": {
+        "key": "G minor"
+      },
+      "acorde_exact": false,
+      "music21_exact": false,
+      "acorde_pc_mode": false,
+      "music21_pc_mode": false
+    },
+    {
+      "group": "chorale",
+      "piece": "201",
+      "input_sha256": "2f257150057d2e90cc4ba4b4f1e308acfb25606ed1c7dc09bab26d33d7fd683f",
+      "gold": null,
+      "exclusion": "nonunique_chorale_index_row"
+    },
+    {
+      "group": "chorale",
+      "piece": "202",
+      "input_sha256": "899b011e7d7cee2e379ce179bd3b0d5d3e8c6127836f441f6dfd1ddc39ff90da",
+      "gold": "D major",
+      "exclusion": null,
+      "acorde": {
+        "key": "D major"
+      },
+      "music21": {
+        "key": "D major"
+      },
+      "acorde_exact": true,
+      "music21_exact": true,
+      "acorde_pc_mode": true,
+      "music21_pc_mode": true
+    },
+    {
+      "group": "chorale",
+      "piece": "203",
+      "input_sha256": "5423fc07e11f9907ac079f69d6ff7c51c05e9da14dff02a26c5ce38292c20e7a",
+      "gold": "G minor",
+      "exclusion": null,
+      "acorde": {
+        "key": "G minor"
+      },
+      "music21": {
+        "key": "G minor"
+      },
+      "acorde_exact": true,
+      "music21_exact": true,
+      "acorde_pc_mode": true,
+      "music21_pc_mode": true
+    },
+    {
+      "group": "keyboard",
+      "piece": "wq112n02",
+      "input_sha256": "59b9956fa6a8e611de1906fb32e67a4763ab23c92e291c485e49713519dc920e",
+      "gold": "D major",
+      "exclusion": null,
+      "acorde": {
+        "key": "D major"
+      },
+      "music21": {
+        "key": "D major"
+      },
+      "acorde_exact": true,
+      "music21_exact": true,
+      "acorde_pc_mode": true,
+      "music21_pc_mode": true
+    },
+    {
+      "group": "keyboard",
+      "piece": "wq112n08",
+      "input_sha256": "36fc4cf0464be14ec18ca73e8074617a260d35c7d0821cf373c5b9776c542c37",
+      "gold": "Bb major",
+      "exclusion": null,
+      "acorde": {
+        "key": "Bb major"
+      },
+      "music21": {
+        "key": "Bb major"
+      },
+      "acorde_exact": true,
+      "music21_exact": true,
+      "acorde_pc_mode": true,
+      "music21_pc_mode": true
+    },
+    {
+      "group": "keyboard",
+      "piece": "wq112n15",
+      "input_sha256": "d04415e3c58a107d11145c96962f0db6c95e11a5f998083d62252a353dc2c6d2",
+      "gold": "F major",
+      "exclusion": null,
+      "acorde": {
+        "key": "F major"
+      },
+      "music21": {
+        "key": "F major"
+      },
+      "acorde_exact": true,
+      "music21_exact": true,
+      "acorde_pc_mode": true,
+      "music21_pc_mode": true
+    },
+    {
+      "group": "keyboard",
+      "piece": "wq113n03",
+      "input_sha256": "7c78dbd5cf83514d423bf5e06f017a20c8ea3f51dc9d8064a0fdf537bcfceacd",
+      "gold": "D minor",
+      "exclusion": null,
+      "acorde": {
+        "key": "D minor"
+      },
+      "music21": {
+        "key": "D minor"
+      },
+      "acorde_exact": true,
+      "music21_exact": true,
+      "acorde_pc_mode": true,
+      "music21_pc_mode": true
+    },
+    {
+      "group": "chamber",
+      "piece": "b307op2n1b",
+      "input_sha256": "a9de1fcea02542cbdb5bb091b9870e41f5ce54b32f81db4956701d8f455ed85a",
+      "gold": "A minor",
+      "exclusion": null,
+      "acorde": {
+        "key": "A minor"
+      },
+      "music21": {
+        "key": "A minor"
+      },
+      "acorde_exact": true,
+      "music21_exact": true,
+      "acorde_pc_mode": true,
+      "music21_pc_mode": true
+    },
+    {
+      "group": "chamber",
+      "piece": "b307op2n1c",
+      "input_sha256": "f1aba6a8e2632904c5c8f7ce17b4895e49fae89fc4afe8236cb75e2dc4ce29f3",
+      "gold": "A major",
+      "exclusion": null,
+      "acorde": {
+        "key": "A major"
+      },
+      "music21": {
+        "key": "A major"
+      },
+      "acorde_exact": true,
+      "music21_exact": true,
+      "acorde_pc_mode": true,
+      "music21_pc_mode": true
+    },
+    {
+      "group": "chamber",
+      "piece": "b309op2n3a",
+      "input_sha256": "06e3b10883edd89fa3cdcd10c83854cb5da2e1486d3f686b4fa6c423a2c79fa9",
+      "gold": "G minor",
+      "exclusion": null,
+      "acorde": {
+        "key": "G minor"
+      },
+      "music21": {
+        "key": "G minor"
+      },
+      "acorde_exact": true,
+      "music21_exact": true,
+      "acorde_pc_mode": true,
+      "music21_pc_mode": true
+    },
+    {
+      "group": "chamber",
+      "piece": "b309op2n3c",
+      "input_sha256": "e0d44c8921fe66c5c19181fa8a853ab4fc5fef39dd0fadab2cddf27469b219fc",
+      "gold": "G minor",
+      "exclusion": null,
+      "acorde": {
+        "key": "G minor"
+      },
+      "music21": {
+        "key": "G minor"
+      },
+      "acorde_exact": true,
+      "music21_exact": true,
+      "acorde_pc_mode": true,
+      "music21_pc_mode": true
+    }
+  ],
+  "protocol_sha256": "45528a024bd4130460ce1cc0f51622355237f5cc9076a2bca098f5d2e386cc71",
+  "selection_sha256": "250ed44261e935ac4878fc0a23c5ca4d2a984ed269bb8c5b3e25cca75aaf4f51",
+  "inputs_sha256": "82f848fb287fe1d24d4fa03029dbd43afce69e9380171bbb5c91aa0ac30f34c7",
+  "preflight_sha256": "c2e079b1737120e4a56b2b335af28b421f4bda68b8de14f5735436fb50e375a9",
+  "acorde_binary_sha256": "baf8fef974cecf704b80a7be49916e9280e2cf3909651507345e7cc58a21320d",
+  "scorer_source_sha256": "225e6258237db9a8828a900d9a86f5f6dfd95e043a8fe0f7c66618ef90928238"
+}

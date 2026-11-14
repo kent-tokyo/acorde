@@ -165,8 +165,11 @@ Next analysis gates, in order:
    [score-only preflight](docs/archive/analysis-global-key-holdout-preflight-v1.md)
    confirms 12/12 paired parses and equal pitched events in all 496 physical
    measures. The [scoring protocol](docs/archive/analysis-global-key-holdout-protocol-v1.md)
-   now fixes the chorale transposition rule, both methods, exclusions, and
-   success thresholds before the selected labels are opened.
+   fixed the chorale transposition rule, both methods, exclusions, and
+   success thresholds before opening the labels. Its [fixed result](docs/archive/analysis-global-key-holdout-v1.md)
+   **fails** the superiority gate: both tools select 10 exact keys on 11
+   eligible scores, with equal prediction coverage. A new disjoint holdout is
+   required after any key-ranker change.
 2. Add local-key and modulation positions to the harmony contract. Preserve
    absolute score addresses, compare both tools against human annotations,
    and measure coverage as well as exact labels. The current Roman-position

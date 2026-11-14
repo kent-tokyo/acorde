@@ -29,6 +29,9 @@ regression tests must change together.
   development-selected window sizes, with a 12–10–2 per-work split. A disjoint
   12-work local-key label holdout then failed its frozen gate: 1,921 versus
   1,934 exact labels on 2,903 paired positions and only two Acorde work wins.
+  A later 12-score global-key holdout across chorales, keyboard music, and
+  chamber movements also failed its superiority gate: both tools matched
+  10 of 11 eligible keys with equal prediction coverage.
   A separate Mozart cadence corpus has 36 verified
   answer-free inputs, but its 18-movement development baseline exposes a large
   cadence recall gap: the opt-in resolution rule matches 30/333 with 29 false
