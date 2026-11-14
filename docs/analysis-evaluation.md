@@ -165,9 +165,12 @@ The [local-key development diagnostic](archive/analysis-wir-local-key-developmen
 reuses only the first two inspected cohorts and their verified inputs. The
 opt-in centered-window API matches 2,325 of 3,405 annotated local-key
 positions at a radius selected on those same works. Its Rust output matches
-the prototype on all 24 works. This is not a music21 local-key comparison or
-a frozen holdout result; a pinned music21 local-key recipe and a new untouched
-cohort are still required.
+the prototype on all 24 works. A [paired development comparison](archive/analysis-wir-local-key-paired-development-v1.md)
+uses music21 10.5.2's native local-key analyzer on the same verified scores
+and positions. Its best radius over the same development grid matches
+2,157/3,405, with 3,401 available positions. This remains inspected
+development evidence; a new untouched cohort and source-beat-level local-key
+contract are required.
 
 ## Mozart cadence inputs awaiting a scoring contract
 

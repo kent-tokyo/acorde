@@ -24,8 +24,10 @@ regression tests must change together.
   When in Rome harmony holdout passes its aggregate Roman-at-annotation-position
   gate: 559 versus 508 correct labels for music21 10.5.2. This task-scoped
   result does not establish overall analysis superiority; other analysis tasks
-  need independent holdouts. A local-key window matches 2,325/3,405 positions
-  in inspected development works; no paired local-key holdout has been run.
+  need independent holdouts. A local-key development comparison scores
+  2,325/3,405 for Acorde and 2,157/3,405 for music21 at their respective
+  development-selected window sizes, with a 12–10–2 per-work split; no
+  paired local-key holdout has been run.
   A separate Mozart cadence corpus has 36 verified
   answer-free inputs, but its 18-movement development baseline exposes a large
   cadence recall gap: the opt-in resolution rule matches 30/333 with 29 false

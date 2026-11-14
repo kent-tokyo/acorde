@@ -40,9 +40,9 @@ The API returns one key per physical measure. Among 1,917 annotated measures,
 3,405 positions. Thirteen labels use a key spelling outside the current
 `-7..=7` key-signature candidate set. The method also needs explicit handling
 for alternate physical bar partitions and transposing parts before a broader
-contract. A future matched comparison must run a pinned music21 *local-key*
-recipe on the same answer-free input and independently labeled positions, then
-freeze an untouched cohort before tuning further.
+contract. A [paired development comparison](analysis-wir-local-key-paired-development-v1.md)
+now runs music21's native local-key analyzer on the same inputs and positions.
+An untouched cohort is still needed after tuning stops.
 
 Reproduce the development diagnostic with:
 

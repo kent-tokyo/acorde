@@ -166,7 +166,10 @@ Next analysis gates, in order:
    win does not test local-key transitions. An opt-in [development diagnostic](docs/archive/analysis-wir-local-key-development-v1.md)
    now estimates one key per physical measure from a centered window. At the
    radius selected on 24 inspected works, it matches 2,325/3,405 annotated
-   local keys; this is not a music21 local-key comparison. Add source-beat
+   local keys. The [paired development comparison](docs/archive/analysis-wir-local-key-paired-development-v1.md)
+   scores music21's best radius from the same grid at 2,157/3,405, with
+   12 Acorde wins, 10 music21 wins and two ties by work. This is not an
+   untouched holdout. Add source-beat
    positions, within-measure transitions, transposition and alternate-bar
    handling before freezing a paired local-key holdout.
 3. Build a cadence task from independently annotated scores. The

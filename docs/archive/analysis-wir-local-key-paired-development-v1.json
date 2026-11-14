@@ -1,0 +1,1610 @@
+{
+  "schema_version": 1,
+  "classification": "paired development diagnostic, not a frozen local-key holdout",
+  "unit": "existing aligned RomanText positions",
+  "acorde_method": "analyze-local-keys --radius 4",
+  "music21_method": "music21.analysis.floatingKey.KeyAnalyzer; getRawKeyByMeasure then smoothInterpretationByMeasure with windowSize=4",
+  "music21_window_grid": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    6,
+    8,
+    12
+  ],
+  "music21_window_scores": {
+    "0": {
+      "available": 3401,
+      "exact": 1468,
+      "pc_mode": 1561
+    },
+    "1": {
+      "available": 3401,
+      "exact": 2107,
+      "pc_mode": 2237
+    },
+    "2": {
+      "available": 3401,
+      "exact": 2157,
+      "pc_mode": 2286
+    },
+    "3": {
+      "available": 3401,
+      "exact": 1852,
+      "pc_mode": 1953
+    },
+    "4": {
+      "available": 3401,
+      "exact": 1590,
+      "pc_mode": 1691
+    },
+    "6": {
+      "available": 3401,
+      "exact": 1551,
+      "pc_mode": 1652
+    },
+    "8": {
+      "available": 3401,
+      "exact": 1583,
+      "pc_mode": 1684
+    },
+    "12": {
+      "available": 3401,
+      "exact": 1602,
+      "pc_mode": 1703
+    }
+  },
+  "music21_best_window_on_development": 2,
+  "music21_version": "10.5.2",
+  "python_version": "3.13.6",
+  "music21_floating_key_source_sha256": "523fc352ffc5c1fdf080ef1ede88b47d3bd5dd9d42bbf5944f7a23962ca1bd42",
+  "acorde_binary_sha256": "baf8fef974cecf704b80a7be49916e9280e2cf3909651507345e7cc58a21320d",
+  "comparator_source_sha256": "030844b518e63928255525711ab04d9fbbbe76bee1a82117b77454c73f8ff5e5",
+  "rows_file": "analysis-wir-local-key-paired-development-v1-rows.jsonl",
+  "rows_sha256": "452efadd1649a1b9cce3400bea77276099128813d519bfad431f7a93a3d7de21",
+  "cohorts": [
+    {
+      "report_sha256": "d15788a251d033035e1139de92bdd08552fc86cb9e58507fd95fbf60d25531cb",
+      "selection_sha256": "1532d3e006eaee6179b9a968210a787fcf7ba173d58ef428bffa70ecca7135dd",
+      "input_dir": "/private/tmp/acorde-wir-holdout",
+      "works": 12
+    },
+    {
+      "report_sha256": "a4bc101a50da9730dca08d58296a32d46a46bb60ec0c5b4a18e824744f232e29",
+      "selection_sha256": "0f4db2819434e685feb4946ce00ece39e0480bdc47f2eedfeb3d283aad5eec57",
+      "input_dir": "/private/tmp/acorde-wir-holdout-2-clean",
+      "works": 12
+    }
+  ],
+  "cohort_summaries": [
+    {
+      "positions": 1159,
+      "acorde_available": 1159,
+      "music21_available": 1159,
+      "paired_available": 1159,
+      "acorde_exact": 787,
+      "music21_exact": 765,
+      "acorde_exact_paired": 787,
+      "music21_exact_paired": 765,
+      "acorde_pc_mode": 798,
+      "music21_pc_mode": 767
+    },
+    {
+      "positions": 2246,
+      "acorde_available": 2246,
+      "music21_available": 2242,
+      "paired_available": 2242,
+      "acorde_exact": 1538,
+      "music21_exact": 825,
+      "acorde_exact_paired": 1536,
+      "music21_exact_paired": 825,
+      "acorde_pc_mode": 1538,
+      "music21_pc_mode": 924
+    }
+  ],
+  "summary": {
+    "positions": 3405,
+    "acorde_available": 3405,
+    "music21_available": 3401,
+    "paired_available": 3401,
+    "acorde_exact": 2325,
+    "music21_exact": 1590,
+    "acorde_exact_paired": 2323,
+    "music21_exact_paired": 1590,
+    "acorde_pc_mode": 2336,
+    "music21_pc_mode": 1691
+  },
+  "works": [
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/01",
+      "score_sha256": "7179b0aa86707cc2e6db004c30c5b94713b1cb0d201a58d4d70197be6311f974",
+      "music21_measures": 35,
+      "music21_estimates": 35,
+      "acorde_estimates": 35,
+      "counts": {
+        "positions": 35,
+        "acorde_available": 35,
+        "music21_available": 35,
+        "paired_available": 35,
+        "acorde_exact": 25,
+        "music21_exact": 14,
+        "acorde_exact_paired": 25,
+        "music21_exact_paired": 14,
+        "acorde_pc_mode": 25,
+        "music21_pc_mode": 14
+      },
+      "music21_window_scores": {
+        "0": {
+          "available": 35,
+          "exact": 14,
+          "pc_mode": 14
+        },
+        "1": {
+          "available": 35,
+          "exact": 18,
+          "pc_mode": 18
+        },
+        "2": {
+          "available": 35,
+          "exact": 24,
+          "pc_mode": 24
+        },
+        "3": {
+          "available": 35,
+          "exact": 22,
+          "pc_mode": 22
+        },
+        "4": {
+          "available": 35,
+          "exact": 14,
+          "pc_mode": 14
+        },
+        "6": {
+          "available": 35,
+          "exact": 0,
+          "pc_mode": 0
+        },
+        "8": {
+          "available": 35,
+          "exact": 0,
+          "pc_mode": 0
+        },
+        "12": {
+          "available": 35,
+          "exact": 18,
+          "pc_mode": 18
+        }
+      },
+      "cohort_index": 0
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/02",
+      "score_sha256": "e13adf687ff1b80ff801c34aa72fc4ac66312c58663364c4ac5d3bfc9aa4dc11",
+      "music21_measures": 38,
+      "music21_estimates": 38,
+      "acorde_estimates": 38,
+      "counts": {
+        "positions": 60,
+        "acorde_available": 60,
+        "music21_available": 60,
+        "paired_available": 60,
+        "acorde_exact": 51,
+        "music21_exact": 53,
+        "acorde_exact_paired": 51,
+        "music21_exact_paired": 53,
+        "acorde_pc_mode": 51,
+        "music21_pc_mode": 53
+      },
+      "music21_window_scores": {
+        "0": {
+          "available": 60,
+          "exact": 26,
+          "pc_mode": 26
+        },
+        "1": {
+          "available": 60,
+          "exact": 30,
+          "pc_mode": 30
+        },
+        "2": {
+          "available": 60,
+          "exact": 52,
+          "pc_mode": 52
+        },
+        "3": {
+          "available": 60,
+          "exact": 53,
+          "pc_mode": 53
+        },
+        "4": {
+          "available": 60,
+          "exact": 53,
+          "pc_mode": 53
+        },
+        "6": {
+          "available": 60,
+          "exact": 53,
+          "pc_mode": 53
+        },
+        "8": {
+          "available": 60,
+          "exact": 53,
+          "pc_mode": 53
+        },
+        "12": {
+          "available": 60,
+          "exact": 53,
+          "pc_mode": 53
+        }
+      },
+      "cohort_index": 0
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/03",
+      "score_sha256": "b736479ee227f5e475c779a4009fb91d1c340e688855c9a42adf3f4f374fa7a1",
+      "music21_measures": 104,
+      "music21_estimates": 104,
+      "acorde_estimates": 104,
+      "counts": {
+        "positions": 107,
+        "acorde_available": 107,
+        "music21_available": 107,
+        "paired_available": 107,
+        "acorde_exact": 61,
+        "music21_exact": 29,
+        "acorde_exact_paired": 61,
+        "music21_exact_paired": 29,
+        "acorde_pc_mode": 68,
+        "music21_pc_mode": 29
+      },
+      "music21_window_scores": {
+        "0": {
+          "available": 107,
+          "exact": 13,
+          "pc_mode": 25
+        },
+        "1": {
+          "available": 107,
+          "exact": 37,
+          "pc_mode": 58
+        },
+        "2": {
+          "available": 107,
+          "exact": 31,
+          "pc_mode": 45
+        },
+        "3": {
+          "available": 107,
+          "exact": 28,
+          "pc_mode": 28
+        },
+        "4": {
+          "available": 107,
+          "exact": 29,
+          "pc_mode": 29
+        },
+        "6": {
+          "available": 107,
+          "exact": 29,
+          "pc_mode": 29
+        },
+        "8": {
+          "available": 107,
+          "exact": 29,
+          "pc_mode": 29
+        },
+        "12": {
+          "available": 107,
+          "exact": 29,
+          "pc_mode": 29
+        }
+      },
+      "cohort_index": 0
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Chopin,_Frédéric/Preludes,_Op.28/20",
+      "score_sha256": "edb31d42097fdd3cef44a4e701d890810dc63aad62d33ce75d400f41acadd28c",
+      "music21_measures": 13,
+      "music21_estimates": 13,
+      "acorde_estimates": 13,
+      "counts": {
+        "positions": 48,
+        "acorde_available": 48,
+        "music21_available": 48,
+        "paired_available": 48,
+        "acorde_exact": 44,
+        "music21_exact": 44,
+        "acorde_exact_paired": 44,
+        "music21_exact_paired": 44,
+        "acorde_pc_mode": 44,
+        "music21_pc_mode": 44
+      },
+      "music21_window_scores": {
+        "0": {
+          "available": 48,
+          "exact": 28,
+          "pc_mode": 28
+        },
+        "1": {
+          "available": 48,
+          "exact": 48,
+          "pc_mode": 48
+        },
+        "2": {
+          "available": 48,
+          "exact": 44,
+          "pc_mode": 44
+        },
+        "3": {
+          "available": 48,
+          "exact": 44,
+          "pc_mode": 44
+        },
+        "4": {
+          "available": 48,
+          "exact": 44,
+          "pc_mode": 44
+        },
+        "6": {
+          "available": 48,
+          "exact": 44,
+          "pc_mode": 44
+        },
+        "8": {
+          "available": 48,
+          "exact": 44,
+          "pc_mode": 44
+        },
+        "12": {
+          "available": 48,
+          "exact": 44,
+          "pc_mode": 44
+        }
+      },
+      "cohort_index": 0
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Chopin,_Frédéric/Études_Op.10/1",
+      "score_sha256": "0bf630276e1848e544286ede0eafa68b3ea4ba1bb2fd18ee0cf5fe61405c64b8",
+      "music21_measures": 79,
+      "music21_estimates": 79,
+      "acorde_estimates": 79,
+      "counts": {
+        "positions": 88,
+        "acorde_available": 88,
+        "music21_available": 88,
+        "paired_available": 88,
+        "acorde_exact": 37,
+        "music21_exact": 71,
+        "acorde_exact_paired": 37,
+        "music21_exact_paired": 71,
+        "acorde_pc_mode": 37,
+        "music21_pc_mode": 71
+      },
+      "music21_window_scores": {
+        "0": {
+          "available": 88,
+          "exact": 19,
+          "pc_mode": 19
+        },
+        "1": {
+          "available": 88,
+          "exact": 34,
+          "pc_mode": 34
+        },
+        "2": {
+          "available": 88,
+          "exact": 38,
+          "pc_mode": 38
+        },
+        "3": {
+          "available": 88,
+          "exact": 68,
+          "pc_mode": 68
+        },
+        "4": {
+          "available": 88,
+          "exact": 71,
+          "pc_mode": 71
+        },
+        "6": {
+          "available": 88,
+          "exact": 71,
+          "pc_mode": 71
+        },
+        "8": {
+          "available": 88,
+          "exact": 71,
+          "pc_mode": 71
+        },
+        "12": {
+          "available": 88,
+          "exact": 71,
+          "pc_mode": 71
+        }
+      },
+      "cohort_index": 0
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Chopin,_Frédéric/Études_Op.10/12",
+      "score_sha256": "005eec6ffbf8e3b5dddb8cc939f7dcb52dd10ce12ddf65118f10acdb11534bae",
+      "music21_measures": 84,
+      "music21_estimates": 84,
+      "acorde_estimates": 84,
+      "counts": {
+        "positions": 103,
+        "acorde_available": 103,
+        "music21_available": 103,
+        "paired_available": 103,
+        "acorde_exact": 62,
+        "music21_exact": 76,
+        "acorde_exact_paired": 62,
+        "music21_exact_paired": 76,
+        "acorde_pc_mode": 64,
+        "music21_pc_mode": 76
+      },
+      "music21_window_scores": {
+        "0": {
+          "available": 103,
+          "exact": 33,
+          "pc_mode": 36
+        },
+        "1": {
+          "available": 103,
+          "exact": 73,
+          "pc_mode": 74
+        },
+        "2": {
+          "available": 103,
+          "exact": 70,
+          "pc_mode": 70
+        },
+        "3": {
+          "available": 103,
+          "exact": 76,
+          "pc_mode": 76
+        },
+        "4": {
+          "available": 103,
+          "exact": 76,
+          "pc_mode": 76
+        },
+        "6": {
+          "available": 103,
+          "exact": 77,
+          "pc_mode": 77
+        },
+        "8": {
+          "available": 103,
+          "exact": 77,
+          "pc_mode": 77
+        },
+        "12": {
+          "available": 103,
+          "exact": 77,
+          "pc_mode": 77
+        }
+      },
+      "cohort_index": 0
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Brahms,_Johannes/6_Songs,_Op.3/3_Liebe_und_Frühling_II",
+      "score_sha256": "9cc173cdb042bfbc9beecb06f5ff212fcc8bff7fed4aa3686b5df2dc7c8a7dd9",
+      "music21_measures": 46,
+      "music21_estimates": 46,
+      "acorde_estimates": 46,
+      "counts": {
+        "positions": 106,
+        "acorde_available": 106,
+        "music21_available": 106,
+        "paired_available": 106,
+        "acorde_exact": 46,
+        "music21_exact": 52,
+        "acorde_exact_paired": 46,
+        "music21_exact_paired": 52,
+        "acorde_pc_mode": 48,
+        "music21_pc_mode": 54
+      },
+      "music21_window_scores": {
+        "0": {
+          "available": 106,
+          "exact": 33,
+          "pc_mode": 35
+        },
+        "1": {
+          "available": 106,
+          "exact": 47,
+          "pc_mode": 48
+        },
+        "2": {
+          "available": 106,
+          "exact": 64,
+          "pc_mode": 64
+        },
+        "3": {
+          "available": 106,
+          "exact": 52,
+          "pc_mode": 54
+        },
+        "4": {
+          "available": 106,
+          "exact": 52,
+          "pc_mode": 54
+        },
+        "6": {
+          "available": 106,
+          "exact": 52,
+          "pc_mode": 54
+        },
+        "8": {
+          "available": 106,
+          "exact": 52,
+          "pc_mode": 54
+        },
+        "12": {
+          "available": 106,
+          "exact": 52,
+          "pc_mode": 54
+        }
+      },
+      "cohort_index": 0
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Brahms,_Johannes/7_Lieder,_Op.48/3_Liebesklage_des_Mädchens",
+      "score_sha256": "f30e0e3ef0425168da1f2cb230d76ba1bc9b7c689e0cbd07ef2fe45f623ade98",
+      "music21_measures": 23,
+      "music21_estimates": 23,
+      "acorde_estimates": 23,
+      "counts": {
+        "positions": 111,
+        "acorde_available": 111,
+        "music21_available": 111,
+        "paired_available": 111,
+        "acorde_exact": 57,
+        "music21_exact": 42,
+        "acorde_exact_paired": 57,
+        "music21_exact_paired": 42,
+        "acorde_pc_mode": 57,
+        "music21_pc_mode": 42
+      },
+      "music21_window_scores": {
+        "0": {
+          "available": 111,
+          "exact": 73,
+          "pc_mode": 73
+        },
+        "1": {
+          "available": 111,
+          "exact": 65,
+          "pc_mode": 65
+        },
+        "2": {
+          "available": 111,
+          "exact": 70,
+          "pc_mode": 70
+        },
+        "3": {
+          "available": 111,
+          "exact": 43,
+          "pc_mode": 43
+        },
+        "4": {
+          "available": 111,
+          "exact": 42,
+          "pc_mode": 42
+        },
+        "6": {
+          "available": 111,
+          "exact": 42,
+          "pc_mode": 42
+        },
+        "8": {
+          "available": 111,
+          "exact": 42,
+          "pc_mode": 42
+        },
+        "12": {
+          "available": 111,
+          "exact": 42,
+          "pc_mode": 42
+        }
+      },
+      "cohort_index": 0
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Brahms,_Johannes/Marienlieder,_Op.22/1_Der_englische_Gruss",
+      "score_sha256": "bc98f0fe009d105bb8572ae2b537947f40fe0fffa36cb0601eeb5100134d9b59",
+      "music21_measures": 55,
+      "music21_estimates": 55,
+      "acorde_estimates": 55,
+      "counts": {
+        "positions": 146,
+        "acorde_available": 146,
+        "music21_available": 146,
+        "paired_available": 146,
+        "acorde_exact": 103,
+        "music21_exact": 110,
+        "acorde_exact_paired": 103,
+        "music21_exact_paired": 110,
+        "acorde_pc_mode": 103,
+        "music21_pc_mode": 110
+      },
+      "music21_window_scores": {
+        "0": {
+          "available": 146,
+          "exact": 76,
+          "pc_mode": 76
+        },
+        "1": {
+          "available": 146,
+          "exact": 100,
+          "pc_mode": 100
+        },
+        "2": {
+          "available": 146,
+          "exact": 100,
+          "pc_mode": 100
+        },
+        "3": {
+          "available": 146,
+          "exact": 110,
+          "pc_mode": 110
+        },
+        "4": {
+          "available": 146,
+          "exact": 110,
+          "pc_mode": 110
+        },
+        "6": {
+          "available": 146,
+          "exact": 110,
+          "pc_mode": 110
+        },
+        "8": {
+          "available": 146,
+          "exact": 110,
+          "pc_mode": 110
+        },
+        "12": {
+          "available": 146,
+          "exact": 110,
+          "pc_mode": 110
+        }
+      },
+      "cohort_index": 0
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Schubert,_Franz/4_Lieder,_Op.96/1_Die_Sterne,_D.939",
+      "score_sha256": "ddf371050e7c060b0c6995ea1396cb194bca8695bbfea4d6b0895d7373fb65b7",
+      "music21_measures": 188,
+      "music21_estimates": 188,
+      "acorde_estimates": 188,
+      "counts": {
+        "positions": 214,
+        "acorde_available": 214,
+        "music21_available": 214,
+        "paired_available": 214,
+        "acorde_exact": 177,
+        "music21_exact": 173,
+        "acorde_exact_paired": 177,
+        "music21_exact_paired": 173,
+        "acorde_pc_mode": 177,
+        "music21_pc_mode": 173
+      },
+      "music21_window_scores": {
+        "0": {
+          "available": 214,
+          "exact": 121,
+          "pc_mode": 130
+        },
+        "1": {
+          "available": 214,
+          "exact": 146,
+          "pc_mode": 155
+        },
+        "2": {
+          "available": 214,
+          "exact": 155,
+          "pc_mode": 159
+        },
+        "3": {
+          "available": 214,
+          "exact": 173,
+          "pc_mode": 173
+        },
+        "4": {
+          "available": 214,
+          "exact": 173,
+          "pc_mode": 173
+        },
+        "6": {
+          "available": 214,
+          "exact": 173,
+          "pc_mode": 173
+        },
+        "8": {
+          "available": 214,
+          "exact": 173,
+          "pc_mode": 173
+        },
+        "12": {
+          "available": 214,
+          "exact": 173,
+          "pc_mode": 173
+        }
+      },
+      "cohort_index": 0
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Schubert,_Franz/Die_schöne_Müllerin,_D.795/01_Das_Wandern",
+      "score_sha256": "5ed3494557a252ff4c343590d9ffb0a648c6efc543e8eb980a162994eb92d406",
+      "music21_measures": 20,
+      "music21_estimates": 20,
+      "acorde_estimates": 20,
+      "counts": {
+        "positions": 35,
+        "acorde_available": 35,
+        "music21_available": 35,
+        "paired_available": 35,
+        "acorde_exact": 22,
+        "music21_exact": 24,
+        "acorde_exact_paired": 22,
+        "music21_exact_paired": 24,
+        "acorde_pc_mode": 22,
+        "music21_pc_mode": 24
+      },
+      "music21_window_scores": {
+        "0": {
+          "available": 35,
+          "exact": 35,
+          "pc_mode": 35
+        },
+        "1": {
+          "available": 35,
+          "exact": 35,
+          "pc_mode": 35
+        },
+        "2": {
+          "available": 35,
+          "exact": 24,
+          "pc_mode": 24
+        },
+        "3": {
+          "available": 35,
+          "exact": 24,
+          "pc_mode": 24
+        },
+        "4": {
+          "available": 35,
+          "exact": 24,
+          "pc_mode": 24
+        },
+        "6": {
+          "available": 35,
+          "exact": 24,
+          "pc_mode": 24
+        },
+        "8": {
+          "available": 35,
+          "exact": 24,
+          "pc_mode": 24
+        },
+        "12": {
+          "available": 35,
+          "exact": 24,
+          "pc_mode": 24
+        }
+      },
+      "cohort_index": 0
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Schubert,_Franz/Die_schöne_Müllerin,_D.795/02_Wohin",
+      "score_sha256": "108dc81ac31ac2155904a965f7c50f9b787026c89299fb32c345c1c6c55b1a3f",
+      "music21_measures": 81,
+      "music21_estimates": 81,
+      "acorde_estimates": 81,
+      "counts": {
+        "positions": 106,
+        "acorde_available": 106,
+        "music21_available": 106,
+        "paired_available": 106,
+        "acorde_exact": 102,
+        "music21_exact": 77,
+        "acorde_exact_paired": 102,
+        "music21_exact_paired": 77,
+        "acorde_pc_mode": 102,
+        "music21_pc_mode": 77
+      },
+      "music21_window_scores": {
+        "0": {
+          "available": 106,
+          "exact": 72,
+          "pc_mode": 72
+        },
+        "1": {
+          "available": 106,
+          "exact": 86,
+          "pc_mode": 86
+        },
+        "2": {
+          "available": 106,
+          "exact": 92,
+          "pc_mode": 92
+        },
+        "3": {
+          "available": 106,
+          "exact": 77,
+          "pc_mode": 77
+        },
+        "4": {
+          "available": 106,
+          "exact": 77,
+          "pc_mode": 77
+        },
+        "6": {
+          "available": 106,
+          "exact": 77,
+          "pc_mode": 77
+        },
+        "8": {
+          "available": 106,
+          "exact": 77,
+          "pc_mode": 77
+        },
+        "12": {
+          "available": 106,
+          "exact": 77,
+          "pc_mode": 77
+        }
+      },
+      "cohort_index": 0
+    },
+    {
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op018_No1/1",
+      "score_sha256": "b79af644697e7424f84aded8a5032c27a6db7ce0dfbcead83773c0620fe2e960",
+      "music21_measures": 313,
+      "music21_estimates": 309,
+      "acorde_estimates": 313,
+      "counts": {
+        "positions": 476,
+        "acorde_available": 476,
+        "music21_available": 472,
+        "paired_available": 472,
+        "acorde_exact": 279,
+        "music21_exact": 8,
+        "acorde_exact_paired": 277,
+        "music21_exact_paired": 8,
+        "acorde_pc_mode": 279,
+        "music21_pc_mode": 8
+      },
+      "music21_window_scores": {
+        "0": {
+          "available": 472,
+          "exact": 153,
+          "pc_mode": 166
+        },
+        "1": {
+          "available": 472,
+          "exact": 227,
+          "pc_mode": 242
+        },
+        "2": {
+          "available": 472,
+          "exact": 283,
+          "pc_mode": 295
+        },
+        "3": {
+          "available": 472,
+          "exact": 194,
+          "pc_mode": 194
+        },
+        "4": {
+          "available": 472,
+          "exact": 8,
+          "pc_mode": 8
+        },
+        "6": {
+          "available": 472,
+          "exact": 8,
+          "pc_mode": 8
+        },
+        "8": {
+          "available": 472,
+          "exact": 9,
+          "pc_mode": 9
+        },
+        "12": {
+          "available": 472,
+          "exact": 8,
+          "pc_mode": 8
+        }
+      },
+      "cohort_index": 1
+    },
+    {
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op018_No2/1",
+      "score_sha256": "5f3f5c1a259237e849a4d7dc52fe8d01d5a9e3ab2a1145d9640b46e93d1d58dc",
+      "music21_measures": 249,
+      "music21_estimates": 249,
+      "acorde_estimates": 249,
+      "counts": {
+        "positions": 504,
+        "acorde_available": 504,
+        "music21_available": 504,
+        "paired_available": 504,
+        "acorde_exact": 395,
+        "music21_exact": 224,
+        "acorde_exact_paired": 395,
+        "music21_exact_paired": 224,
+        "acorde_pc_mode": 395,
+        "music21_pc_mode": 224
+      },
+      "music21_window_scores": {
+        "0": {
+          "available": 504,
+          "exact": 231,
+          "pc_mode": 231
+        },
+        "1": {
+          "available": 504,
+          "exact": 391,
+          "pc_mode": 391
+        },
+        "2": {
+          "available": 504,
+          "exact": 387,
+          "pc_mode": 387
+        },
+        "3": {
+          "available": 504,
+          "exact": 224,
+          "pc_mode": 224
+        },
+        "4": {
+          "available": 504,
+          "exact": 224,
+          "pc_mode": 224
+        },
+        "6": {
+          "available": 504,
+          "exact": 224,
+          "pc_mode": 224
+        },
+        "8": {
+          "available": 504,
+          "exact": 224,
+          "pc_mode": 224
+        },
+        "12": {
+          "available": 504,
+          "exact": 224,
+          "pc_mode": 224
+        }
+      },
+      "cohort_index": 1
+    },
+    {
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op018_No3/1",
+      "score_sha256": "deae9afa8bcfdf30b9af8267e8fcf1c6488cad4971ceb330ec33aefffa974c06",
+      "music21_measures": 271,
+      "music21_estimates": 271,
+      "acorde_estimates": 271,
+      "counts": {
+        "positions": 415,
+        "acorde_available": 415,
+        "music21_available": 415,
+        "paired_available": 415,
+        "acorde_exact": 274,
+        "music21_exact": 187,
+        "acorde_exact_paired": 274,
+        "music21_exact_paired": 187,
+        "acorde_pc_mode": 274,
+        "music21_pc_mode": 187
+      },
+      "music21_window_scores": {
+        "0": {
+          "available": 415,
+          "exact": 180,
+          "pc_mode": 180
+        },
+        "1": {
+          "available": 415,
+          "exact": 259,
+          "pc_mode": 259
+        },
+        "2": {
+          "available": 415,
+          "exact": 228,
+          "pc_mode": 228
+        },
+        "3": {
+          "available": 415,
+          "exact": 187,
+          "pc_mode": 187
+        },
+        "4": {
+          "available": 415,
+          "exact": 187,
+          "pc_mode": 187
+        },
+        "6": {
+          "available": 415,
+          "exact": 187,
+          "pc_mode": 187
+        },
+        "8": {
+          "available": 415,
+          "exact": 187,
+          "pc_mode": 187
+        },
+        "12": {
+          "available": 415,
+          "exact": 187,
+          "pc_mode": 187
+        }
+      },
+      "cohort_index": 1
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/04",
+      "score_sha256": "3a8471d25c3f71a71af2de19f351c95f945d3de4fb919b4c7ef92bc4149855a0",
+      "music21_measures": 39,
+      "music21_estimates": 39,
+      "acorde_estimates": 39,
+      "counts": {
+        "positions": 91,
+        "acorde_available": 91,
+        "music21_available": 91,
+        "paired_available": 91,
+        "acorde_exact": 60,
+        "music21_exact": 51,
+        "acorde_exact_paired": 60,
+        "music21_exact_paired": 51,
+        "acorde_pc_mode": 60,
+        "music21_pc_mode": 51
+      },
+      "music21_window_scores": {
+        "0": {
+          "available": 91,
+          "exact": 39,
+          "pc_mode": 39
+        },
+        "1": {
+          "available": 91,
+          "exact": 66,
+          "pc_mode": 66
+        },
+        "2": {
+          "available": 91,
+          "exact": 53,
+          "pc_mode": 53
+        },
+        "3": {
+          "available": 91,
+          "exact": 51,
+          "pc_mode": 51
+        },
+        "4": {
+          "available": 91,
+          "exact": 51,
+          "pc_mode": 51
+        },
+        "6": {
+          "available": 91,
+          "exact": 51,
+          "pc_mode": 51
+        },
+        "8": {
+          "available": 91,
+          "exact": 51,
+          "pc_mode": 51
+        },
+        "12": {
+          "available": 91,
+          "exact": 51,
+          "pc_mode": 51
+        }
+      },
+      "cohort_index": 1
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/05",
+      "score_sha256": "a522bed78e8d045b803d65167271668defc5a106e6aaace9d7c354e46d316f53",
+      "music21_measures": 35,
+      "music21_estimates": 35,
+      "acorde_estimates": 35,
+      "counts": {
+        "positions": 108,
+        "acorde_available": 108,
+        "music21_available": 108,
+        "paired_available": 108,
+        "acorde_exact": 37,
+        "music21_exact": 32,
+        "acorde_exact_paired": 37,
+        "music21_exact_paired": 32,
+        "acorde_pc_mode": 37,
+        "music21_pc_mode": 32
+      },
+      "music21_window_scores": {
+        "0": {
+          "available": 108,
+          "exact": 56,
+          "pc_mode": 56
+        },
+        "1": {
+          "available": 108,
+          "exact": 48,
+          "pc_mode": 48
+        },
+        "2": {
+          "available": 108,
+          "exact": 35,
+          "pc_mode": 35
+        },
+        "3": {
+          "available": 108,
+          "exact": 36,
+          "pc_mode": 36
+        },
+        "4": {
+          "available": 108,
+          "exact": 32,
+          "pc_mode": 32
+        },
+        "6": {
+          "available": 108,
+          "exact": 29,
+          "pc_mode": 29
+        },
+        "8": {
+          "available": 108,
+          "exact": 29,
+          "pc_mode": 29
+        },
+        "12": {
+          "available": 108,
+          "exact": 33,
+          "pc_mode": 33
+        }
+      },
+      "cohort_index": 1
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/06",
+      "score_sha256": "4de7ea61b6c90bc231923c926cf8a36ecd2b2aa2829c4d5bdb5e05f336e037f1",
+      "music21_measures": 26,
+      "music21_estimates": 26,
+      "acorde_estimates": 26,
+      "counts": {
+        "positions": 114,
+        "acorde_available": 114,
+        "music21_available": 114,
+        "paired_available": 114,
+        "acorde_exact": 48,
+        "music21_exact": 58,
+        "acorde_exact_paired": 48,
+        "music21_exact_paired": 58,
+        "acorde_pc_mode": 48,
+        "music21_pc_mode": 58
+      },
+      "music21_window_scores": {
+        "0": {
+          "available": 114,
+          "exact": 55,
+          "pc_mode": 55
+        },
+        "1": {
+          "available": 114,
+          "exact": 79,
+          "pc_mode": 79
+        },
+        "2": {
+          "available": 114,
+          "exact": 68,
+          "pc_mode": 68
+        },
+        "3": {
+          "available": 114,
+          "exact": 67,
+          "pc_mode": 67
+        },
+        "4": {
+          "available": 114,
+          "exact": 58,
+          "pc_mode": 58
+        },
+        "6": {
+          "available": 114,
+          "exact": 33,
+          "pc_mode": 33
+        },
+        "8": {
+          "available": 114,
+          "exact": 64,
+          "pc_mode": 64
+        },
+        "12": {
+          "available": 114,
+          "exact": 60,
+          "pc_mode": 60
+        }
+      },
+      "cohort_index": 1
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Hensel,_Fanny_(Mendelssohn)/3_Lieder/1_Sehnsucht",
+      "score_sha256": "007bb104dadbeb92fe868cd5492016794f252ff59ff64b1b72a4fc4f9946d63a",
+      "music21_measures": 17,
+      "music21_estimates": 17,
+      "acorde_estimates": 17,
+      "counts": {
+        "positions": 41,
+        "acorde_available": 41,
+        "music21_available": 41,
+        "paired_available": 41,
+        "acorde_exact": 28,
+        "music21_exact": 24,
+        "acorde_exact_paired": 28,
+        "music21_exact_paired": 24,
+        "acorde_pc_mode": 28,
+        "music21_pc_mode": 24
+      },
+      "music21_window_scores": {
+        "0": {
+          "available": 41,
+          "exact": 23,
+          "pc_mode": 23
+        },
+        "1": {
+          "available": 41,
+          "exact": 22,
+          "pc_mode": 22
+        },
+        "2": {
+          "available": 41,
+          "exact": 20,
+          "pc_mode": 20
+        },
+        "3": {
+          "available": 41,
+          "exact": 24,
+          "pc_mode": 24
+        },
+        "4": {
+          "available": 41,
+          "exact": 24,
+          "pc_mode": 24
+        },
+        "6": {
+          "available": 41,
+          "exact": 28,
+          "pc_mode": 28
+        },
+        "8": {
+          "available": 41,
+          "exact": 28,
+          "pc_mode": 28
+        },
+        "12": {
+          "available": 41,
+          "exact": 28,
+          "pc_mode": 28
+        }
+      },
+      "cohort_index": 1
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Hensel,_Fanny_(Mendelssohn)/5_Lieder,_Op.10/1_Nach_Süden",
+      "score_sha256": "4ab204b2d38435180646fe1a5a4b0ead696c925bd4a6f9b19bce2ffb9799536e",
+      "music21_measures": 63,
+      "music21_estimates": 63,
+      "acorde_estimates": 63,
+      "counts": {
+        "positions": 128,
+        "acorde_available": 128,
+        "music21_available": 128,
+        "paired_available": 128,
+        "acorde_exact": 79,
+        "music21_exact": 3,
+        "acorde_exact_paired": 79,
+        "music21_exact_paired": 3,
+        "acorde_pc_mode": 79,
+        "music21_pc_mode": 3
+      },
+      "music21_window_scores": {
+        "0": {
+          "available": 128,
+          "exact": 64,
+          "pc_mode": 64
+        },
+        "1": {
+          "available": 128,
+          "exact": 79,
+          "pc_mode": 79
+        },
+        "2": {
+          "available": 128,
+          "exact": 74,
+          "pc_mode": 74
+        },
+        "3": {
+          "available": 128,
+          "exact": 61,
+          "pc_mode": 61
+        },
+        "4": {
+          "available": 128,
+          "exact": 3,
+          "pc_mode": 3
+        },
+        "6": {
+          "available": 128,
+          "exact": 1,
+          "pc_mode": 1
+        },
+        "8": {
+          "available": 128,
+          "exact": 1,
+          "pc_mode": 1
+        },
+        "12": {
+          "available": 128,
+          "exact": 3,
+          "pc_mode": 3
+        }
+      },
+      "cohort_index": 1
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Hensel,_Fanny_(Mendelssohn)/6_Lieder,_Op.1/1_Schwanenlied",
+      "score_sha256": "e15d3d70c64ff9169037321e664c5b59f6b0ac81f7af84668a1a53fc0573bbfc",
+      "music21_measures": 54,
+      "music21_estimates": 54,
+      "acorde_estimates": 54,
+      "counts": {
+        "positions": 97,
+        "acorde_available": 97,
+        "music21_available": 97,
+        "paired_available": 97,
+        "acorde_exact": 97,
+        "music21_exact": 97,
+        "acorde_exact_paired": 97,
+        "music21_exact_paired": 97,
+        "acorde_pc_mode": 97,
+        "music21_pc_mode": 97
+      },
+      "music21_window_scores": {
+        "0": {
+          "available": 97,
+          "exact": 36,
+          "pc_mode": 36
+        },
+        "1": {
+          "available": 97,
+          "exact": 82,
+          "pc_mode": 82
+        },
+        "2": {
+          "available": 97,
+          "exact": 97,
+          "pc_mode": 97
+        },
+        "3": {
+          "available": 97,
+          "exact": 97,
+          "pc_mode": 97
+        },
+        "4": {
+          "available": 97,
+          "exact": 97,
+          "pc_mode": 97
+        },
+        "6": {
+          "available": 97,
+          "exact": 97,
+          "pc_mode": 97
+        },
+        "8": {
+          "available": 97,
+          "exact": 97,
+          "pc_mode": 97
+        },
+        "12": {
+          "available": 97,
+          "exact": 97,
+          "pc_mode": 97
+        }
+      },
+      "cohort_index": 1
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Schumann,_Clara/6_Lieder,_Op.13/1_Ich_stand_in_dunklen_Träumen",
+      "score_sha256": "8a0c5f93aa1aa50c1c9b04f9e36a3a28c93ed60500575edb8d2e7b95aacff63c",
+      "music21_measures": 37,
+      "music21_estimates": 37,
+      "acorde_estimates": 37,
+      "counts": {
+        "positions": 88,
+        "acorde_available": 88,
+        "music21_available": 88,
+        "paired_available": 88,
+        "acorde_exact": 73,
+        "music21_exact": 68,
+        "acorde_exact_paired": 73,
+        "music21_exact_paired": 68,
+        "acorde_pc_mode": 73,
+        "music21_pc_mode": 68
+      },
+      "music21_window_scores": {
+        "0": {
+          "available": 88,
+          "exact": 52,
+          "pc_mode": 52
+        },
+        "1": {
+          "available": 88,
+          "exact": 68,
+          "pc_mode": 68
+        },
+        "2": {
+          "available": 88,
+          "exact": 75,
+          "pc_mode": 75
+        },
+        "3": {
+          "available": 88,
+          "exact": 68,
+          "pc_mode": 68
+        },
+        "4": {
+          "available": 88,
+          "exact": 68,
+          "pc_mode": 68
+        },
+        "6": {
+          "available": 88,
+          "exact": 68,
+          "pc_mode": 68
+        },
+        "8": {
+          "available": 88,
+          "exact": 68,
+          "pc_mode": 68
+        },
+        "12": {
+          "available": 88,
+          "exact": 68,
+          "pc_mode": 68
+        }
+      },
+      "cohort_index": 1
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Schumann,_Clara/6_Lieder,_Op.23/4_Auf_einem_grünen_Hügel",
+      "score_sha256": "7ddad682c4ada79518498142d0145e82c0873843a77652352fc464c3c0963aed",
+      "music21_measures": 32,
+      "music21_estimates": 32,
+      "acorde_estimates": 32,
+      "counts": {
+        "positions": 73,
+        "acorde_available": 73,
+        "music21_available": 73,
+        "paired_available": 73,
+        "acorde_exact": 69,
+        "music21_exact": 73,
+        "acorde_exact_paired": 69,
+        "music21_exact_paired": 73,
+        "acorde_pc_mode": 69,
+        "music21_pc_mode": 73
+      },
+      "music21_window_scores": {
+        "0": {
+          "available": 73,
+          "exact": 30,
+          "pc_mode": 30
+        },
+        "1": {
+          "available": 73,
+          "exact": 67,
+          "pc_mode": 67
+        },
+        "2": {
+          "available": 73,
+          "exact": 73,
+          "pc_mode": 73
+        },
+        "3": {
+          "available": 73,
+          "exact": 73,
+          "pc_mode": 73
+        },
+        "4": {
+          "available": 73,
+          "exact": 73,
+          "pc_mode": 73
+        },
+        "6": {
+          "available": 73,
+          "exact": 73,
+          "pc_mode": 73
+        },
+        "8": {
+          "available": 73,
+          "exact": 73,
+          "pc_mode": 73
+        },
+        "12": {
+          "available": 73,
+          "exact": 73,
+          "pc_mode": 73
+        }
+      },
+      "cohort_index": 1
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Schumann,_Clara/Lieder,_Op.12/04_Liebst_du_um_Schönheit",
+      "score_sha256": "65d3d1f8ca2d00237d6760fe99843937c79934438678ea4dd2a7d52072c24151",
+      "music21_measures": 41,
+      "music21_estimates": 41,
+      "acorde_estimates": 41,
+      "counts": {
+        "positions": 111,
+        "acorde_available": 111,
+        "music21_available": 111,
+        "paired_available": 111,
+        "acorde_exact": 99,
+        "music21_exact": 0,
+        "acorde_exact_paired": 99,
+        "music21_exact_paired": 0,
+        "acorde_pc_mode": 99,
+        "music21_pc_mode": 99
+      },
+      "music21_window_scores": {
+        "0": {
+          "available": 111,
+          "exact": 6,
+          "pc_mode": 60
+        },
+        "1": {
+          "available": 111,
+          "exact": 0,
+          "pc_mode": 83
+        },
+        "2": {
+          "available": 111,
+          "exact": 0,
+          "pc_mode": 99
+        },
+        "3": {
+          "available": 111,
+          "exact": 0,
+          "pc_mode": 99
+        },
+        "4": {
+          "available": 111,
+          "exact": 0,
+          "pc_mode": 99
+        },
+        "6": {
+          "available": 111,
+          "exact": 0,
+          "pc_mode": 99
+        },
+        "8": {
+          "available": 111,
+          "exact": 0,
+          "pc_mode": 99
+        },
+        "12": {
+          "available": 111,
+          "exact": 0,
+          "pc_mode": 99
+        }
+      },
+      "cohort_index": 1
+    }
+  ],
+  "failures": 0
+}
