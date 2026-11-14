@@ -11,6 +11,24 @@ struct literals must still update for added variants and fields.
 > longer compile in 1.2.19 or 1.2.20, despite the patch version. Pin `=1.2.18` or migrate the
 > literal before updating; do not assume a later 1.2 patch restores the old literal form.
 
+## v1.3.12: arrangement markers and optional button labels
+
+The minimum supported Rust version remains 1.89. Preset and free-layer engine
+markers include the workspace version. Reselect saved inputs to produce
+`1.3.12+arrangement-presets.2` and `1.3.12+arrangement-layers.1` before replay.
+
+`arrange_standard_bass_with_annotations` is an opt-in Rust and full/viewer WASM
+API. It adds caller-supplied bass and chord button IDs as technique text to
+new attacks; tied continuations receive no new label. The original source,
+chord symbols and playback schedule are unchanged. These labels do not imply
+physical location, fingering or reach. Existing arrangement calls keep their
+signatures and behavior.
+
+The release WASM build uses `wasm-opt -Oz` to meet the existing artifact-size
+limit. Hosts that distribute their own WASM build should compare its size and
+runtime performance under their actual build settings. Runtime speed was not
+measured as part of this release.
+
 ## v1.3.11: saved arrangements and analysis output
 
 The minimum supported Rust version remains 1.89. Preset and free-layer engine
