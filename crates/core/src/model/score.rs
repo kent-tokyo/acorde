@@ -3535,10 +3535,10 @@ pub fn diff(a: &Score, b: &Score) -> Vec<ScoreChange> {
 
     let a_len = a.parts.len();
     let b_len = b.parts.len();
-    for i in b_len..a_len {
+    for (i, part) in a.parts.iter().enumerate().skip(b_len) {
         changes.push(ScoreChange::PartRemoved {
             part_index: i,
-            name: a.parts[i].name.clone(),
+            name: part.name.clone(),
         });
     }
     for i in a_len..b_len {

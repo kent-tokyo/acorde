@@ -4211,26 +4211,20 @@ fn apply_explode_voices(cmd: &ExplodeVoicesCmd, score: &mut Score) -> Result<(),
             .measures
             .get(measure_index)
             .ok_or(Error::MeasureNotFound(measure_index))?;
-        for voice_index in cmd.target_staves.len()..4 {
-            if !source_measure.voices[voice_index].is_empty() {
+        for voice in source_measure.voices.iter().skip(cmd.target_staves.len()) {
+            if !voice.is_empty() {
                 return Err(Error::InvalidCommand(
                     "explode would discard a source voice without a target staff".into(),
                 ));
             }
         }
-        for voice_index in 0..cmd.target_staves.len() {
-            if source_measure.voices[voice_index]
-                .iter()
-                .any(|note| note.cross_staff.is_some())
-            {
+        for voice in source_measure.voices.iter().take(cmd.target_staves.len()) {
+            if voice.iter().any(|note| note.cross_staff.is_some()) {
                 return Err(Error::InvalidCommand(
                     "explode does not support cross-staff source notes".into(),
                 ));
             }
-            let total: f64 = source_measure.voices[voice_index]
-                .iter()
-                .map(Note::beats)
-                .sum();
+            let total: f64 = voice.iter().map(Note::beats).sum();
             if total > expected + 1e-9 {
                 return Err(Error::InvalidCommand(
                     "explode source voice exceeds its measure duration".into(),
