@@ -1,0 +1,4837 @@
+{
+  "schema_version": 1,
+  "classification": "development diagnostic, not a held-out comparison",
+  "projection_sha256": "ee9f97ccbfe4452334150c582093f2e91bb983288461b51922256a29b95214bc",
+  "preflight_sha256": "f2526225e1ff07d296a2a0e0f212014ebf61a1c5f5d17c2ef2eb373b7a287102",
+  "acorde_binary_sha256": "baf8fef974cecf704b80a7be49916e9280e2cf3909651507345e7cc58a21320d",
+  "method": "analyze-vertical --infer-key --arpeggiated-bars",
+  "summary": {
+    "DC": {
+      "gold_positions": 17,
+      "vertical_at_gold": 12,
+      "roman_at_gold": 12,
+      "current_roman": {
+        "vi": 5,
+        "I6": 1,
+        "IV6": 2,
+        "i": 1,
+        "<none>": 5,
+        "VI/III": 1,
+        "II/VI": 1,
+        "iii": 1
+      },
+      "previous_distinct_roman": {
+        "iio64": 1,
+        "<none>": 3,
+        "III5": 1,
+        "I5/V": 2,
+        "II5": 2,
+        "V5": 2,
+        "V5/II": 1,
+        "III65": 1,
+        "viio2": 2,
+        "V": 2
+      }
+    },
+    "EC": {
+      "gold_positions": 28,
+      "vertical_at_gold": 14,
+      "roman_at_gold": 13,
+      "current_roman": {
+        "IV6": 1,
+        "<none>": 15,
+        "vii64": 1,
+        "vo2": 1,
+        "iii64": 1,
+        "V65": 2,
+        "i6": 1,
+        "V": 2,
+        "I": 2,
+        "V7": 1,
+        "I7": 1
+      },
+      "previous_distinct_roman": {
+        "I5/V": 3,
+        "V5/II": 1,
+        "II7": 1,
+        "VI5/III": 2,
+        "V7": 1,
+        "V": 5,
+        "<none>": 2,
+        "I5": 1,
+        "II5": 2,
+        "vi": 1,
+        "V5": 3,
+        "ii": 1,
+        "V64": 1,
+        "I64": 1,
+        "II": 2,
+        "IV5": 1
+      }
+    },
+    "HC": {
+      "gold_positions": 118,
+      "vertical_at_gold": 66,
+      "roman_at_gold": 66,
+      "current_roman": {
+        "V": 49,
+        "<none>": 52,
+        "V5": 2,
+        "II": 9,
+        "III64": 1,
+        "III": 3,
+        "I": 2
+      },
+      "previous_distinct_roman": {
+        "I64": 32,
+        "III5": 1,
+        "II5/VI": 2,
+        "IV5/I": 6,
+        "VI5": 1,
+        "II6": 3,
+        "VI5/III": 1,
+        "V7": 1,
+        "<none>": 17,
+        "VI6": 1,
+        "V64": 5,
+        "vio43": 1,
+        "III5/VII": 1,
+        "vo64": 1,
+        "I5/V": 9,
+        "V5/II": 4,
+        "ii6": 3,
+        "II43": 1,
+        "II5": 5,
+        "I5": 5,
+        "vi64": 1,
+        "vi": 2,
+        "IV6": 1,
+        "IV64": 2,
+        "IV7": 1,
+        "V5": 2,
+        "iii": 1,
+        "vio64": 1,
+        "io6": 2,
+        "I6": 1,
+        "IV5": 1,
+        "io64": 1,
+        "V65": 1,
+        "i64": 1
+      }
+    },
+    "IAC": {
+      "gold_positions": 13,
+      "vertical_at_gold": 4,
+      "roman_at_gold": 4,
+      "current_roman": {
+        "<none>": 9,
+        "I": 2,
+        "iii65": 1,
+        "vi65": 1
+      },
+      "previous_distinct_roman": {
+        "<none>": 1,
+        "viio": 1,
+        "I": 2,
+        "III5": 1,
+        "V7": 2,
+        "V/II": 1,
+        "II5": 1,
+        "V5": 1,
+        "V": 1,
+        "II5/VI": 2
+      }
+    },
+    "PAC": {
+      "gold_positions": 157,
+      "vertical_at_gold": 64,
+      "roman_at_gold": 64,
+      "current_roman": {
+        "I": 29,
+        "I7": 6,
+        "<none>": 93,
+        "V": 16,
+        "V7": 3,
+        "III": 1,
+        "I65": 1,
+        "i": 1,
+        "vi": 1,
+        "I+6": 6
+      },
+      "previous_distinct_roman": {
+        "V5": 27,
+        "I/V": 9,
+        "II5": 11,
+        "II7": 13,
+        "V7": 19,
+        "I5/V": 4,
+        "II": 15,
+        "V": 24,
+        "<none>": 15,
+        "V64": 2,
+        "I64": 2,
+        "VII5": 1,
+        "VII7": 2,
+        "VI": 1,
+        "V5/II": 2,
+        "vi": 1,
+        "V/II": 1,
+        "III5": 2,
+        "ii": 2,
+        "III7": 1,
+        "I": 1,
+        "IV6": 1,
+        "ii6": 1
+      }
+    }
+  },
+  "rows": [
+    {
+      "id": "K279-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 2,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I"
+      ],
+      "previous_distinct_roman": "V5"
+    },
+    {
+      "id": "K279-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 4,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I7"
+      ],
+      "previous_distinct_roman": "V5"
+    },
+    {
+      "id": "K279-1",
+      "gold": "DC",
+      "part": 0,
+      "measure": 9,
+      "offset_quarter": [
+        3,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "vi"
+      ],
+      "previous_distinct_roman": "iio64"
+    },
+    {
+      "id": "K279-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 11,
+      "offset_quarter": [
+        2,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "I/V"
+    },
+    {
+      "id": "K279-1",
+      "gold": "HC",
+      "part": 0,
+      "measure": 15,
+      "offset_quarter": [
+        1,
+        2
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "I64"
+    },
+    {
+      "id": "K279-1",
+      "gold": "HC",
+      "part": 0,
+      "measure": 23,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "III5"
+    },
+    {
+      "id": "K279-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 30,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "II5"
+    },
+    {
+      "id": "K279-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 32,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V7"
+      ],
+      "previous_distinct_roman": "II7"
+    },
+    {
+      "id": "K279-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 34,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "II7"
+    },
+    {
+      "id": "K279-1",
+      "gold": "IAC",
+      "part": 0,
+      "measure": 36,
+      "offset_quarter": [
+        2,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K279-1",
+      "gold": "HC",
+      "part": 0,
+      "measure": 50,
+      "offset_quarter": [
+        2,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "II5/VI"
+    },
+    {
+      "id": "K279-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 59,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I"
+      ],
+      "previous_distinct_roman": "V5"
+    },
+    {
+      "id": "K279-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 61,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I7"
+      ],
+      "previous_distinct_roman": "V5"
+    },
+    {
+      "id": "K279-1",
+      "gold": "HC",
+      "part": 0,
+      "measure": 66,
+      "offset_quarter": [
+        2,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V5"
+      ],
+      "previous_distinct_roman": "IV5/I"
+    },
+    {
+      "id": "K279-1",
+      "gold": "HC",
+      "part": 0,
+      "measure": 77,
+      "offset_quarter": [
+        2,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "VI5"
+    },
+    {
+      "id": "K279-1",
+      "gold": "HC",
+      "part": 0,
+      "measure": 85,
+      "offset_quarter": [
+        1,
+        2
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "I64"
+    },
+    {
+      "id": "K279-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 91,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I"
+      ],
+      "previous_distinct_roman": "V5"
+    },
+    {
+      "id": "K279-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 93,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I7"
+      ],
+      "previous_distinct_roman": "V7"
+    },
+    {
+      "id": "K279-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 95,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V7"
+    },
+    {
+      "id": "K279-1",
+      "gold": "IAC",
+      "part": 0,
+      "measure": 97,
+      "offset_quarter": [
+        2,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "viio"
+    },
+    {
+      "id": "K279-2",
+      "gold": "EC",
+      "part": 0,
+      "measure": 4,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "IV6"
+      ],
+      "previous_distinct_roman": "I5/V"
+    },
+    {
+      "id": "K279-2",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 6,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "I5/V"
+    },
+    {
+      "id": "K279-2",
+      "gold": "HC",
+      "part": 0,
+      "measure": 10,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "II6"
+    },
+    {
+      "id": "K279-2",
+      "gold": "EC",
+      "part": 0,
+      "measure": 17,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V5/II"
+    },
+    {
+      "id": "K279-2",
+      "gold": "EC",
+      "part": 0,
+      "measure": 21,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "vii64"
+      ],
+      "previous_distinct_roman": "II7"
+    },
+    {
+      "id": "K279-2",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 26,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "II"
+    },
+    {
+      "id": "K279-2",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 27,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "II"
+    },
+    {
+      "id": "K279-2",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 28,
+      "offset_quarter": [
+        2,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "II7"
+    },
+    {
+      "id": "K279-2",
+      "gold": "HC",
+      "part": 0,
+      "measure": 33,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "VI5/III"
+    },
+    {
+      "id": "K279-2",
+      "gold": "EC",
+      "part": 0,
+      "measure": 36,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [],
+      "previous_distinct_roman": "VI5/III"
+    },
+    {
+      "id": "K279-2",
+      "gold": "EC",
+      "part": 0,
+      "measure": 38,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "vo2"
+      ],
+      "previous_distinct_roman": "VI5/III"
+    },
+    {
+      "id": "K279-2",
+      "gold": "HC",
+      "part": 0,
+      "measure": 42,
+      "offset_quarter": [
+        2,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V7"
+    },
+    {
+      "id": "K279-2",
+      "gold": "EC",
+      "part": 0,
+      "measure": 47,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "I5/V"
+    },
+    {
+      "id": "K279-2",
+      "gold": "HC",
+      "part": 0,
+      "measure": 51,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K279-2",
+      "gold": "EC",
+      "part": 0,
+      "measure": 58,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "I5/V"
+    },
+    {
+      "id": "K279-2",
+      "gold": "EC",
+      "part": 0,
+      "measure": 62,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "iii64"
+      ],
+      "previous_distinct_roman": "V7"
+    },
+    {
+      "id": "K279-2",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 69,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I7"
+      ],
+      "previous_distinct_roman": "V7"
+    },
+    {
+      "id": "K279-2",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 73,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I"
+      ],
+      "previous_distinct_roman": "V"
+    },
+    {
+      "id": "K279-2",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 74,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I"
+      ],
+      "previous_distinct_roman": "V"
+    },
+    {
+      "id": "K279-2",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 75,
+      "offset_quarter": [
+        2,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I"
+      ],
+      "previous_distinct_roman": "V7"
+    },
+    {
+      "id": "K279-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 4,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "IV5/I"
+    },
+    {
+      "id": "K279-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 10,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V5"
+    },
+    {
+      "id": "K279-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 18,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "VI6"
+    },
+    {
+      "id": "K279-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 20,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "II"
+      ],
+      "previous_distinct_roman": "V64"
+    },
+    {
+      "id": "K279-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 22,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "II"
+      ],
+      "previous_distinct_roman": "V64"
+    },
+    {
+      "id": "K279-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 30,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K279-3",
+      "gold": "DC",
+      "part": 0,
+      "measure": 34,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I6"
+      ],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K279-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 38,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "II"
+    },
+    {
+      "id": "K279-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 46,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "II"
+    },
+    {
+      "id": "K279-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 50,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K279-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 54,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K279-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 71,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K279-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 73,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K279-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 91,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "IV5/I"
+    },
+    {
+      "id": "K279-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 97,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V5"
+    },
+    {
+      "id": "K279-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 105,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "II6"
+    },
+    {
+      "id": "K279-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 107,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "I64"
+    },
+    {
+      "id": "K279-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 109,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "I64"
+    },
+    {
+      "id": "K279-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 117,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K279-3",
+      "gold": "DC",
+      "part": 0,
+      "measure": 121,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "IV6"
+      ],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K279-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 125,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V"
+    },
+    {
+      "id": "K279-3",
+      "gold": "EC",
+      "part": 0,
+      "measure": 133,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V"
+    },
+    {
+      "id": "K279-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 148,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V"
+    },
+    {
+      "id": "K279-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 152,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K279-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 156,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I"
+      ],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K280-1",
+      "gold": "EC",
+      "part": 0,
+      "measure": 9,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V65"
+      ],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K280-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 12,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I"
+      ],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K280-1",
+      "gold": "HC",
+      "part": 0,
+      "measure": 25,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "I64"
+    },
+    {
+      "id": "K280-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 42,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V7"
+      ],
+      "previous_distinct_roman": "V64"
+    },
+    {
+      "id": "K280-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 47,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "II"
+    },
+    {
+      "id": "K280-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 53,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "II"
+    },
+    {
+      "id": "K280-1",
+      "gold": "HC",
+      "part": 0,
+      "measure": 77,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "vio43"
+    },
+    {
+      "id": "K280-1",
+      "gold": "EC",
+      "part": 0,
+      "measure": 91,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V65"
+      ],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K280-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 94,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I"
+      ],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K280-1",
+      "gold": "HC",
+      "part": 0,
+      "measure": 107,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "I64"
+    },
+    {
+      "id": "K280-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 130,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I7"
+      ],
+      "previous_distinct_roman": "I64"
+    },
+    {
+      "id": "K280-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 135,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I"
+      ],
+      "previous_distinct_roman": "V"
+    },
+    {
+      "id": "K280-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 141,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I"
+      ],
+      "previous_distinct_roman": "V"
+    },
+    {
+      "id": "K280-2",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 7,
+      "offset_quarter": [
+        3,
+        2
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V7"
+    },
+    {
+      "id": "K280-2",
+      "gold": "HC",
+      "part": 0,
+      "measure": 11,
+      "offset_quarter": [
+        3,
+        2
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "III5/VII"
+    },
+    {
+      "id": "K280-2",
+      "gold": "DC",
+      "part": 0,
+      "measure": 18,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "i"
+      ],
+      "previous_distinct_roman": "III5"
+    },
+    {
+      "id": "K280-2",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 20,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "VII5"
+    },
+    {
+      "id": "K280-2",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 21,
+      "offset_quarter": [
+        3,
+        2
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "III"
+      ],
+      "previous_distinct_roman": "VII7"
+    },
+    {
+      "id": "K280-2",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 23,
+      "offset_quarter": [
+        3,
+        2
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "VII7"
+    },
+    {
+      "id": "K280-2",
+      "gold": "HC",
+      "part": 0,
+      "measure": 31,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "II"
+      ],
+      "previous_distinct_roman": "vo64"
+    },
+    {
+      "id": "K280-2",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 41,
+      "offset_quarter": [
+        3,
+        2
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V7"
+    },
+    {
+      "id": "K280-2",
+      "gold": "HC",
+      "part": 0,
+      "measure": 45,
+      "offset_quarter": [
+        3,
+        2
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "I5/V"
+    },
+    {
+      "id": "K280-2",
+      "gold": "EC",
+      "part": 0,
+      "measure": 52,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "i6"
+      ],
+      "previous_distinct_roman": "I5"
+    },
+    {
+      "id": "K280-2",
+      "gold": "DC",
+      "part": 0,
+      "measure": 54,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "I5/V"
+    },
+    {
+      "id": "K280-2",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 56,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I65"
+      ],
+      "previous_distinct_roman": "V5"
+    },
+    {
+      "id": "K280-2",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 57,
+      "offset_quarter": [
+        3,
+        2
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V7"
+    },
+    {
+      "id": "K280-2",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 59,
+      "offset_quarter": [
+        3,
+        2
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "i"
+      ],
+      "previous_distinct_roman": "V7"
+    },
+    {
+      "id": "K280-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 8,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V5/II"
+    },
+    {
+      "id": "K280-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 16,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V"
+    },
+    {
+      "id": "K280-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 32,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "II"
+      ],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K280-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 49,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V5/II"
+    },
+    {
+      "id": "K280-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 62,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "II5"
+    },
+    {
+      "id": "K280-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 66,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "II5"
+    },
+    {
+      "id": "K280-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 72,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K280-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 86,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "VI"
+    },
+    {
+      "id": "K280-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 104,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "III64"
+      ],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K280-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 116,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V5/II"
+    },
+    {
+      "id": "K280-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 124,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V"
+    },
+    {
+      "id": "K280-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 144,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K280-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 161,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "I5/V"
+    },
+    {
+      "id": "K280-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 174,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V5"
+    },
+    {
+      "id": "K280-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 178,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V5"
+    },
+    {
+      "id": "K280-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 184,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K281-1",
+      "gold": "IAC",
+      "part": 0,
+      "measure": 3,
+      "offset_quarter": [
+        1,
+        2
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "I"
+    },
+    {
+      "id": "K281-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 7,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "I/V"
+    },
+    {
+      "id": "K281-1",
+      "gold": "HC",
+      "part": 0,
+      "measure": 15,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "ii6"
+    },
+    {
+      "id": "K281-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 29,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V5/II"
+    },
+    {
+      "id": "K281-1",
+      "gold": "EC",
+      "part": 0,
+      "measure": 33,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "II5"
+    },
+    {
+      "id": "K281-1",
+      "gold": "EC",
+      "part": 0,
+      "measure": 35,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "vi"
+    },
+    {
+      "id": "K281-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 37,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "vi"
+    },
+    {
+      "id": "K281-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 47,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V/II"
+    },
+    {
+      "id": "K281-1",
+      "gold": "IAC",
+      "part": 0,
+      "measure": 58,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "III5"
+    },
+    {
+      "id": "K281-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 60,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "vi"
+      ],
+      "previous_distinct_roman": "III5"
+    },
+    {
+      "id": "K281-1",
+      "gold": "HC",
+      "part": 0,
+      "measure": 67,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "II43"
+    },
+    {
+      "id": "K281-1",
+      "gold": "IAC",
+      "part": 0,
+      "measure": 72,
+      "offset_quarter": [
+        1,
+        2
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "I"
+    },
+    {
+      "id": "K281-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 76,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "I/V"
+    },
+    {
+      "id": "K281-1",
+      "gold": "HC",
+      "part": 0,
+      "measure": 84,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "ii6"
+    },
+    {
+      "id": "K281-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 98,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "I5/V"
+    },
+    {
+      "id": "K281-1",
+      "gold": "EC",
+      "part": 0,
+      "measure": 102,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I"
+      ],
+      "previous_distinct_roman": "V5"
+    },
+    {
+      "id": "K281-1",
+      "gold": "EC",
+      "part": 0,
+      "measure": 104,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I"
+      ],
+      "previous_distinct_roman": "ii"
+    },
+    {
+      "id": "K281-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 106,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "ii"
+    },
+    {
+      "id": "K281-2",
+      "gold": "IAC",
+      "part": 0,
+      "measure": 7,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V7"
+    },
+    {
+      "id": "K281-2",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 11,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I"
+      ],
+      "previous_distinct_roman": "V7"
+    },
+    {
+      "id": "K281-2",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 13,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V5"
+    },
+    {
+      "id": "K281-2",
+      "gold": "HC",
+      "part": 0,
+      "measure": 20,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "II5"
+    },
+    {
+      "id": "K281-2",
+      "gold": "HC",
+      "part": 0,
+      "measure": 22,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "II5"
+    },
+    {
+      "id": "K281-2",
+      "gold": "HC",
+      "part": 0,
+      "measure": 25,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "II"
+      ],
+      "previous_distinct_roman": "V64"
+    },
+    {
+      "id": "K281-2",
+      "gold": "DC",
+      "part": 0,
+      "measure": 34,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "II5"
+    },
+    {
+      "id": "K281-2",
+      "gold": "EC",
+      "part": 0,
+      "measure": 38,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "II5"
+    },
+    {
+      "id": "K281-2",
+      "gold": "EC",
+      "part": 0,
+      "measure": 40,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V64"
+    },
+    {
+      "id": "K281-2",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 42,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "V64"
+    },
+    {
+      "id": "K281-2",
+      "gold": "HC",
+      "part": 0,
+      "measure": 54,
+      "offset_quarter": [
+        1,
+        2
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K281-2",
+      "gold": "IAC",
+      "part": 0,
+      "measure": 65,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V7"
+    },
+    {
+      "id": "K281-2",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 69,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I"
+      ],
+      "previous_distinct_roman": "V7"
+    },
+    {
+      "id": "K281-2",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 71,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V5"
+    },
+    {
+      "id": "K281-2",
+      "gold": "HC",
+      "part": 0,
+      "measure": 85,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "I64"
+    },
+    {
+      "id": "K281-2",
+      "gold": "DC",
+      "part": 0,
+      "measure": 94,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V5"
+    },
+    {
+      "id": "K281-2",
+      "gold": "EC",
+      "part": 0,
+      "measure": 98,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V5"
+    },
+    {
+      "id": "K281-2",
+      "gold": "EC",
+      "part": 0,
+      "measure": 100,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "I64"
+    },
+    {
+      "id": "K281-2",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 102,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I"
+      ],
+      "previous_distinct_roman": "I64"
+    },
+    {
+      "id": "K281-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 4,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "I64"
+    },
+    {
+      "id": "K281-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 8,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I"
+      ],
+      "previous_distinct_roman": "V"
+    },
+    {
+      "id": "K281-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 10,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "I5"
+    },
+    {
+      "id": "K281-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 12,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I+6"
+      ],
+      "previous_distinct_roman": "V5"
+    },
+    {
+      "id": "K281-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 14,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I+6"
+      ],
+      "previous_distinct_roman": "I/V"
+    },
+    {
+      "id": "K281-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 16,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "I/V"
+    },
+    {
+      "id": "K281-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 27,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "II"
+      ],
+      "previous_distinct_roman": "V64"
+    },
+    {
+      "id": "K281-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 39,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V7"
+      ],
+      "previous_distinct_roman": "II"
+    },
+    {
+      "id": "K281-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 47,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "I64"
+    },
+    {
+      "id": "K281-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 51,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V"
+    },
+    {
+      "id": "K281-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 59,
+      "offset_quarter": [
+        2,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "III"
+      ],
+      "previous_distinct_roman": "vi64"
+    },
+    {
+      "id": "K281-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 63,
+      "offset_quarter": [
+        2,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "III"
+      ],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K281-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 67,
+      "offset_quarter": [
+        2,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "III7"
+    },
+    {
+      "id": "K281-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 69,
+      "offset_quarter": [
+        2,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "II6"
+    },
+    {
+      "id": "K281-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 75,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "I64"
+    },
+    {
+      "id": "K281-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 79,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I"
+      ],
+      "previous_distinct_roman": "V"
+    },
+    {
+      "id": "K281-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 81,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "I5"
+    },
+    {
+      "id": "K281-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 83,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I+6"
+      ],
+      "previous_distinct_roman": "V5"
+    },
+    {
+      "id": "K281-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 85,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I+6"
+      ],
+      "previous_distinct_roman": "I/V"
+    },
+    {
+      "id": "K281-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 87,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "I/V"
+    },
+    {
+      "id": "K281-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 101,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V5"
+    },
+    {
+      "id": "K281-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 109,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "I64"
+    },
+    {
+      "id": "K281-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 118,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "I5"
+    },
+    {
+      "id": "K281-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 123,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "I5/V"
+    },
+    {
+      "id": "K281-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 136,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I7"
+      ],
+      "previous_distinct_roman": "V"
+    },
+    {
+      "id": "K281-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 146,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "I64"
+    },
+    {
+      "id": "K281-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 150,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I"
+      ],
+      "previous_distinct_roman": "V"
+    },
+    {
+      "id": "K281-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 152,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "I5"
+    },
+    {
+      "id": "K281-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 154,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I+6"
+      ],
+      "previous_distinct_roman": "V5"
+    },
+    {
+      "id": "K281-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 156,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I+6"
+      ],
+      "previous_distinct_roman": "I/V"
+    },
+    {
+      "id": "K281-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 158,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "I/V"
+    },
+    {
+      "id": "K282-1",
+      "gold": "HC",
+      "part": 0,
+      "measure": 1,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "vi"
+    },
+    {
+      "id": "K282-1",
+      "gold": "IAC",
+      "part": 0,
+      "measure": 3,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I"
+      ],
+      "previous_distinct_roman": "V/II"
+    },
+    {
+      "id": "K282-1",
+      "gold": "HC",
+      "part": 0,
+      "measure": 7,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "II"
+      ],
+      "previous_distinct_roman": "V5/II"
+    },
+    {
+      "id": "K282-1",
+      "gold": "DC",
+      "part": 0,
+      "measure": 12,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "VI/III"
+      ],
+      "previous_distinct_roman": "V5/II"
+    },
+    {
+      "id": "K282-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 14,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "II7"
+    },
+    {
+      "id": "K282-1",
+      "gold": "HC",
+      "part": 0,
+      "measure": 19,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "IV6"
+    },
+    {
+      "id": "K282-1",
+      "gold": "HC",
+      "part": 0,
+      "measure": 25,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "II5/VI"
+    },
+    {
+      "id": "K282-1",
+      "gold": "DC",
+      "part": 0,
+      "measure": 30,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "II/VI"
+      ],
+      "previous_distinct_roman": "I5/V"
+    },
+    {
+      "id": "K282-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 32,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I"
+      ],
+      "previous_distinct_roman": "V7"
+    },
+    {
+      "id": "K282-1",
+      "gold": "HC",
+      "part": 0,
+      "measure": 34,
+      "offset_quarter": [
+        1,
+        2
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "I5/V"
+    },
+    {
+      "id": "K282-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 35,
+      "offset_quarter": [
+        3,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V7"
+    },
+    {
+      "id": "K282-2",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 10,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "II7"
+    },
+    {
+      "id": "K282-2",
+      "gold": "HC",
+      "part": 0,
+      "measure": 19,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "I64"
+    },
+    {
+      "id": "K282-2",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 29,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V7"
+    },
+    {
+      "id": "K282-2",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 33,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "ii"
+    },
+    {
+      "id": "K282-2",
+      "gold": "HC",
+      "part": 0,
+      "measure": 42,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I"
+      ],
+      "previous_distinct_roman": "IV64"
+    },
+    {
+      "id": "K282-2",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 50,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V"
+    },
+    {
+      "id": "K282-2",
+      "gold": "HC",
+      "part": 0,
+      "measure": 58,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K282-2",
+      "gold": "HC",
+      "part": 0,
+      "measure": 67,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I"
+      ],
+      "previous_distinct_roman": "IV64"
+    },
+    {
+      "id": "K282-2",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 75,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "I"
+    },
+    {
+      "id": "K282-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 8,
+      "offset_quarter": [
+        1,
+        2
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "I64"
+    },
+    {
+      "id": "K282-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 15,
+      "offset_quarter": [
+        1,
+        2
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "II"
+      ],
+      "previous_distinct_roman": "V64"
+    },
+    {
+      "id": "K282-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 23,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "II5"
+    },
+    {
+      "id": "K282-3",
+      "gold": "DC",
+      "part": 0,
+      "measure": 31,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "iii"
+      ],
+      "previous_distinct_roman": "II5"
+    },
+    {
+      "id": "K282-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 35,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "II5"
+    },
+    {
+      "id": "K282-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 39,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "II5"
+    },
+    {
+      "id": "K282-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 60,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "IV7"
+    },
+    {
+      "id": "K282-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 70,
+      "offset_quarter": [
+        1,
+        2
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "I64"
+    },
+    {
+      "id": "K282-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 77,
+      "offset_quarter": [
+        1,
+        2
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "I64"
+    },
+    {
+      "id": "K282-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 85,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V5"
+    },
+    {
+      "id": "K282-3",
+      "gold": "DC",
+      "part": 0,
+      "measure": 89,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "IV6"
+      ],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K282-3",
+      "gold": "DC",
+      "part": 0,
+      "measure": 93,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "vi"
+      ],
+      "previous_distinct_roman": "V5"
+    },
+    {
+      "id": "K282-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 97,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V5"
+    },
+    {
+      "id": "K282-3",
+      "gold": "EC",
+      "part": 0,
+      "measure": 99,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V5"
+    },
+    {
+      "id": "K282-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 101,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V5"
+    },
+    {
+      "id": "K283-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 10,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "I5/V"
+    },
+    {
+      "id": "K283-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 16,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "I5/V"
+    },
+    {
+      "id": "K283-1",
+      "gold": "HC",
+      "part": 0,
+      "measure": 22,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K283-1",
+      "gold": "HC",
+      "part": 0,
+      "measure": 26,
+      "offset_quarter": [
+        2,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "II5"
+    },
+    {
+      "id": "K283-1",
+      "gold": "HC",
+      "part": 0,
+      "measure": 30,
+      "offset_quarter": [
+        2,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "II5"
+    },
+    {
+      "id": "K283-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 38,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "II7"
+    },
+    {
+      "id": "K283-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 43,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "II7"
+    },
+    {
+      "id": "K283-1",
+      "gold": "EC",
+      "part": 0,
+      "measure": 48,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "II"
+    },
+    {
+      "id": "K283-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 51,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "II5"
+    },
+    {
+      "id": "K283-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 63,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "II"
+    },
+    {
+      "id": "K283-1",
+      "gold": "HC",
+      "part": 0,
+      "measure": 90,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K283-1",
+      "gold": "HC",
+      "part": 0,
+      "measure": 94,
+      "offset_quarter": [
+        2,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V5"
+    },
+    {
+      "id": "K283-1",
+      "gold": "HC",
+      "part": 0,
+      "measure": 98,
+      "offset_quarter": [
+        2,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V5"
+    },
+    {
+      "id": "K283-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 106,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V7"
+    },
+    {
+      "id": "K283-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 111,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V7"
+    },
+    {
+      "id": "K283-1",
+      "gold": "EC",
+      "part": 0,
+      "measure": 116,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V"
+    },
+    {
+      "id": "K283-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 119,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V5"
+    },
+    {
+      "id": "K283-2",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 3,
+      "offset_quarter": [
+        3,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I"
+      ],
+      "previous_distinct_roman": "V7"
+    },
+    {
+      "id": "K283-2",
+      "gold": "HC",
+      "part": 0,
+      "measure": 7,
+      "offset_quarter": [
+        3,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "II"
+      ],
+      "previous_distinct_roman": "iii"
+    },
+    {
+      "id": "K283-2",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 13,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "II"
+    },
+    {
+      "id": "K283-2",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 14,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K283-2",
+      "gold": "HC",
+      "part": 0,
+      "measure": 22,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "III"
+      ],
+      "previous_distinct_roman": "vio64"
+    },
+    {
+      "id": "K283-2",
+      "gold": "HC",
+      "part": 0,
+      "measure": 31,
+      "offset_quarter": [
+        3,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "I64"
+    },
+    {
+      "id": "K283-2",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 37,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V"
+    },
+    {
+      "id": "K283-2",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 38,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K283-2",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 40,
+      "offset_quarter": [
+        3,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I"
+      ],
+      "previous_distinct_roman": "V7"
+    },
+    {
+      "id": "K283-3",
+      "gold": "EC",
+      "part": 0,
+      "measure": 23,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V"
+    },
+    {
+      "id": "K283-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 38,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "IV5/I"
+    },
+    {
+      "id": "K283-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 72,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "II5"
+    },
+    {
+      "id": "K283-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 80,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "II"
+    },
+    {
+      "id": "K283-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 96,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "II5"
+    },
+    {
+      "id": "K283-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 100,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K283-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 122,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K283-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 137,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "III5"
+    },
+    {
+      "id": "K283-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 141,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K283-3",
+      "gold": "DC",
+      "part": 0,
+      "measure": 151,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "vi"
+      ],
+      "previous_distinct_roman": "III65"
+    },
+    {
+      "id": "K283-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 159,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "II5"
+    },
+    {
+      "id": "K283-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 167,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K283-3",
+      "gold": "EC",
+      "part": 0,
+      "measure": 194,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V"
+    },
+    {
+      "id": "K283-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 209,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "IV5/I"
+    },
+    {
+      "id": "K283-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 243,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V5"
+    },
+    {
+      "id": "K283-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 251,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V"
+    },
+    {
+      "id": "K283-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 267,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I"
+      ],
+      "previous_distinct_roman": "V5"
+    },
+    {
+      "id": "K283-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 271,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K284-1",
+      "gold": "HC",
+      "part": 0,
+      "measure": 16,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "io6"
+    },
+    {
+      "id": "K284-1",
+      "gold": "HC",
+      "part": 0,
+      "measure": 33,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K284-1",
+      "gold": "EC",
+      "part": 0,
+      "measure": 40,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V7"
+      ],
+      "previous_distinct_roman": "II"
+    },
+    {
+      "id": "K284-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 43,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "II"
+    },
+    {
+      "id": "K284-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 49,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "II5"
+    },
+    {
+      "id": "K284-1",
+      "gold": "HC",
+      "part": 0,
+      "measure": 69,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "I6"
+    },
+    {
+      "id": "K284-1",
+      "gold": "HC",
+      "part": 0,
+      "measure": 87,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "io6"
+    },
+    {
+      "id": "K284-1",
+      "gold": "HC",
+      "part": 0,
+      "measure": 105,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K284-1",
+      "gold": "EC",
+      "part": 0,
+      "measure": 112,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I7"
+      ],
+      "previous_distinct_roman": "V"
+    },
+    {
+      "id": "K284-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 115,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V"
+    },
+    {
+      "id": "K284-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 119,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V5"
+    },
+    {
+      "id": "K284-1",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 125,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V5"
+    },
+    {
+      "id": "K284-2",
+      "gold": "HC",
+      "part": 0,
+      "measure": 7,
+      "offset_quarter": [
+        2,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "I64"
+    },
+    {
+      "id": "K284-2",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 15,
+      "offset_quarter": [
+        2,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I"
+      ],
+      "previous_distinct_roman": "V"
+    },
+    {
+      "id": "K284-2",
+      "gold": "IAC",
+      "part": 0,
+      "measure": 24,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "iii65"
+      ],
+      "previous_distinct_roman": "II5"
+    },
+    {
+      "id": "K284-2",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 29,
+      "offset_quarter": [
+        2,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "II7"
+    },
+    {
+      "id": "K284-2",
+      "gold": "HC",
+      "part": 0,
+      "measure": 37,
+      "offset_quarter": [
+        2,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "I64"
+    },
+    {
+      "id": "K284-2",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 45,
+      "offset_quarter": [
+        2,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "IV6"
+    },
+    {
+      "id": "K284-2",
+      "gold": "HC",
+      "part": 0,
+      "measure": 51,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "IV5"
+    },
+    {
+      "id": "K284-2",
+      "gold": "IAC",
+      "part": 0,
+      "measure": 60,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "vi65"
+      ],
+      "previous_distinct_roman": "V5"
+    },
+    {
+      "id": "K284-2",
+      "gold": "HC",
+      "part": 0,
+      "measure": 68,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "io64"
+    },
+    {
+      "id": "K284-2",
+      "gold": "EC",
+      "part": 0,
+      "measure": 75,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "IV5"
+    },
+    {
+      "id": "K284-2",
+      "gold": "DC",
+      "part": 0,
+      "measure": 84,
+      "offset_quarter": [
+        2,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "vi"
+      ],
+      "previous_distinct_roman": "viio2"
+    },
+    {
+      "id": "K284-2",
+      "gold": "DC",
+      "part": 0,
+      "measure": 86,
+      "offset_quarter": [
+        2,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "vi"
+      ],
+      "previous_distinct_roman": "viio2"
+    },
+    {
+      "id": "K284-2",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 90,
+      "offset_quarter": [
+        2,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I"
+      ],
+      "previous_distinct_roman": "V"
+    },
+    {
+      "id": "K284-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 4,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "I64"
+    },
+    {
+      "id": "K284-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 8,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "II7"
+    },
+    {
+      "id": "K284-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 13,
+      "offset_quarter": [
+        2,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "I64"
+    },
+    {
+      "id": "K284-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 18,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I"
+      ],
+      "previous_distinct_roman": "V7"
+    },
+    {
+      "id": "K284-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 23,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "I64"
+    },
+    {
+      "id": "K284-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 27,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "II7"
+    },
+    {
+      "id": "K284-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 32,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "I64"
+    },
+    {
+      "id": "K284-3",
+      "gold": "IAC",
+      "part": 0,
+      "measure": 36,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I"
+      ],
+      "previous_distinct_roman": "V"
+    },
+    {
+      "id": "K284-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 37,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V"
+    },
+    {
+      "id": "K284-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 42,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "I64"
+    },
+    {
+      "id": "K284-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 46,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "II7"
+    },
+    {
+      "id": "K284-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 51,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "vi"
+    },
+    {
+      "id": "K284-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 56,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I"
+      ],
+      "previous_distinct_roman": "V7"
+    },
+    {
+      "id": "K284-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 61,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "I64"
+    },
+    {
+      "id": "K284-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 65,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "II"
+    },
+    {
+      "id": "K284-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 70,
+      "offset_quarter": [
+        2,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "I5/V"
+    },
+    {
+      "id": "K284-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 75,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I"
+      ],
+      "previous_distinct_roman": "V"
+    },
+    {
+      "id": "K284-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 80,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "I64"
+    },
+    {
+      "id": "K284-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 84,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K284-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 89,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "V65"
+    },
+    {
+      "id": "K284-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 94,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I"
+      ],
+      "previous_distinct_roman": null
+    },
+    {
+      "id": "K284-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 99,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "I64"
+    },
+    {
+      "id": "K284-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 103,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "II"
+    },
+    {
+      "id": "K284-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 108,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "I64"
+    },
+    {
+      "id": "K284-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 113,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V"
+    },
+    {
+      "id": "K284-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 118,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "I5/V"
+    },
+    {
+      "id": "K284-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 127,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "I5/V"
+    },
+    {
+      "id": "K284-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 137,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "i64"
+    },
+    {
+      "id": "K284-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 141,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "II7"
+    },
+    {
+      "id": "K284-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 151,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V"
+    },
+    {
+      "id": "K284-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 156,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "I64"
+    },
+    {
+      "id": "K284-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 160,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V5/II"
+    },
+    {
+      "id": "K284-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 166,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "I5/V"
+    },
+    {
+      "id": "K284-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 170,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V5"
+    },
+    {
+      "id": "K284-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 194,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "I64"
+    },
+    {
+      "id": "K284-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 198,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "II5"
+    },
+    {
+      "id": "K284-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 203,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "ii6"
+    },
+    {
+      "id": "K284-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 208,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "ii6"
+    },
+    {
+      "id": "K284-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 213,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V5"
+      ],
+      "previous_distinct_roman": "I5"
+    },
+    {
+      "id": "K284-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 217,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "II"
+    },
+    {
+      "id": "K284-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 222,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "IV5/I"
+    },
+    {
+      "id": "K284-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 226,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "II"
+    },
+    {
+      "id": "K284-3",
+      "gold": "IAC",
+      "part": 0,
+      "measure": 235,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "II5/VI"
+    },
+    {
+      "id": "K284-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 236,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I"
+      ],
+      "previous_distinct_roman": "V5"
+    },
+    {
+      "id": "K284-3",
+      "gold": "IAC",
+      "part": 0,
+      "measure": 245,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "II5/VI"
+    },
+    {
+      "id": "K284-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 246,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "I"
+      ],
+      "previous_distinct_roman": "V5"
+    },
+    {
+      "id": "K284-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 251,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "I64"
+    },
+    {
+      "id": "K284-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 259,
+      "offset_quarter": [
+        1,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "I64"
+    },
+    {
+      "id": "K284-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 263,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": true,
+      "current_roman": [
+        "V"
+      ],
+      "previous_distinct_roman": "II7"
+    },
+    {
+      "id": "K284-3",
+      "gold": "HC",
+      "part": 0,
+      "measure": 276,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "I5/V"
+    },
+    {
+      "id": "K284-3",
+      "gold": "DC",
+      "part": 0,
+      "measure": 281,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V"
+    },
+    {
+      "id": "K284-3",
+      "gold": "DC",
+      "part": 0,
+      "measure": 283,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V"
+    },
+    {
+      "id": "K284-3",
+      "gold": "PAC",
+      "part": 0,
+      "measure": 285,
+      "offset_quarter": [
+        0,
+        1
+      ],
+      "vertical_at_gold": false,
+      "current_roman": [],
+      "previous_distinct_roman": "V"
+    }
+  ]
+}

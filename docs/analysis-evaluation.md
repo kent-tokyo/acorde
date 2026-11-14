@@ -205,6 +205,14 @@ timeline exclusions. The earlier [legacy pass](archive/analysis-mozart-cadence-a
 found 7 with 122 false positives. Both reports are Acorde-only development
 diagnostics, not a comparison with music21.
 
+The [development onset audit](archive/analysis-mozart-cadence-sonority-development-v1.md)
+finds a vertical sonority at 160 of the 333 annotated cadence onsets. Explicit
+`I64 → V` half and `V → vi/VI` deceptive-transition hypotheses together match
+33 cadences but make 96 false predictions at the same eligible positions.
+They remain diagnostics rather than adopted rules. A cadence comparator must
+account for onset placement and phrase evidence before the reserved labels
+are opened.
+
 Before running a cadence comparison, map repeated performance-note IDs back
 to the folded MusicXML note IDs, define exact score positions and class mapping,
 and score false positives over the same eligible positions. Pin the music21

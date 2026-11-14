@@ -205,7 +205,12 @@ Next analysis gates, in order:
    7/333 cadence positions with 122 false positives. The opt-in
    `analyze-cadences` bass/outer-voice rule reaches 30/333 with 29 false
    positives, but misses 303 annotated cadences. Improve half, imperfect,
-   deceptive and evaded cadence handling before a held-out comparison.
+   deceptive and evaded cadence handling before a held-out comparison. A
+   [development onset audit](docs/archive/analysis-mozart-cadence-sonority-development-v1.md)
+   finds a vertical sonority at only 160/333 cadence onsets. Simple `I64 → V`
+   and `V → vi/VI` rules find 33 cadences but make 96 false predictions, so
+   neither is adopted. Improve source-note placement and phrase evidence
+   before adding these cadence types.
 4. For voice leading, define a shared set of two-voice note quartets with exact
    pitches, onset, and duration. Compare located parallel fifths/octaves,
    contrary/similar motion, and resolution checks with pinned music21

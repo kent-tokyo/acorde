@@ -35,6 +35,8 @@ regression tests must change together.
   A separate Mozart cadence corpus has 36 verified
   answer-free inputs, but its 18-movement development baseline exposes a large
   cadence recall gap: the opt-in resolution rule matches 30/333 with 29 false
-  positives. The reserved cadence labels remain unread.
+  positives. A development audit locates vertical sonorities at only 160/333
+  cadence onsets; simple half/deceptive transition rules produce 96 false
+  positives for 33 correct positions. The reserved cadence labels remain unread.
 - `evidence.security_checks` mirrors local release gates. Browser E2E, raster fidelity, latency,
   publication, and downstream adoption need their own evidence.
