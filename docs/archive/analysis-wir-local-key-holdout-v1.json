@@ -1,0 +1,379 @@
+{
+  "schema_version": 1,
+  "classification": "frozen local-key label holdout",
+  "protocol_sha256": "a6b474f2a50e6f8f9ca3a5b731e89107465b69a594313b10b129aa017139503f",
+  "selection_sha256": "34600765003781aa38da20eb93454535e0429181f0f88419237dcd958c96b002",
+  "inputs_sha256": "1def221579651654a1cc8c1f58b7d3ad574df544124e42c28459049c2c4d1fea",
+  "preflight_sha256": "1c8b0395ebd9d812237ebe6a11b50dc2a043413c9f2abededa5c9662789008a4",
+  "acorde_binary_sha256": "baf8fef974cecf704b80a7be49916e9280e2cf3909651507345e7cc58a21320d",
+  "scorer_source_sha256": "13e950f4e720a77cfc2528754b090ddc9dd841da575022e723fdb163325c0e30",
+  "music21_version": "10.5.2",
+  "music21_window_measures": 2,
+  "acorde_radius_measures": 4,
+  "summary": {
+    "positions": 2921,
+    "acorde_available": 2921,
+    "music21_available": 2903,
+    "paired_available": 2903,
+    "acorde_exact": 1924,
+    "music21_exact": 1934,
+    "acorde_exact_paired": 1921,
+    "music21_exact_paired": 1934,
+    "acorde_pc_mode": 1924,
+    "music21_pc_mode": 1978,
+    "source_labels": 2946,
+    "excluded_labels": 25,
+    "works": 12,
+    "failures": 0,
+    "acorde_work_wins": 2,
+    "music21_work_wins": 7,
+    "work_ties": 3
+  },
+  "gate_passed": false,
+  "rows_file": "analysis-wir-local-key-holdout-v1-rows.jsonl",
+  "rows_sha256": "f8cb1161a2db82627e8d304bf87d23aac51671a45879f424f25a6544c360591d",
+  "works": [
+    {
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op059_No1/1",
+      "input_sha256": "d501d03233ba259c6baf0b1a4a7e241b65226211fdae1db14bd1266f005a3dd8",
+      "gold_git_blob": "a32935319d1003c35596824b62daf30d94625219",
+      "gold_sha256": "6df43d3eefb6d2d4d14c11e39a20b2c4a9248a842e69b900cbefc1b9265579a1",
+      "music21_measures": 400,
+      "music21_estimates": 400,
+      "acorde_estimates": 400,
+      "source_labels": 592,
+      "excluded_labels": 0,
+      "exclusions": [],
+      "counts": {
+        "positions": 592,
+        "acorde_available": 592,
+        "music21_available": 592,
+        "paired_available": 592,
+        "acorde_exact": 380,
+        "music21_exact": 397,
+        "acorde_exact_paired": 380,
+        "music21_exact_paired": 397,
+        "acorde_pc_mode": 380,
+        "music21_pc_mode": 422
+      }
+    },
+    {
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op059_No2/1",
+      "input_sha256": "00e8098d60a2e38276b435371aa85e2bcec4128bb66f843bab92b81a1e4dca32",
+      "gold_git_blob": "6d8d48b4abc2c799f3e52d7d5a4337cb4a9b6730",
+      "gold_sha256": "53ca3668d842432eccedbf37e20b342a67d696337ced54bf77dfe117e9c63884",
+      "music21_measures": 261,
+      "music21_estimates": 248,
+      "acorde_estimates": 261,
+      "source_labels": 515,
+      "excluded_labels": 8,
+      "exclusions": [
+        {
+          "measure": 69,
+          "labels": 4,
+          "reason": "ambiguous_gold_position"
+        },
+        {
+          "measure": 70,
+          "labels": 4,
+          "reason": "ambiguous_gold_position"
+        }
+      ],
+      "counts": {
+        "positions": 507,
+        "acorde_available": 507,
+        "music21_available": 490,
+        "paired_available": 490,
+        "acorde_exact": 319,
+        "music21_exact": 321,
+        "acorde_exact_paired": 316,
+        "music21_exact_paired": 321,
+        "acorde_pc_mode": 319,
+        "music21_pc_mode": 321
+      }
+    },
+    {
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op059_No3/1",
+      "input_sha256": "a7094854ba77116127e814db59542cd64cf40b6898e8c9a160c847841e8b7790",
+      "gold_git_blob": "17c38124ccad9e6beb1b7fe865f00f58e7fb641d",
+      "gold_sha256": "d04c7d26ea9d0601fc08a750c3b0d950605616da78aca2e3cc03bf431333d445",
+      "music21_measures": 270,
+      "music21_estimates": 269,
+      "acorde_estimates": 270,
+      "source_labels": 576,
+      "excluded_labels": 2,
+      "exclusions": [
+        {
+          "measure": 29,
+          "labels": 2,
+          "reason": "missing_or_ambiguous_source_measure"
+        }
+      ],
+      "counts": {
+        "positions": 574,
+        "acorde_available": 574,
+        "music21_available": 573,
+        "paired_available": 573,
+        "acorde_exact": 231,
+        "music21_exact": 198,
+        "acorde_exact_paired": 231,
+        "music21_exact_paired": 198,
+        "acorde_pc_mode": 231,
+        "music21_pc_mode": 217
+      }
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/10",
+      "input_sha256": "a36f889320af6ac986cb4e3b091d4d7edc1662d4fa0bb2e15f7ec68fa7ce483a",
+      "gold_git_blob": "6599af13233cbbd23e0dfde6bef670061b95e7ed",
+      "gold_sha256": "ea97397e7bab4e54ee6b197e25e639b56d6841165c17212540a319dec40ee480",
+      "music21_measures": 41,
+      "music21_estimates": 41,
+      "acorde_estimates": 41,
+      "source_labels": 76,
+      "excluded_labels": 0,
+      "exclusions": [],
+      "counts": {
+        "positions": 76,
+        "acorde_available": 76,
+        "music21_available": 76,
+        "paired_available": 76,
+        "acorde_exact": 46,
+        "music21_exact": 49,
+        "acorde_exact_paired": 46,
+        "music21_exact_paired": 49,
+        "acorde_pc_mode": 46,
+        "music21_pc_mode": 49
+      }
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/11",
+      "input_sha256": "31d8c498130cec13966cfb800d57916b58dbc547ff5c5972a013f2fe0d3df981",
+      "gold_git_blob": "19863744519b9464d785c8f837990fe0b04b11f9",
+      "gold_sha256": "10e8c572ea356fb37dcfb167e2fa1430f00a7bb253869bd2405f5ec43b7648e5",
+      "music21_measures": 18,
+      "music21_estimates": 18,
+      "acorde_estimates": 18,
+      "source_labels": 66,
+      "excluded_labels": 0,
+      "exclusions": [],
+      "counts": {
+        "positions": 66,
+        "acorde_available": 66,
+        "music21_available": 66,
+        "paired_available": 66,
+        "acorde_exact": 12,
+        "music21_exact": 20,
+        "acorde_exact_paired": 12,
+        "music21_exact_paired": 20,
+        "acorde_pc_mode": 12,
+        "music21_pc_mode": 20
+      }
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/12",
+      "input_sha256": "6cf694fcedb9cf1672568da5da04dc23258e72176b9991d1c1777ce0306c49be",
+      "gold_git_blob": "728b7818668a17c795a783279e3397f38afdb36b",
+      "gold_sha256": "a77a439f6df7b61cb2d5fb76838cec1d744ff711aadd57e8b79a853abc4ca2d4",
+      "music21_measures": 22,
+      "music21_estimates": 22,
+      "acorde_estimates": 22,
+      "source_labels": 85,
+      "excluded_labels": 0,
+      "exclusions": [],
+      "counts": {
+        "positions": 85,
+        "acorde_available": 85,
+        "music21_available": 85,
+        "paired_available": 85,
+        "acorde_exact": 49,
+        "music21_exact": 56,
+        "acorde_exact_paired": 49,
+        "music21_exact_paired": 56,
+        "acorde_pc_mode": 49,
+        "music21_pc_mode": 56
+      }
+    },
+    {
+      "work": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K309/1",
+      "input_sha256": "31dabcb10e8a6a59e0f33c19af91cdc4b96d02685468824360981d780e34a39b",
+      "gold_git_blob": "0bb3153177ea98f399c98a2a8b54d6fffd5cf20f",
+      "gold_sha256": "1898679b5a0a6c6d7fe1f6ab729349cccf07c7aa5745f4f0338bf4ad14cf4f48",
+      "music21_measures": 155,
+      "music21_estimates": 155,
+      "acorde_estimates": 155,
+      "source_labels": 326,
+      "excluded_labels": 0,
+      "exclusions": [],
+      "counts": {
+        "positions": 326,
+        "acorde_available": 326,
+        "music21_available": 326,
+        "paired_available": 326,
+        "acorde_exact": 247,
+        "music21_exact": 270,
+        "acorde_exact_paired": 247,
+        "music21_exact_paired": 270,
+        "acorde_pc_mode": 247,
+        "music21_pc_mode": 270
+      }
+    },
+    {
+      "work": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K310/1",
+      "input_sha256": "d83b51cef31ad7c2ca0a107716d7e8f7369f06da6ebc6b6e21b482da4b85e18d",
+      "gold_git_blob": "0b7f5c60bae56a92c161283750ff59b39df990a1",
+      "gold_sha256": "b9f43862d20b7ab0166f98419dd76ee9ab14a63e9a1618b9a1b3786a909a92ed",
+      "music21_measures": 133,
+      "music21_estimates": 133,
+      "acorde_estimates": 133,
+      "source_labels": 294,
+      "excluded_labels": 0,
+      "exclusions": [],
+      "counts": {
+        "positions": 294,
+        "acorde_available": 294,
+        "music21_available": 294,
+        "paired_available": 294,
+        "acorde_exact": 261,
+        "music21_exact": 276,
+        "acorde_exact_paired": 261,
+        "music21_exact_paired": 276,
+        "acorde_pc_mode": 261,
+        "music21_pc_mode": 276
+      }
+    },
+    {
+      "work": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K311/1",
+      "input_sha256": "0f8b9e8e55a5dc044f6b384f79261c1df415b4ac3291f8ed951990cc36463d63",
+      "gold_git_blob": "999ce460e5d30fba8deb4a13f1447f5575da4c7c",
+      "gold_sha256": "d6f7931ab860a0dc1d9f0be5d1302ee116fadd416900349e620aece1b172d2b6",
+      "music21_measures": 112,
+      "music21_estimates": 112,
+      "acorde_estimates": 112,
+      "source_labels": 321,
+      "excluded_labels": 0,
+      "exclusions": [],
+      "counts": {
+        "positions": 321,
+        "acorde_available": 321,
+        "music21_available": 321,
+        "paired_available": 321,
+        "acorde_exact": 299,
+        "music21_exact": 267,
+        "acorde_exact_paired": 299,
+        "music21_exact_paired": 267,
+        "acorde_pc_mode": 299,
+        "music21_pc_mode": 267
+      }
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Reichardt,_Louise/Sechs_Lieder_von_Novalis,_Op.4/1_Sehnsucht_nach_dem_Vaterlande",
+      "input_sha256": "2c21bfb3a644571c678af79ebc23f6b85e81dc0b446c75341d24b8c758739684",
+      "gold_git_blob": "169c598d4c22ad4f4c6992dff5ad4574b9e90601",
+      "gold_sha256": "9bdca0326f33711100c8baddbf0ff70eb58e36944a6bba469dc7317d747e4008",
+      "music21_measures": 14,
+      "music21_estimates": 14,
+      "acorde_estimates": 14,
+      "source_labels": 41,
+      "excluded_labels": 0,
+      "exclusions": [],
+      "counts": {
+        "positions": 41,
+        "acorde_available": 41,
+        "music21_available": 41,
+        "paired_available": 41,
+        "acorde_exact": 41,
+        "music21_exact": 41,
+        "acorde_exact_paired": 41,
+        "music21_exact_paired": 41,
+        "acorde_pc_mode": 41,
+        "music21_pc_mode": 41
+      }
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Reichardt,_Louise/Zwölf_Deutsche_und_Italiänische_Romantische_Gesänge/01_Frühlingslied",
+      "input_sha256": "7b8d770725f7abea6cfce0eea441ba39445c1ca907ac1774b3d223e18c8c5ff8",
+      "gold_git_blob": "b7b70d45c3f4ea78d844581a0115b2945398d597",
+      "gold_sha256": "6302a7939bdee6240ec52289d986caeac6696f18c3e75aee12231d13ebd2b8d2",
+      "music21_measures": 19,
+      "music21_estimates": 19,
+      "acorde_estimates": 19,
+      "source_labels": 29,
+      "excluded_labels": 13,
+      "exclusions": [
+        {
+          "measure": 8,
+          "labels": 2,
+          "reason": "ambiguous_gold_position"
+        },
+        {
+          "measure": 8,
+          "labels": 1,
+          "reason": "missing_or_ambiguous_source_measure"
+        },
+        {
+          "measure": 9,
+          "labels": 2,
+          "reason": "ambiguous_gold_position"
+        },
+        {
+          "measure": 10,
+          "labels": 2,
+          "reason": "ambiguous_gold_position"
+        },
+        {
+          "measure": 11,
+          "labels": 4,
+          "reason": "ambiguous_gold_position"
+        },
+        {
+          "measure": 12,
+          "labels": 2,
+          "reason": "ambiguous_gold_position"
+        }
+      ],
+      "counts": {
+        "positions": 16,
+        "acorde_available": 16,
+        "music21_available": 16,
+        "paired_available": 16,
+        "acorde_exact": 16,
+        "music21_exact": 16,
+        "acorde_exact_paired": 16,
+        "music21_exact_paired": 16,
+        "acorde_pc_mode": 16,
+        "music21_pc_mode": 16
+      }
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Reichardt,_Louise/Zwölf_Gesänge,_Op.3/01_Frühlingsblumen",
+      "input_sha256": "7d28ede09ae7887e57ca5c4ccfdc136a9430573f17c9880b13631b30289ab620",
+      "gold_git_blob": "278f2e87d4a4a01ebe1159f00dd0f9a0d346cadf",
+      "gold_sha256": "2d4a71b84c34388444af47c549f74a1e20462a38e70e8464a128c93c8388c9c7",
+      "music21_measures": 17,
+      "music21_estimates": 17,
+      "acorde_estimates": 17,
+      "source_labels": 25,
+      "excluded_labels": 2,
+      "exclusions": [
+        {
+          "measure": 16,
+          "labels": 2,
+          "reason": "ambiguous_gold_position"
+        }
+      ],
+      "counts": {
+        "positions": 23,
+        "acorde_available": 23,
+        "music21_available": 23,
+        "paired_available": 23,
+        "acorde_exact": 23,
+        "music21_exact": 23,
+        "acorde_exact_paired": 23,
+        "music21_exact_paired": 23,
+        "acorde_pc_mode": 23,
+        "music21_pc_mode": 23
+      }
+    }
+  ]
+}

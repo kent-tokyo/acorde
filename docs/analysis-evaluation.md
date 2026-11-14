@@ -171,8 +171,12 @@ and positions. Its best radius over the same development grid matches
 2,157/3,405, with 3,401 available positions. This remains inspected
 development evidence. A disjoint [12-work local-key label holdout](archive/analysis-wir-local-key-holdout-preflight-v1.md)
 now has score-only input hashes, 12/12 parser coverage, 1,462/1,462 equal
-pitched timelines, and a frozen candidate/scorer protocol. Its annotations
-remain unopened. Source-beat-level local keys remain a separate capability gap.
+pitched timelines, and a frozen candidate/scorer protocol committed before
+its annotations were opened. The [fixed result](archive/analysis-wir-local-key-holdout-v1.md)
+fails its preregistered gate: Acorde matches 1,921 exact local keys versus
+music21's 1,934 on 2,903 paired-available positions, and wins two of twelve
+works versus music21's seven. Source-beat-level local keys remain a separate
+capability gap. Retain this failure when assessing music analysis overall.
 
 ## Mozart cadence inputs awaiting a scoring contract
 

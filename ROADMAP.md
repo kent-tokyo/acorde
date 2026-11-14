@@ -172,8 +172,11 @@ Next analysis gates, in order:
    untouched holdout. A new [12-work label holdout](docs/archive/analysis-wir-local-key-holdout-preflight-v1.md)
    is selected from disjoint works; both parsers accept all prepared inputs,
    their 1,462 pitched measure timelines agree, and the candidate/scorer
-   protocol is frozen before opening its annotations. Score it without tuning
-   on those labels. Source-beat positions, within-measure transitions,
+   protocol was frozen before opening its annotations. Its [fixed result](docs/archive/analysis-wir-local-key-holdout-v1.md)
+   **fails**: Acorde has 1,921 versus music21's 1,934 exact labels on 2,903
+   paired positions and wins only two of twelve works. Do not tune and
+   rescore this cohort; a new disjoint label holdout is required after any
+   local-key change. Source-beat positions, within-measure transitions,
    transposition and alternate-bar handling remain capability gaps.
 3. Build a cadence task from independently annotated scores. The
    [Mozart cadence input preflight](docs/archive/analysis-mozart-cadence-preflight-v1.md)
