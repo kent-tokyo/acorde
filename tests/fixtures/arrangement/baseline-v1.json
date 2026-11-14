@@ -1,0 +1,4860 @@
+{
+  "cases": [
+    {
+      "id": "major-4-4",
+      "partition": "development",
+      "profiles": [
+        {
+          "bass": {
+            "duration_counts_480": {
+              "480": 16
+            },
+            "event_fingerprint": "7c9139b0038923b3",
+            "events": 16,
+            "highest_midi": 41,
+            "lowest_midi": 36,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1440,
+              1920,
+              2400,
+              2880,
+              3360,
+              3840,
+              4320,
+              4800,
+              5280,
+              5760,
+              6240,
+              6720,
+              7200
+            ],
+            "pitch_classes": [
+              8,
+              0,
+              0,
+              0,
+              0,
+              8,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 5,
+            "backward_jump_transition_count": 1,
+            "playback_attack_count": 16,
+            "playback_motion_cost": 15,
+            "written_attack_count": 8,
+            "written_motion_cost": 5
+          },
+          "name": "held-root",
+          "pad": {
+            "duration_counts_480": {
+              "1920": 12
+            },
+            "event_fingerprint": "1ceac0878550e061",
+            "events": 12,
+            "highest_midi": 72,
+            "lowest_midi": 60,
+            "onsets_480": [
+              0,
+              1920,
+              3840,
+              5760
+            ],
+            "pitch_classes": [
+              4,
+              0,
+              0,
+              0,
+              2,
+              2,
+              0,
+              2,
+              0,
+              2,
+              0,
+              0
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 16,
+            "backward_jump_transition_count": 1,
+            "playback_motion_cost": 48,
+            "playback_transition_count": 3,
+            "written_motion_cost": 16
+          },
+          "resolved_plan": {
+            "bass_pattern": "root-pulse",
+            "chords": [
+              [
+                0,
+                0.0,
+                "C",
+                "major"
+              ],
+              [
+                1,
+                0.0,
+                "F",
+                "major"
+              ]
+            ],
+            "meter_groups": [],
+            "pad_pattern": "held",
+            "phrase_end_measures": [],
+            "phrase_start_ticks": [],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "root-position"
+          }
+        },
+        {
+          "bass": {
+            "duration_counts_480": {
+              "480": 16
+            },
+            "event_fingerprint": "7fa4d9a47a1b2e8f",
+            "events": 16,
+            "highest_midi": 41,
+            "lowest_midi": 29,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1440,
+              1920,
+              2400,
+              2880,
+              3360,
+              3840,
+              4320,
+              4800,
+              5280,
+              5760,
+              6240,
+              6720,
+              7200
+            ],
+            "pitch_classes": [
+              8,
+              0,
+              0,
+              0,
+              0,
+              4,
+              0,
+              4,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 1,
+            "playback_attack_count": 16,
+            "playback_motion_cost": 68,
+            "written_attack_count": 8,
+            "written_motion_cost": 34
+          },
+          "name": "offbeat-fifth",
+          "pad": {
+            "duration_counts_480": {
+              "240": 48
+            },
+            "event_fingerprint": "ab950e2691439e25",
+            "events": 48,
+            "highest_midi": 69,
+            "lowest_midi": 60,
+            "onsets_480": [
+              240,
+              720,
+              1200,
+              1680,
+              2160,
+              2640,
+              3120,
+              3600,
+              4080,
+              4560,
+              5040,
+              5520,
+              6000,
+              6480,
+              6960,
+              7440
+            ],
+            "pitch_classes": [
+              16,
+              0,
+              0,
+              0,
+              8,
+              8,
+              0,
+              8,
+              0,
+              8,
+              0,
+              0
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 6,
+            "backward_jump_transition_count": 1,
+            "playback_motion_cost": 18,
+            "playback_transition_count": 3,
+            "written_motion_cost": 6
+          },
+          "resolved_plan": {
+            "bass_pattern": "root-fifth",
+            "chords": [
+              [
+                0,
+                0.0,
+                "C",
+                "major"
+              ],
+              [
+                1,
+                0.0,
+                "F",
+                "major"
+              ]
+            ],
+            "meter_groups": [],
+            "pad_pattern": "offbeat-pulse",
+            "phrase_end_measures": [],
+            "phrase_start_ticks": [],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "smooth"
+          }
+        },
+        {
+          "bass": {
+            "duration_counts_480": {
+              "480": 16
+            },
+            "event_fingerprint": "d90616d98e8ad58f",
+            "events": 16,
+            "highest_midi": 41,
+            "lowest_midi": 31,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1440,
+              1920,
+              2400,
+              2880,
+              3360,
+              3840,
+              4320,
+              4800,
+              5280,
+              5760,
+              6240,
+              6720,
+              7200
+            ],
+            "pitch_classes": [
+              8,
+              0,
+              0,
+              0,
+              2,
+              4,
+              0,
+              2,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 1,
+            "playback_attack_count": 16,
+            "playback_motion_cost": 60,
+            "written_attack_count": 8,
+            "written_motion_cost": 30
+          },
+          "name": "arpeggio-approach",
+          "pad": {
+            "duration_counts_480": {
+              "240": 32
+            },
+            "event_fingerprint": "3304a1e1e71dc413",
+            "events": 32,
+            "highest_midi": 69,
+            "lowest_midi": 60,
+            "onsets_480": [
+              0,
+              240,
+              480,
+              720,
+              960,
+              1200,
+              1440,
+              1680,
+              1920,
+              2160,
+              2400,
+              2640,
+              2880,
+              3120,
+              3360,
+              3600,
+              3840,
+              4080,
+              4320,
+              4560,
+              4800,
+              5040,
+              5280,
+              5520,
+              5760,
+              6000,
+              6240,
+              6480,
+              6720,
+              6960,
+              7200,
+              7440
+            ],
+            "pitch_classes": [
+              8,
+              0,
+              0,
+              0,
+              8,
+              8,
+              0,
+              4,
+              0,
+              4,
+              0,
+              0
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 6,
+            "backward_jump_transition_count": 1,
+            "playback_motion_cost": 18,
+            "playback_transition_count": 3,
+            "written_motion_cost": 6
+          },
+          "resolved_plan": {
+            "bass_pattern": "approach",
+            "chords": [
+              [
+                0,
+                0.0,
+                "C",
+                "major"
+              ],
+              [
+                1,
+                0.0,
+                "F",
+                "major"
+              ]
+            ],
+            "meter_groups": [],
+            "pad_pattern": "arpeggio-up-down",
+            "phrase_end_measures": [],
+            "phrase_start_ticks": [],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "smooth"
+          }
+        },
+        {
+          "bass": {
+            "duration_counts_480": {
+              "480": 16
+            },
+            "event_fingerprint": "7c9139b0038923b3",
+            "events": 16,
+            "highest_midi": 41,
+            "lowest_midi": 36,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1440,
+              1920,
+              2400,
+              2880,
+              3360,
+              3840,
+              4320,
+              4800,
+              5280,
+              5760,
+              6240,
+              6720,
+              7200
+            ],
+            "pitch_classes": [
+              8,
+              0,
+              0,
+              0,
+              0,
+              8,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 5,
+            "backward_jump_transition_count": 1,
+            "playback_attack_count": 16,
+            "playback_motion_cost": 15,
+            "written_attack_count": 8,
+            "written_motion_cost": 5
+          },
+          "name": "held-open",
+          "pad": {
+            "duration_counts_480": {
+              "1920": 12
+            },
+            "event_fingerprint": "7a2fde06e3e3e81d",
+            "events": 12,
+            "highest_midi": 72,
+            "lowest_midi": 55,
+            "onsets_480": [
+              0,
+              1920,
+              3840,
+              5760
+            ],
+            "pitch_classes": [
+              4,
+              0,
+              0,
+              0,
+              2,
+              2,
+              0,
+              2,
+              0,
+              2,
+              0,
+              0
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 6,
+            "backward_jump_transition_count": 1,
+            "playback_motion_cost": 18,
+            "playback_transition_count": 3,
+            "written_motion_cost": 6
+          },
+          "resolved_plan": {
+            "bass_pattern": "root-pulse",
+            "chords": [
+              [
+                0,
+                0.0,
+                "C",
+                "major"
+              ],
+              [
+                1,
+                0.0,
+                "F",
+                "major"
+              ]
+            ],
+            "meter_groups": [],
+            "pad_pattern": "held",
+            "phrase_end_measures": [],
+            "phrase_start_ticks": [],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "open"
+          }
+        },
+        {
+          "bass": {
+            "duration_counts_480": {
+              "480": 16
+            },
+            "event_fingerprint": "7fa4d9a47a1b2e8f",
+            "events": 16,
+            "highest_midi": 41,
+            "lowest_midi": 29,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1440,
+              1920,
+              2400,
+              2880,
+              3360,
+              3840,
+              4320,
+              4800,
+              5280,
+              5760,
+              6240,
+              6720,
+              7200
+            ],
+            "pitch_classes": [
+              8,
+              0,
+              0,
+              0,
+              0,
+              4,
+              0,
+              4,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 1,
+            "playback_attack_count": 16,
+            "playback_motion_cost": 68,
+            "written_attack_count": 8,
+            "written_motion_cost": 34
+          },
+          "name": "metered-ending",
+          "pad": {
+            "duration_counts_480": {
+              "240": 36,
+              "960": 6
+            },
+            "event_fingerprint": "c5413588b9975d9c",
+            "events": 42,
+            "highest_midi": 69,
+            "lowest_midi": 60,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1440,
+              1920,
+              2400,
+              2880,
+              3840,
+              4320,
+              4800,
+              5280,
+              5760,
+              6240,
+              6720
+            ],
+            "pitch_classes": [
+              14,
+              0,
+              0,
+              0,
+              8,
+              6,
+              0,
+              8,
+              0,
+              6,
+              0,
+              0
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 6,
+            "backward_jump_transition_count": 1,
+            "playback_motion_cost": 18,
+            "playback_transition_count": 3,
+            "written_motion_cost": 6
+          },
+          "resolved_plan": {
+            "bass_pattern": "root-fifth",
+            "chords": [
+              [
+                0,
+                0.0,
+                "C",
+                "major"
+              ],
+              [
+                1,
+                0.0,
+                "F",
+                "major"
+              ]
+            ],
+            "meter_groups": [
+              [
+                1,
+                1,
+                1,
+                1
+              ],
+              [
+                1,
+                1,
+                1,
+                1
+              ]
+            ],
+            "pad_pattern": "meter-pulse",
+            "phrase_end_measures": [
+              1
+            ],
+            "phrase_start_ticks": [
+              null,
+              64
+            ],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "global-smooth"
+          }
+        }
+      ],
+      "source": {
+        "duration_counts_480": {
+          "480": 16
+        },
+        "event_fingerprint": "a773d58c936b4503",
+        "events": 16,
+        "highest_midi": 67,
+        "lowest_midi": 60,
+        "onsets_480": [
+          0,
+          480,
+          960,
+          1440,
+          1920,
+          2400,
+          2880,
+          3360,
+          3840,
+          4320,
+          4800,
+          5280,
+          5760,
+          6240,
+          6720,
+          7200
+        ],
+        "pitch_classes": [
+          4,
+          0,
+          4,
+          0,
+          4,
+          2,
+          0,
+          2,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "source_fingerprint": "103f5137c71c0e99"
+    },
+    {
+      "id": "minor-3-4",
+      "partition": "development",
+      "profiles": [
+        {
+          "bass": {
+            "duration_counts_480": {
+              "480": 6
+            },
+            "event_fingerprint": "dd1f2f0265519091",
+            "events": 6,
+            "highest_midi": 45,
+            "lowest_midi": 40,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1440,
+              1920,
+              2400
+            ],
+            "pitch_classes": [
+              0,
+              0,
+              0,
+              0,
+              3,
+              0,
+              0,
+              0,
+              0,
+              3,
+              0,
+              0
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_attack_count": 6,
+            "playback_motion_cost": 5,
+            "written_attack_count": 6,
+            "written_motion_cost": 5
+          },
+          "name": "held-root",
+          "pad": {
+            "duration_counts_480": {
+              "1440": 6
+            },
+            "event_fingerprint": "65d564efd4bf228c",
+            "events": 6,
+            "highest_midi": 71,
+            "lowest_midi": 57,
+            "onsets_480": [
+              0,
+              1440
+            ],
+            "pitch_classes": [
+              1,
+              0,
+              0,
+              0,
+              2,
+              0,
+              0,
+              0,
+              1,
+              1,
+              0,
+              1
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_motion_cost": 22,
+            "playback_transition_count": 1,
+            "written_motion_cost": 22
+          },
+          "resolved_plan": {
+            "bass_pattern": "root-pulse",
+            "chords": [
+              [
+                0,
+                0.0,
+                "A",
+                "minor"
+              ],
+              [
+                1,
+                0.0,
+                "E",
+                "major"
+              ]
+            ],
+            "meter_groups": [],
+            "pad_pattern": "held",
+            "phrase_end_measures": [],
+            "phrase_start_ticks": [],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "root-position"
+          }
+        },
+        {
+          "bass": {
+            "duration_counts_480": {
+              "480": 6
+            },
+            "event_fingerprint": "b9163dad6e20e72d",
+            "events": 6,
+            "highest_midi": 45,
+            "lowest_midi": 35,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1440,
+              1920,
+              2400
+            ],
+            "pitch_classes": [
+              0,
+              0,
+              0,
+              0,
+              3,
+              0,
+              0,
+              0,
+              0,
+              2,
+              0,
+              1
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_attack_count": 6,
+            "playback_motion_cost": 25,
+            "written_attack_count": 6,
+            "written_motion_cost": 25
+          },
+          "name": "offbeat-fifth",
+          "pad": {
+            "duration_counts_480": {
+              "240": 18
+            },
+            "event_fingerprint": "3e7b8285baecb835",
+            "events": 18,
+            "highest_midi": 64,
+            "lowest_midi": 56,
+            "onsets_480": [
+              240,
+              720,
+              1200,
+              1680,
+              2160,
+              2640
+            ],
+            "pitch_classes": [
+              3,
+              0,
+              0,
+              0,
+              6,
+              0,
+              0,
+              0,
+              3,
+              3,
+              0,
+              3
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_motion_cost": 4,
+            "playback_transition_count": 1,
+            "written_motion_cost": 4
+          },
+          "resolved_plan": {
+            "bass_pattern": "root-fifth",
+            "chords": [
+              [
+                0,
+                0.0,
+                "A",
+                "minor"
+              ],
+              [
+                1,
+                0.0,
+                "E",
+                "major"
+              ]
+            ],
+            "meter_groups": [],
+            "pad_pattern": "offbeat-pulse",
+            "phrase_end_measures": [],
+            "phrase_start_ticks": [],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "smooth"
+          }
+        },
+        {
+          "bass": {
+            "duration_counts_480": {
+              "480": 6
+            },
+            "event_fingerprint": "4f3b8643e16fa717",
+            "events": 6,
+            "highest_midi": 45,
+            "lowest_midi": 35,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1440,
+              1920,
+              2400
+            ],
+            "pitch_classes": [
+              0,
+              0,
+              0,
+              1,
+              3,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              1
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_attack_count": 6,
+            "playback_motion_cost": 17,
+            "written_attack_count": 6,
+            "written_motion_cost": 17
+          },
+          "name": "arpeggio-approach",
+          "pad": {
+            "duration_counts_480": {
+              "240": 12
+            },
+            "event_fingerprint": "62e84f87b673c249",
+            "events": 12,
+            "highest_midi": 64,
+            "lowest_midi": 56,
+            "onsets_480": [
+              0,
+              240,
+              480,
+              720,
+              960,
+              1200,
+              1440,
+              1680,
+              1920,
+              2160,
+              2400,
+              2640
+            ],
+            "pitch_classes": [
+              3,
+              0,
+              0,
+              0,
+              2,
+              0,
+              0,
+              0,
+              2,
+              2,
+              0,
+              3
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_motion_cost": 4,
+            "playback_transition_count": 1,
+            "written_motion_cost": 4
+          },
+          "resolved_plan": {
+            "bass_pattern": "approach",
+            "chords": [
+              [
+                0,
+                0.0,
+                "A",
+                "minor"
+              ],
+              [
+                1,
+                0.0,
+                "E",
+                "major"
+              ]
+            ],
+            "meter_groups": [],
+            "pad_pattern": "arpeggio-up-down",
+            "phrase_end_measures": [],
+            "phrase_start_ticks": [],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "smooth"
+          }
+        },
+        {
+          "bass": {
+            "duration_counts_480": {
+              "480": 6
+            },
+            "event_fingerprint": "dd1f2f0265519091",
+            "events": 6,
+            "highest_midi": 45,
+            "lowest_midi": 40,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1440,
+              1920,
+              2400
+            ],
+            "pitch_classes": [
+              0,
+              0,
+              0,
+              0,
+              3,
+              0,
+              0,
+              0,
+              0,
+              3,
+              0,
+              0
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_attack_count": 6,
+            "playback_motion_cost": 5,
+            "written_attack_count": 6,
+            "written_motion_cost": 5
+          },
+          "name": "held-open",
+          "pad": {
+            "duration_counts_480": {
+              "1440": 6
+            },
+            "event_fingerprint": "c0019673587fb70c",
+            "events": 6,
+            "highest_midi": 72,
+            "lowest_midi": 56,
+            "onsets_480": [
+              0,
+              1440
+            ],
+            "pitch_classes": [
+              1,
+              0,
+              0,
+              0,
+              2,
+              0,
+              0,
+              0,
+              1,
+              1,
+              0,
+              1
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_motion_cost": 4,
+            "playback_transition_count": 1,
+            "written_motion_cost": 4
+          },
+          "resolved_plan": {
+            "bass_pattern": "root-pulse",
+            "chords": [
+              [
+                0,
+                0.0,
+                "A",
+                "minor"
+              ],
+              [
+                1,
+                0.0,
+                "E",
+                "major"
+              ]
+            ],
+            "meter_groups": [],
+            "pad_pattern": "held",
+            "phrase_end_measures": [],
+            "phrase_start_ticks": [],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "open"
+          }
+        },
+        {
+          "bass": {
+            "duration_counts_480": {
+              "480": 6
+            },
+            "event_fingerprint": "b9163dad6e20e72d",
+            "events": 6,
+            "highest_midi": 45,
+            "lowest_midi": 35,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1440,
+              1920,
+              2400
+            ],
+            "pitch_classes": [
+              0,
+              0,
+              0,
+              0,
+              3,
+              0,
+              0,
+              0,
+              0,
+              2,
+              0,
+              1
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_attack_count": 6,
+            "playback_motion_cost": 25,
+            "written_attack_count": 6,
+            "written_motion_cost": 25
+          },
+          "name": "metered-ending",
+          "pad": {
+            "duration_counts_480": {
+              "240": 12,
+              "960": 3
+            },
+            "event_fingerprint": "608659d43f741fa9",
+            "events": 15,
+            "highest_midi": 64,
+            "lowest_midi": 56,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1440,
+              1920
+            ],
+            "pitch_classes": [
+              3,
+              0,
+              0,
+              0,
+              5,
+              0,
+              0,
+              0,
+              2,
+              3,
+              0,
+              2
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_motion_cost": 4,
+            "playback_transition_count": 1,
+            "written_motion_cost": 4
+          },
+          "resolved_plan": {
+            "bass_pattern": "root-fifth",
+            "chords": [
+              [
+                0,
+                0.0,
+                "A",
+                "minor"
+              ],
+              [
+                1,
+                0.0,
+                "E",
+                "major"
+              ]
+            ],
+            "meter_groups": [
+              [
+                1,
+                1,
+                1
+              ],
+              [
+                1,
+                1,
+                1
+              ]
+            ],
+            "pad_pattern": "meter-pulse",
+            "phrase_end_measures": [
+              1
+            ],
+            "phrase_start_ticks": [
+              null,
+              32
+            ],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "global-smooth"
+          }
+        }
+      ],
+      "source": {
+        "duration_counts_480": {
+          "480": 6
+        },
+        "event_fingerprint": "d8ec38bb63eafe47",
+        "events": 6,
+        "highest_midi": 72,
+        "lowest_midi": 64,
+        "onsets_480": [
+          0,
+          480,
+          960,
+          1440,
+          1920,
+          2400
+        ],
+        "pitch_classes": [
+          1,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          1,
+          2,
+          0,
+          1
+        ]
+      },
+      "source_fingerprint": "5f7ca4b593762dda"
+    },
+    {
+      "id": "compound-6-8",
+      "partition": "development",
+      "profiles": [
+        {
+          "bass": {
+            "duration_counts_480": {
+              "480": 6
+            },
+            "event_fingerprint": "1d1296f9052951c9",
+            "events": 6,
+            "highest_midi": 43,
+            "lowest_midi": 38,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1440,
+              1920,
+              2400
+            ],
+            "pitch_classes": [
+              0,
+              0,
+              3,
+              0,
+              0,
+              0,
+              0,
+              3,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_attack_count": 6,
+            "playback_motion_cost": 5,
+            "written_attack_count": 6,
+            "written_motion_cost": 5
+          },
+          "name": "held-root",
+          "pad": {
+            "duration_counts_480": {
+              "1440": 6
+            },
+            "event_fingerprint": "027c0b03cc1dc5f7",
+            "events": 6,
+            "highest_midi": 69,
+            "lowest_midi": 55,
+            "onsets_480": [
+              0,
+              1440
+            ],
+            "pitch_classes": [
+              0,
+              0,
+              2,
+              0,
+              0,
+              0,
+              1,
+              1,
+              0,
+              1,
+              0,
+              1
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_motion_cost": 21,
+            "playback_transition_count": 1,
+            "written_motion_cost": 21
+          },
+          "resolved_plan": {
+            "bass_pattern": "root-pulse",
+            "chords": [
+              [
+                0,
+                0.0,
+                "G",
+                "major"
+              ],
+              [
+                1,
+                0.0,
+                "D",
+                "major"
+              ]
+            ],
+            "meter_groups": [],
+            "pad_pattern": "held",
+            "phrase_end_measures": [],
+            "phrase_start_ticks": [],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "root-position"
+          }
+        },
+        {
+          "bass": {
+            "duration_counts_480": {
+              "480": 6
+            },
+            "event_fingerprint": "e1db657f142cbb1d",
+            "events": 6,
+            "highest_midi": 43,
+            "lowest_midi": 33,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1440,
+              1920,
+              2400
+            ],
+            "pitch_classes": [
+              0,
+              0,
+              3,
+              0,
+              0,
+              0,
+              0,
+              2,
+              0,
+              1,
+              0,
+              0
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_attack_count": 6,
+            "playback_motion_cost": 25,
+            "written_attack_count": 6,
+            "written_motion_cost": 25
+          },
+          "name": "offbeat-fifth",
+          "pad": {
+            "duration_counts_480": {
+              "240": 18
+            },
+            "event_fingerprint": "900493f9b52fc214",
+            "events": 18,
+            "highest_midi": 62,
+            "lowest_midi": 54,
+            "onsets_480": [
+              240,
+              720,
+              1200,
+              1680,
+              2160,
+              2640
+            ],
+            "pitch_classes": [
+              0,
+              0,
+              6,
+              0,
+              0,
+              0,
+              3,
+              3,
+              0,
+              3,
+              0,
+              3
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_motion_cost": 6,
+            "playback_transition_count": 1,
+            "written_motion_cost": 6
+          },
+          "resolved_plan": {
+            "bass_pattern": "root-fifth",
+            "chords": [
+              [
+                0,
+                0.0,
+                "G",
+                "major"
+              ],
+              [
+                1,
+                0.0,
+                "D",
+                "major"
+              ]
+            ],
+            "meter_groups": [],
+            "pad_pattern": "offbeat-pulse",
+            "phrase_end_measures": [],
+            "phrase_start_ticks": [],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "smooth"
+          }
+        },
+        {
+          "bass": {
+            "duration_counts_480": {
+              "480": 6
+            },
+            "event_fingerprint": "f9f7a5d2e5ebb0a3",
+            "events": 6,
+            "highest_midi": 43,
+            "lowest_midi": 33,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1440,
+              1920,
+              2400
+            ],
+            "pitch_classes": [
+              0,
+              1,
+              3,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              1,
+              0,
+              0
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_attack_count": 6,
+            "playback_motion_cost": 17,
+            "written_attack_count": 6,
+            "written_motion_cost": 17
+          },
+          "name": "arpeggio-approach",
+          "pad": {
+            "duration_counts_480": {
+              "240": 12
+            },
+            "event_fingerprint": "d6704531d9a4d856",
+            "events": 12,
+            "highest_midi": 62,
+            "lowest_midi": 54,
+            "onsets_480": [
+              0,
+              240,
+              480,
+              720,
+              960,
+              1200,
+              1440,
+              1680,
+              1920,
+              2160,
+              2400,
+              2640
+            ],
+            "pitch_classes": [
+              0,
+              0,
+              2,
+              0,
+              0,
+              0,
+              2,
+              2,
+              0,
+              3,
+              0,
+              3
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_motion_cost": 6,
+            "playback_transition_count": 1,
+            "written_motion_cost": 6
+          },
+          "resolved_plan": {
+            "bass_pattern": "approach",
+            "chords": [
+              [
+                0,
+                0.0,
+                "G",
+                "major"
+              ],
+              [
+                1,
+                0.0,
+                "D",
+                "major"
+              ]
+            ],
+            "meter_groups": [],
+            "pad_pattern": "arpeggio-up-down",
+            "phrase_end_measures": [],
+            "phrase_start_ticks": [],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "smooth"
+          }
+        },
+        {
+          "bass": {
+            "duration_counts_480": {
+              "480": 6
+            },
+            "event_fingerprint": "1d1296f9052951c9",
+            "events": 6,
+            "highest_midi": 43,
+            "lowest_midi": 38,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1440,
+              1920,
+              2400
+            ],
+            "pitch_classes": [
+              0,
+              0,
+              3,
+              0,
+              0,
+              0,
+              0,
+              3,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_attack_count": 6,
+            "playback_motion_cost": 5,
+            "written_attack_count": 6,
+            "written_motion_cost": 5
+          },
+          "name": "held-open",
+          "pad": {
+            "duration_counts_480": {
+              "1440": 6
+            },
+            "event_fingerprint": "a2a801859db6f335",
+            "events": 6,
+            "highest_midi": 71,
+            "lowest_midi": 54,
+            "onsets_480": [
+              0,
+              1440
+            ],
+            "pitch_classes": [
+              0,
+              0,
+              2,
+              0,
+              0,
+              0,
+              1,
+              1,
+              0,
+              1,
+              0,
+              1
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_motion_cost": 6,
+            "playback_transition_count": 1,
+            "written_motion_cost": 6
+          },
+          "resolved_plan": {
+            "bass_pattern": "root-pulse",
+            "chords": [
+              [
+                0,
+                0.0,
+                "G",
+                "major"
+              ],
+              [
+                1,
+                0.0,
+                "D",
+                "major"
+              ]
+            ],
+            "meter_groups": [],
+            "pad_pattern": "held",
+            "phrase_end_measures": [],
+            "phrase_start_ticks": [],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "open"
+          }
+        },
+        {
+          "bass": {
+            "duration_counts_480": {
+              "480": 6
+            },
+            "event_fingerprint": "e1db657f142cbb1d",
+            "events": 6,
+            "highest_midi": 43,
+            "lowest_midi": 33,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1440,
+              1920,
+              2400
+            ],
+            "pitch_classes": [
+              0,
+              0,
+              3,
+              0,
+              0,
+              0,
+              0,
+              2,
+              0,
+              1,
+              0,
+              0
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_attack_count": 6,
+            "playback_motion_cost": 25,
+            "written_attack_count": 6,
+            "written_motion_cost": 25
+          },
+          "name": "metered-ending",
+          "pad": {
+            "duration_counts_480": {
+              "1440": 3,
+              "360": 6
+            },
+            "event_fingerprint": "24bd6f91d32dda0a",
+            "events": 9,
+            "highest_midi": 62,
+            "lowest_midi": 54,
+            "onsets_480": [
+              0,
+              720,
+              1440
+            ],
+            "pitch_classes": [
+              0,
+              0,
+              3,
+              0,
+              0,
+              0,
+              1,
+              2,
+              0,
+              1,
+              0,
+              2
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_motion_cost": 6,
+            "playback_transition_count": 1,
+            "written_motion_cost": 6
+          },
+          "resolved_plan": {
+            "bass_pattern": "root-fifth",
+            "chords": [
+              [
+                0,
+                0.0,
+                "G",
+                "major"
+              ],
+              [
+                1,
+                0.0,
+                "D",
+                "major"
+              ]
+            ],
+            "meter_groups": [
+              [
+                3,
+                3
+              ],
+              [
+                3,
+                3
+              ]
+            ],
+            "pad_pattern": "meter-pulse",
+            "phrase_end_measures": [
+              1
+            ],
+            "phrase_start_ticks": [
+              null,
+              0
+            ],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "global-smooth"
+          }
+        }
+      ],
+      "source": {
+        "duration_counts_480": {
+          "480": 6
+        },
+        "event_fingerprint": "1c8da6b32259a4ab",
+        "events": 6,
+        "highest_midi": 74,
+        "lowest_midi": 67,
+        "onsets_480": [
+          0,
+          480,
+          960,
+          1440,
+          1920,
+          2400
+        ],
+        "pitch_classes": [
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          2,
+          0,
+          2
+        ]
+      },
+      "source_fingerprint": "2d67d49e6ee3a9d4"
+    },
+    {
+      "id": "midbar-4-4",
+      "partition": "development",
+      "profiles": [
+        {
+          "bass": {
+            "duration_counts_480": {
+              "480": 8
+            },
+            "event_fingerprint": "8b6ea5d95f4ec0f6",
+            "events": 8,
+            "highest_midi": 43,
+            "lowest_midi": 36,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1440,
+              1920,
+              2400,
+              2880,
+              3360
+            ],
+            "pitch_classes": [
+              2,
+              0,
+              0,
+              0,
+              0,
+              2,
+              0,
+              4,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_attack_count": 8,
+            "playback_motion_cost": 7,
+            "written_attack_count": 8,
+            "written_motion_cost": 7
+          },
+          "name": "held-root",
+          "pad": {
+            "duration_counts_480": {
+              "1920": 3,
+              "960": 6
+            },
+            "event_fingerprint": "a8c596445d99fc25",
+            "events": 9,
+            "highest_midi": 72,
+            "lowest_midi": 55,
+            "onsets_480": [
+              0,
+              960,
+              1920
+            ],
+            "pitch_classes": [
+              2,
+              0,
+              1,
+              0,
+              1,
+              1,
+              0,
+              2,
+              0,
+              1,
+              0,
+              1
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_motion_cost": 55,
+            "playback_transition_count": 2,
+            "written_motion_cost": 55
+          },
+          "resolved_plan": {
+            "bass_pattern": "root-pulse",
+            "chords": [
+              [
+                0,
+                0.0,
+                "C",
+                "major"
+              ],
+              [
+                0,
+                2.0,
+                "F",
+                "major"
+              ],
+              [
+                1,
+                0.0,
+                "G",
+                "major"
+              ]
+            ],
+            "meter_groups": [],
+            "pad_pattern": "held",
+            "phrase_end_measures": [],
+            "phrase_start_ticks": [],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "root-position"
+          }
+        },
+        {
+          "bass": {
+            "duration_counts_480": {
+              "480": 8
+            },
+            "event_fingerprint": "4574609015188bf4",
+            "events": 8,
+            "highest_midi": 43,
+            "lowest_midi": 29,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1440,
+              1920,
+              2400,
+              2880,
+              3360
+            ],
+            "pitch_classes": [
+              2,
+              0,
+              2,
+              0,
+              0,
+              1,
+              0,
+              3,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_attack_count": 8,
+            "playback_motion_cost": 36,
+            "written_attack_count": 8,
+            "written_motion_cost": 36
+          },
+          "name": "offbeat-fifth",
+          "pad": {
+            "duration_counts_480": {
+              "240": 24
+            },
+            "event_fingerprint": "6f918ba7051ccd7f",
+            "events": 24,
+            "highest_midi": 69,
+            "lowest_midi": 59,
+            "onsets_480": [
+              240,
+              720,
+              1200,
+              1680,
+              2160,
+              2640,
+              3120,
+              3600
+            ],
+            "pitch_classes": [
+              4,
+              0,
+              4,
+              0,
+              2,
+              2,
+              0,
+              6,
+              0,
+              2,
+              0,
+              4
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_motion_cost": 16,
+            "playback_transition_count": 2,
+            "written_motion_cost": 16
+          },
+          "resolved_plan": {
+            "bass_pattern": "root-fifth",
+            "chords": [
+              [
+                0,
+                0.0,
+                "C",
+                "major"
+              ],
+              [
+                0,
+                2.0,
+                "F",
+                "major"
+              ],
+              [
+                1,
+                0.0,
+                "G",
+                "major"
+              ]
+            ],
+            "meter_groups": [],
+            "pad_pattern": "offbeat-pulse",
+            "phrase_end_measures": [],
+            "phrase_start_ticks": [],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "smooth"
+          }
+        },
+        {
+          "bass": {
+            "duration_counts_480": {
+              "480": 8
+            },
+            "event_fingerprint": "632618fce05c5f07",
+            "events": 8,
+            "highest_midi": 43,
+            "lowest_midi": 36,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1440,
+              1920,
+              2400,
+              2880,
+              3360
+            ],
+            "pitch_classes": [
+              1,
+              0,
+              2,
+              0,
+              1,
+              1,
+              1,
+              2,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_attack_count": 8,
+            "playback_motion_cost": 22,
+            "written_attack_count": 8,
+            "written_motion_cost": 22
+          },
+          "name": "arpeggio-approach",
+          "pad": {
+            "duration_counts_480": {
+              "240": 16
+            },
+            "event_fingerprint": "d807e45e8516269a",
+            "events": 16,
+            "highest_midi": 69,
+            "lowest_midi": 59,
+            "onsets_480": [
+              0,
+              240,
+              480,
+              720,
+              960,
+              1200,
+              1440,
+              1680,
+              1920,
+              2160,
+              2400,
+              2640,
+              2880,
+              3120,
+              3360,
+              3600
+            ],
+            "pitch_classes": [
+              2,
+              0,
+              4,
+              0,
+              2,
+              2,
+              0,
+              3,
+              0,
+              1,
+              0,
+              2
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_motion_cost": 16,
+            "playback_transition_count": 2,
+            "written_motion_cost": 16
+          },
+          "resolved_plan": {
+            "bass_pattern": "approach",
+            "chords": [
+              [
+                0,
+                0.0,
+                "C",
+                "major"
+              ],
+              [
+                0,
+                2.0,
+                "F",
+                "major"
+              ],
+              [
+                1,
+                0.0,
+                "G",
+                "major"
+              ]
+            ],
+            "meter_groups": [],
+            "pad_pattern": "arpeggio-up-down",
+            "phrase_end_measures": [],
+            "phrase_start_ticks": [],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "smooth"
+          }
+        },
+        {
+          "bass": {
+            "duration_counts_480": {
+              "480": 8
+            },
+            "event_fingerprint": "8b6ea5d95f4ec0f6",
+            "events": 8,
+            "highest_midi": 43,
+            "lowest_midi": 36,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1440,
+              1920,
+              2400,
+              2880,
+              3360
+            ],
+            "pitch_classes": [
+              2,
+              0,
+              0,
+              0,
+              0,
+              2,
+              0,
+              4,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_attack_count": 8,
+            "playback_motion_cost": 7,
+            "written_attack_count": 8,
+            "written_motion_cost": 7
+          },
+          "name": "held-open",
+          "pad": {
+            "duration_counts_480": {
+              "1920": 3,
+              "960": 6
+            },
+            "event_fingerprint": "fd53ea97325684ef",
+            "events": 9,
+            "highest_midi": 72,
+            "lowest_midi": 55,
+            "onsets_480": [
+              0,
+              960,
+              1920
+            ],
+            "pitch_classes": [
+              2,
+              0,
+              1,
+              0,
+              1,
+              1,
+              0,
+              2,
+              0,
+              1,
+              0,
+              1
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_motion_cost": 18,
+            "playback_transition_count": 2,
+            "written_motion_cost": 18
+          },
+          "resolved_plan": {
+            "bass_pattern": "root-pulse",
+            "chords": [
+              [
+                0,
+                0.0,
+                "C",
+                "major"
+              ],
+              [
+                0,
+                2.0,
+                "F",
+                "major"
+              ],
+              [
+                1,
+                0.0,
+                "G",
+                "major"
+              ]
+            ],
+            "meter_groups": [],
+            "pad_pattern": "held",
+            "phrase_end_measures": [],
+            "phrase_start_ticks": [],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "open"
+          }
+        },
+        {
+          "bass": {
+            "duration_counts_480": {
+              "480": 8
+            },
+            "event_fingerprint": "4574609015188bf4",
+            "events": 8,
+            "highest_midi": 43,
+            "lowest_midi": 29,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1440,
+              1920,
+              2400,
+              2880,
+              3360
+            ],
+            "pitch_classes": [
+              2,
+              0,
+              2,
+              0,
+              0,
+              1,
+              0,
+              3,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_attack_count": 8,
+            "playback_motion_cost": 36,
+            "written_attack_count": 8,
+            "written_motion_cost": 36
+          },
+          "name": "metered-ending",
+          "pad": {
+            "duration_counts_480": {
+              "240": 18,
+              "960": 3
+            },
+            "event_fingerprint": "bd223f5a7a101af2",
+            "events": 21,
+            "highest_midi": 69,
+            "lowest_midi": 59,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1440,
+              1920,
+              2400,
+              2880
+            ],
+            "pitch_classes": [
+              4,
+              0,
+              3,
+              0,
+              2,
+              2,
+              0,
+              5,
+              0,
+              2,
+              0,
+              3
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_motion_cost": 16,
+            "playback_transition_count": 2,
+            "written_motion_cost": 16
+          },
+          "resolved_plan": {
+            "bass_pattern": "root-fifth",
+            "chords": [
+              [
+                0,
+                0.0,
+                "C",
+                "major"
+              ],
+              [
+                0,
+                2.0,
+                "F",
+                "major"
+              ],
+              [
+                1,
+                0.0,
+                "G",
+                "major"
+              ]
+            ],
+            "meter_groups": [
+              [
+                1,
+                1,
+                1,
+                1
+              ],
+              [
+                1,
+                1,
+                1,
+                1
+              ]
+            ],
+            "pad_pattern": "meter-pulse",
+            "phrase_end_measures": [
+              1
+            ],
+            "phrase_start_ticks": [
+              null,
+              64
+            ],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "global-smooth"
+          }
+        }
+      ],
+      "source": {
+        "duration_counts_480": {
+          "480": 8
+        },
+        "event_fingerprint": "b16e4943f790270f",
+        "events": 8,
+        "highest_midi": 74,
+        "lowest_midi": 60,
+        "onsets_480": [
+          0,
+          480,
+          960,
+          1440,
+          1920,
+          2400,
+          2880,
+          3360
+        ],
+        "pitch_classes": [
+          1,
+          0,
+          1,
+          0,
+          1,
+          1,
+          0,
+          1,
+          0,
+          1,
+          0,
+          2
+        ]
+      },
+      "source_fingerprint": "23ad2a7000b0427a"
+    },
+    {
+      "id": "irregular-5-8",
+      "partition": "holdout",
+      "profiles": [
+        {
+          "bass": {
+            "duration_counts_480": {
+              "240": 2,
+              "480": 4
+            },
+            "event_fingerprint": "40e981ccd25a577a",
+            "events": 6,
+            "highest_midi": 41,
+            "lowest_midi": 36,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1200,
+              1680,
+              2160
+            ],
+            "pitch_classes": [
+              3,
+              0,
+              0,
+              0,
+              0,
+              3,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_attack_count": 6,
+            "playback_motion_cost": 5,
+            "written_attack_count": 6,
+            "written_motion_cost": 5
+          },
+          "name": "held-root",
+          "pad": {
+            "duration_counts_480": {
+              "1200": 6
+            },
+            "event_fingerprint": "de498931a2f92a44",
+            "events": 6,
+            "highest_midi": 72,
+            "lowest_midi": 60,
+            "onsets_480": [
+              0,
+              1200
+            ],
+            "pitch_classes": [
+              2,
+              0,
+              0,
+              0,
+              1,
+              1,
+              0,
+              1,
+              0,
+              1,
+              0,
+              0
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_motion_cost": 16,
+            "playback_transition_count": 1,
+            "written_motion_cost": 16
+          },
+          "resolved_plan": {
+            "bass_pattern": "root-pulse",
+            "chords": [
+              [
+                0,
+                0.0,
+                "C",
+                "major"
+              ],
+              [
+                1,
+                0.0,
+                "F",
+                "major"
+              ]
+            ],
+            "meter_groups": [],
+            "pad_pattern": "held",
+            "phrase_end_measures": [],
+            "phrase_start_ticks": [],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "root-position"
+          }
+        },
+        {
+          "bass": {
+            "duration_counts_480": {
+              "240": 2,
+              "480": 4
+            },
+            "event_fingerprint": "7d3ed6678e644e2e",
+            "events": 6,
+            "highest_midi": 41,
+            "lowest_midi": 31,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1200,
+              1680,
+              2160
+            ],
+            "pitch_classes": [
+              3,
+              0,
+              0,
+              0,
+              0,
+              2,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_attack_count": 6,
+            "playback_motion_cost": 25,
+            "written_attack_count": 6,
+            "written_motion_cost": 25
+          },
+          "name": "offbeat-fifth",
+          "pad": {
+            "duration_counts_480": {
+              "240": 12
+            },
+            "event_fingerprint": "0c85e32f3d485d31",
+            "events": 12,
+            "highest_midi": 69,
+            "lowest_midi": 60,
+            "onsets_480": [
+              240,
+              720,
+              1440,
+              1920
+            ],
+            "pitch_classes": [
+              4,
+              0,
+              0,
+              0,
+              2,
+              2,
+              0,
+              2,
+              0,
+              2,
+              0,
+              0
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_motion_cost": 6,
+            "playback_transition_count": 1,
+            "written_motion_cost": 6
+          },
+          "resolved_plan": {
+            "bass_pattern": "root-fifth",
+            "chords": [
+              [
+                0,
+                0.0,
+                "C",
+                "major"
+              ],
+              [
+                1,
+                0.0,
+                "F",
+                "major"
+              ]
+            ],
+            "meter_groups": [],
+            "pad_pattern": "offbeat-pulse",
+            "phrase_end_measures": [],
+            "phrase_start_ticks": [],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "smooth"
+          }
+        },
+        {
+          "bass": {
+            "duration_counts_480": {
+              "240": 2,
+              "480": 4
+            },
+            "event_fingerprint": "248bfa8842820982",
+            "events": 6,
+            "highest_midi": 41,
+            "lowest_midi": 28,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1200,
+              1680,
+              2160
+            ],
+            "pitch_classes": [
+              2,
+              0,
+              0,
+              0,
+              1,
+              2,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_attack_count": 6,
+            "playback_motion_cost": 21,
+            "written_attack_count": 6,
+            "written_motion_cost": 21
+          },
+          "name": "arpeggio-approach",
+          "pad": {
+            "duration_counts_480": {
+              "240": 10
+            },
+            "event_fingerprint": "b3f8bcda2dbccc31",
+            "events": 10,
+            "highest_midi": 69,
+            "lowest_midi": 60,
+            "onsets_480": [
+              0,
+              240,
+              480,
+              720,
+              960,
+              1200,
+              1440,
+              1680,
+              1920,
+              2160
+            ],
+            "pitch_classes": [
+              4,
+              0,
+              0,
+              0,
+              2,
+              2,
+              0,
+              1,
+              0,
+              1,
+              0,
+              0
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_motion_cost": 6,
+            "playback_transition_count": 1,
+            "written_motion_cost": 6
+          },
+          "resolved_plan": {
+            "bass_pattern": "approach",
+            "chords": [
+              [
+                0,
+                0.0,
+                "C",
+                "major"
+              ],
+              [
+                1,
+                0.0,
+                "F",
+                "major"
+              ]
+            ],
+            "meter_groups": [],
+            "pad_pattern": "arpeggio-up-down",
+            "phrase_end_measures": [],
+            "phrase_start_ticks": [],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "smooth"
+          }
+        },
+        {
+          "bass": {
+            "duration_counts_480": {
+              "240": 2,
+              "480": 4
+            },
+            "event_fingerprint": "40e981ccd25a577a",
+            "events": 6,
+            "highest_midi": 41,
+            "lowest_midi": 36,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1200,
+              1680,
+              2160
+            ],
+            "pitch_classes": [
+              3,
+              0,
+              0,
+              0,
+              0,
+              3,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_attack_count": 6,
+            "playback_motion_cost": 5,
+            "written_attack_count": 6,
+            "written_motion_cost": 5
+          },
+          "name": "held-open",
+          "pad": {
+            "duration_counts_480": {
+              "1200": 6
+            },
+            "event_fingerprint": "b4f923d1d19e2f18",
+            "events": 6,
+            "highest_midi": 72,
+            "lowest_midi": 55,
+            "onsets_480": [
+              0,
+              1200
+            ],
+            "pitch_classes": [
+              2,
+              0,
+              0,
+              0,
+              1,
+              1,
+              0,
+              1,
+              0,
+              1,
+              0,
+              0
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_motion_cost": 6,
+            "playback_transition_count": 1,
+            "written_motion_cost": 6
+          },
+          "resolved_plan": {
+            "bass_pattern": "root-pulse",
+            "chords": [
+              [
+                0,
+                0.0,
+                "C",
+                "major"
+              ],
+              [
+                1,
+                0.0,
+                "F",
+                "major"
+              ]
+            ],
+            "meter_groups": [],
+            "pad_pattern": "held",
+            "phrase_end_measures": [],
+            "phrase_start_ticks": [],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "open"
+          }
+        },
+        {
+          "bass": {
+            "duration_counts_480": {
+              "240": 2,
+              "480": 4
+            },
+            "event_fingerprint": "7d3ed6678e644e2e",
+            "events": 6,
+            "highest_midi": 41,
+            "lowest_midi": 31,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1200,
+              1680,
+              2160
+            ],
+            "pitch_classes": [
+              3,
+              0,
+              0,
+              0,
+              0,
+              2,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_attack_count": 6,
+            "playback_motion_cost": 25,
+            "written_attack_count": 6,
+            "written_motion_cost": 25
+          },
+          "name": "metered-ending",
+          "pad": {
+            "duration_counts_480": {
+              "1200": 3,
+              "240": 3,
+              "360": 3
+            },
+            "event_fingerprint": "6d3a77e0153f94be",
+            "events": 9,
+            "highest_midi": 69,
+            "lowest_midi": 60,
+            "onsets_480": [
+              0,
+              720,
+              1200
+            ],
+            "pitch_classes": [
+              3,
+              0,
+              0,
+              0,
+              2,
+              1,
+              0,
+              2,
+              0,
+              1,
+              0,
+              0
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_motion_cost": 6,
+            "playback_transition_count": 1,
+            "written_motion_cost": 6
+          },
+          "resolved_plan": {
+            "bass_pattern": "root-fifth",
+            "chords": [
+              [
+                0,
+                0.0,
+                "C",
+                "major"
+              ],
+              [
+                1,
+                0.0,
+                "F",
+                "major"
+              ]
+            ],
+            "meter_groups": [
+              [
+                3,
+                2
+              ],
+              [
+                3,
+                2
+              ]
+            ],
+            "pad_pattern": "meter-pulse",
+            "phrase_end_measures": [
+              1
+            ],
+            "phrase_start_ticks": [
+              null,
+              0
+            ],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "global-smooth"
+          }
+        }
+      ],
+      "source": {
+        "duration_counts_480": {
+          "240": 2,
+          "480": 4
+        },
+        "event_fingerprint": "42b9da23a7f43bea",
+        "events": 6,
+        "highest_midi": 69,
+        "lowest_midi": 60,
+        "onsets_480": [
+          0,
+          480,
+          960,
+          1200,
+          1680,
+          2160
+        ],
+        "pitch_classes": [
+          1,
+          0,
+          1,
+          0,
+          1,
+          1,
+          0,
+          1,
+          0,
+          1,
+          0,
+          0
+        ]
+      },
+      "source_fingerprint": "19d34877e809c48d"
+    },
+    {
+      "id": "irregular-7-8",
+      "partition": "holdout",
+      "profiles": [
+        {
+          "bass": {
+            "duration_counts_480": {
+              "240": 2,
+              "480": 6
+            },
+            "event_fingerprint": "d0429098449ac4d4",
+            "events": 8,
+            "highest_midi": 43,
+            "lowest_midi": 38,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1440,
+              1680,
+              2160,
+              2640,
+              3120
+            ],
+            "pitch_classes": [
+              0,
+              0,
+              4,
+              0,
+              0,
+              0,
+              0,
+              4,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_attack_count": 8,
+            "playback_motion_cost": 5,
+            "written_attack_count": 8,
+            "written_motion_cost": 5
+          },
+          "name": "held-root",
+          "pad": {
+            "duration_counts_480": {
+              "1680": 6
+            },
+            "event_fingerprint": "5e71e01fe915310a",
+            "events": 6,
+            "highest_midi": 69,
+            "lowest_midi": 55,
+            "onsets_480": [
+              0,
+              1680
+            ],
+            "pitch_classes": [
+              0,
+              0,
+              2,
+              0,
+              0,
+              0,
+              1,
+              1,
+              0,
+              1,
+              0,
+              1
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_motion_cost": 21,
+            "playback_transition_count": 1,
+            "written_motion_cost": 21
+          },
+          "resolved_plan": {
+            "bass_pattern": "root-pulse",
+            "chords": [
+              [
+                0,
+                0.0,
+                "D",
+                "major"
+              ],
+              [
+                1,
+                0.0,
+                "G",
+                "major"
+              ]
+            ],
+            "meter_groups": [],
+            "pad_pattern": "held",
+            "phrase_end_measures": [],
+            "phrase_start_ticks": [],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "root-position"
+          }
+        },
+        {
+          "bass": {
+            "duration_counts_480": {
+              "240": 2,
+              "480": 6
+            },
+            "event_fingerprint": "5c8e6a594975cc24",
+            "events": 8,
+            "highest_midi": 43,
+            "lowest_midi": 31,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1440,
+              1680,
+              2160,
+              2640,
+              3120
+            ],
+            "pitch_classes": [
+              0,
+              0,
+              4,
+              0,
+              0,
+              0,
+              0,
+              2,
+              0,
+              2,
+              0,
+              0
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_attack_count": 8,
+            "playback_motion_cost": 34,
+            "written_attack_count": 8,
+            "written_motion_cost": 34
+          },
+          "name": "offbeat-fifth",
+          "pad": {
+            "duration_counts_480": {
+              "240": 18
+            },
+            "event_fingerprint": "b268e2f193a28005",
+            "events": 18,
+            "highest_midi": 71,
+            "lowest_midi": 62,
+            "onsets_480": [
+              240,
+              720,
+              1200,
+              1920,
+              2400,
+              2880
+            ],
+            "pitch_classes": [
+              0,
+              0,
+              6,
+              0,
+              0,
+              0,
+              3,
+              3,
+              0,
+              3,
+              0,
+              3
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_motion_cost": 6,
+            "playback_transition_count": 1,
+            "written_motion_cost": 6
+          },
+          "resolved_plan": {
+            "bass_pattern": "root-fifth",
+            "chords": [
+              [
+                0,
+                0.0,
+                "D",
+                "major"
+              ],
+              [
+                1,
+                0.0,
+                "G",
+                "major"
+              ]
+            ],
+            "meter_groups": [],
+            "pad_pattern": "offbeat-pulse",
+            "phrase_end_measures": [],
+            "phrase_start_ticks": [],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "smooth"
+          }
+        },
+        {
+          "bass": {
+            "duration_counts_480": {
+              "240": 2,
+              "480": 6
+            },
+            "event_fingerprint": "ec3afaf2d2af55b9",
+            "events": 8,
+            "highest_midi": 43,
+            "lowest_midi": 33,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1440,
+              1680,
+              2160,
+              2640,
+              3120
+            ],
+            "pitch_classes": [
+              0,
+              0,
+              4,
+              0,
+              0,
+              0,
+              1,
+              2,
+              0,
+              1,
+              0,
+              0
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_attack_count": 8,
+            "playback_motion_cost": 30,
+            "written_attack_count": 8,
+            "written_motion_cost": 30
+          },
+          "name": "arpeggio-approach",
+          "pad": {
+            "duration_counts_480": {
+              "240": 14
+            },
+            "event_fingerprint": "0ae8831d9e372f1c",
+            "events": 14,
+            "highest_midi": 71,
+            "lowest_midi": 62,
+            "onsets_480": [
+              0,
+              240,
+              480,
+              720,
+              960,
+              1200,
+              1440,
+              1680,
+              1920,
+              2160,
+              2400,
+              2640,
+              2880,
+              3120
+            ],
+            "pitch_classes": [
+              0,
+              0,
+              4,
+              0,
+              0,
+              0,
+              3,
+              3,
+              0,
+              2,
+              0,
+              2
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_motion_cost": 6,
+            "playback_transition_count": 1,
+            "written_motion_cost": 6
+          },
+          "resolved_plan": {
+            "bass_pattern": "approach",
+            "chords": [
+              [
+                0,
+                0.0,
+                "D",
+                "major"
+              ],
+              [
+                1,
+                0.0,
+                "G",
+                "major"
+              ]
+            ],
+            "meter_groups": [],
+            "pad_pattern": "arpeggio-up-down",
+            "phrase_end_measures": [],
+            "phrase_start_ticks": [],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "smooth"
+          }
+        },
+        {
+          "bass": {
+            "duration_counts_480": {
+              "240": 2,
+              "480": 6
+            },
+            "event_fingerprint": "d0429098449ac4d4",
+            "events": 8,
+            "highest_midi": 43,
+            "lowest_midi": 38,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1440,
+              1680,
+              2160,
+              2640,
+              3120
+            ],
+            "pitch_classes": [
+              0,
+              0,
+              4,
+              0,
+              0,
+              0,
+              0,
+              4,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_attack_count": 8,
+            "playback_motion_cost": 5,
+            "written_attack_count": 8,
+            "written_motion_cost": 5
+          },
+          "name": "held-open",
+          "pad": {
+            "duration_counts_480": {
+              "1680": 6
+            },
+            "event_fingerprint": "900ba273ec4b9dba",
+            "events": 6,
+            "highest_midi": 74,
+            "lowest_midi": 57,
+            "onsets_480": [
+              0,
+              1680
+            ],
+            "pitch_classes": [
+              0,
+              0,
+              2,
+              0,
+              0,
+              0,
+              1,
+              1,
+              0,
+              1,
+              0,
+              1
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_motion_cost": 6,
+            "playback_transition_count": 1,
+            "written_motion_cost": 6
+          },
+          "resolved_plan": {
+            "bass_pattern": "root-pulse",
+            "chords": [
+              [
+                0,
+                0.0,
+                "D",
+                "major"
+              ],
+              [
+                1,
+                0.0,
+                "G",
+                "major"
+              ]
+            ],
+            "meter_groups": [],
+            "pad_pattern": "held",
+            "phrase_end_measures": [],
+            "phrase_start_ticks": [],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "open"
+          }
+        },
+        {
+          "bass": {
+            "duration_counts_480": {
+              "240": 2,
+              "480": 6
+            },
+            "event_fingerprint": "5c8e6a594975cc24",
+            "events": 8,
+            "highest_midi": 43,
+            "lowest_midi": 31,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1440,
+              1680,
+              2160,
+              2640,
+              3120
+            ],
+            "pitch_classes": [
+              0,
+              0,
+              4,
+              0,
+              0,
+              0,
+              0,
+              2,
+              0,
+              2,
+              0,
+              0
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_attack_count": 8,
+            "playback_motion_cost": 34,
+            "written_attack_count": 8,
+            "written_motion_cost": 34
+          },
+          "name": "metered-ending",
+          "pad": {
+            "duration_counts_480": {
+              "1200": 3,
+              "240": 9,
+              "360": 3
+            },
+            "event_fingerprint": "b9e3dac834d95787",
+            "events": 15,
+            "highest_midi": 71,
+            "lowest_midi": 62,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1680,
+              2160
+            ],
+            "pitch_classes": [
+              0,
+              0,
+              5,
+              0,
+              0,
+              0,
+              3,
+              2,
+              0,
+              3,
+              0,
+              2
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_motion_cost": 6,
+            "playback_transition_count": 1,
+            "written_motion_cost": 6
+          },
+          "resolved_plan": {
+            "bass_pattern": "root-fifth",
+            "chords": [
+              [
+                0,
+                0.0,
+                "D",
+                "major"
+              ],
+              [
+                1,
+                0.0,
+                "G",
+                "major"
+              ]
+            ],
+            "meter_groups": [
+              [
+                2,
+                2,
+                3
+              ],
+              [
+                2,
+                2,
+                3
+              ]
+            ],
+            "pad_pattern": "meter-pulse",
+            "phrase_end_measures": [
+              1
+            ],
+            "phrase_start_ticks": [
+              null,
+              32
+            ],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "global-smooth"
+          }
+        }
+      ],
+      "source": {
+        "duration_counts_480": {
+          "240": 2,
+          "480": 6
+        },
+        "event_fingerprint": "e7980404a33bcd46",
+        "events": 8,
+        "highest_midi": 74,
+        "lowest_midi": 62,
+        "onsets_480": [
+          0,
+          480,
+          960,
+          1440,
+          1680,
+          2160,
+          2640,
+          3120
+        ],
+        "pitch_classes": [
+          0,
+          0,
+          2,
+          0,
+          1,
+          0,
+          1,
+          1,
+          0,
+          2,
+          0,
+          1
+        ]
+      },
+      "source_fingerprint": "42101d528f168dca"
+    },
+    {
+      "id": "pickup-4-4",
+      "partition": "holdout",
+      "profiles": [
+        {
+          "bass": {
+            "duration_counts_480": {
+              "240": 1,
+              "480": 4
+            },
+            "event_fingerprint": "dbf372b5d91bb203",
+            "events": 5,
+            "highest_midi": 41,
+            "lowest_midi": 36,
+            "onsets_480": [
+              0,
+              240,
+              720,
+              1200,
+              1680
+            ],
+            "pitch_classes": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              4,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_attack_count": 5,
+            "playback_motion_cost": 5,
+            "written_attack_count": 5,
+            "written_motion_cost": 5
+          },
+          "name": "held-root",
+          "pad": {
+            "duration_counts_480": {
+              "1920": 3,
+              "240": 3
+            },
+            "event_fingerprint": "01383784ecc46c21",
+            "events": 6,
+            "highest_midi": 72,
+            "lowest_midi": 60,
+            "onsets_480": [
+              0,
+              240
+            ],
+            "pitch_classes": [
+              2,
+              0,
+              0,
+              0,
+              1,
+              1,
+              0,
+              1,
+              0,
+              1,
+              0,
+              0
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_motion_cost": 16,
+            "playback_transition_count": 1,
+            "written_motion_cost": 16
+          },
+          "resolved_plan": {
+            "bass_pattern": "root-pulse",
+            "chords": [
+              [
+                0,
+                0.0,
+                "C",
+                "major"
+              ],
+              [
+                1,
+                0.0,
+                "F",
+                "major"
+              ]
+            ],
+            "meter_groups": [],
+            "pad_pattern": "held",
+            "phrase_end_measures": [],
+            "phrase_start_ticks": [],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "root-position"
+          }
+        },
+        {
+          "bass": {
+            "duration_counts_480": {
+              "240": 1,
+              "480": 4
+            },
+            "event_fingerprint": "6dc067a41af611f7",
+            "events": 5,
+            "highest_midi": 41,
+            "lowest_midi": 36,
+            "onsets_480": [
+              0,
+              240,
+              720,
+              1200,
+              1680
+            ],
+            "pitch_classes": [
+              3,
+              0,
+              0,
+              0,
+              0,
+              2,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_attack_count": 5,
+            "playback_motion_cost": 20,
+            "written_attack_count": 5,
+            "written_motion_cost": 20
+          },
+          "name": "offbeat-fifth",
+          "pad": {
+            "duration_counts_480": {
+              "240": 15
+            },
+            "event_fingerprint": "16ab7b239f8b12c6",
+            "events": 15,
+            "highest_midi": 69,
+            "lowest_midi": 60,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1440,
+              1920
+            ],
+            "pitch_classes": [
+              5,
+              0,
+              0,
+              0,
+              1,
+              4,
+              0,
+              1,
+              0,
+              4,
+              0,
+              0
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_motion_cost": 6,
+            "playback_transition_count": 1,
+            "written_motion_cost": 6
+          },
+          "resolved_plan": {
+            "bass_pattern": "root-fifth",
+            "chords": [
+              [
+                0,
+                0.0,
+                "C",
+                "major"
+              ],
+              [
+                1,
+                0.0,
+                "F",
+                "major"
+              ]
+            ],
+            "meter_groups": [],
+            "pad_pattern": "offbeat-pulse",
+            "phrase_end_measures": [],
+            "phrase_start_ticks": [],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "smooth"
+          }
+        },
+        {
+          "bass": {
+            "duration_counts_480": {
+              "240": 1,
+              "480": 4
+            },
+            "event_fingerprint": "6dc067a41af611f7",
+            "events": 5,
+            "highest_midi": 41,
+            "lowest_midi": 36,
+            "onsets_480": [
+              0,
+              240,
+              720,
+              1200,
+              1680
+            ],
+            "pitch_classes": [
+              3,
+              0,
+              0,
+              0,
+              0,
+              2,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_attack_count": 5,
+            "playback_motion_cost": 20,
+            "written_attack_count": 5,
+            "written_motion_cost": 20
+          },
+          "name": "arpeggio-approach",
+          "pad": {
+            "duration_counts_480": {
+              "240": 9
+            },
+            "event_fingerprint": "968ac8aa9d9fab17",
+            "events": 9,
+            "highest_midi": 69,
+            "lowest_midi": 60,
+            "onsets_480": [
+              0,
+              240,
+              480,
+              720,
+              960,
+              1200,
+              1440,
+              1680,
+              1920
+            ],
+            "pitch_classes": [
+              3,
+              0,
+              0,
+              0,
+              0,
+              4,
+              0,
+              0,
+              0,
+              2,
+              0,
+              0
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_motion_cost": 6,
+            "playback_transition_count": 1,
+            "written_motion_cost": 6
+          },
+          "resolved_plan": {
+            "bass_pattern": "approach",
+            "chords": [
+              [
+                0,
+                0.0,
+                "C",
+                "major"
+              ],
+              [
+                1,
+                0.0,
+                "F",
+                "major"
+              ]
+            ],
+            "meter_groups": [],
+            "pad_pattern": "arpeggio-up-down",
+            "phrase_end_measures": [],
+            "phrase_start_ticks": [],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "smooth"
+          }
+        },
+        {
+          "bass": {
+            "duration_counts_480": {
+              "240": 1,
+              "480": 4
+            },
+            "event_fingerprint": "dbf372b5d91bb203",
+            "events": 5,
+            "highest_midi": 41,
+            "lowest_midi": 36,
+            "onsets_480": [
+              0,
+              240,
+              720,
+              1200,
+              1680
+            ],
+            "pitch_classes": [
+              1,
+              0,
+              0,
+              0,
+              0,
+              4,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_attack_count": 5,
+            "playback_motion_cost": 5,
+            "written_attack_count": 5,
+            "written_motion_cost": 5
+          },
+          "name": "held-open",
+          "pad": {
+            "duration_counts_480": {
+              "1920": 3,
+              "240": 3
+            },
+            "event_fingerprint": "0d735ac5606abdf5",
+            "events": 6,
+            "highest_midi": 72,
+            "lowest_midi": 55,
+            "onsets_480": [
+              0,
+              240
+            ],
+            "pitch_classes": [
+              2,
+              0,
+              0,
+              0,
+              1,
+              1,
+              0,
+              1,
+              0,
+              1,
+              0,
+              0
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_motion_cost": 6,
+            "playback_transition_count": 1,
+            "written_motion_cost": 6
+          },
+          "resolved_plan": {
+            "bass_pattern": "root-pulse",
+            "chords": [
+              [
+                0,
+                0.0,
+                "C",
+                "major"
+              ],
+              [
+                1,
+                0.0,
+                "F",
+                "major"
+              ]
+            ],
+            "meter_groups": [],
+            "pad_pattern": "held",
+            "phrase_end_measures": [],
+            "phrase_start_ticks": [],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "open"
+          }
+        },
+        {
+          "bass": {
+            "duration_counts_480": {
+              "240": 1,
+              "480": 4
+            },
+            "event_fingerprint": "6dc067a41af611f7",
+            "events": 5,
+            "highest_midi": 41,
+            "lowest_midi": 36,
+            "onsets_480": [
+              0,
+              240,
+              720,
+              1200,
+              1680
+            ],
+            "pitch_classes": [
+              3,
+              0,
+              0,
+              0,
+              0,
+              2,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_attack_count": 5,
+            "playback_motion_cost": 20,
+            "written_attack_count": 5,
+            "written_motion_cost": 20
+          },
+          "name": "metered-ending",
+          "pad": {
+            "duration_counts_480": {
+              "120": 3,
+              "240": 6,
+              "960": 3
+            },
+            "event_fingerprint": "6f0e787db2488667",
+            "events": 12,
+            "highest_midi": 69,
+            "lowest_midi": 60,
+            "onsets_480": [
+              0,
+              240,
+              720,
+              1200
+            ],
+            "pitch_classes": [
+              4,
+              0,
+              0,
+              0,
+              1,
+              3,
+              0,
+              1,
+              0,
+              3,
+              0,
+              0
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_motion_cost": 6,
+            "playback_transition_count": 1,
+            "written_motion_cost": 6
+          },
+          "resolved_plan": {
+            "bass_pattern": "root-fifth",
+            "chords": [
+              [
+                0,
+                0.0,
+                "C",
+                "major"
+              ],
+              [
+                1,
+                0.0,
+                "F",
+                "major"
+              ]
+            ],
+            "meter_groups": [
+              [
+                1,
+                1,
+                1,
+                1
+              ],
+              [
+                1,
+                1,
+                1,
+                1
+              ]
+            ],
+            "pad_pattern": "meter-pulse",
+            "phrase_end_measures": [
+              1
+            ],
+            "phrase_start_ticks": [
+              null,
+              64
+            ],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "global-smooth"
+          }
+        }
+      ],
+      "source": {
+        "duration_counts_480": {
+          "240": 1,
+          "480": 4
+        },
+        "event_fingerprint": "7683edfd58ca81f3",
+        "events": 5,
+        "highest_midi": 69,
+        "lowest_midi": 64,
+        "onsets_480": [
+          0,
+          240,
+          720,
+          1200,
+          1680
+        ],
+        "pitch_classes": [
+          0,
+          0,
+          0,
+          0,
+          1,
+          1,
+          0,
+          2,
+          0,
+          1,
+          0,
+          0
+        ]
+      },
+      "source_fingerprint": "ab8729d39dffc737"
+    },
+    {
+      "id": "multipart-4-4",
+      "partition": "holdout",
+      "profiles": [
+        {
+          "bass": {
+            "duration_counts_480": {
+              "480": 8
+            },
+            "event_fingerprint": "7afdc557c0174510",
+            "events": 8,
+            "highest_midi": 41,
+            "lowest_midi": 36,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1440,
+              1920,
+              2400,
+              2880,
+              3360
+            ],
+            "pitch_classes": [
+              4,
+              0,
+              0,
+              0,
+              0,
+              4,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_attack_count": 8,
+            "playback_motion_cost": 5,
+            "written_attack_count": 8,
+            "written_motion_cost": 5
+          },
+          "name": "held-root",
+          "pad": {
+            "duration_counts_480": {
+              "1920": 6
+            },
+            "event_fingerprint": "a13b4c595e999a7b",
+            "events": 6,
+            "highest_midi": 72,
+            "lowest_midi": 60,
+            "onsets_480": [
+              0,
+              1920
+            ],
+            "pitch_classes": [
+              2,
+              0,
+              0,
+              0,
+              1,
+              1,
+              0,
+              1,
+              0,
+              1,
+              0,
+              0
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_motion_cost": 16,
+            "playback_transition_count": 1,
+            "written_motion_cost": 16
+          },
+          "resolved_plan": {
+            "bass_pattern": "root-pulse",
+            "chords": [
+              [
+                0,
+                0.0,
+                "C",
+                "major"
+              ],
+              [
+                1,
+                0.0,
+                "F",
+                "major"
+              ]
+            ],
+            "meter_groups": [],
+            "pad_pattern": "held",
+            "phrase_end_measures": [],
+            "phrase_start_ticks": [],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "root-position"
+          }
+        },
+        {
+          "bass": {
+            "duration_counts_480": {
+              "480": 8
+            },
+            "event_fingerprint": "6d588cfc1fe8f3c8",
+            "events": 8,
+            "highest_midi": 41,
+            "lowest_midi": 29,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1440,
+              1920,
+              2400,
+              2880,
+              3360
+            ],
+            "pitch_classes": [
+              4,
+              0,
+              0,
+              0,
+              0,
+              2,
+              0,
+              2,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_attack_count": 8,
+            "playback_motion_cost": 34,
+            "written_attack_count": 8,
+            "written_motion_cost": 34
+          },
+          "name": "offbeat-fifth",
+          "pad": {
+            "duration_counts_480": {
+              "240": 24
+            },
+            "event_fingerprint": "2a9023857e55e195",
+            "events": 24,
+            "highest_midi": 69,
+            "lowest_midi": 60,
+            "onsets_480": [
+              240,
+              720,
+              1200,
+              1680,
+              2160,
+              2640,
+              3120,
+              3600
+            ],
+            "pitch_classes": [
+              8,
+              0,
+              0,
+              0,
+              4,
+              4,
+              0,
+              4,
+              0,
+              4,
+              0,
+              0
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_motion_cost": 6,
+            "playback_transition_count": 1,
+            "written_motion_cost": 6
+          },
+          "resolved_plan": {
+            "bass_pattern": "root-fifth",
+            "chords": [
+              [
+                0,
+                0.0,
+                "C",
+                "major"
+              ],
+              [
+                1,
+                0.0,
+                "F",
+                "major"
+              ]
+            ],
+            "meter_groups": [],
+            "pad_pattern": "offbeat-pulse",
+            "phrase_end_measures": [],
+            "phrase_start_ticks": [],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "smooth"
+          }
+        },
+        {
+          "bass": {
+            "duration_counts_480": {
+              "480": 8
+            },
+            "event_fingerprint": "bc12e781313c5749",
+            "events": 8,
+            "highest_midi": 41,
+            "lowest_midi": 31,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1440,
+              1920,
+              2400,
+              2880,
+              3360
+            ],
+            "pitch_classes": [
+              4,
+              0,
+              0,
+              0,
+              1,
+              2,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_attack_count": 8,
+            "playback_motion_cost": 30,
+            "written_attack_count": 8,
+            "written_motion_cost": 30
+          },
+          "name": "arpeggio-approach",
+          "pad": {
+            "duration_counts_480": {
+              "240": 16
+            },
+            "event_fingerprint": "586abdc53cb47f68",
+            "events": 16,
+            "highest_midi": 69,
+            "lowest_midi": 60,
+            "onsets_480": [
+              0,
+              240,
+              480,
+              720,
+              960,
+              1200,
+              1440,
+              1680,
+              1920,
+              2160,
+              2400,
+              2640,
+              2880,
+              3120,
+              3360,
+              3600
+            ],
+            "pitch_classes": [
+              4,
+              0,
+              0,
+              0,
+              4,
+              4,
+              0,
+              2,
+              0,
+              2,
+              0,
+              0
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_motion_cost": 6,
+            "playback_transition_count": 1,
+            "written_motion_cost": 6
+          },
+          "resolved_plan": {
+            "bass_pattern": "approach",
+            "chords": [
+              [
+                0,
+                0.0,
+                "C",
+                "major"
+              ],
+              [
+                1,
+                0.0,
+                "F",
+                "major"
+              ]
+            ],
+            "meter_groups": [],
+            "pad_pattern": "arpeggio-up-down",
+            "phrase_end_measures": [],
+            "phrase_start_ticks": [],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "smooth"
+          }
+        },
+        {
+          "bass": {
+            "duration_counts_480": {
+              "480": 8
+            },
+            "event_fingerprint": "7afdc557c0174510",
+            "events": 8,
+            "highest_midi": 41,
+            "lowest_midi": 36,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1440,
+              1920,
+              2400,
+              2880,
+              3360
+            ],
+            "pitch_classes": [
+              4,
+              0,
+              0,
+              0,
+              0,
+              4,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_attack_count": 8,
+            "playback_motion_cost": 5,
+            "written_attack_count": 8,
+            "written_motion_cost": 5
+          },
+          "name": "held-open",
+          "pad": {
+            "duration_counts_480": {
+              "1920": 6
+            },
+            "event_fingerprint": "308b954e9215b973",
+            "events": 6,
+            "highest_midi": 72,
+            "lowest_midi": 55,
+            "onsets_480": [
+              0,
+              1920
+            ],
+            "pitch_classes": [
+              2,
+              0,
+              0,
+              0,
+              1,
+              1,
+              0,
+              1,
+              0,
+              1,
+              0,
+              0
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_motion_cost": 6,
+            "playback_transition_count": 1,
+            "written_motion_cost": 6
+          },
+          "resolved_plan": {
+            "bass_pattern": "root-pulse",
+            "chords": [
+              [
+                0,
+                0.0,
+                "C",
+                "major"
+              ],
+              [
+                1,
+                0.0,
+                "F",
+                "major"
+              ]
+            ],
+            "meter_groups": [],
+            "pad_pattern": "held",
+            "phrase_end_measures": [],
+            "phrase_start_ticks": [],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "open"
+          }
+        },
+        {
+          "bass": {
+            "duration_counts_480": {
+              "480": 8
+            },
+            "event_fingerprint": "6d588cfc1fe8f3c8",
+            "events": 8,
+            "highest_midi": 41,
+            "lowest_midi": 29,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1440,
+              1920,
+              2400,
+              2880,
+              3360
+            ],
+            "pitch_classes": [
+              4,
+              0,
+              0,
+              0,
+              0,
+              2,
+              0,
+              2,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "bass_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_attack_count": 8,
+            "playback_motion_cost": 34,
+            "written_attack_count": 8,
+            "written_motion_cost": 34
+          },
+          "name": "metered-ending",
+          "pad": {
+            "duration_counts_480": {
+              "240": 18,
+              "960": 3
+            },
+            "event_fingerprint": "14116527c4cbc42c",
+            "events": 21,
+            "highest_midi": 69,
+            "lowest_midi": 60,
+            "onsets_480": [
+              0,
+              480,
+              960,
+              1440,
+              1920,
+              2400,
+              2880
+            ],
+            "pitch_classes": [
+              7,
+              0,
+              0,
+              0,
+              4,
+              3,
+              0,
+              4,
+              0,
+              3,
+              0,
+              0
+            ]
+          },
+          "pad_motion": {
+            "backward_jump_motion_cost": 0,
+            "backward_jump_transition_count": 0,
+            "playback_motion_cost": 6,
+            "playback_transition_count": 1,
+            "written_motion_cost": 6
+          },
+          "resolved_plan": {
+            "bass_pattern": "root-fifth",
+            "chords": [
+              [
+                0,
+                0.0,
+                "C",
+                "major"
+              ],
+              [
+                1,
+                0.0,
+                "F",
+                "major"
+              ]
+            ],
+            "meter_groups": [
+              [
+                1,
+                1,
+                1,
+                1
+              ],
+              [
+                1,
+                1,
+                1,
+                1
+              ]
+            ],
+            "pad_pattern": "meter-pulse",
+            "phrase_end_measures": [
+              1
+            ],
+            "phrase_start_ticks": [
+              null,
+              64
+            ],
+            "programs": [
+              48,
+              32
+            ],
+            "voicing": "global-smooth"
+          }
+        }
+      ],
+      "source": {
+        "duration_counts_480": {
+          "480": 8
+        },
+        "event_fingerprint": "03711072c148c014",
+        "events": 8,
+        "highest_midi": 79,
+        "lowest_midi": 72,
+        "onsets_480": [
+          0,
+          480,
+          960,
+          1440,
+          1920,
+          2400,
+          2880,
+          3360
+        ],
+        "pitch_classes": [
+          2,
+          0,
+          2,
+          0,
+          2,
+          1,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "source_fingerprint": "384ec13900c38ab8"
+    }
+  ],
+  "contract_version": 1
+}

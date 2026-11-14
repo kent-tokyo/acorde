@@ -1117,10 +1117,14 @@ fn serialize_note(
             ));
         }
         xml.push_str("        </root>\n");
-        xml.push_str(&format!(
-            "        <kind>{}</kind>\n",
-            escape_xml(&musicxml_harmony_kind(&cs.kind))
-        ));
+        match cs.kind.as_str() {
+            "major-add9" => xml.push_str("        <kind text=\"add9\">other</kind>\n"),
+            "minor-add9" => xml.push_str("        <kind text=\"madd9\">other</kind>\n"),
+            _ => xml.push_str(&format!(
+                "        <kind>{}</kind>\n",
+                escape_xml(&musicxml_harmony_kind(&cs.kind))
+            )),
+        }
         if let Some(function) = &cs.harmony_function {
             xml.push_str(&format!(
                 "        <function>{}</function>\n",

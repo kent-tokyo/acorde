@@ -1,0 +1,24 @@
+{
+  "contract_version": 1,
+  "cases": [
+    {
+      "id": "phrase-compound-eight-bars",
+      "partition": "longform-compound",
+      "meter": [6, 8],
+      "melody_eighth_notes": true,
+      "melody": [
+        [72, 74, 76, 77, 79, 77],
+        [76, 74, 72, 74, 76, 72],
+        [74, 76, 77, 79, 81, 79],
+        [77, 76, 74, 72, 74, 72],
+        [76, 79, 81, 84, 81, 79],
+        [79, 77, 76, 77, 79, 76],
+        [74, 76, 77, 79, 77, 76],
+        [76, 74, 72, 74, 72, 72]
+      ],
+      "phrase_end_measures": [3, 7],
+      "harmony_meter_groups": [3, 3],
+      "counter_inactive_ranges": [[0, 2], [3, 6], [7, 8]]
+    }
+  ]
+}

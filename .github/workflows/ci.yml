@@ -149,7 +149,7 @@ jobs:
             --out-dir ../../target/wasm-profiles/viewer \
             --no-default-features --features viewer
           declarations=target/wasm-profiles/viewer/acorde_wasm.d.ts
-          for binding in parse_abc parse_mscz compute_beams detect_chord extract_chord_plan suggest_chord_plans assess_chord_presets arrange_from_chord_proposal arrange_with_drone standard_bass_chord_candidates located_standard_bass_candidates arrange_standard_bass_located arrange_standard_bass_located_screened arrange_standard_bass_located_selected_screened find_located_standard_bass_path profile_chord_plan arrange_standard_bass arrange_standard_bass_with_pitch_selection arrange_standard_bass_screened arrange_standard_bass_find_buttons arrange_standard_bass_find_voicings arrange_profiled_bass_pulse arrange_profiled_accompaniment profiled_accompaniment_capabilities render_score_svg render_print_page_svgs to_playback_events_ex serialize_mscz arrange_standard_bass_transposed evaluate_standard_bass_transpositions arrange_standard_bass_proposed_harmony arrange_standard_bass_with_phrases standard_bass_double_chord_candidates; do
+          for binding in parse_abc parse_mscz compute_beams detect_chord extract_chord_plan suggest_chord_plans suggest_chord_plans_at_positions suggest_chord_plans_with_locks assess_chord_presets arrange_from_chord_proposal arrange_chordal_pad arrange_bass_line arrange_with_drone arrange_with_voice_leading arrange_with_sections arrange_sections_with_dynamics arrange_sections_with_melodic_voices arrange_with_response_fills arrange_sections_with_voice_leading standard_bass_chord_candidates located_standard_bass_candidates arrange_standard_bass_located arrange_standard_bass_located_screened arrange_standard_bass_located_selected_screened find_located_standard_bass_path profile_chord_plan arrange_standard_bass arrange_standard_bass_with_pitch_selection arrange_standard_bass_screened arrange_standard_bass_find_buttons arrange_standard_bass_find_voicings arrange_profiled_bass_pulse arrange_profiled_accompaniment profiled_accompaniment_capabilities render_score_svg render_print_page_svgs to_playback_events_ex serialize_mscz arrange_standard_bass_transposed evaluate_standard_bass_transpositions arrange_standard_bass_proposed_harmony arrange_standard_bass_with_phrases standard_bass_double_chord_candidates; do
             grep -q "^export function $binding(" "$declarations"
           done
           if grep -q '^export function parse_musicxml(' "$declarations"; then
@@ -286,7 +286,12 @@ jobs:
           # Contextual melodic insertion and reference remapping (#399/#400)
           # measured 7,162,214 bytes in Linux CI on PR #425. Keep 7,786 bytes
           # of regression headroom above that exact artifact.
-          test "$size" -le 7170000
+          # Combined unreleased arrangement work, including sectioned
+          # chordal-pad and independent bass, measures 7,278,318 bytes on
+          # macOS; same-toolchain HEAD 3b943ac1 measures 7,118,773 bytes
+          # (+159,545). Linux remeasurement is pending. The provisional gate
+          # leaves 66,682 bytes above the current macOS artifact.
+          test "$size" -le 7345000
 
   renderer-benchmark:
     name: Renderer performance budget

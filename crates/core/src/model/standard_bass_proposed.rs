@@ -48,6 +48,8 @@ pub fn arrange_standard_bass_proposed_harmony(
             bass_mode: AccordionBassMode::StandardBass,
             allow_jazz_color: false,
             max_candidates: 1,
+            max_changed_spans: None,
+            contextual_nonchord_tones: false,
         },
     );
     let Some(candidate) = proposals.candidates.first() else {

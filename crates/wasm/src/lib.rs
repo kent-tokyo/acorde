@@ -1781,6 +1781,168 @@ pub fn arrange_with_layers(score_json: &str, options_json: &str) -> Result<Strin
         .map_err(|error| js_err(format!("layered arrangement serialization failed: {error}")))
 }
 
+/// Generate accompaniment changes and rests on explicit physical measure ranges.
+#[wasm_bindgen]
+pub fn arrange_with_sections(score_json: &str, options_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let options: acorde_core::SectionedAccordionOptions =
+        parse_json(options_json, "sectioned arrangement options", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::arrange_with_sections(&score, options))
+        .map_err(|error| js_err(format!("sectioned arrangement serialization failed: {error}")))
+}
+
+/// Apply measure-specific staff-local dynamics to the generated accompaniment.
+#[wasm_bindgen]
+pub fn arrange_sections_with_dynamics(
+    score_json: &str,
+    accompaniment_json: &str,
+    dynamics_json: &str,
+) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let accompaniment: acorde_core::SectionedAccordionOptions =
+        parse_json(accompaniment_json, "sectioned arrangement options", MAX_OPTIONS_JSON_BYTES)?;
+    let dynamics: acorde_core::AccordionDynamicSchedule =
+        parse_json(dynamics_json, "dynamic section options", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::arrange_sections_with_dynamics(&score, accompaniment, dynamics))
+        .map_err(|error| js_err(format!("dynamic section arrangement serialization failed: {error}")))
+}
+
+/// Select accompaniment and melodic harmony independently over written measures.
+#[wasm_bindgen]
+pub fn arrange_sections_with_melodic_voices(
+    score_json: &str,
+    accompaniment_json: &str,
+    melodic_json: &str,
+) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let accompaniment: acorde_core::SectionedAccordionOptions =
+        parse_json(accompaniment_json, "sectioned arrangement options", MAX_OPTIONS_JSON_BYTES)?;
+    let melodic: acorde_core::AccordionMelodicSchedule =
+        parse_json(melodic_json, "melodic section options", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::arrange_sections_with_melodic_voices(&score, accompaniment, melodic))
+        .map_err(|error| js_err(format!("melodic section arrangement serialization failed: {error}")))
+}
+
+/// Add caller-selected chord-tone responses inside two-beat melody rests.
+#[wasm_bindgen]
+pub fn arrange_with_response_fills(
+    score_json: &str,
+    accompaniment_json: &str,
+    response_json: &str,
+) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let accompaniment: acorde_core::SectionedAccordionOptions =
+        parse_json(accompaniment_json, "sectioned arrangement options", MAX_OPTIONS_JSON_BYTES)?;
+    let response: acorde_core::AccordionResponseOptions =
+        parse_json(response_json, "response fill options", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::arrange_with_response_fills(&score, accompaniment, response))
+        .map_err(|error| js_err(format!("response fill serialization failed: {error}")))
+}
+
+/// Append a chordal accompaniment part to any supported multi-part score.
+#[wasm_bindgen]
+pub fn arrange_chordal_pad(score_json: &str, options_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let options: acorde_core::ChordalPadOptions =
+        parse_json(options_json, "chordal pad options", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::arrange_chordal_pad(&score, options))
+        .map_err(|error| js_err(format!("chordal pad serialization failed: {error}")))
+}
+
+/// Append an independent bass line to an existing score.
+#[wasm_bindgen]
+pub fn arrange_bass_line(score_json: &str, options_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let options: acorde_core::BassLineOptions =
+        parse_json(options_json, "bass line options", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::arrange_bass_line(&score, options))
+        .map_err(|error| js_err(format!("bass line serialization failed: {error}")))
+}
+
+/// Compose independently scheduled harmony, bass and countermelody parts.
+#[wasm_bindgen]
+pub fn arrange_ensemble_roles(score_json: &str, options_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let options: acorde_core::EnsembleRoleOptions =
+        parse_json(options_json, "ensemble role options", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::arrange_ensemble_roles(&score, options))
+        .map_err(|error| js_err(format!("ensemble role serialization failed: {error}")))
+}
+
+/// Build a performance copy with independently scheduled source-melody rests.
+#[wasm_bindgen]
+pub fn arrange_ensemble_with_melody(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::EnsembleMelodyRequest =
+        parse_json(request_json, "ensemble melody request", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::arrange_ensemble_with_melody(&score, request))
+        .map_err(|error| js_err(format!("ensemble melody serialization failed: {error}")))
+}
+
+/// Append a motif-derived countermelody part beneath a selected source melody.
+#[wasm_bindgen]
+pub fn arrange_countermelody(score_json: &str, options_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let options: acorde_core::CountermelodyOptions =
+        parse_json(options_json, "countermelody options", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::arrange_countermelody(&score, options))
+        .map_err(|error| js_err(format!("countermelody serialization failed: {error}")))
+}
+
+/// Return a bounded set of distinct, replayable whole-score arrangements.
+#[wasm_bindgen]
+pub fn suggest_arrangement_proposals(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::ArrangementProposalRequest =
+        parse_json(request_json, "arrangement proposal request", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::suggest_arrangement_proposals(&score, &request))
+        .map_err(|error| js_err(format!("arrangement proposal serialization failed: {error}")))
+}
+
+/// Rebuild one selected proposal from its resolved, source-bound contract.
+#[wasm_bindgen]
+pub fn replay_arrangement_proposal(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedArrangementProposal =
+        parse_json(resolved_json, "resolved arrangement proposal", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::replay_arrangement_proposal(&score, &resolved))
+        .map_err(|error| js_err(format!("arrangement proposal replay serialization failed: {error}")))
+}
+
+/// Replace selected generated measures while preserving source and locks.
+#[wasm_bindgen]
+pub fn regenerate_arrangement_region(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::ArrangementRegionRequest =
+        parse_json(request_json, "arrangement region request", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::regenerate_arrangement_region(&score, request))
+        .map_err(|error| js_err(format!("arrangement region serialization failed: {error}")))
+}
+
+/// Generate accompaniment sections and revoice only their free-bass block chords.
+#[wasm_bindgen]
+pub fn arrange_sections_with_voice_leading(score_json: &str, sections_json: &str, voicing_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let sections: acorde_core::SectionedAccordionOptions =
+        parse_json(sections_json, "sectioned arrangement options", MAX_OPTIONS_JSON_BYTES)?;
+    let voicing: acorde_core::AccordionVoicingOptions =
+        parse_json(voicing_json, "accompaniment voicing options", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::arrange_sections_with_voice_leading(&score, sections, voicing))
+        .map_err(|error| js_err(format!("voice-led sectioned arrangement serialization failed: {error}")))
+}
+
+/// Revoice free-bass block chords while preserving harmony, melody and rhythm.
+#[wasm_bindgen]
+pub fn arrange_with_voice_leading(score_json: &str, layers_json: &str, voicing_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let layers: acorde_core::LayeredAccordionOptions =
+        parse_json(layers_json, "layered arrangement options", MAX_OPTIONS_JSON_BYTES)?;
+    let voicing: acorde_core::AccordionVoicingOptions =
+        parse_json(voicing_json, "accompaniment voicing options", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::arrange_with_voice_leading(&score, layers, voicing))
+        .map_err(|error| js_err(format!("voice-led arrangement serialization failed: {error}")))
+}
+
 /// Sustain an explicitly selected bass note, with optional chord-based melodic layers.
 #[wasm_bindgen]
 pub fn arrange_with_drone(score_json: &str, options_json: &str) -> Result<String, JsValue> {
@@ -2088,6 +2250,29 @@ pub fn suggest_chord_plans(score_json: &str, request_json: &str) -> Result<Strin
         parse_json(request_json, "chord proposal", MAX_CHORD_PLAN_JSON_BYTES)?;
     serde_json::to_string(&acorde_core::suggest_chord_plans(&score, &request))
         .map_err(|error| js_err(format!("chord proposals serialization failed: {error}")))
+}
+
+/// Reharmonize while retaining selected zero-based source-plan entry indices.
+#[wasm_bindgen]
+pub fn suggest_chord_plans_at_positions(score_json: &str, request_json: &str, positions_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::ChordProposalRequest =
+        parse_json(request_json, "chord proposal", MAX_CHORD_PLAN_JSON_BYTES)?;
+    let positions: Vec<acorde_core::ChordPlanPosition> =
+        parse_json(positions_json, "harmonic positions", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::suggest_chord_plans_at_positions(&score, &request, &positions))
+        .map_err(|error| js_err(format!("positioned chord proposals serialization failed: {error}")))
+}
+
+/// Reharmonize while retaining selected zero-based source-plan entry indices.
+#[wasm_bindgen]
+pub fn suggest_chord_plans_with_locks(score_json: &str, request_json: &str, locks_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::ChordProposalRequest =
+        parse_json(request_json, "chord proposal", MAX_CHORD_PLAN_JSON_BYTES)?;
+    let locks: Vec<usize> = parse_json(locks_json, "chord locks", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::suggest_chord_plans_with_locks(&score, &request, &locks))
+        .map_err(|error| js_err(format!("locked chord proposals serialization failed: {error}")))
 }
 
 /// Assess each proposed harmony against the strict built-in preset engine.

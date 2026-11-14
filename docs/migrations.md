@@ -6,6 +6,26 @@ This page lists changes that can require consumer action. Release history is in
 otherwise, so stored score JSON remains readable. Rust consumers that use exhaustive `match` or
 struct literals must still update for added variants and fields.
 
+## Unreleased: opt-in accompaniment voicing
+
+The new `AccordionVoicingOptions` type now includes optional
+`min_melody_gap_semitones`. Rust callers using a complete literal must add
+`min_melody_gap_semitones: None` or use `..Default::default()`; JSON callers can
+continue omitting it. `AccordionVoicing` reports an optional
+`melody_ceiling_midi` with a serde default for old stored reports. Both fields
+are omitted when `None`, so disabled melody clearance preserves the previous
+JSON shape. See the [melody gap contract](accordion-layered-arrangement.md#keeping-block-chords-below-the-melody).
+
+## Unreleased: chord proposal generation v2
+
+New generated chord proposals use `conservative-v2`, `simplified-v2` and
+`jazz-color-v2` IDs and can differ musically from v1. Update host code that
+selects generated candidates by exact ID. `provided-v1`, request fields and
+contract version 1 are unchanged. Previously saved `ResolvedChordProposal`
+values replay their stored plan rather than regenerating it; this remains
+subject to the existing source-fingerprint check. See the
+[progression search contract](chord-plans.md#progression-search-v2).
+
 > **Published source-compatibility exception:** 1.2.19 added the public
 > `SvgRenderOptions::staff_gap` field. Complete external struct literals written for 1.2.18 no
 > longer compile in 1.2.19 or 1.2.20, despite the patch version. Pin `=1.2.18` or migrate the

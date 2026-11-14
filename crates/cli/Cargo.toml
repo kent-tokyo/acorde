@@ -35,6 +35,7 @@ schemars = "1.2.3"
 rmcp = { version = "3.8", features = ["client", "transport-child-process"] }
 tokio = { version = "1", features = ["rt", "macros", "process", "io-util"] }
 png = "0.18"
+sha2 = "0.11"
 
 [lints]
 workspace = true

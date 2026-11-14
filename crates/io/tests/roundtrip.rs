@@ -1995,6 +1995,244 @@ fn figured_bass_semantics_match_between_mei_and_musicxml() {
 
 #[cfg(feature = "mei")]
 #[test]
+fn scheduled_ensemble_roles_keep_playback_through_musicxml_and_mscz() {
+    use acorde_core::{
+        Duration, EnsembleMelodyRequest, EnsembleRole, EnsembleRoleOptions, MelodyRoleSection,
+        Note, Pitch, Score, arrange_ensemble_roles, arrange_ensemble_with_melody,
+    };
+
+    let mut source = Score::new("role export", 120, 4, 4, 0, 4);
+    for bar in &mut source.parts[0].staves[0].measures {
+        bar.voices[0] = vec![Note::new(Pitch::from_midi(79, false), Duration::Whole)];
+    }
+    source.parts[0].staves[0].measures[0].voices[0] = [84, 86, 88, 84]
+        .into_iter()
+        .map(|midi| Note::new(Pitch::from_midi(midi, false), Duration::Quarter))
+        .collect();
+    for bar in &mut source.parts[0].staves[0].measures[1..] {
+        bar.voices[0] = vec![Note::new(Pitch::from_midi(84, false), Duration::Whole)];
+    }
+    let chords = serde_json::json!([
+        {"measure_index":0,"offset_beats":0.0,"chord":{"root":"C","kind":"major"}},
+        {"measure_index":1,"offset_beats":0.0,"chord":{"root":"F","kind":"major"}},
+        {"measure_index":2,"offset_beats":0.0,"chord":{"root":"G","kind":"major"}},
+        {"measure_index":3,"offset_beats":0.0,"chord":{"root":"C","kind":"major"}}
+    ]);
+    let options: EnsembleRoleOptions = serde_json::from_value(serde_json::json!({
+        "harmony": {
+            "chords":chords,"pattern":"held","midi_program":48,
+            "low_midi":48,"center_midi":64,"high_midi":84
+        },
+        "bass": {
+            "chords":chords,"pattern":"root-fifth","midi_program":32,
+            "low_midi":28,"center_midi":40,"high_midi":60
+        },
+        "countermelody": {
+            "chords":chords,"melody_part_index":0,
+            "motif_start_measure":0,"motif_end_measure_exclusive":1,
+            "midi_program":73,"low_midi":75,"center_midi":77,"high_midi":80,
+            "min_melody_gap_semitones":4
+        },
+        "sections":[
+            {"role":"bass","start_measure":0,"end_measure_exclusive":1,"enabled":false},
+            {"role":"harmony","start_measure":1,"end_measure_exclusive":2,"enabled":false},
+            {"role":"countermelody","start_measure":2,"end_measure_exclusive":3,"enabled":false}
+        ],
+        "min_bass_harmony_gap_semitones":3,
+        "min_harmony_countermelody_gap_semitones":3
+    }))
+    .unwrap();
+    let arranged = arrange_ensemble_roles(&source, options.clone());
+    assert!(
+        arranged.diagnostics.is_empty(),
+        "{:?}",
+        arranged.diagnostics
+    );
+    let score = arranged.score.unwrap();
+    let signature = |score: &Score| {
+        let mut events = acorde_core::to_playback_events(score, &Default::default())
+            .into_iter()
+            .map(|event| {
+                (
+                    (event.time_beats * 480.0).round() as u64,
+                    (event.duration_beats * 480.0).round() as u64,
+                    event.pitch_midi,
+                )
+            })
+            .collect::<Vec<_>>();
+        events.sort();
+        events
+    };
+    let expected = signature(&score);
+    let xml = acorde_io::serialize_musicxml(&score).unwrap();
+    let from_xml = acorde_io::parse_musicxml(&xml).unwrap();
+    assert_eq!(from_xml.parts.len(), 4);
+    assert_eq!(signature(&from_xml), expected);
+    let mscz = acorde_io::serialize_mscz(&score).unwrap();
+    let from_mscz = acorde_io::parse_mscz(&mscz).unwrap();
+    assert_eq!(from_mscz.parts.len(), 4);
+    assert_eq!(signature(&from_mscz), expected);
+
+    let mut performance_options = options;
+    performance_options
+        .sections
+        .retain(|section| section.role != EnsembleRole::Countermelody);
+    let performance = arrange_ensemble_with_melody(
+        &source,
+        EnsembleMelodyRequest {
+            ensemble: performance_options,
+            melody_part_index: 0,
+            melody_staff_index: 0,
+            melody_sections: vec![MelodyRoleSection {
+                start_measure: 2,
+                end_measure_exclusive: 3,
+                enabled: false,
+            }],
+        },
+    );
+    assert!(
+        performance.diagnostics.is_empty(),
+        "{:?}",
+        performance.diagnostics
+    );
+    let performance = performance.score.unwrap();
+    assert!(
+        performance.parts[0].staves[0].measures[2].voices[0]
+            .iter()
+            .all(|note| note.is_rest)
+    );
+    assert!(
+        performance.parts[3].staves[0].measures[2].voices[0]
+            .iter()
+            .any(|note| !note.is_rest)
+    );
+    let expected = signature(&performance);
+    let xml = acorde_io::serialize_musicxml(&performance).unwrap();
+    assert_eq!(
+        signature(&acorde_io::parse_musicxml(&xml).unwrap()),
+        expected
+    );
+    let mscz = acorde_io::serialize_mscz(&performance).unwrap();
+    assert_eq!(signature(&acorde_io::parse_mscz(&mscz).unwrap()), expected);
+}
+
+#[cfg(all(feature = "musicxml", feature = "mscz"))]
+#[test]
+fn complete_arrangement_proposals_export_with_their_distinct_playback() {
+    use acorde_core::{
+        ArrangementProposalRequest, Duration, Note, Pitch, Score, suggest_arrangement_proposals,
+    };
+
+    let mut source = Score::new("proposal export", 120, 4, 4, 0, 4);
+    for bar in &mut source.parts[0].staves[0].measures {
+        bar.voices[0] = [84, 86, 88, 84]
+            .into_iter()
+            .map(|midi| Note::new(Pitch::from_midi(midi, false), Duration::Quarter))
+            .collect();
+    }
+    let request: ArrangementProposalRequest = serde_json::from_value(serde_json::json!({
+        "harmony":{},
+        "ensemble_template":{
+            "harmony":{
+                "chords":[],"pattern":"held","voicing":"smooth",
+                "midi_program":48,"low_midi":48,"center_midi":62,"high_midi":76,
+                "melody_part_index":0,"min_melody_gap_semitones":3
+            },
+            "bass":{
+                "chords":[],"pattern":"root-pulse","midi_program":32,
+                "low_midi":28,"center_midi":40,"high_midi":52
+            },
+            "min_bass_harmony_gap_semitones":3
+        },
+        "count":3
+    }))
+    .unwrap();
+    let proposals = suggest_arrangement_proposals(&source, &request);
+    assert!(
+        proposals.diagnostics.is_empty(),
+        "{:?}",
+        proposals.diagnostics
+    );
+    assert_eq!(proposals.candidates.len(), 3);
+    let events = |score: &Score| {
+        let mut events = acorde_core::to_playback_events(score, &Default::default())
+            .into_iter()
+            .map(|event| {
+                (
+                    (event.time_beats * 480.0).round() as u64,
+                    (event.duration_beats * 480.0).round() as u64,
+                    event.pitch_midi,
+                )
+            })
+            .collect::<Vec<_>>();
+        events.sort();
+        events
+    };
+    for candidate in proposals.candidates {
+        let expected = events(&candidate.score);
+        let musicxml = acorde_io::serialize_musicxml(&candidate.score).unwrap();
+        let from_musicxml = acorde_io::parse_musicxml(&musicxml).unwrap();
+        assert_eq!(
+            events(&from_musicxml),
+            expected,
+            "{} MusicXML",
+            candidate.id
+        );
+        let mscz = acorde_io::serialize_mscz(&candidate.score).unwrap();
+        let from_mscz = acorde_io::parse_mscz(&mscz).unwrap();
+        assert_eq!(events(&from_mscz), expected, "{} MSCZ", candidate.id);
+    }
+}
+
+#[test]
+fn arranged_extended_harmony_kinds_survive_musicxml_roundtrip() {
+    use acorde_core::{ChordSymbol, Duration, Note, Pitch, Score};
+
+    for kind in [
+        "suspended-second",
+        "suspended-fourth",
+        "major-add9",
+        "minor-add9",
+        "half-diminished",
+    ] {
+        let mut score = Score::new("extended harmony", 120, 4, 4, 0, 1);
+        let mut note = Note::new(Pitch::from_midi(72, false), Duration::Whole);
+        note.chord_symbol = Some(
+            serde_json::from_value::<ChordSymbol>(serde_json::json!({
+                "root": "C", "kind": kind
+            }))
+            .unwrap(),
+        );
+        score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+        let xml = acorde_io::serialize_musicxml(&score).unwrap();
+        if kind == "major-add9" {
+            assert!(xml.contains("<kind text=\"add9\">other</kind>"));
+        } else if kind == "minor-add9" {
+            assert!(xml.contains("<kind text=\"madd9\">other</kind>"));
+        }
+        let restored = acorde_io::parse_musicxml(&xml).unwrap();
+        assert_eq!(
+            restored.parts[0].staves[0].measures[0].voices[0][0]
+                .chord_symbol
+                .as_ref()
+                .unwrap()
+                .kind,
+            kind
+        );
+        let mscz = acorde_io::serialize_mscz(&score).unwrap();
+        let restored = acorde_io::parse_mscz(&mscz).unwrap();
+        assert_eq!(
+            restored.parts[0].staves[0].measures[0].voices[0][0]
+                .chord_symbol
+                .as_ref()
+                .unwrap()
+                .kind,
+            kind
+        );
+    }
+}
+
+#[test]
 fn harmony_function_semantics_match_between_mei_and_musicxml() {
     let mei = r##"<mei><music><body><mdiv><score><section><measure n="1"><harm startid="#n1" deg="V7" func="D" type="roman">C7</harm><staff n="1"><layer n="1"><note xml:id="n1" pname="c" oct="4" dur="4"/></layer></staff></measure></section></score></mdiv></body></music></mei>"##;
     let musicxml = SIMPLE_XML.replacen(

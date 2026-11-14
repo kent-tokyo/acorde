@@ -17,11 +17,25 @@ use super::chord_plan::{
 use super::notation::{ChordSymbol, KeySignature};
 use super::score::Score;
 
+mod progression;
+
+#[derive(Clone, Copy)]
+struct ProgressionSettings<'a> {
+    style: &'a str,
+    bass_mode: AccordionBassMode,
+    max_changed_spans: Option<u8>,
+    contextual_nonchord_tones: bool,
+}
+
 pub const CHORD_PROPOSAL_CONTRACT_VERSION: u16 = 1;
 /// Maximum number of written measures accepted for a chord proposal.
 pub const CHORD_PROPOSAL_MAX_MEASURES: usize = 512;
 const MAX_NOTES: usize = 8192;
 const MAX_CHANGES: usize = 512;
+
+fn is_false(value: &bool) -> bool {
+    !*value
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -30,6 +44,14 @@ pub struct ChordProposalRequest {
     pub bass_mode: AccordionBassMode,
     pub allow_jazz_color: bool,
     pub max_candidates: u8,
+    /// Maximum number of source-plan regions whose sounding chord may change.
+    /// `None` preserves unconstrained search; accepted values are 0..=16.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_changed_spans: Option<u8>,
+    /// Lower the harmony-search weight of short passing/neighboring notes and
+    /// suspensions that resolve by step after a harmonic boundary.
+    #[serde(skip_serializing_if = "is_false")]
+    pub contextual_nonchord_tones: bool,
 }
 
 impl Default for ChordProposalRequest {
@@ -39,6 +61,8 @@ impl Default for ChordProposalRequest {
             bass_mode: AccordionBassMode::FreeBass,
             allow_jazz_color: true,
             max_candidates: 4,
+            max_changed_spans: None,
+            contextual_nonchord_tones: false,
         }
     }
 }
@@ -66,6 +90,10 @@ pub struct ResolvedChordProposal {
     pub bass_mode: AccordionBassMode,
     pub allow_jazz_color: bool,
     pub max_candidates: u8,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_changed_spans: Option<u8>,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub contextual_nonchord_tones: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -209,7 +237,7 @@ fn diagnostic(code: &str, measure_index: Option<usize>) -> ChordProposalDiagnost
     }
 }
 
-fn fingerprint(score: &Score) -> Option<String> {
+pub(super) fn fingerprint(score: &Score) -> Option<String> {
     let bytes = serde_json::to_vec(score).ok()?;
     let hash = bytes.iter().fold(0xcbf29ce484222325u64, |hash, byte| {
         (hash ^ u64::from(*byte)).wrapping_mul(0x100000001b3)
@@ -219,11 +247,16 @@ fn fingerprint(score: &Score) -> Option<String> {
 
 #[derive(Clone, Copy)]
 struct MelodyEvent {
+    index: usize,
     measure: usize,
     onset: f64,
     end: f64,
     pitch_class: u8,
-    strong: bool,
+    midi: i16,
+    absolute_onset: f64,
+    absolute_end: f64,
+    tie_start: bool,
+    tie_end: bool,
 }
 
 fn melody_events(score: &Score) -> Result<Vec<MelodyEvent>, ChordProposalDiagnostic> {
@@ -236,6 +269,7 @@ fn melody_events(score: &Score) -> Result<Vec<MelodyEvent>, ChordProposalDiagnos
     }
     let mut events = Vec::new();
     let mut scanned = 0usize;
+    let mut measure_start = 0.0;
     for (measure_index, measure) in staff.measures.iter().enumerate() {
         if measure.voices.iter().skip(1).any(|voice| !voice.is_empty())
             || measure.measure_repeat.is_some()
@@ -265,11 +299,16 @@ fn melody_events(score: &Score) -> Result<Vec<MelodyEvent>, ChordProposalDiagnos
                     return Err(diagnostic("unsupported-melody", Some(measure_index)));
                 }
                 events.push(MelodyEvent {
+                    index: events.len(),
                     measure: measure_index,
                     onset,
                     end: onset + beats,
                     pitch_class: note.pitches[0].to_midi().rem_euclid(12) as u8,
-                    strong: onset <= 1e-9 || (onset.round() - onset).abs() < 1e-9,
+                    midi: note.pitches[0].to_midi(),
+                    absolute_onset: measure_start + onset,
+                    absolute_end: measure_start + onset + beats,
+                    tie_start: note.tie_start,
+                    tie_end: note.tie_end,
                 });
             }
             onset += beats;
@@ -277,6 +316,7 @@ fn melody_events(score: &Score) -> Result<Vec<MelodyEvent>, ChordProposalDiagnos
         if onset > measure_length + 1e-9 {
             return Err(diagnostic("overfull-measure", Some(measure_index)));
         }
+        measure_start += measure_length;
     }
     if events.is_empty() {
         return Err(diagnostic("silent-melody", None));
@@ -319,47 +359,11 @@ fn chord(root: u8, kind: &str, flats: bool) -> ChordSymbol {
 }
 
 fn root_pc(root: &str) -> Option<u8> {
-    let mut chars = root.chars();
-    let base: i16 = match chars.next()? {
-        'C' => 0,
-        'D' => 2,
-        'E' => 4,
-        'F' => 5,
-        'G' => 7,
-        'A' => 9,
-        'B' => 11,
-        _ => return None,
-    };
-    let alter = match chars.next() {
-        None => 0,
-        Some('#') => 1,
-        Some('b') => -1,
-        _ => return None,
-    };
-    if chars.next().is_some() {
-        return None;
-    }
-    Some((base + alter).rem_euclid(12) as u8)
+    super::arrange::accordion_pitch_class(root)
 }
 
 fn tones(symbol: &ChordSymbol) -> Option<Vec<u8>> {
-    let root = root_pc(&symbol.root)?;
-    let intervals: &[u8] = match symbol.kind.as_str() {
-        "major" => &[0, 4, 7],
-        "minor" => &[0, 3, 7],
-        "diminished" => &[0, 3, 6],
-        "augmented" => &[0, 4, 8],
-        "dominant" => &[0, 4, 7, 10],
-        "major-seventh" => &[0, 4, 7, 11],
-        "minor-seventh" => &[0, 3, 7, 10],
-        _ => return None,
-    };
-    Some(
-        intervals
-            .iter()
-            .map(|interval| (root + interval) % 12)
-            .collect(),
-    )
+    super::arrange::preset_chord_pitch_classes(symbol)
 }
 
 fn key_at(score: &Score, measure: usize) -> &KeySignature {
@@ -436,53 +440,6 @@ fn events_in_region(
         .collect()
 }
 
-fn choose_chord(
-    key: &KeySignature,
-    notes: &[MelodyEvent],
-    previous: Option<&ChordSymbol>,
-    final_region: bool,
-) -> Option<ChordSymbol> {
-    let home = tonic(key)?;
-    let choices = candidates_for_key(key, notes);
-    choices
-        .into_iter()
-        .enumerate()
-        .max_by_key(|(index, candidate)| {
-            let chord_tones = tones(candidate).unwrap_or_default();
-            let candidate_root = root_pc(&candidate.root);
-            let mut score = -(i32::try_from(*index).unwrap_or(0));
-            for note in notes {
-                let fit = chord_tones.contains(&note.pitch_class);
-                score += if fit {
-                    if note.strong { 10 } else { 5 }
-                } else if note.strong {
-                    -12
-                } else {
-                    -5
-                };
-                if note.strong && candidate_root == Some(note.pitch_class) {
-                    score += 6;
-                }
-            }
-            if let Some(prior_root) = previous.and_then(|prior| root_pc(&prior.root))
-                && let Some(root) = candidate_root
-            {
-                let distance = (root + 12 - prior_root) % 12;
-                score += match distance {
-                    0 => 2,
-                    5 | 7 => 2,
-                    2 | 10 => 1,
-                    _ => -2,
-                };
-            }
-            if final_region && candidate_root == Some(home) {
-                score += 14;
-            }
-            score
-        })
-        .map(|(_, chord)| chord)
-}
-
 fn anchors(score: &Score, source: Option<&ChordPlan>) -> Vec<ChordPlanPosition> {
     source.map_or_else(
         || {
@@ -520,39 +477,24 @@ fn generate_plan(
     score: &Score,
     events: &[MelodyEvent],
     source: Option<&ChordPlan>,
-    style: &str,
-) -> ChordPlan {
-    let positions = anchors(score, source);
+    settings: ProgressionSettings<'_>,
+    locked: &[Option<&ChordPlanEntry>],
+    positions_override: Option<&[ChordPlanPosition]>,
+) -> Option<ChordPlan> {
+    let positions =
+        positions_override.map_or_else(|| anchors(score, source), |items| items.to_vec());
+    let chosen =
+        progression::choose_progression(score, events, &positions, settings, locked, source)?;
     let mut entries: Vec<ChordPlanEntry> = Vec::new();
-    for (index, position) in positions.iter().enumerate() {
-        let end = positions
-            .get(index + 1)
-            .cloned()
-            .unwrap_or_else(|| end_position(score));
-        let notes = events_in_region(events, position, &end);
-        let key = key_at(score, position.measure_index);
+    for (index, (position, chosen)) in positions.iter().zip(chosen).enumerate() {
+        // Keep the explicit boundary and all provenance, even if simplified
+        // harmony would otherwise merge this entry with the preceding chord.
+        if let Some(Some(entry)) = locked.get(index) {
+            entries.push((*entry).clone());
+            continue;
+        }
         let previous = entries.last().map(|entry| &entry.chord);
-        let mut chosen = choose_chord(key, &notes, previous, index + 1 == positions.len())
-            .expect("validated key signature");
-        if style == "simplified"
-            && previous.is_some_and(|prior| {
-                tones(prior)
-                    .is_some_and(|tones| notes.iter().all(|note| tones.contains(&note.pitch_class)))
-            })
-        {
-            chosen = previous.expect("previous chord").clone();
-        }
-        if style == "jazz-color" {
-            let seventh = match chosen.kind.as_str() {
-                "major" => Some("major-seventh"),
-                "minor" => Some("minor-seventh"),
-                _ => None,
-            };
-            if let Some(kind) = seventh {
-                chosen.kind = kind.to_string();
-            }
-        }
-        if style == "simplified" && previous == Some(&chosen) {
+        if settings.style == "simplified" && previous == Some(&chosen) {
             continue;
         }
         let inherited = source
@@ -568,10 +510,10 @@ fn generate_plan(
             sources: inherited.map_or_else(Vec::new, |entry| entry.sources.clone()),
         });
     }
-    ChordPlan {
+    Some(ChordPlan {
         contract_version: CHORD_PLAN_CONTRACT_VERSION,
         entries,
-    }
+    })
 }
 
 fn changed_spans(
@@ -656,11 +598,21 @@ fn add_candidate(
         bass_mode: request.bass_mode,
         allow_jazz_color: request.allow_jazz_color,
         max_candidates: request.max_candidates,
+        max_changed_spans: request.max_changed_spans,
+        contextual_nonchord_tones: request.contextual_nonchord_tones,
     };
+    let mut reason_codes: Vec<String> =
+        reasons.iter().map(|reason| (*reason).to_string()).collect();
+    if request.max_changed_spans.is_some() {
+        reason_codes.push("bounded-harmony-change".into());
+    }
+    if request.contextual_nonchord_tones {
+        reason_codes.push("contextual-nonchord-tones".into());
+    }
     result.candidates.push(ChordProposalCandidate {
         id: id.to_string(),
         changed_spans: changed_spans(score, &plan, source),
-        reason_codes: reasons.iter().map(|reason| (*reason).to_string()).collect(),
+        reason_codes,
         plan,
         preset_selection: selection,
         resolved,
@@ -669,16 +621,125 @@ fn add_candidate(
 
 /// Return at most four selectable chord plans. Swing is selected independently by a preset.
 pub fn suggest_chord_plans(score: &Score, request: &ChordProposalRequest) -> ChordProposalResult {
+    suggest_chord_plans_impl(score, request, &[], None)
+}
+
+/// Generate harmony at caller-selected physical score positions. A source plan
+/// already owns its harmonic boundaries, so this API accepts melody-only input.
+pub fn suggest_chord_plans_at_positions(
+    score: &Score,
+    request: &ChordProposalRequest,
+    positions: &[ChordPlanPosition],
+) -> ChordProposalResult {
+    let mut rejected = ChordProposalResult {
+        contract_version: CHORD_PROPOSAL_CONTRACT_VERSION,
+        input_fingerprint: fingerprint(score).unwrap_or_default(),
+        candidates: Vec::new(),
+        diagnostics: Vec::new(),
+    };
+    if request.source_plan.is_some() {
+        rejected
+            .diagnostics
+            .push(diagnostic("positions-conflict-source-plan", None));
+        return rejected;
+    }
+    if positions.is_empty() || positions.len() > MAX_CHANGES {
+        rejected
+            .diagnostics
+            .push(diagnostic("invalid-harmonic-positions", None));
+        return rejected;
+    }
+    if !super::validate::validate(score).is_valid() {
+        rejected
+            .diagnostics
+            .push(diagnostic("invalid-source", None));
+        return rejected;
+    }
+    let count = score
+        .parts
+        .first()
+        .and_then(|part| part.staves.first())
+        .map_or(0, |staff| staff.measures.len());
+    if positions[0].measure_index != 0
+        || positions[0].offset != BeatFraction::ZERO
+        || positions
+            .windows(2)
+            .any(|pair| !position_cmp(&pair[0], &pair[1]).is_lt())
+        || positions.iter().any(|position| {
+            let offset = position.offset.beats();
+            position.measure_index >= count
+                || !position.offset.on_preset_grid()
+                || !offset.is_finite()
+                || offset < 0.0
+                || offset >= score.playback_measure_beats(position.measure_index)
+        })
+    {
+        rejected
+            .diagnostics
+            .push(diagnostic("invalid-harmonic-positions", None));
+        return rejected;
+    }
+    let mut result = suggest_chord_plans_impl(score, request, &[], Some(positions));
+    for candidate in &mut result.candidates {
+        candidate
+            .reason_codes
+            .push("caller-supplied-harmonic-rhythm".into());
+    }
+    result
+}
+
+/// Preserve selected source-plan entries while reharmonizing the other regions.
+/// Locks are zero-based indices into `request.source_plan.entries`, not measures.
+/// Each lock covers its entry through the next source entry (or the score end).
+/// Duplicate indices are harmless; invalid or unsupported locks yield no candidates.
+pub fn suggest_chord_plans_with_locks(
+    score: &Score,
+    request: &ChordProposalRequest,
+    locked_entries: &[usize],
+) -> ChordProposalResult {
+    let mut result = suggest_chord_plans_impl(score, request, locked_entries, None);
+    if !locked_entries.is_empty() {
+        for candidate in &mut result.candidates {
+            candidate.reason_codes.push("locked-source-harmony".into());
+        }
+    }
+    result
+}
+
+fn suggest_chord_plans_impl(
+    score: &Score,
+    request: &ChordProposalRequest,
+    locked_entries: &[usize],
+    positions_override: Option<&[ChordPlanPosition]>,
+) -> ChordProposalResult {
     let mut result = ChordProposalResult {
         contract_version: CHORD_PROPOSAL_CONTRACT_VERSION,
         input_fingerprint: fingerprint(score).unwrap_or_default(),
         candidates: Vec::new(),
         diagnostics: Vec::new(),
     };
+    if locked_entries.len() > MAX_CHANGES {
+        result
+            .diagnostics
+            .push(diagnostic("chord-lock-limit", None));
+        return result;
+    }
     if !(1..=4).contains(&request.max_candidates) {
         result
             .diagnostics
             .push(diagnostic("invalid-candidate-limit", None));
+        return result;
+    }
+    if request.max_changed_spans.is_some_and(|limit| limit > 16) {
+        result
+            .diagnostics
+            .push(diagnostic("invalid-change-budget", None));
+        return result;
+    }
+    if request.max_changed_spans.is_some() && request.source_plan.is_none() {
+        result
+            .diagnostics
+            .push(diagnostic("change-budget-requires-source-plan", None));
         return result;
     }
     if !super::validate::validate(score).is_valid() {
@@ -701,6 +762,13 @@ pub fn suggest_chord_plans(score: &Score, request: &ChordProposalRequest) -> Cho
         }
     }
     let source = request.source_plan.as_ref();
+    if !locked_entries.is_empty() && source.is_none() {
+        result
+            .diagnostics
+            .push(diagnostic("locks-require-source-plan", None));
+        return result;
+    }
+    let mut locked = Vec::new();
     if let Some(plan) = source {
         if plan.contract_version != CHORD_PLAN_CONTRACT_VERSION
             || plan.entries.is_empty()
@@ -743,6 +811,42 @@ pub fn suggest_chord_plans(score: &Score, request: &ChordProposalRequest) -> Cho
                 .push(diagnostic("invalid-source-plan", None));
             return result;
         }
+        if request.max_changed_spans.is_some()
+            && plan.entries.iter().any(|entry| {
+                !super::arrange::preset_chord_supported(&entry.chord, request.bass_mode)
+            })
+        {
+            result
+                .diagnostics
+                .push(diagnostic("change-budget-source-unsupported", None));
+            return result;
+        }
+        locked.resize(plan.entries.len(), None);
+        for &index in locked_entries {
+            let Some(entry) = plan.entries.get(index) else {
+                result
+                    .diagnostics
+                    .push(diagnostic("invalid-chord-lock", None));
+                return result;
+            };
+            if !super::arrange::preset_chord_supported(&entry.chord, request.bass_mode)
+                || tones(&entry.chord).is_none()
+            {
+                result.diagnostics.push(diagnostic(
+                    "locked-chord-unsupported",
+                    Some(entry.position.measure_index),
+                ));
+                return result;
+            }
+            if !entry.position.offset.on_preset_grid() {
+                result.diagnostics.push(diagnostic(
+                    "locked-chord-grid-unsupported",
+                    Some(entry.position.measure_index),
+                ));
+                return result;
+            }
+            locked[index] = Some(entry);
+        }
         add_candidate(
             &mut result,
             score,
@@ -756,29 +860,69 @@ pub fn suggest_chord_plans(score: &Score, request: &ChordProposalRequest) -> Cho
     if result.candidates.len() >= usize::from(request.max_candidates) {
         return result;
     }
-    let conservative = generate_plan(score, &events, source, "conservative");
+    let Some(conservative) = generate_plan(
+        score,
+        &events,
+        source,
+        ProgressionSettings {
+            style: "conservative",
+            bass_mode: request.bass_mode,
+            max_changed_spans: request.max_changed_spans,
+            contextual_nonchord_tones: request.contextual_nonchord_tones,
+        },
+        &locked,
+        positions_override,
+    ) else {
+        result
+            .diagnostics
+            .push(diagnostic("no-compatible-progression", None));
+        return result;
+    };
     add_candidate(
         &mut result,
         score,
-        "conservative-v1",
+        "conservative-v2",
         conservative,
         source,
         request,
-        &["melody-fit", "cadence-aware", "generated-proposal"],
+        &[
+            "duration-weighted-melody-fit",
+            "progression-context",
+            "cadence-aware",
+            "generated-proposal",
+        ],
     );
     if result.candidates.len() >= usize::from(request.max_candidates) {
         return result;
     }
-    let simplified = generate_plan(score, &events, source, "simplified");
+    let Some(simplified) = generate_plan(
+        score,
+        &events,
+        source,
+        ProgressionSettings {
+            style: "simplified",
+            bass_mode: request.bass_mode,
+            max_changed_spans: request.max_changed_spans,
+            contextual_nonchord_tones: request.contextual_nonchord_tones,
+        },
+        &locked,
+        positions_override,
+    ) else {
+        result
+            .diagnostics
+            .push(diagnostic("no-compatible-progression", None));
+        return result;
+    };
     add_candidate(
         &mut result,
         score,
-        "simplified-v1",
+        "simplified-v2",
         simplified,
         source,
         request,
         &[
-            "melody-fit",
+            "duration-weighted-melody-fit",
+            "progression-context",
             "reduce-compatible-changes",
             "generated-proposal",
         ],
@@ -788,15 +932,37 @@ pub fn suggest_chord_plans(score: &Score, request: &ChordProposalRequest) -> Cho
     }
     if request.allow_jazz_color {
         if request.bass_mode == AccordionBassMode::FreeBass {
-            let jazz = generate_plan(score, &events, source, "jazz-color");
+            let Some(jazz) = generate_plan(
+                score,
+                &events,
+                source,
+                ProgressionSettings {
+                    style: "jazz-color",
+                    bass_mode: request.bass_mode,
+                    max_changed_spans: request.max_changed_spans,
+                    contextual_nonchord_tones: request.contextual_nonchord_tones,
+                },
+                &locked,
+                positions_override,
+            ) else {
+                result
+                    .diagnostics
+                    .push(diagnostic("no-compatible-progression", None));
+                return result;
+            };
             add_candidate(
                 &mut result,
                 score,
-                "jazz-color-v1",
+                "jazz-color-v2",
                 jazz,
                 source,
                 request,
-                &["melody-fit", "seventh-color", "generated-proposal"],
+                &[
+                    "duration-weighted-melody-fit",
+                    "progression-context",
+                    "functional-sevenths",
+                    "generated-proposal",
+                ],
             );
         } else {
             result
@@ -969,7 +1135,7 @@ mod tests {
         let generated = result
             .candidates
             .iter()
-            .find(|candidate| candidate.id == "jazz-color-v1")
+            .find(|candidate| candidate.id == "jazz-color-v2")
             .expect("jazz proposal");
         assert!(
             generated
@@ -1066,7 +1232,7 @@ mod tests {
         let conservative = result
             .candidates
             .iter()
-            .find(|candidate| candidate.id == "conservative-v1")
+            .find(|candidate| candidate.id == "conservative-v2")
             .expect("conservative candidate");
         assert_eq!(
             conservative
@@ -1139,7 +1305,7 @@ mod tests {
             constrained
                 .candidates
                 .iter()
-                .all(|candidate| candidate.id != "jazz-color-v1")
+                .all(|candidate| candidate.id != "jazz-color-v2")
         );
         assert!(
             constrained
@@ -1208,7 +1374,7 @@ mod tests {
         let conservative = result
             .candidates
             .iter()
-            .find(|candidate| candidate.id == "conservative-v1")
+            .find(|candidate| candidate.id == "conservative-v2")
             .expect("conservative candidate");
         assert_eq!(
             conservative

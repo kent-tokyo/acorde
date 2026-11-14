@@ -179,6 +179,11 @@ fn realize_accordion_chord(symbol: &ChordSymbol) -> Option<RealizedAccordionChor
         "major-seventh" => &[0, 4, 7, 11],
         "minor-seventh" => &[0, 3, 7, 10],
         "dominant" => &[0, 4, 7, 10],
+        "suspended-second" => &[0, 2, 7],
+        "suspended-fourth" => &[0, 5, 7],
+        "major-add9" => &[0, 4, 7, 14],
+        "minor-add9" => &[0, 3, 7, 14],
+        "half-diminished" => &[0, 3, 6, 10],
         _ => return None,
     };
     Some(RealizedAccordionChord {
@@ -189,6 +194,16 @@ fn realize_accordion_chord(symbol: &ChordSymbol) -> Option<RealizedAccordionChor
             .map(|interval| 60 + root + interval)
             .collect(),
     })
+}
+
+pub(super) fn preset_chord_pitch_classes(symbol: &ChordSymbol) -> Option<Vec<u8>> {
+    Some(
+        realize_accordion_chord(symbol)?
+            .chord_midi
+            .iter()
+            .map(|midi| midi % 12)
+            .collect(),
+    )
 }
 
 pub(crate) fn preset_chord_supported(symbol: &ChordSymbol, bass_mode: AccordionBassMode) -> bool {
@@ -564,6 +579,16 @@ pub fn arrange_with_explicit_chords(
     score: &Score,
     options: GuidedAccordionOptions,
 ) -> GuidedAccordionResult {
+    arrange_with_pattern_schedule(score, options, None)
+}
+
+/// Internal schedule contains one effective pattern per physical measure.
+/// `None` means rests; callers validate the complete schedule before generation.
+pub(super) fn arrange_with_pattern_schedule(
+    score: &Score,
+    options: GuidedAccordionOptions,
+    patterns: Option<&[Option<AccordionPattern>]>,
+) -> GuidedAccordionResult {
     if score.parts.len() != 1 || score.parts[0].staves.len() != 1 {
         return guided_error(
             options,
@@ -573,6 +598,14 @@ pub fn arrange_with_explicit_chords(
         );
     }
     let source_staff = &score.parts[0].staves[0];
+    if patterns.is_some_and(|patterns| patterns.len() != source_staff.measures.len()) {
+        return guided_error(
+            options,
+            "invalid-pattern-schedule",
+            "expected one pattern per measure",
+            None,
+        );
+    }
     if source_staff.measures.is_empty() || source_staff.measures.len() > 2048 {
         return guided_error(
             options,
@@ -665,21 +698,32 @@ pub fn arrange_with_explicit_chords(
     let mut left = Staff::new(Clef::Bass);
     let mut generated_notes = Vec::new();
     let mut current_chord: Option<RealizedAccordionChord> = None;
-    let is_waltz = matches!(
-        options.pattern,
-        AccordionPattern::WaltzBassChord | AccordionPattern::WaltzAlternatingBassChord
-    );
-    let has_waltz_pickup = is_waltz && length_ticks.first().is_some_and(|length| *length < 3 * 64);
-    let is_two_four_pattern = matches!(
-        options.pattern,
-        AccordionPattern::FineBassChord | AccordionPattern::Habanera
-    );
-    let is_driving = matches!(
-        options.pattern,
-        AccordionPattern::DrivingBassChord | AccordionPattern::DrivingBassChordLight
-    );
     let mut running_meter = score.settings.time_signature.clone();
+    let mut pattern_start = 0;
     for (index, source_measure) in source_staff.measures.iter().enumerate() {
+        let active_pattern = patterns.map_or(Some(options.pattern), |patterns| patterns[index]);
+        if let Some(patterns) = patterns
+            && index > 0
+            && patterns[index - 1] != active_pattern
+        {
+            pattern_start = index;
+        }
+        let pattern = active_pattern.unwrap_or(AccordionPattern::HeldBassChord);
+        let is_waltz = matches!(
+            pattern,
+            AccordionPattern::WaltzBassChord | AccordionPattern::WaltzAlternatingBassChord
+        );
+        let has_waltz_pickup = is_waltz
+            && pattern_start == 0
+            && length_ticks.first().is_some_and(|length| *length < 3 * 64);
+        let is_two_four_pattern = matches!(
+            pattern,
+            AccordionPattern::FineBassChord | AccordionPattern::Habanera
+        );
+        let is_driving = matches!(
+            pattern,
+            AccordionPattern::DrivingBassChord | AccordionPattern::DrivingBassChordLight
+        );
         if let Some(meter) = source_measure.time_sig.as_ref() {
             running_meter = meter.clone();
         }
@@ -768,7 +812,8 @@ pub fn arrange_with_explicit_chords(
         };
         // The pickup fills the end of an implied bar but does not advance the
         // root/fifth alternation. The first complete bar always starts on root bass.
-        let waltz_fifth_bass = index.saturating_sub(usize::from(has_waltz_pickup)) % 2 == 1;
+        let waltz_fifth_bass =
+            (index - pattern_start).saturating_sub(usize::from(has_waltz_pickup)) % 2 == 1;
         regions[index].sort_by_key(|(offset, _)| *offset);
         if regions[index]
             .windows(2)
@@ -814,21 +859,26 @@ pub fn arrange_with_explicit_chords(
                             .map(|(_, next)| next.bass_midi)
                     })
                 });
-            let Some(mut notes) = guided_region(
-                options.pattern,
-                chord,
-                *start,
-                end - start,
-                next_bass,
-                GuidedRegionPhase {
-                    pickup_tick: pickup_phase_tick,
-                    waltz_fifth_bass,
-                    nine_eight,
-                },
-            ) else {
+            let region_notes = if active_pattern.is_some() {
+                guided_region(
+                    pattern,
+                    chord,
+                    *start,
+                    end - start,
+                    next_bass,
+                    GuidedRegionPhase {
+                        pickup_tick: pickup_phase_tick,
+                        waltz_fifth_bass,
+                        nine_eight,
+                    },
+                )
+            } else {
+                guided_rest_region(end - start)
+            };
+            let Some(mut notes) = region_notes else {
                 let message = if nine_eight
                     && matches!(
-                        options.pattern,
+                        pattern,
                         AccordionPattern::BassChordPulse
                             | AccordionPattern::AlternatingBassChord
                             | AccordionPattern::OffbeatChords
@@ -949,6 +999,20 @@ pub fn arrange_with_explicit_chords(
         generated_notes,
         contract_version: 1,
     }
+}
+
+fn guided_rest_region(mut ticks: u32) -> Option<Vec<Note>> {
+    let mut rests = Vec::new();
+    while ticks > 0 {
+        let duration = Duration::whole_filling_beats(f64::from(ticks) / GRID);
+        let filled = (duration.beats(0) * GRID).round() as u32;
+        if filled == 0 || filled > ticks {
+            return None;
+        }
+        rests.push(Note::rest(duration));
+        ticks -= filled;
+    }
+    Some(rests)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -1343,7 +1407,7 @@ fn resolve_layered_chords(
     Ok(())
 }
 
-fn chord_at_note(
+pub(super) fn chord_at_note(
     chords: &[PositionedAccordionChord],
     measure_index: usize,
     offset_beats: f64,
@@ -1382,6 +1446,84 @@ fn harmony_voice_pitch(
                     .any(|tone| i16::from(*tone % 12) == candidate.rem_euclid(12))
         })
         .max()
+}
+
+/// Add one right-hand harmony voice according to the written-measure schedule.
+/// A rest fills measures without harmony so the second voice stays aligned.
+pub(super) fn add_scheduled_melodic_voice(
+    output: &mut Score,
+    chords: &[PositionedAccordionChord],
+    voices: &[AccordionMelodicVoice],
+    generated_notes: &mut Vec<NoteAddr>,
+) -> Result<(), (usize, &'static str, &'static str)> {
+    if voices
+        .iter()
+        .all(|voice| *voice == AccordionMelodicVoice::Unchanged)
+    {
+        return Ok(());
+    }
+    for (measure_index, measure) in output.parts[0].staves[0].measures.iter_mut().enumerate() {
+        let selected = voices[measure_index];
+        let mut offset = 0.0;
+        let mut voice = Vec::new();
+        for source_note in &measure.voices[0] {
+            let mut added = if source_note.is_rest || selected == AccordionMelodicVoice::Unchanged {
+                Note::rest(source_note.duration.clone())
+            } else {
+                Note::new(source_note.pitches[0].clone(), source_note.duration.clone())
+            };
+            added.dot_count = source_note.dot_count;
+            added.tuplet = source_note.tuplet.clone();
+            added.tuplet_boundary = source_note.tuplet_boundary;
+            added.beam = source_note.beam;
+            added.articulations = source_note.articulations.clone();
+            added.dynamic = source_note.dynamic;
+            added.is_grace = source_note.is_grace;
+            added.grace_slash = source_note.grace_slash;
+            added.is_cue = source_note.is_cue;
+            if selected == AccordionMelodicVoice::OctaveBelow && !source_note.is_rest {
+                added.tie_start = source_note.tie_start;
+                added.tie_end = source_note.tie_end;
+            }
+            if !added.is_rest {
+                let Some(chord) = chord_at_note(chords, measure_index, offset) else {
+                    return Err((
+                        measure_index,
+                        "missing-chords",
+                        "no chord covers a melody note",
+                    ));
+                };
+                let Some(target) =
+                    harmony_voice_pitch(source_note.pitches[0].to_midi(), chord, selected)
+                else {
+                    return Err((
+                        measure_index,
+                        "incompatible-harmony",
+                        "no chord tone fits the requested melodic interval",
+                    ));
+                };
+                if !(GUIDED_RIGHT_HAND_RANGE.0..=GUIDED_RIGHT_HAND_RANGE.1).contains(&target) {
+                    return Err((
+                        measure_index,
+                        "out-of-range",
+                        "added melodic voice exceeds the right-hand range",
+                    ));
+                }
+                added.pitches[0] = Pitch::from_midi(target as u8, false);
+                generated_notes.push(NoteAddr {
+                    part: 0,
+                    staff: 0,
+                    measure: measure_index,
+                    voice: 1,
+                    note: voice.len(),
+                });
+            }
+            offset += source_note.beats();
+            voice.push(added);
+        }
+        measure.voices[1] = voice;
+    }
+    Ok(())
 }
 
 /// Compose explicit harmony, accompaniment and an optional added melodic voice.
@@ -1520,71 +1662,11 @@ pub fn arrange_with_layers(
         }
         generated_notes.clear();
     }
-    if options.melodic_voice != AccordionMelodicVoice::Unchanged {
-        for (measure_index, measure) in output.parts[0].staves[0].measures.iter_mut().enumerate() {
-            let mut offset = 0.0;
-            let mut voice = Vec::new();
-            for source_note in &measure.voices[0] {
-                let mut added = if source_note.is_rest {
-                    Note::rest(source_note.duration.clone())
-                } else {
-                    Note::new(source_note.pitches[0].clone(), source_note.duration.clone())
-                };
-                added.dot_count = source_note.dot_count;
-                added.tuplet = source_note.tuplet.clone();
-                added.tuplet_boundary = source_note.tuplet_boundary;
-                added.beam = source_note.beam;
-                added.articulations = source_note.articulations.clone();
-                added.dynamic = source_note.dynamic;
-                added.is_grace = source_note.is_grace;
-                added.grace_slash = source_note.grace_slash;
-                added.is_cue = source_note.is_cue;
-                if options.melodic_voice == AccordionMelodicVoice::OctaveBelow {
-                    added.tie_start = source_note.tie_start;
-                    added.tie_end = source_note.tie_end;
-                }
-                if !source_note.is_rest {
-                    let Some(chord) = chord_at_note(&resolved_chords, measure_index, offset) else {
-                        return layered_error(
-                            options,
-                            "missing-chords",
-                            "no chord covers a melody note",
-                            Some(measure_index),
-                        );
-                    };
-                    let source_midi = source_note.pitches[0].to_midi();
-                    let Some(target) =
-                        harmony_voice_pitch(source_midi, chord, options.melodic_voice)
-                    else {
-                        return layered_error(
-                            options,
-                            "incompatible-harmony",
-                            "no chord tone fits the requested melodic interval",
-                            Some(measure_index),
-                        );
-                    };
-                    if !(GUIDED_RIGHT_HAND_RANGE.0..=GUIDED_RIGHT_HAND_RANGE.1).contains(&target) {
-                        return layered_error(
-                            options,
-                            "out-of-range",
-                            "added melodic voice exceeds the right-hand range",
-                            Some(measure_index),
-                        );
-                    }
-                    added.pitches[0] = Pitch::from_midi(target as u8, false);
-                    generated_notes.push(NoteAddr {
-                        part: 0,
-                        staff: 0,
-                        measure: measure_index,
-                        voice: 1,
-                        note: voice.len(),
-                    });
-                }
-                offset += source_note.beats();
-                voice.push(added);
-            }
-            measure.voices[1] = voice;
-        }
+    let voices = vec![options.melodic_voice; output.parts[0].staves[0].measures.len()];
+    if let Err((measure, code, message)) =
+        add_scheduled_melodic_voice(&mut output, &resolved_chords, &voices, &mut generated_notes)
+    {
+        return layered_error(options, code, message, Some(measure));
     }
     let validation = super::validate::validate(&output);
     if !validation.is_valid() {
