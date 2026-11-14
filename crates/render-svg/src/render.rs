@@ -5585,8 +5585,10 @@ fn render_cross_measure_lyric_hyphens(
                             continue;
                         }
                         let mut next = None;
-                        for next_measure_index in measure_index..staff.measures.len() {
-                            let next_voice = &staff.measures[next_measure_index].voices;
+                        for (next_measure_index, following_measure) in
+                            staff.measures.iter().enumerate().skip(measure_index)
+                        {
+                            let next_voice = &following_measure.voices;
                             let Some(next_notes) = next_voice.get(voice_index) else {
                                 continue;
                             };
@@ -5703,10 +5705,10 @@ fn render_lyric_extenders(
                         };
                         // The last note of the melisma that sits on the same system.
                         let mut end = None;
-                        'melisma: for next_measure in measure_index..staff.measures.len() {
-                            let Some(next_voice) =
-                                staff.measures[next_measure].voices.get(voice_index)
-                            else {
+                        'melisma: for (next_measure, following_measure) in
+                            staff.measures.iter().enumerate().skip(measure_index)
+                        {
+                            let Some(next_voice) = following_measure.voices.get(voice_index) else {
                                 break;
                             };
                             let skip = if next_measure == measure_index {
@@ -11492,14 +11494,14 @@ mod tests {
     #[test]
     fn shared_lyric_lane_moves_overlapping_voice_text_downward() {
         let mut measure = Measure::empty(4, 4);
-        for voice_index in 0..2 {
+        for voice in measure.voices.iter_mut().take(2) {
             let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
             note.lyric = Some(Lyric {
                 text: "same lyric".into(),
                 syllabic: "single".into(),
                 extend: false,
             });
-            measure.voices[voice_index] = vec![note];
+            *voice = vec![note];
         }
         let mut note_points = HashMap::new();
         note_points.insert((0, 0, 0, 0, 0), (100.0, 200.0, true, 0));
@@ -11541,7 +11543,7 @@ mod tests {
     #[test]
     fn shared_dynamic_and_chord_lanes_separate_overlapping_voice_text() {
         let mut measure = Measure::empty(4, 4);
-        for voice_index in 0..2 {
+        for voice in measure.voices.iter_mut().take(2) {
             let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
             note.dynamic = Some(Dynamic::Mf);
             note.chord_symbol = Some(ChordSymbol {
@@ -11557,7 +11559,7 @@ mod tests {
                 range_end: None,
                 degrees: Vec::new(),
             });
-            measure.voices[voice_index] = vec![note];
+            *voice = vec![note];
         }
         let mut note_points = HashMap::new();
         note_points.insert((0, 0, 0, 0, 0), (100.0, 200.0, true, 0));
@@ -11700,10 +11702,10 @@ mod tests {
     #[test]
     fn shared_articulation_lane_separates_overlapping_voice_marks() {
         let mut measure = Measure::empty(4, 4);
-        for voice_index in 0..2 {
+        for voice in measure.voices.iter_mut().take(2) {
             let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
             note.articulations.push(Articulation::Staccato);
-            measure.voices[voice_index] = vec![note];
+            *voice = vec![note];
         }
         let mut note_points = HashMap::new();
         note_points.insert((0, 0, 0, 0, 0), (100.0, 200.0, true, 0));

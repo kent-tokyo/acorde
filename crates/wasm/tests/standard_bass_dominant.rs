@@ -127,3 +127,47 @@ fn profiled_plan_passes_actual_buttons_to_pulse() {
     assert_eq!(pulse.actions[0].sounding_midi, [36]);
     assert_eq!(pulse.actions[1].sounding_midi, [64, 67, 71]);
 }
+
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
+#[cfg_attr(not(target_arch = "wasm32"), test)]
+fn simultaneous_button_annotation_renders_without_changing_sound() {
+    use acorde_core::model::standard_bass_arrangement::StandardBassArrangementResult;
+    use acorde_core::to_playback_events;
+    let source = acorde_wasm::parse_abc("X:1\nM:4/4\nL:1/4\nK:C\nC D E F|]\n").unwrap();
+    let options = serde_json::json!({"melody_part":0,"melody_staff":0,"melody_voice":0,"allow_source_omissions":false,"chords":[{"measure_index":0,"offset_beats":0,"chord":{"root":"C","kind":"major-seventh"}}],"profile":{"bass_buttons":[{"id":"C bass","position":0,"midi":36}],"chord_buttons":[{"id":"Em chord","position":0,"midi":[64,67,71]}],"max_distance":0},"allow_chord_omissions":false,"allow_chord_additions":false}).to_string();
+    let normal: StandardBassArrangementResult =
+        serde_json::from_str(&acorde_wasm::arrange_standard_bass(&source, &options).unwrap())
+            .unwrap();
+    let annotated: StandardBassArrangementResult = serde_json::from_str(
+        &acorde_wasm::arrange_standard_bass_with_annotations(&source, &options).unwrap(),
+    )
+    .unwrap();
+    assert!(
+        annotated.diagnostics.is_empty(),
+        "{:?}",
+        annotated.diagnostics
+    );
+    let score = annotated.score.unwrap();
+    let svg = acorde_wasm::render_score_svg(&serde_json::to_string(&score).unwrap(), "{}").unwrap();
+    assert!(svg.contains("C bass + Em chord"));
+    let fingerprint = |s: &acorde_core::Score| {
+        to_playback_events(s, &Default::default())
+            .into_iter()
+            .map(|e| (e.pitch_midi, e.time_beats, e.duration_beats))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(fingerprint(&normal.score.unwrap()), fingerprint(&score));
+    let score_json = serde_json::to_string(&score).unwrap();
+    #[cfg(feature = "musicxml")]
+    {
+        let xml = acorde_wasm::serialize_musicxml(&score_json).unwrap();
+        assert!(xml.contains("C bass + Em chord"));
+        let parsed: acorde_core::Score =
+            serde_json::from_str(&acorde_wasm::parse_musicxml(&xml).unwrap()).unwrap();
+        assert_eq!(fingerprint(&score), fingerprint(&parsed));
+    }
+    let mscz = acorde_wasm::serialize_mscz(&score_json).unwrap();
+    let parsed_mscz: acorde_core::Score =
+        serde_json::from_str(&acorde_wasm::parse_mscz(&mscz).unwrap()).unwrap();
+    assert_eq!(fingerprint(&score), fingerprint(&parsed_mscz));
+}
