@@ -1,6 +1,6 @@
 # Documentation guide
 
-The latest published release is [v1.3.11](https://github.com/kent-tokyo/acorde/releases/tag/v1.3.11).
+The latest published release is [v1.3.12](https://github.com/kent-tokyo/acorde/releases/tag/v1.3.12).
 These documents generally describe the repository's current `main`; features listed under
 [Unreleased](../CHANGELOG.md#unreleased) require a build from that revision or a later release.
 For a release claim, check its tag, CI, registry, and artifacts separately.

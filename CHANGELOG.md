@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## 1.3.12 - 2026-11-14
+
+- Add `arrange_standard_bass_with_annotations` in Rust and full/viewer WASM. It
+  labels each new simultaneous bass/chord attack with caller-supplied button IDs,
+  skips tied continuations, and preserves the source score, chord symbols and
+  playback timing. The labels do not certify fingering or physical reach.
+- Update `wasm-bindgen-test` to 0.3.80, `rmcp` to 3.9.0 and `zip` to 9.4.0.
+  Release WASM builds now use `wasm-opt -Oz` to keep the artifact within the
+  existing size budget. Rust 1.89 remains the minimum; Rust 1.100 Clippy
+  findings were fixed without changing the affected loops' order.
+- **Migration:** Preset and free-layer engine markers include the workspace
+  version. Reselect saved inputs to create 1.3.12 markers before replaying
+  them. The new annotation API is opt-in; see the
+  [migration notes](docs/migrations.md).
+
 ## 1.3.11 - 2026-11-07
 
 - **Migration:** Rust 1.89 remains the minimum. Saved preset and free-layer
