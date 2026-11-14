@@ -4855,9 +4855,8 @@ mod tests {
     fn loop_region_filters_measures() {
         // 3 measures; notes in measures 0, 1, 2. Loop on [1,2] → only events from 1,2.
         let mut score = Score::new("T", 120, 4, 4, 0, 3);
-        for mi in 0..3 {
-            score.parts[0].staves[0].measures[mi].voices[0] =
-                vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
+        for measure in &mut score.parts[0].staves[0].measures {
+            measure.voices[0] = vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
         }
         let options = PlaybackOptions {
             loop_region: Some((1, 2)),
@@ -4872,9 +4871,8 @@ mod tests {
     #[test]
     fn loop_region_none_plays_all_measures() {
         let mut score = Score::new("T", 120, 4, 4, 0, 3);
-        for mi in 0..3 {
-            score.parts[0].staves[0].measures[mi].voices[0] =
-                vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
+        for measure in &mut score.parts[0].staves[0].measures {
+            measure.voices[0] = vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
         }
         let events = to_playback_events(&score, &opts(None));
         assert_eq!(events.len(), 3);

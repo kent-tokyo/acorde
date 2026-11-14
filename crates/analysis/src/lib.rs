@@ -2908,8 +2908,8 @@ mod tests {
     #[test]
     fn chord_region_keeps_outside_results_and_refreshes_inside() {
         let mut score = Score::default();
-        for measure_index in 0..2 {
-            let voice = &mut score.parts[0].staves[0].measures[measure_index].voices[0];
+        for measure in score.parts[0].staves[0].measures.iter_mut().take(2) {
+            let voice = &mut measure.voices[0];
             voice.clear();
             for step in [Step::C, Step::E, Step::G] {
                 voice.push(Note::new(Pitch::new(step, 4), Duration::Quarter));
@@ -2970,8 +2970,8 @@ mod tests {
     #[test]
     fn interval_region_includes_boundary_observations() {
         let mut score = Score::default();
-        for measure_index in 0..2 {
-            let voice = &mut score.parts[0].staves[0].measures[measure_index].voices[0];
+        for measure in score.parts[0].staves[0].measures.iter_mut().take(2) {
+            let voice = &mut measure.voices[0];
             voice.clear();
             voice.push(Note::new(Pitch::new(Step::C, 4), Duration::Quarter));
             voice.push(Note::new(Pitch::new(Step::D, 4), Duration::Quarter));
@@ -2990,8 +2990,7 @@ mod tests {
     #[test]
     fn voice_leading_region_limits_measure_traversal() {
         let mut score = Score::default();
-        for measure_index in 0..2 {
-            let measure = &mut score.parts[0].staves[0].measures[measure_index];
+        for measure in score.parts[0].staves[0].measures.iter_mut().take(2) {
             measure.voices[0].clear();
             measure.voices[1].clear();
             measure.voices[0].push(Note::new(Pitch::new(Step::C, 4), Duration::Quarter));

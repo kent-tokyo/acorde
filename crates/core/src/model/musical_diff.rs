@@ -630,8 +630,11 @@ mod tests {
         ]);
         let mut current = reference.clone();
         current.parts[0].staves[0].measures[0].voices[0][0].duration = Duration::Quarter;
-        for index in 0..2 {
-            current.parts[0].staves[0].measures[0].voices[0][index].tuplet = Some(TupletInfo {
+        for note in current.parts[0].staves[0].measures[0].voices[0]
+            .iter_mut()
+            .take(2)
+        {
+            note.tuplet = Some(TupletInfo {
                 actual_notes: 3,
                 normal_notes: 2,
             });
