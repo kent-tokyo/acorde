@@ -163,7 +163,12 @@ Next analysis gates, in order:
 2. Add local-key and modulation positions to the harmony contract. Preserve
    absolute score addresses, compare both tools against human annotations,
    and measure coverage as well as exact labels. The current Roman-position
-   win does not test local-key transitions.
+   win does not test local-key transitions. An opt-in [development diagnostic](docs/archive/analysis-wir-local-key-development-v1.md)
+   now estimates one key per physical measure from a centered window. At the
+   radius selected on 24 inspected works, it matches 2,325/3,405 annotated
+   local keys; this is not a music21 local-key comparison. Add source-beat
+   positions, within-measure transitions, transposition and alternate-bar
+   handling before freezing a paired local-key holdout.
 3. Build a cadence task from independently annotated scores. The
    [Mozart cadence input preflight](docs/archive/analysis-mozart-cadence-preflight-v1.md)
    freezes 36 MusicXML/cadence-CSV movement pairs from the

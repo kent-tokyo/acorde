@@ -461,6 +461,18 @@ pub struct KeyEstimate {
     pub evidence: Vec<NoteAddr>,
 }
 
+/// Opt-in local key estimate for one physical measure and a centered measure window.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct LocalKeyEstimate {
+    pub measure: usize,
+    pub window_start: usize,
+    pub window_end_exclusive: usize,
+    pub key: KeySignature,
+    /// Pearson correlation with the duration-weighted pitch-class profile, not a probability.
+    pub profile_correlation: f64,
+    pub rule_id: String,
+}
+
 /// A cadence transition inferred only from adjacent, explicitly labeled chords.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CadenceCandidate {
@@ -3488,6 +3500,142 @@ fn rank_key_estimates_by_tonal_profile(
     true
 }
 
+/// Estimate a key for each physical measure from a centered pitch-class window.
+///
+/// `radius` counts measures on either side. Durations in all parts and staves
+/// contribute equally; the first staff's written key signature breaks ties
+/// between enharmonic spellings. The result has one position per measure, so
+/// it cannot resolve a modulation within a measure. Empty or uniform windows
+/// yield no estimate. The correlation is not a confidence probability.
+pub fn estimate_local_keys_with_aarden_essen_profile(
+    score: &Score,
+    radius: usize,
+) -> Vec<LocalKeyEstimate> {
+    let measure_count = score
+        .parts
+        .iter()
+        .flat_map(|part| &part.staves)
+        .map(|staff| staff.measures.len())
+        .max()
+        .unwrap_or(0);
+    let mut histograms = vec![[0.0_f64; 12]; measure_count];
+    for part in &score.parts {
+        for staff in &part.staves {
+            for (index, measure) in staff.measures.iter().enumerate() {
+                for voice in &measure.voices {
+                    for note in voice {
+                        if note.is_rest || note.is_unpitched {
+                            continue;
+                        }
+                        let beats = note.beats();
+                        if !beats.is_finite() || beats <= 0.0 {
+                            continue;
+                        }
+                        for pitch in &note.pitches {
+                            if pitch.microtone_cents == 0 {
+                                histograms[index][pitch.to_midi().rem_euclid(12) as usize] += beats;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    let written_measures = score
+        .parts
+        .first()
+        .and_then(|part| part.staves.first())
+        .map(|staff| staff.measures.as_slice())
+        .unwrap_or(&[]);
+    let mut reference_fifths = 0_i8;
+    let mut estimates = Vec::with_capacity(measure_count);
+    for measure in 0..measure_count {
+        if let Some(key) = written_measures
+            .get(measure)
+            .and_then(|written| written.key_sig.as_ref())
+        {
+            reference_fifths = key.fifths;
+        }
+        let start = measure.saturating_sub(radius);
+        let end = measure
+            .saturating_add(radius)
+            .saturating_add(1)
+            .min(measure_count);
+        let mut observed = [0.0_f64; 12];
+        for histogram in &histograms[start..end] {
+            for (class, weight) in histogram.iter().enumerate() {
+                observed[class] += weight;
+            }
+        }
+        let observed_mean = observed.iter().sum::<f64>() / 12.0;
+        let observed_variance = observed
+            .iter()
+            .map(|weight| (weight - observed_mean).powi(2))
+            .sum::<f64>();
+        if observed_variance <= 0.0 {
+            continue;
+        }
+        let mut best: Option<(f64, i8, &str)> = None;
+        for fifths in -7_i8..=7 {
+            for mode in ["major", "minor"] {
+                let weights = if mode == "minor" {
+                    &AARDEN_ESSEN_MINOR
+                } else {
+                    &AARDEN_ESSEN_MAJOR
+                };
+                let tonic = (i32::from(fifths) * 7 + if mode == "minor" { 9 } else { 0 })
+                    .rem_euclid(12) as usize;
+                let profile_mean = weights.iter().sum::<f64>() / 12.0;
+                let profile_variance = weights
+                    .iter()
+                    .map(|weight| (weight - profile_mean).powi(2))
+                    .sum::<f64>();
+                let covariance = observed
+                    .iter()
+                    .enumerate()
+                    .map(|(class, weight)| {
+                        (weight - observed_mean)
+                            * (weights[(class + 12 - tonic) % 12] - profile_mean)
+                    })
+                    .sum::<f64>();
+                let correlation = covariance / (observed_variance * profile_variance).sqrt();
+                let better = best.is_none_or(|(best_correlation, best_fifths, best_mode)| {
+                    correlation.total_cmp(&best_correlation).is_gt()
+                        || (correlation.total_cmp(&best_correlation).is_eq()
+                            && (
+                                (i16::from(fifths) - i16::from(reference_fifths)).abs(),
+                                i16::from(fifths).abs(),
+                                fifths,
+                                std::cmp::Reverse(mode),
+                            ) < (
+                                (i16::from(best_fifths) - i16::from(reference_fifths)).abs(),
+                                i16::from(best_fifths).abs(),
+                                best_fifths,
+                                std::cmp::Reverse(best_mode),
+                            ))
+                });
+                if better {
+                    best = Some((correlation, fifths, mode));
+                }
+            }
+        }
+        if let Some((profile_correlation, fifths, mode)) = best {
+            estimates.push(LocalKeyEstimate {
+                measure,
+                window_start: start,
+                window_end_exclusive: end,
+                key: KeySignature {
+                    fifths,
+                    mode: mode.to_string(),
+                },
+                profile_correlation,
+                rule_id: "centered-aarden-essen-local-window".to_string(),
+            });
+        }
+    }
+    estimates
+}
+
 /// Analyze adjacent pitched notes in every voice without inferring missing events.
 pub fn analyze_intervals(score: &Score) -> Vec<IntervalObservation> {
     analyze_intervals_in_region(score, None)
@@ -3761,6 +3909,25 @@ mod tests {
                 .cadence_candidates
                 .is_empty()
         );
+    }
+
+    #[test]
+    fn local_key_windows_keep_physical_measure_addresses() {
+        assert!(estimate_local_keys_with_aarden_essen_profile(&Score::default(), 4).is_empty());
+        let mut score = Score::new("local keys", 120, 4, 4, 0, 3);
+        for index in 0..3 {
+            let mut chord = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+            chord.pitches.push(Pitch::new(Step::E, 4));
+            chord.pitches.push(Pitch::new(Step::G, 4));
+            score.parts[0].staves[0].measures[index].voices[0] = vec![chord];
+        }
+        let keys = estimate_local_keys_with_aarden_essen_profile(&score, 1);
+        assert_eq!(keys.len(), 3);
+        assert_eq!(keys[0].measure, 0);
+        assert_eq!((keys[0].window_start, keys[0].window_end_exclusive), (0, 2));
+        assert_eq!((keys[1].window_start, keys[1].window_end_exclusive), (0, 3));
+        assert_eq!((keys[2].window_start, keys[2].window_end_exclusive), (1, 3));
+        assert!(keys.iter().all(|key| key.profile_correlation.is_finite()));
     }
 
     #[test]

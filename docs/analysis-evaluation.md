@@ -161,6 +161,14 @@ exclusions. The common evaluator verifies all 12 input hashes. This result
 does not cover unannotated positions, local-key analysis, cadence, or voice
 leading.
 
+The [local-key development diagnostic](archive/analysis-wir-local-key-development-v1.md)
+reuses only the first two inspected cohorts and their verified inputs. The
+opt-in centered-window API matches 2,325 of 3,405 annotated local-key
+positions at a radius selected on those same works. Its Rust output matches
+the prototype on all 24 works. This is not a music21 local-key comparison or
+a frozen holdout result; a pinned music21 local-key recipe and a new untouched
+cohort are still required.
+
 ## Mozart cadence inputs awaiting a scoring contract
 
 The [Batik cadence selection](archive/analysis-mozart-cadence-selection-v1.json)

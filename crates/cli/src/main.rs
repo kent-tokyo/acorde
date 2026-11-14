@@ -333,6 +333,14 @@ enum Commands {
         #[arg(long)]
         infer_key: bool,
     },
+    /// Estimate a local key for each physical measure from a centered window
+    AnalyzeLocalKeys {
+        /// Input score file
+        input: PathBuf,
+        /// Number of measures on each side of the estimated measure
+        #[arg(long, default_value_t = 4)]
+        radius: usize,
+    },
     /// Run a local analysis benchmark manifest and print its JSON report
     Benchmark {
         /// Manifest JSON containing benchmark cases and expected category counts
@@ -706,6 +714,7 @@ fn run(cli: &Cli) -> Result<(), String> {
             arpeggiated_bars,
         } => cmd_analyze_vertical(input, *infer_key, *arpeggiated_bars),
         Commands::AnalyzeCadences { input, infer_key } => cmd_analyze_cadences(input, *infer_key),
+        Commands::AnalyzeLocalKeys { input, radius } => cmd_analyze_local_keys(input, *radius),
         Commands::Benchmark {
             manifest,
             fail_on_mismatch,
@@ -1215,6 +1224,22 @@ fn cmd_analyze_cadences(input: &Path, infer_key: bool) -> Result<(), String> {
     });
     let json = serde_json::to_string_pretty(&report)
         .map_err(|error| format!("cadence analysis serialization failed: {error}"))?;
+    println!("{json}");
+    Ok(())
+}
+
+fn cmd_analyze_local_keys(input: &Path, radius: usize) -> Result<(), String> {
+    let score = parse_score(input)?;
+    let local_keys = acorde_analysis::estimate_local_keys_with_aarden_essen_profile(&score, radius);
+    let report = serde_json::json!({
+        "schema_version": 1,
+        "score_fingerprint": acorde_analysis::score_fingerprint(&score),
+        "radius_measures": radius,
+        "unit": "physical-measure",
+        "local_keys": local_keys,
+    });
+    let json = serde_json::to_string_pretty(&report)
+        .map_err(|error| format!("local key analysis serialization failed: {error}"))?;
     println!("{json}");
     Ok(())
 }

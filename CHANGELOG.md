@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+- Add opt-in `analyze-local-keys --radius` and a Rust centered-window
+  Aarden-Essen local-key estimate for each physical measure. It reports the
+  source window and correlation, with the written key signature used only to
+  choose between enharmonic spellings. On 24 inspected development works a
+  radius selected on those works matches 2,325/3,405 annotated local-key
+  positions; this is neither a music21 local-key comparison nor a holdout.
 - Add opt-in `analyze-cadences [--infer-key]` and Rust report APIs for located
   dominant-to-tonic outer-voice resolutions. Each candidate retains source
   evidence and lower confidence; the existing `analyze` output is unchanged.

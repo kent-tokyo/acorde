@@ -7,7 +7,7 @@ The capability slice labels chord-shaped pitch collections, records adjacent mel
 (including exact signed microtonal cents), does not bridge rests or pitchless events, and estimates
 major/minor keys from duration-weighted diatonic pitch coverage. It also reports explicit cadence
 transitions and aligned voice-leading observations, including parallel-perfect flags. Every
-result contains stable `NoteAddr` evidence and a rule identifier. Voice-leading observations
+note-level result contains stable `NoteAddr` evidence and a rule identifier. Voice-leading observations
 retain exact signed cents for microtonal motion. SATB diagnostics classify voice crossing, wide
 spacing, and parallel-perfect motion with typed severity. Key estimation returns all tied best
 candidates, so relative-major/minor ambiguity is preserved instead of inventing a single key.
@@ -85,6 +85,17 @@ authentic cadences. The CLI exposes it through `analyze-cadences [--infer-key]`.
 On the inspected Mozart cadence development split, it finds 30 of 333
 annotated cadences with 29 false positives at 18,467 eligible positions. This
 is not a music21 comparison or held-out accuracy result.
+
+`estimate_local_keys_with_aarden_essen_profile(score, radius)` reports one
+opt-in local key per physical measure using duration-weighted pitch classes
+from a centered measure window. The first staff's written key signature only
+breaks ties between enharmonic spellings. Each result gives the source window,
+correlation and rule ID. The CLI exposes `analyze-local-keys --radius 4`.
+This cannot distinguish changes within a measure, may lack an estimate for a
+silent or uniform window, and uses written pitches. On 24 inspected When in
+Rome development works, a radius of four matched 2,325 of 3,405 annotated
+local-key positions. The radius was selected on those same works, so this is
+development evidence rather than a held-out or paired music21 result.
 
 `analyze_batch` preserves input order for finite collections, while `analyze_stream` returns a
 lazy iterator for host-side streaming. Both use the same deterministic result contract.
