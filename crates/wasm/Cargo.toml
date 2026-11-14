@@ -50,3 +50,8 @@ wasm-bindgen-test = "0.3"
 
 [lints]
 workspace = true
+
+# Optimize the distributed web binary for size; the default -Os no longer
+# meets the CI artifact budget on the current Linux toolchain.
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz"]
