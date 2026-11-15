@@ -153,9 +153,23 @@ All ten inputs also rendered with default `PrintConfig` inside the measured API
 and with Letter paper; their automatic screens are zero. The four-measure default
 produces 20 pages and Letter/eight-measure mode 16 pages. These are distinct
 configurations, not claims about the unchanged legacy default renderer.
-The variant page-by-page visual review remains pending.
+The [variant review](archive/print-parity-variants-review-v18.json) covers 67
+pages, reusing exact raster hashes for unchanged A4 Verovio pages. Magnified
+inspection exposed repeat dots too close to the barline strokes in OMR-1033 and
+Freilachs. This supersedes the earlier no-obstruction observation for those
+marks: v18 is not a development pass. Candidate v20 separates the strokes and
+dots and increases the measured trailing reservation; its rerender is pending.
+
+The release WASM development benchmark records two warmups and nine samples
+per engine/input in separate Node processes on the same host. Acorde median
+parse/render times range from 5.1 to 36.4 ms versus 8.6 to 82.5 ms for Verovio;
+Acorde process maximum RSS is higher (251–422 MiB versus 207–245 MiB).
+Concurrent host activity was uncontrolled, and Acorde also serializes canonical
+JSON and outlines text. These observations do not establish strict performance
+superiority or memory parity. The saved benchmark is the pre-repeat-fix v18
+candidate and must be distinguished from the final frozen candidate.
 
 The reserved 24-input cohort is fetched and hashed. Its score contents and renderings
 have **not** been inspected. Candidate freeze, independent source preparation,
-reserved-group evaluation, release performance/memory, Linux/Windows execution and
+reserved-group evaluation, final-candidate performance/memory, Linux/Windows execution and
 final artifact integration are still required. Current overall gates remain pending.

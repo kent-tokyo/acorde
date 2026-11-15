@@ -15,6 +15,8 @@
   protocol for development evidence and still-pending qualification gates.
 - Preserve compound outline counters in PDF fills, additional-verse lyric
   hyphens/extenders, and the placement of numbered slurs sharing endpoints.
+- Separate repeat dots and barline strokes at print size, with larger repeat
+  dots and measured trailing clearance before backward repeats.
 - Add serde-defaulted `Note::arpeggio_number` and its editing command, preserving
   MusicXML groups that join simultaneous rolled chords across voices or staves.
 - Extend `MetronomeMark` JSON with optional, serde-defaulted `written` text

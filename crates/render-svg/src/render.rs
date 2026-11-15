@@ -4082,18 +4082,18 @@ fn write_barline(
         Barline::RepeatStart => {
             body.push_str(&glyphs::barline(x, top_y, bottom_y, space, true));
             body.push_str(&glyphs::barline(
-                x + 0.25 * space,
+                x + 0.4 * space,
                 top_y,
                 bottom_y,
                 space,
                 false,
             ));
-            write_repeat_dots(body, x + 0.45 * space, repeat_dot_ranges, space);
+            write_repeat_dots(body, x + 0.8 * space, repeat_dot_ranges, space);
         }
         Barline::RepeatEnd => {
-            write_repeat_dots(body, x - 0.45 * space, repeat_dot_ranges, space);
+            write_repeat_dots(body, x - 0.8 * space, repeat_dot_ranges, space);
             body.push_str(&glyphs::barline(
-                x - 0.25 * space,
+                x - 0.4 * space,
                 top_y,
                 bottom_y,
                 space,
@@ -4102,9 +4102,9 @@ fn write_barline(
             body.push_str(&glyphs::barline(x, top_y, bottom_y, space, true));
         }
         Barline::RepeatBoth => {
-            write_repeat_dots(body, x - 0.55 * space, repeat_dot_ranges, space);
+            write_repeat_dots(body, x - 0.8 * space, repeat_dot_ranges, space);
             body.push_str(&glyphs::barline(
-                x - 0.35 * space,
+                x - 0.4 * space,
                 top_y,
                 bottom_y,
                 space,
@@ -4112,13 +4112,13 @@ fn write_barline(
             ));
             body.push_str(&glyphs::barline(x, top_y, bottom_y, space, true));
             body.push_str(&glyphs::barline(
-                x + 0.35 * space,
+                x + 0.4 * space,
                 top_y,
                 bottom_y,
                 space,
                 false,
             ));
-            write_repeat_dots(body, x + 0.55 * space, repeat_dot_ranges, space);
+            write_repeat_dots(body, x + 0.8 * space, repeat_dot_ranges, space);
         }
     }
 }
@@ -4127,8 +4127,10 @@ fn write_repeat_dots(body: &mut String, x: f32, staff_ranges: &[(f32, f32)], spa
     for &(top_y, bottom_y) in staff_ranges {
         let mid = (top_y + bottom_y) / 2.0;
         body.push_str(r#"<g class="acorde-repeat-dots">"#);
-        body.push_str(&glyphs::augmentation_dot(x, mid - 0.5 * space, space));
-        body.push_str(&glyphs::augmentation_dot(x, mid + 0.5 * space, space));
+        // A repeat dot must remain distinct from the neighbouring thin line at
+        // print size. Its diameter is larger than a duration augmentation dot.
+        body.push_str(&glyphs::augmentation_dot(x, mid - 0.5 * space, 1.5 * space));
+        body.push_str(&glyphs::augmentation_dot(x, mid + 0.5 * space, 1.5 * space));
         body.push_str("</g>");
     }
 }
@@ -5833,6 +5835,14 @@ fn measured_columns(
                 minimums[i] = minimums[i].max(needed * ((next - onsets[i]) / (end - beat)) as f32);
             }
         }
+    }
+    if bars
+        .iter()
+        .any(|bar| matches!(bar.barline_right, Barline::RepeatEnd | Barline::RepeatBoth))
+        && let Some(last) = minimums.last_mut()
+    {
+        // Reserve the repeat dots and their clearance before the right boundary.
+        *last += 0.8;
     }
     let gaps = onsets
         .iter()
@@ -12193,6 +12203,60 @@ fn courtesy_wrapped(alter: i8, cx: f32, cy: f32, space: f32) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn repeat_marks_keep_visible_print_gaps_between_ink() {
+        use acorde_core::Barline;
+        use quick_xml::{Reader, events::Event};
+        for kind in [
+            Barline::RepeatStart,
+            Barline::RepeatEnd,
+            Barline::RepeatBoth,
+        ] {
+            let mut svg = String::new();
+            super::write_barline(&mut svg, &kind, 100.0, 0.0, 40.0, &[(0.0, 40.0)], 10.0);
+            let mut reader = Reader::from_str(&svg);
+            let mut lines = Vec::new();
+            let mut dots = Vec::new();
+            loop {
+                match reader.read_event().unwrap() {
+                    Event::Empty(element) => {
+                        let value = |key: &[u8]| -> f32 {
+                            element
+                                .attributes()
+                                .map(Result::unwrap)
+                                .find(|attr| attr.key.as_ref() == key)
+                                .unwrap()
+                                .normalized_value(quick_xml::XmlVersion::Implicit1_0)
+                                .unwrap()
+                                .parse()
+                                .unwrap()
+                        };
+                        match element.name().as_ref() {
+                            b"line" => lines.push((value(b"x1"), value(b"stroke-width") / 2.0)),
+                            b"circle" => dots.push((value(b"cx"), value(b"r"))),
+                            _ => {}
+                        }
+                    }
+                    Event::Eof => break,
+                    _ => {}
+                }
+            }
+            assert_eq!(dots.len(), if kind == Barline::RepeatBoth { 4 } else { 2 });
+            for &(cx, radius) in &dots {
+                assert!(radius >= 1.5);
+                for &(x, half_width) in &lines {
+                    // At 1.8 mm staff space, this leaves at least 0.34 mm of white.
+                    assert!((cx - x).abs() - radius - half_width >= 1.89);
+                }
+            }
+            for (i, &(x, half_width)) in lines.iter().enumerate() {
+                for &(other, other_half) in &lines[i + 1..] {
+                    assert!((x - other).abs() - half_width - other_half >= 1.9);
+                }
+            }
+        }
+    }
+
     #[test]
     fn text_render_reports_when_no_horizontal_gap_remains() {
         let mut measure = acorde_core::Measure::empty(4, 4);

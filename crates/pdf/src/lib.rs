@@ -388,7 +388,7 @@ fn serialize_outlined_text_path(node: Node<'_, '_>, output: &mut String) -> Resu
         output.push_str(";stroke:none\"");
     }
     output.push('>');
-    for triangle in mesh.indices.chunks_exact(3) {
+    for triangle in mesh.indices.as_chunks::<3>().0 {
         output.push_str("<polygon points=\"");
         for index in triangle {
             let p = mesh.vertices[*index as usize];
