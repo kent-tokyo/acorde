@@ -1999,6 +1999,30 @@ pub fn arrange_countermelody(score_json: &str, options_json: &str) -> Result<Str
         .map_err(|error| js_err(format!("countermelody serialization failed: {error}")))
 }
 
+/// Develop source motif rhythm and contour as imitation, inversion, answer or time scaling.
+#[wasm_bindgen]
+pub fn arrange_countermelody_development(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::CountermelodyDevelopmentRequest =
+        parse_json(request_json, "countermelody development request", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::arrange_countermelody_development(&score, &request)
+        .map_err(|error| js_err(format!("countermelody development failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("countermelody development serialization failed: {error}")))
+}
+
+/// Rebuild a developed countermelody against the saved source-bound contract.
+#[wasm_bindgen]
+pub fn replay_countermelody_development(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedCountermelodyDevelopment =
+        parse_json(resolved_json, "resolved countermelody development", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::replay_countermelody_development(&score, &resolved)
+        .map_err(|error| js_err(format!("countermelody development replay failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("countermelody development replay serialization failed: {error}")))
+}
+
 /// Return a bounded set of distinct, replayable whole-score arrangements.
 #[wasm_bindgen]
 pub fn suggest_arrangement_proposals(score_json: &str, request_json: &str) -> Result<String, JsValue> {

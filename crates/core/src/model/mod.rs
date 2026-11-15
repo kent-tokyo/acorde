@@ -13,6 +13,7 @@ pub mod chord_proposals;
 pub mod chordal_pad;
 pub mod commands;
 pub mod countermelody;
+pub mod countermelody_development;
 pub mod duration;
 pub mod engine;
 pub mod ensemble_form;

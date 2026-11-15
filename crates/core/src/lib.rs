@@ -105,6 +105,12 @@ pub use model::commands::{
 pub use model::countermelody::{
     CountermelodyDiagnostic, CountermelodyOptions, CountermelodyResult, arrange_countermelody,
 };
+pub use model::countermelody_development::{
+    COUNTERMELODY_DEVELOPMENT_CONTRACT_VERSION, CountermelodyDevelopmentError,
+    CountermelodyDevelopmentKind, CountermelodyDevelopmentRequest, CountermelodyDevelopmentResult,
+    MotifRhythmCell, ResolvedCountermelodyDevelopment, arrange_countermelody_development,
+    replay_countermelody_development,
+};
 pub use model::duration::Duration;
 pub use model::engine::{EngineHistory, HistoryConflict, HistoryRelation, ScoreEngine};
 pub use model::ensemble_form::{

@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+- Add opt-in source-rhythm countermelody development and replay in Rust and
+  full/viewer WASM. Imitation, inversion, augmentation, diminution and answer
+  treatments retain motif note/rest durations, stay within chord and melody
+  clearance constraints, and return a source-bound resolved contract. Existing
+  countermelody calls retain their previous score and JSON behavior.
+
 - Add opt-in `suggest_ensemble_form_proposals` and source-bound replay in Rust
   and full/viewer WASM. Three to five whole-piece proposals vary role entrances,
   section textures, dynamics and attack shape. Candidates are deduplicated by
