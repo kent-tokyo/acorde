@@ -49,6 +49,7 @@ pub enum Command {
     AddHairpin(AddHairpinCmd),
     ToggleTie(ToggleTieCmd),
     SetDynamic(SetDynamicCmd),
+    SetDynamicPlacement(SetDynamicPlacementCmd),
     ToggleArticulation(ToggleArticulationCmd),
     SetKeySignature(SetKeySignatureCmd),
     SetTimeSignature(SetTimeSignatureCmd),
@@ -266,6 +267,16 @@ pub struct SetDynamicCmd {
     pub voice: usize,
     pub note_index: usize,
     pub dynamic: Option<Dynamic>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetDynamicPlacementCmd {
+    pub part_index: usize,
+    pub staff_index: usize,
+    pub measure_index: usize,
+    pub voice: usize,
+    pub note_index: usize,
+    pub above: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1499,6 +1510,7 @@ pub fn command_hint(cmd: &Command) -> ChangeHint {
         Command::AddHairpin(c) => hint!(meas!(c), false, true),
         Command::ToggleTie(c) => hint!(meas!(c), false, true),
         Command::SetDynamic(c) => hint!(meas!(c), false, true),
+        Command::SetDynamicPlacement(c) => hint!(meas!(c), false, false),
         Command::ToggleArticulation(c) => hint!(meas!(c), false, true),
         Command::SetGrace(c) => hint!(meas!(c), false, true),
         Command::SetOttava(c) => hint!(meas!(c), false, true),
@@ -1587,6 +1599,7 @@ pub fn command_label(cmd: &Command) -> String {
         Command::AddHairpin(_) => "Add Hairpin".to_string(),
         Command::ToggleTie(_) => "Toggle Tie".to_string(),
         Command::SetDynamic(_) => "Set Dynamic".to_string(),
+        Command::SetDynamicPlacement(_) => "Set Dynamic Placement".to_string(),
         Command::ToggleArticulation(_) => "Toggle Articulation".to_string(),
         Command::SetKeySignature(_) => "Set Key Signature".to_string(),
         Command::SetTimeSignature(_) => "Set Time Signature".to_string(),
@@ -1753,6 +1766,7 @@ pub fn command_key(cmd: &Command) -> String {
         Command::AddHairpin(_) => "AddHairpin".to_string(),
         Command::ToggleTie(_) => "ToggleTie".to_string(),
         Command::SetDynamic(_) => "SetDynamic".to_string(),
+        Command::SetDynamicPlacement(_) => "SetDynamicPlacement".to_string(),
         Command::ToggleArticulation(_) => "ToggleArticulation".to_string(),
         Command::SetKeySignature(_) => "SetKeySignature".to_string(),
         Command::SetTimeSignature(_) => "SetTimeSignature".to_string(),
@@ -1903,6 +1917,18 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
         Command::AddHairpin(c) => apply_add_hairpin(c, score),
         Command::ToggleTie(c) => apply_toggle_tie(c, score),
         Command::SetDynamic(c) => apply_set_dynamic(c, score),
+        Command::SetDynamicPlacement(c) => {
+            get_note_mut(
+                score,
+                c.part_index,
+                c.staff_index,
+                c.measure_index,
+                c.voice,
+                c.note_index,
+            )?
+            .dynamic_above = c.above;
+            Ok(())
+        }
         Command::ToggleArticulation(c) => apply_toggle_articulation(c, score),
         Command::SetKeySignature(c) => {
             score.settings.key_signature = KeySignature {
@@ -4353,6 +4379,7 @@ fn apply_explode_voices(cmd: &ExplodeVoicesCmd, score: &mut Score) -> Result<(),
 fn clear_derived_chord_note_notation(note: &mut Note) {
     note.articulations.clear();
     note.dynamic = None;
+    note.dynamic_above = None;
     note.stem_up = None;
     note.hairpin_start = None;
     note.hairpin_above = None;
@@ -7857,6 +7884,50 @@ mod tests {
         assert_eq!(
             serde_json::to_value(&score).unwrap(),
             serde_json::to_value(&original).unwrap()
+        );
+    }
+
+    #[test]
+    fn dynamic_placement_is_backward_compatible_and_undoable() {
+        let mut score = Score::new("Dynamic", 120, 4, 4, 0, 1);
+        let note = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+        let old = serde_json::to_value(&note).unwrap();
+        assert!(old.get("dynamic_above").is_none());
+        assert!(
+            serde_json::from_value::<Note>(old)
+                .unwrap()
+                .dynamic_above
+                .is_none()
+        );
+        assert!(Note::rest(Duration::Whole).dynamic_above.is_none());
+        score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+        let mut stack = CommandStack::new(4);
+        stack
+            .execute(
+                Command::SetDynamicPlacement(SetDynamicPlacementCmd {
+                    part_index: 0,
+                    staff_index: 0,
+                    measure_index: 0,
+                    voice: 0,
+                    note_index: 0,
+                    above: Some(true),
+                }),
+                &mut score,
+            )
+            .unwrap();
+        assert_eq!(
+            score.parts[0].staves[0].measures[0].voices[0][0].dynamic_above,
+            Some(true)
+        );
+        stack.undo(&mut score).unwrap();
+        assert_eq!(
+            score.parts[0].staves[0].measures[0].voices[0][0].dynamic_above,
+            None
+        );
+        stack.redo(&mut score).unwrap();
+        assert_eq!(
+            score.parts[0].staves[0].measures[0].voices[0][0].dynamic_above,
+            Some(true)
         );
     }
 

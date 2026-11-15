@@ -143,6 +143,42 @@ After losslessly archiving completed older-candidate files, the identical v44 re
 passed all-feature, all-target release Clippy for core, io, layout, render-svg, PDF
 and WASM with warnings denied. The final cross-platform check is separate.
 
+## Authored dynamic placement and integrated checks (candidate v47)
+
+The v44 macOS release workspace run passed 2,296 tests in 94 suites, with one
+existing ignored test. The branch then incorporated main at `ed6c6d0f`; the only
+merge conflict was the two independent Unreleased changelog additions, both retained.
+CI on that merge ran the tests but failed the three OS jobs during Clippy on two
+Rust 1.100 `chunks_exact_to_as_chunks` warnings. The equivalent `as_chunks` calls
+now replace those expressions; that CI failure is not a three-platform pass.
+
+Development PDF inspection found that explicit MusicXML dynamic placement was
+discarded. The optional `Note::dynamic_above` field and `SetDynamicPlacement`
+preserve it through import, edit/undo/redo and export. Direction dynamics resolve
+against the physical written staff, including cross-staff beams. Annotation bands
+also follow that staff. In measured print, an unspecified expression on a lyric-free
+upper staff of a multi-staff part starts below its staff; explicit sides retain
+priority. Crowded interior text can still move outside that same part.
+The targeted checks pass: five MusicXML dynamic/offset round-trip tests, the core
+backward-compatibility/undo test, sixteen measured-print tests, and six-crate
+all-feature/all-target release Clippy on local Rust 1.97. The CI lint repair still
+needs its Rust 1.100 rerun. All-page, native/WASM and reserved-corpus gates remain pending.
+
+Brahms remains twelve pages in this diagnostic. The first page's dynamic is restored
+above the lower piano staff; `legato` is now below the piano rather than among the
+viola annotations. This is one-page development inspection, not a complete review.
+The shared source also has an explicitly 70%-sized viola staff in Verovio while
+Acorde currently prints it at full size. Median staff-space reporting hides this
+difference. Subsequent matched-size comparisons must report every staff's size and
+separate authored-size output from a common physical-size comparison; the original
+eight-page Verovio result is not an equal-all-staves-size paper-use benchmark.
+Setting only explicit staff-size percentages to 100 in a separate shared input
+produces eleven Verovio pages. The normalization receipt verifies that every other
+parsed source element is unchanged. The authored input remains retained separately.
+The screening HTML now declares UTF-8: earlier live-text Verovio screening could
+misdecode non-ASCII lyrics, so its text-collision counts need rerunning. The separate
+PDF review generator already declared UTF-8 and is not affected by this HTML fix.
+
 ## Development progress (2026-11-15, candidate v18)
 
 The opt-in `font-metrics` renderer and `measured-print` PDF/WASM feature accept

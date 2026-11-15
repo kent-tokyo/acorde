@@ -2707,6 +2707,9 @@ pub struct Note {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tremolo_pair: Option<String>,
     pub dynamic: Option<Dynamic>,
+    /// Authored dynamic side: true is above, false is below, None uses layout policy.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dynamic_above: Option<bool>,
     pub stem_up: Option<bool>,
     #[serde(default)]
     pub hairpin_start: Option<HairpinKind>,
@@ -2856,6 +2859,7 @@ impl Note {
             articulations: Vec::new(),
             tremolo_pair: None,
             dynamic: None,
+            dynamic_above: None,
             stem_up: None,
             hairpin_start: None,
             hairpin_above: None,
@@ -2923,6 +2927,7 @@ impl Note {
             articulations: Vec::new(),
             tremolo_pair: None,
             dynamic: None,
+            dynamic_above: None,
             stem_up: None,
             hairpin_start: None,
             hairpin_above: None,

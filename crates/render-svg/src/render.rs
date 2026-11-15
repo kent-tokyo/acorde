@@ -1415,6 +1415,7 @@ pub(crate) fn build_svg_with_metadata_placement(
                             text.x + text.width,
                             space,
                         ),
+                        default_expression_below(score, text.part, text.staff, measure),
                     )?;
                     body.push_str("</g>");
                 }
@@ -2790,11 +2791,10 @@ fn content_margins(
                 let offset_y = (styled.offset_y.unwrap_or(0.0) + styled.relative_y.unwrap_or(0.0))
                     as f32
                     / 10.0;
-                let below = styled
-                    .placement
-                    .as_deref()
-                    .is_some_and(|placement| placement.eq_ignore_ascii_case("below"))
-                    || matches!(styled.style, acorde_core::TextStyle::Lyrics);
+                let below = measure_text_below(
+                    &styled,
+                    default_expression_below(score, part, staff, measure),
+                );
                 if below {
                     bottom = bottom.max(
                         3.2 + below_texts as f32 * 0.95
@@ -3410,6 +3410,25 @@ fn navigation_text_key(text: &str) -> String {
         "dalsegnoalcoda" => "dsalcoda".into(),
         _ => normalized,
     }
+}
+
+fn default_expression_below(score: &Score, part: usize, staff: usize, measure: &Measure) -> bool {
+    measured_print_active()
+        && staff + 1 < score.parts[part].staves.len()
+        && !measure
+            .voices
+            .iter()
+            .flatten()
+            .any(|n| n.lyric.is_some() || !n.additional_lyrics.is_empty())
+}
+
+fn measure_text_below(styled: &StyledText, expression_below: bool) -> bool {
+    matches!(styled.style, TextStyle::FiguredBass | TextStyle::Lyrics)
+        || styled
+            .placement
+            .as_deref()
+            .is_some_and(|p| p.eq_ignore_ascii_case("below"))
+        || (expression_below && styled.style == TextStyle::Expression && styled.placement.is_none())
 }
 
 pub(crate) fn measure_text_entries(measure: &Measure) -> Vec<StyledText> {
@@ -4681,6 +4700,19 @@ fn render_measure(
         }
     }
 
+    let cross_bands = cross_frames
+        .iter()
+        .map(|(&target, &(_, bottom))| {
+            (
+                target,
+                annotations::StaffBand {
+                    top_y: bottom - staff_height_u(score, part, target) * space,
+                    bottom_y: bottom,
+                    lyric_baseline_y: None,
+                },
+            )
+        })
+        .collect();
     let semantic_placements = annotations::render_measure_semantic_annotations(
         body,
         measure,
@@ -4704,6 +4736,7 @@ fn render_measure(
             bottom_y,
             lyric_baseline_y,
         },
+        &cross_bands,
     )?;
     resolved_annotation_obstacles.extend(semantic_placements.iter().cloned());
 
@@ -6765,6 +6798,7 @@ fn render_measure_text(
     neighbor_heads: &[(f32, f32)],
     above_escape: Option<(f32, f32)>,
     slurs: &[SlurCurve],
+    expression_below: bool,
 ) -> Result<bool, RenderError> {
     let mut text_clear = true;
     let mut above_texts = 0usize;
@@ -6814,12 +6848,7 @@ fn render_measure_text(
                 })
             })
             .flatten();
-        let placement_below = styled.style == TextStyle::FiguredBass
-            || styled
-                .placement
-                .as_deref()
-                .is_some_and(|placement| placement.eq_ignore_ascii_case("below"))
-            || matches!(styled.style, acorde_core::TextStyle::Lyrics);
+        let placement_below = measure_text_below(styled, expression_below);
         let previous_pedal = (text_index >= timed_pedal_start)
             .then(|| {
                 (timed_pedal_start..text_index)
@@ -6882,20 +6911,21 @@ fn render_measure_text(
             (is_timed_pedal && measure_beats > 0.0).then_some((measure_beats, x + width - space));
         let beat_x = (is_timed_pedal
             || styled.style == TextStyle::FiguredBass
-            || (!placement_below && text_scale > 1.0))
-            .then_some(styled.position_beats)
-            .flatten()
-            .and_then(|beats| {
-                measure_text_beat_x(
-                    measure,
-                    part,
-                    staff,
-                    measure_idx,
-                    beats,
-                    note_points,
-                    end_anchor,
-                )
-            });
+            || (!placement_below && text_scale > 1.0)
+            || measured_print_active())
+        .then_some(styled.position_beats)
+        .flatten()
+        .and_then(|beats| {
+            measure_text_beat_x(
+                measure,
+                part,
+                staff,
+                measure_idx,
+                beats,
+                note_points,
+                end_anchor,
+            )
+        });
         let mut text_x = beat_x.unwrap_or(content_x0) + (offset_x as f32 / 10.0) * space;
         if beat_x.is_some() && text_scale > 1.0 {
             text_x = text_x.clamp(
@@ -11518,7 +11548,7 @@ fn note_annotation_lane_extents(note: &Note, voice_stem_up: bool) -> (f32, f32) 
         lanes.reserve(above, preferred);
     };
     if note.dynamic.is_some() {
-        reserve(stem_up, 4.0);
+        reserve(note.dynamic_above.unwrap_or(stem_up), 4.0);
     }
     if note.chord_symbol.is_some() {
         reserve(true, 5.6);
@@ -12421,6 +12451,7 @@ mod tests {
             &[(10.0, 138.0)],
             None,
             &[],
+            false,
         )
         .unwrap();
         assert!(!clear);
@@ -12631,6 +12662,7 @@ mod tests {
             &[],
             None,
             &[],
+            false,
         )
         .expect("positioned print direction renders");
         let text_x = body
@@ -12923,6 +12955,7 @@ mod tests {
             &[],
             None,
             &[],
+            false,
         )
         .expect("measure text renders");
         let text_y = body

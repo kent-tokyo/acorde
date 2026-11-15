@@ -526,6 +526,219 @@ fn final_slur_geometry_clears_lyrics_on_the_previous_staff() {
 }
 
 #[test]
+fn authored_dynamic_side_takes_precedence_over_the_lyric_policy() {
+    for has_lyrics in [false, true] {
+        for above in [false, true] {
+            let mut score = vocal_score("word", 1);
+            for note in &mut score.parts[0].staves[0].measures[0].voices[0] {
+                if !has_lyrics {
+                    note.lyric = None;
+                }
+            }
+            let note = &mut score.parts[0].staves[0].measures[0].voices[0][0];
+            note.dynamic = Some(acorde_core::Dynamic::P);
+            note.dynamic_above = Some(above);
+            let output = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+            let doc = roxmltree::Document::parse(&output.pages[0]).unwrap();
+            let dynamic = doc
+                .descendants()
+                .find(|n| n.attribute("class") == Some("acorde-dynamic"))
+                .unwrap();
+            let translate: f32 = dynamic
+                .ancestors()
+                .filter_map(|n| n.attribute("transform"))
+                .filter_map(|s| {
+                    s.strip_prefix("translate(0 ")
+                        .and_then(|s| s.strip_suffix(')'))
+                })
+                .map(|s| s.parse::<f32>().unwrap())
+                .sum();
+            let top = dynamic
+                .attribute("data-print-top")
+                .unwrap()
+                .parse::<f32>()
+                .unwrap()
+                + translate;
+            let bottom = dynamic
+                .attribute("data-print-bottom")
+                .unwrap()
+                .parse::<f32>()
+                .unwrap()
+                + translate;
+            let staff_lines: Vec<f32> = doc
+                .descendants()
+                .filter(|n| n.attribute("class") == Some("acorde-staff-line"))
+                .map(|n| n.attribute("y1").unwrap().parse().unwrap())
+                .collect();
+            let staff_top = staff_lines.iter().copied().fold(f32::INFINITY, f32::min);
+            let staff_bottom = staff_lines
+                .iter()
+                .copied()
+                .fold(f32::NEG_INFINITY, f32::max);
+            assert!(
+                if above {
+                    bottom < staff_top
+                } else {
+                    top > staff_bottom
+                },
+                "authored above={above}, lyrics={has_lyrics}, dynamic={top}..{bottom}, staff={staff_top}..{staff_bottom}"
+            );
+        }
+    }
+}
+
+#[test]
+fn grand_staff_expression_defaults_preserve_explicit_sides_and_lyric_space() {
+    for (placement, lyrics, below) in [
+        (None, false, true),
+        (Some("above"), false, false),
+        (Some("below"), false, true),
+        (None, true, false),
+    ] {
+        let mut score = vocal_score("word", 1);
+        let bar = &mut score.parts[0].staves[0].measures[0];
+        if !lyrics {
+            for note in &mut bar.voices[0] {
+                note.lyric = None;
+            }
+        }
+        bar.texts.push(
+            serde_json::from_value(
+                serde_json::json!({"style":"Expression", "text":"legato", "placement": placement}),
+            )
+            .unwrap(),
+        );
+        let mut bass = Staff::new(Clef::Bass);
+        bass.measures.push(Measure::empty(4, 4));
+        score.parts[0].staves.push(bass);
+        let output = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+        let doc = roxmltree::Document::parse(&output.pages[0]).unwrap();
+        let text = doc
+            .descendants()
+            .find(|n| n.attribute("data-text") == Some("legato"))
+            .unwrap();
+        let matrix = text
+            .children()
+            .find_map(|n| n.attribute("transform"))
+            .unwrap();
+        let y: f32 = matrix
+            .strip_prefix("matrix(")
+            .unwrap()
+            .trim_end_matches(')')
+            .split_whitespace()
+            .last()
+            .unwrap()
+            .parse()
+            .unwrap();
+        let shift: f32 = text
+            .ancestors()
+            .filter_map(|n| n.attribute("transform"))
+            .filter_map(|s| {
+                s.strip_prefix("translate(0 ")
+                    .and_then(|s| s.strip_suffix(')'))
+            })
+            .map(|s| s.parse::<f32>().unwrap())
+            .sum();
+        let staff = doc
+            .descendants()
+            .find(|n| n.attribute("class") == Some("acorde-staff"))
+            .unwrap();
+        let lines: Vec<f32> = staff
+            .children()
+            .filter(|n| n.has_tag_name("line"))
+            .map(|n| n.attribute("y1").unwrap().parse().unwrap())
+            .collect();
+        let top = lines.iter().copied().fold(f32::INFINITY, f32::min);
+        let bottom = lines.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+        assert!(
+            if below {
+                y + shift > bottom
+            } else {
+                y + shift < top
+            },
+            "placement={placement:?}, lyrics={lyrics}, baseline={}, staff={top}..{bottom}",
+            y + shift
+        );
+        assert_eq!(
+            score.parts[0].staves[0].measures[0].texts[0]
+                .placement
+                .as_deref(),
+            placement
+        );
+    }
+}
+
+#[test]
+fn cross_staff_dynamic_is_placed_against_its_written_staff() {
+    let mut score = vocal_score("word", 1);
+    let mut note = Note::new(Pitch::new(Step::F, 3), Duration::Whole);
+    note.cross_staff = Some(acorde_core::CrossStaff {
+        target_staff: 1,
+        target_voice: None,
+    });
+    note.dynamic = Some(acorde_core::Dynamic::P);
+    note.dynamic_above = Some(true);
+    score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+    let mut bass = Staff::new(Clef::Bass);
+    bass.measures.push(Measure::empty(4, 4));
+    score.parts[0].staves.push(bass);
+    let output = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    let doc = roxmltree::Document::parse(&output.pages[0]).unwrap();
+    let dynamic = doc
+        .descendants()
+        .find(|n| n.attribute("class") == Some("acorde-dynamic"))
+        .unwrap();
+    let translate: f32 = dynamic
+        .ancestors()
+        .filter_map(|n| n.attribute("transform"))
+        .filter_map(|s| {
+            s.strip_prefix("translate(0 ")
+                .and_then(|s| s.strip_suffix(')'))
+        })
+        .map(|s| s.parse::<f32>().unwrap())
+        .sum();
+    let top = dynamic
+        .attribute("data-print-top")
+        .unwrap()
+        .parse::<f32>()
+        .unwrap()
+        + translate;
+    let bottom = dynamic
+        .attribute("data-print-bottom")
+        .unwrap()
+        .parse::<f32>()
+        .unwrap()
+        + translate;
+    let staff_edge = |staff: usize, upper: bool| {
+        let group = doc
+            .descendants()
+            .filter(|n| n.attribute("class") == Some("acorde-staff"))
+            .nth(staff)
+            .unwrap();
+        group
+            .descendants()
+            .filter(|n| n.attribute("class") == Some("acorde-staff-line"))
+            .map(|n| n.attribute("y1").unwrap().parse::<f32>().unwrap())
+            .fold(
+                if upper {
+                    f32::INFINITY
+                } else {
+                    f32::NEG_INFINITY
+                },
+                |a, b| if upper { a.min(b) } else { a.max(b) },
+            )
+    };
+    assert!(
+        top > staff_edge(0, false),
+        "dynamic moved above its voice's source staff: {top}"
+    );
+    assert!(
+        bottom < staff_edge(1, true),
+        "dynamic is not above its written staff: {bottom}"
+    );
+}
+
+#[test]
 fn cross_staff_notes_do_not_push_a_direction_below_the_neighboring_staff() {
     let mut score = vocal_score("word", 3);
     score.parts[0].name = "Piano".into();

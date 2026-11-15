@@ -182,7 +182,8 @@ for (const svg of document.querySelectorAll('body > div > svg')) {
     dynamic_staff_candidates: dynamicStaffCandidates,
     text_curve_candidates: curveCandidates,
     systems: SEL.system ? svg.querySelectorAll(SEL.system).length : null,
-    staff_space_mm: med(spaces), lyric_font_mm: med(texts.filter(t => t.lyric).map(t => t.font)),
+    staff_space_mm: med(spaces), staff_space_samples_mm: spaces,
+    lyric_font_mm: med(texts.filter(t => t.lyric).map(t => t.font)),
     text_font_mm: med(texts.map(t => t.font).filter(f => f !== null)), min_text_font_mm: texts.some(t => t.font !== null) ? Math.min(...texts.map(t => t.font).filter(f => f !== null)) : null});
 }
 document.getElementById('out').textContent = JSON.stringify(out);
@@ -230,7 +231,7 @@ def measure(svgs, selectors, html_path, page_width_mm=210, page_height_mm=297):
     selectors = dict(selectors, page_width_mm=page_width_mm, page_height_mm=page_height_mm)
     body = "".join(f"<div>{re.sub(r'<\\?xml[^>]*>', '', p.read_text())}</div>" for p in svgs)
     html_path.write_text(
-        "<!doctype html><html><head><style>body{margin:0}"
+        "<!doctype html><html><head><meta charset='utf-8'><style>body{margin:0}"
         f"div{{width:{page_width_mm*4}px}}div>svg{{width:{page_width_mm*4}px;height:{page_height_mm*4}px;display:block}}"
         f"</style></head><body>{body}<pre id='out'></pre><script>{MEASURE_JS % json.dumps(selectors)}</script></body></html>")
     dom = run(CHROME, "--headless=new", "--disable-gpu", "--virtual-time-budget=10000",
@@ -267,6 +268,14 @@ def measure(svgs, selectors, html_path, page_width_mm=210, page_height_mm=297):
                                      for index, page in enumerate(pages)
                                      for candidate in page["text_notation_candidates"]],
         "staff_space_mm": round(statistics.median(values("staff_space_mm")), 2) if values("staff_space_mm") else None,
+        "staff_space_samples_mm": [{"page": index + 1, "staff_ordinal": ordinal,
+                                    "space_mm": round(space, 5)}
+                                   for index, page in enumerate(pages)
+                                   for ordinal, space in enumerate(page["staff_space_samples_mm"])],
+        "min_staff_space_mm": round(min(space for page in pages for space in page["staff_space_samples_mm"]), 5)
+                              if any(page["staff_space_samples_mm"] for page in pages) else None,
+        "max_staff_space_mm": round(max(space for page in pages for space in page["staff_space_samples_mm"]), 5)
+                              if any(page["staff_space_samples_mm"] for page in pages) else None,
         "lyric_font_mm": round(statistics.median(values("lyric_font_mm")), 2) if values("lyric_font_mm") else None,
         "text_font_mm": round(statistics.median(values("text_font_mm")), 2) if values("text_font_mm") else None,
         "min_text_font_mm": round(min(values("min_text_font_mm")), 2) if values("min_text_font_mm") else None,

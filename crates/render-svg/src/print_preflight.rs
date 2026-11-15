@@ -193,8 +193,8 @@ pub(crate) fn resolve(
             if numbers.len() != 8 || numbers.iter().any(|v| !v.is_finite()) {
                 return Err(Error::InvalidGeneratedGeometry);
             }
-            let x = numbers.chunks_exact(2).map(|p| p[0]);
-            let y = numbers.chunks_exact(2).map(|p| p[1]);
+            let x = numbers.as_chunks::<2>().0.iter().map(|p| p[0]);
+            let y = numbers.as_chunks::<2>().0.iter().map(|p| p[1]);
             ink_obstacles.push((
                 row,
                 x.clone().fold(f32::INFINITY, f32::min),

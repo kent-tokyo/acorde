@@ -1199,7 +1199,11 @@ fn serialize_note(
 
     // Dynamic
     if let Some(dyn_val) = &note.dynamic {
-        xml.push_str("      <direction placement=\"below\">\n");
+        xml.push_str(match note.dynamic_above {
+            Some(true) => "      <direction placement=\"above\">\n",
+            Some(false) => "      <direction placement=\"below\">\n",
+            None => "      <direction>\n",
+        });
         xml.push_str("        <direction-type>\n");
         xml.push_str(&format!(
             "          <dynamics><{}/></dynamics>\n",

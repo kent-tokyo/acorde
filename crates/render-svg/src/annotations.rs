@@ -81,6 +81,7 @@ pub(crate) fn render_measure_semantic_annotations(
     lyric_char_width_u: f32,
     kinds: Kinds,
     band: StaffBand,
+    cross_bands: &HashMap<usize, StaffBand>,
 ) -> Result<Vec<GlyphPlacement>, RenderError> {
     let mut annotations = Vec::new();
     let mut owner = CollisionOwner::with_fixed_obstacles(&[]);
@@ -105,6 +106,12 @@ pub(crate) fn render_measure_semantic_annotations(
             else {
                 continue;
             };
+            let band = note
+                .cross_staff
+                .as_ref()
+                .and_then(|cross| cross_bands.get(&cross.target_staff))
+                .copied()
+                .unwrap_or(band);
             let lower_voice = active_voices > 1 && voice_idx % 2 == 1;
             // The note's highest and lowest drawn point (notehead or stem tip).
             let (note_top, note_bottom) = if note.is_rest {
@@ -121,7 +128,7 @@ pub(crate) fn render_measure_semantic_annotations(
                         note.dynamic
                             .as_ref()
                             .map(|value| value.to_musicxml_str().to_owned()),
-                        has_lyrics && !lower_voice,
+                        note.dynamic_above.unwrap_or(has_lyrics && !lower_voice),
                         1,
                     ),
                     (

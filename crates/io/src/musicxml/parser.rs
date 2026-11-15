@@ -354,9 +354,14 @@ fn tuplet_display(e: &quick_xml::events::BytesStart<'_>) -> Option<acorde_core::
 
 // Resolve after all voices are known: MusicXML directions may precede their target in
 // document order, or use a negative offset after a backup. Dynamics remain staff scoped.
+struct PlacedDynamic {
+    value: Dynamic,
+    above: Option<bool>,
+}
+
 fn resolve_direction_dynamics(
     score: &mut Score,
-    events: Vec<(usize, usize, usize, f64, Dynamic)>,
+    events: Vec<(usize, usize, usize, f64, PlacedDynamic)>,
     tolerated: &mut Vec<crate::Diagnostic>,
 ) {
     let max_bars = score
@@ -374,13 +379,14 @@ fn resolve_direction_dynamics(
     let mut candidates: HashMap<(usize, usize), Vec<(f64, NoteAddr)>> = HashMap::new();
     for (pi, part) in score.parts.iter().enumerate() {
         for (si, staff) in part.staves.iter().enumerate() {
-            let list = candidates.entry((pi, si)).or_default();
             for (mi, measure) in staff.measures.iter().enumerate() {
                 for (vi, voice) in measure.voices.iter().enumerate() {
                     let mut beat = starts[mi];
                     for (ni, note) in voice.iter().enumerate() {
                         if !note.is_rest && !note.is_grace && !note.is_cue {
-                            list.push((
+                            let physical_staff =
+                                note.cross_staff.as_ref().map_or(si, |c| c.target_staff);
+                            candidates.entry((pi, physical_staff)).or_default().push((
                                 beat,
                                 NoteAddr {
                                     part: pi,
@@ -395,8 +401,10 @@ fn resolve_direction_dynamics(
                     }
                 }
             }
-            list.sort_by(|a, b| a.0.total_cmp(&b.0));
         }
+    }
+    for list in candidates.values_mut() {
+        list.sort_by(|a, b| a.0.total_cmp(&b.0));
     }
     let mut ordered: Vec<_> = events
         .into_iter()
@@ -412,14 +420,17 @@ fn resolve_direction_dynamics(
         })
         .collect();
     ordered.sort_by(|a, b| a.0.total_cmp(&b.0).then(a.1.cmp(&b.1)));
-    let mut assigned: HashMap<(usize, usize, usize, usize, usize), Dynamic> = HashMap::new();
+    let mut assigned: HashMap<(usize, usize, usize, usize, usize), PlacedDynamic> = HashMap::new();
     for (beat, _, pi, si, dynamic) in ordered {
         let target = candidates.get(&(pi, si)).and_then(|list| {
             let index = list.partition_point(|(onset, _)| *onset < beat - 1e-9);
             list.get(index)
         });
         if let Some((_, addr)) = target {
-            assigned.insert((pi, si, addr.measure, addr.voice, addr.note), dynamic);
+            assigned.insert(
+                (addr.part, addr.staff, addr.measure, addr.voice, addr.note),
+                dynamic,
+            );
         } else {
             tolerated.push(crate::Diagnostic::warning(
                 "musicxml.unattached-dynamic",
@@ -430,7 +441,8 @@ fn resolve_direction_dynamics(
     for ((pi, si, mi, vi, ni), dynamic) in assigned {
         let note = &mut score.parts[pi].staves[si].measures[mi].voices[vi][ni];
         if note.dynamic.is_none() {
-            note.dynamic = Some(dynamic);
+            note.dynamic = Some(dynamic.value);
+            note.dynamic_above = dynamic.above;
         }
     }
 }
@@ -632,8 +644,9 @@ pub(crate) fn parse_musicxml_collecting(
     let mut in_dynamics = false;
     let mut pending_direction_dynamic: Option<Dynamic> = None;
     let mut pending_direction_staff = 0usize;
-    let mut direction_dynamics: Vec<(usize, usize, usize, f64, Dynamic)> = Vec::new();
+    let mut direction_dynamics: Vec<(usize, usize, usize, f64, PlacedDynamic)> = Vec::new();
     let mut note_inline_dynamic: Option<Dynamic> = None;
+    let mut note_inline_dynamic_above: Option<bool> = None;
     let mut pending_tempo_text: Option<String> = None;
     let mut pending_expression_text: Option<String> = None;
     let mut pending_rehearsal: Option<String> = None;
@@ -959,7 +972,16 @@ pub(crate) fn parse_musicxml_collecting(
                     "beat-unit-dot" if in_metronome => {
                         metronome_dots = metronome_dots.saturating_add(1).min(4);
                     }
-                    "dynamics" if in_direction_type || in_notations => in_dynamics = true,
+                    "dynamics" if in_direction_type || in_notations => {
+                        in_dynamics = true;
+                        if in_notations && in_note {
+                            note_inline_dynamic_above = match attr_str(e, b"placement").as_deref() {
+                                Some("above") => Some(true),
+                                Some("below") => Some(false),
+                                _ => None,
+                            };
+                        }
+                    }
                     // Print-style position attributes belong on the text element; they take
                     // precedence over the legacy acorde placement on <direction>.
                     "words" | "rehearsal" if in_direction_type => {
@@ -1091,6 +1113,7 @@ pub(crate) fn parse_musicxml_collecting(
                         note_hidden = attr_str(e, b"print-object").as_deref() == Some("no");
                         note_lyrics.clear();
                         note_inline_dynamic = None;
+                        note_inline_dynamic_above = None;
                         // A note's default-x/default-y are absolute positions in the source
                         // engraver's layout (from the measure's left barline and the staff's top
                         // line). acorde lays measures out itself, and `offset_x`/`offset_y` are
@@ -2391,7 +2414,14 @@ pub(crate) fn parse_musicxml_collecting(
                                 pending_direction_staff,
                                 measure,
                                 pending_direction_position_beats.unwrap_or(0.0),
-                                dynamic,
+                                PlacedDynamic {
+                                    value: dynamic,
+                                    above: match pending_direction_placement.as_deref() {
+                                        Some("above") => Some(true),
+                                        Some("below") => Some(false),
+                                        _ => None,
+                                    },
+                                },
                             ));
                         }
                         pending_sound_tempo = None;
@@ -3669,6 +3699,7 @@ pub(crate) fn parse_musicxml_collecting(
                                     );
                                     if !note.is_rest && !note.is_grace {
                                         note.dynamic = note_inline_dynamic.take();
+                                        note.dynamic_above = note_inline_dynamic_above.take();
                                     }
                                     note.hidden = note_hidden;
                                     voice.push(note);

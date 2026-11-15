@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- Preserve authored dynamic placement in optional, serde-defaulted
+  `Note::dynamic_above`, `SetDynamicPlacement`, MusicXML import/export and print
+  engraving. Unspecified placement stays unspecified through round trips.
 - Preserve MusicXML harmony root/kind spellings, Roman or Nashville numerals,
   alterations, local numeral keys and inversions in optional `ChordSymbol::written`
   JSON. Empty authored root text stays empty. `SetChordSymbol` edits and undo/redo
