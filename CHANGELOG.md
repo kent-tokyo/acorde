@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+- Add opt-in `suggest_phrase_harmony` to Rust and full/viewer WASM. Callers
+  choose chord-change pace by complete phrase ranges, including two changes at
+  compound or irregular meter-group boundaries. Existing source-plan chords
+  and locks are retained only when their positions match the requested pace;
+  otherwise the request returns an atomic diagnostic. This initial API uses
+  the existing progression vocabulary and does not change the score model.
+
 - Add opt-in `arrange_ensemble_form_visits` and replay in Rust and full/viewer
   WASM. A second written-measure visit can select another generated texture and
   dynamic while retaining the original melody events and a separate written

@@ -162,6 +162,10 @@ pub use model::omr::{
     OmrMeasureProposal, OmrMeasureTarget, OmrNoteAnnotation, OmrNoteAnnotationProposal,
     OmrNoteTarget, OmrPage, OmrProposal, OmrRegion, OmrRhythmicEvent, OmrUnresolvedItem,
 };
+pub use model::phrase_harmony::{
+    PhraseHarmonicPace, PhraseHarmonyRequest, PhraseHarmonyResult, PhraseHarmonySection,
+    suggest_phrase_harmony,
+};
 pub use model::pitch::{Pitch, Step};
 pub use model::playback::{
     DynamicTimeline, MAX_PLAYBACK_COMPARISON_EVENTS, MAX_TAB_PERFORMANCE_EVENTS, MetronomeConfig,

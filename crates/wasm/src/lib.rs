@@ -2341,6 +2341,16 @@ pub fn suggest_chord_plans_with_locks(score_json: &str, request_json: &str, lock
         .map_err(|error| js_err(format!("locked chord proposals serialization failed: {error}")))
 }
 
+/// Build harmonic-change positions from caller-authored phrase pacing.
+#[wasm_bindgen]
+pub fn suggest_phrase_harmony(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::PhraseHarmonyRequest =
+        parse_json(request_json, "phrase harmony request", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::suggest_phrase_harmony(&score, &request))
+        .map_err(|error| js_err(format!("phrase harmony serialization failed: {error}")))
+}
+
 /// Assess each proposed harmony against the strict built-in preset engine.
 #[wasm_bindgen]
 pub fn assess_chord_presets(score_json: &str, request_json: &str) -> Result<String, JsValue> {
