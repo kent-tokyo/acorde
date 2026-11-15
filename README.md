@@ -7,6 +7,8 @@
 [![crates.io](https://img.shields.io/crates/v/acorde.svg)](https://crates.io/crates/acorde)
 [![Ask DeepWiki](https://img.shields.io/badge/Ask-DeepWiki-blue.svg)](https://deepwiki.com/kent-tokyo/acorde)
 
+[English](README.md) · [日本語](README_ja.md) · [简体中文](README_zh.md)
+
 Platform-neutral Rust and WebAssembly score infrastructure.
 
 > **Release notice:** v1.2.19 and v1.2.20 added a public `SvgRenderOptions` field and can break
@@ -48,14 +50,14 @@ rendering SVG.
 
 ```toml
 [dependencies]
-acorde = "=1.3.12"
-acorde-render-svg = "=1.3.12"
+acorde = "=1.3.13"
+acorde-render-svg = "=1.3.13"
 ```
 
 Default I/O features are MusicXML and MIDI. Enable optional formats explicitly:
 
 ```toml
-acorde = { version = "=1.3.12", features = ["abc", "mei", "mscz", "gp"] }
+acorde = { version = "=1.3.13", features = ["abc", "mei", "mscz", "gp"] }
 ```
 
 ```rust
@@ -119,8 +121,9 @@ Start with the [documentation guide](docs/README.md) for current contracts and
 use the [source-positioned evaluation contract](docs/analysis-evaluation.md)
 and its task-specific evidence before making a music21 parity claim.
 
-The [Japanese overview](README_ja.md), [security contract](docs/security/threat-model.md), and
-[contribution guide](CONTRIBUTING.md) remain separate entry points.
+The [Japanese overview](README_ja.md), [Chinese overview](README_zh.md),
+[security contract](docs/security/threat-model.md), and [contribution guide](CONTRIBUTING.md)
+remain separate entry points.
 
 ## Development
 
