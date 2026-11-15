@@ -115,7 +115,7 @@ fn diagnostic(
     }
 }
 
-fn failure(diagnostics: Vec<AccordionPlanDiagnostic>) -> AccordionPlanResult {
+pub(super) fn failure(diagnostics: Vec<AccordionPlanDiagnostic>) -> AccordionPlanResult {
     AccordionPlanResult {
         score: None,
         resolved_config: None,
