@@ -9464,6 +9464,48 @@ fn tied_pitch_pairs(current: &Note, next: &Note) -> Vec<(usize, usize)> {
         .collect()
 }
 
+/// Preserve an authored outgoing tie whose matching destination is absent.
+/// The short open crescent is confined to the remaining horizontal lane; it
+/// never asserts a connection to an unrelated pitch or a rest.
+fn render_outgoing_partial_ties(
+    body: &mut String,
+    note: &Note,
+    point: NotePoint,
+    offsets: &[f32],
+    pitch_indices: &[usize],
+    right_limit: f32,
+    space: f32,
+) {
+    let (x, y, stem_up, _) = point;
+    let head = glyphs::NOTEHEAD_RX_U * space;
+    let start_x = x + head;
+    let end_x = (x + 1.8 * space).min(right_limit);
+    if end_x <= start_x + 0.2 * space {
+        return;
+    }
+    let count = note.pitches.len();
+    for &pitch_index in pitch_indices {
+        let Some(pitch) = note.pitches.get(pitch_index) else {
+            continue;
+        };
+        let rank = note
+            .pitches
+            .iter()
+            .filter(|other| other.to_midi() < pitch.to_midi())
+            .count();
+        let doubled = 2 * rank + 1;
+        let above = if count > 1 && doubled != count {
+            doubled > count
+        } else {
+            !stem_up
+        };
+        let baseline = y
+            + offsets.get(pitch_index).copied().unwrap_or(0.0)
+            + if above { -0.45 } else { 0.45 } * space;
+        write_tie_curve(body, start_x, baseline, end_x, baseline, above, space);
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn render_ties(
     body: &mut String,
@@ -9477,7 +9519,7 @@ fn render_ties(
 ) {
     // A tie leaves the notehead on the side away from the stem (or the side given for a chord
     // member), from just past one head to just before the next, with a shallow arch.
-    let mut draw = |from: NotePoint, to: NotePoint, above: Option<bool>| {
+    let draw = |body: &mut String, from: NotePoint, to: NotePoint, above: Option<bool>| {
         let (x1, y1, up1, row1) = from;
         let (x2, y2, up2, row2) = to;
         let above = above.unwrap_or(!(up1 && up2));
@@ -9524,34 +9566,60 @@ fn render_ties(
                         if !current.tie_start || current.is_rest {
                             continue;
                         }
-                        // The next note of the voice: in this bar, or the first of the next.
-                        let (next, next_key) = match notes.get(note + 1) {
-                            Some(next) => (next, (part, staff, measure, voice, note + 1)),
-                            None => match s
-                                .measures
-                                .get(measure + 1)
-                                .and_then(|next_measure| next_measure.voices[voice].first())
-                            {
-                                Some(next) => (next, (part, staff, measure + 1, voice, 0)),
-                                None => continue,
-                            },
-                        };
-                        if next.is_rest {
-                            continue;
-                        }
-                        let (Some(&a), Some(&b)) = (
-                            points.get(&(part, staff, measure, voice, note)),
-                            points.get(&next_key),
-                        ) else {
+                        let Some(&a) = points.get(&(part, staff, measure, voice, note)) else {
                             continue;
                         };
                         let from_offsets =
                             pitch_offsets_from_anchor(current, tablature, a.2, space);
+                        let started: Vec<usize> = (0..current.pitches.len())
+                            .filter(|&index| current.pitch_tie_start(index))
+                            .collect();
+                        // The next note of the voice: in this bar, or the first of the next.
+                        let successor = match notes.get(note + 1) {
+                            Some(next) => Some((next, (part, staff, measure, voice, note + 1))),
+                            None => s
+                                .measures
+                                .get(measure + 1)
+                                .and_then(|next_measure| next_measure.voices[voice].first())
+                                .map(|next| (next, (part, staff, measure + 1, voice, 0))),
+                        };
+                        let Some((next, next_key, b)) = successor
+                            .and_then(|(next, key)| {
+                                points.get(&key).map(|&point| (next, key, point))
+                            })
+                            .filter(|(next, _, _)| !next.is_rest)
+                        else {
+                            if measured_print_active() {
+                                render_outgoing_partial_ties(
+                                    body,
+                                    current,
+                                    a,
+                                    &from_offsets,
+                                    &started,
+                                    width - right_margin_u * space,
+                                    space,
+                                );
+                            }
+                            continue;
+                        };
                         let to_offsets = pitch_offsets_from_anchor(next, tablature, b.2, space);
                         let pairs = tied_pitch_pairs(current, next);
                         if pairs.is_empty() {
-                            // No matching pitch (a respelt or re-voiced chord): keep one tie.
-                            draw(a, b, None);
+                            if measured_print_active() {
+                                render_outgoing_partial_ties(
+                                    body,
+                                    current,
+                                    a,
+                                    &from_offsets,
+                                    &started,
+                                    (b.0 - glyphs::NOTEHEAD_RX_U * space)
+                                        .min(width - right_margin_u * space),
+                                    space,
+                                );
+                            } else {
+                                // Preserve the legacy respelled-chord fallback.
+                                draw(body, a, b, None);
+                            }
                             continue;
                         }
                         // In a chord, ties on the upper notes bow up and on the lower notes down.
@@ -9570,6 +9638,7 @@ fn render_ties(
                             let doubled = 2 * rank(from) + 1;
                             let above = (count > 1 && doubled != count).then_some(doubled > count);
                             draw(
+                                body,
                                 (a.0, a.1 + dy1, a.2, a.3),
                                 (b.0, b.1 + dy2, b.2, b.3),
                                 above,
@@ -9601,6 +9670,18 @@ fn render_ties(
                                         .then_some((*point, note, to))
                                 });
                             let Some((point, note, to)) = target else {
+                                if measured_print_active() {
+                                    render_outgoing_partial_ties(
+                                        body,
+                                        current,
+                                        a,
+                                        &from_offsets,
+                                        &[from],
+                                        (b.0 - glyphs::NOTEHEAD_RX_U * space)
+                                            .min(width - right_margin_u * space),
+                                        space,
+                                    );
+                                }
                                 continue;
                             };
                             let dy1 = from_offsets.get(from).copied().unwrap_or(0.0);
@@ -9611,6 +9692,7 @@ fn render_ties(
                             let doubled = 2 * rank(from) + 1;
                             let above = (count > 1 && doubled != count).then_some(doubled > count);
                             draw(
+                                body,
                                 (a.0, a.1 + dy1, a.2, a.3),
                                 (point.0, point.1 + dy2, point.2, point.3),
                                 above,

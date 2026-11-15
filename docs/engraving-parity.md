@@ -258,6 +258,40 @@ staff spaces increased Acorde's total to 19 pages and was reverted. A full
 source/ink audit and all-page physical review are still required. These pages
 are development evidence only, not a reserved-corpus pass.
 
+The [ea80a7d5 development rerun](archive/print-parity-development-ea80.json)
+renders all 24 retired inputs from the [preparation receipt](archive/print-parity-development-preparation-ea80.json).
+At the shared 1.8 mm staff size, Acorde uses **213 pages** and Verovio **179**.
+The [independent pitched-event audit](archive/print-parity-development-audit-ea80.json)
+matches 41,610 written events on the prepared MusicXML, including voice,
+onset, duration, spelling, grace/cue/hidden state and per-pitch ties. Automatic
+page-edge, text/notehead, text/text, lyric/staff, dynamic/staff and sampled
+text/curve screens report zero Acorde candidates. Those screens do not inspect
+all ink or prove the notation complete. Raw mark-count shortfalls appear in ten
+scores and need source-ownership review; several scores also have substantially
+more Acorde pages, including one vocal score at 13 versus 8 and a quartet at
+36 versus 25. The current comparison is therefore **not a gate pass**.
+
+MuseScore produced both extracted-part files and diagnostics for this
+development rerun; eleven export processes ended with its known teardown crash
+after writing nonempty files and were recorded as such, not as clean exits.
+One extracted part has two pitched events assigned to a
+different voice number in the exported MusicXML than in the source. The
+prepared MusicXML is the common renderer input, so the 41,610-event agreement
+does not resolve that source-to-export difference. Thirteen prepared input hashes
+also differ from the historical v47 preparation; page-count changes between
+those runs are not attributed solely to the renderer.
+
+Follow-up on the ea80a7d5 shortfall list found outgoing ties with no matching
+destination pitch or a following rest. The measured renderer had either
+connected one chord tie to an unrelated note or omitted the open end. It now
+draws one short partial arc for each tied pitch without asserting a false
+connection. In the four affected development scores, raw Acorde tie counts
+changed from **15 to 18**, **8 to 10**, **39 to 41**, and **16 to 17**; source
+start counts are respectively 18, 10, 40, and 17. A split tie can yield more
+than one drawn segment, so this is a candidate-screen repair rather than a
+complete tie-fidelity audit. The full development rerun and source check must
+be repeated on the new candidate. The other mark shortfalls remain open.
+
 ## Development progress (2026-11-15, candidate v18)
 
 The opt-in `font-metrics` renderer and `measured-print` PDF/WASM feature accept

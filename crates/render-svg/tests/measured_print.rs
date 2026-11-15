@@ -549,6 +549,61 @@ fn hidden_notation_layers_are_absent_from_print_but_keep_visible_slurs() {
 }
 
 #[test]
+fn unmatched_outgoing_chord_ties_keep_each_pitch_without_joining_the_next_note() {
+    let mut score = Score::new("open ties", 120, 4, 4, 0, 1);
+    let mut chord = Note::new(Pitch::new(Step::C, 5), Duration::Quarter);
+    chord.pitches.push(Pitch::new(Step::E, 5));
+    chord.tie_start = true;
+    chord.pitch_tie_starts = vec![true, true];
+    score.parts[0].staves[0].measures[0].voices[0] =
+        vec![chord, Note::new(Pitch::new(Step::G, 5), Duration::Quarter)];
+    let output = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    let doc = roxmltree::Document::parse(&output.pages[0]).unwrap();
+    let next = doc
+        .descendants()
+        .find(|n| n.attribute("data-note-addr") == Some("0:0:0:0:1"))
+        .unwrap();
+    let next_x: f32 = next
+        .descendants()
+        .find(|n| n.attribute("class") == Some("acorde-notehead"))
+        .unwrap()
+        .attribute("cx")
+        .unwrap()
+        .parse()
+        .unwrap();
+    let ties: Vec<_> = doc
+        .descendants()
+        .filter(|n| n.attribute("class") == Some("acorde-tie"))
+        .collect();
+    assert_eq!(ties.len(), 2);
+    for tie in ties {
+        let coordinates: Vec<f32> = tie
+            .attribute("d")
+            .unwrap()
+            .split(|c: char| c == ',' || c.is_whitespace())
+            .filter_map(|s| s.parse().ok())
+            .collect();
+        assert!(coordinates[6] < next_x - 0.1 * 7.2);
+    }
+}
+
+#[test]
+fn outgoing_tie_at_the_end_of_a_voice_has_a_short_visible_stub() {
+    let mut score = Score::new("ending tie", 120, 4, 4, 0, 1);
+    let mut note = Note::new(Pitch::new(Step::C, 5), Duration::Whole);
+    note.tie_start = true;
+    score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+    let output = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    let doc = roxmltree::Document::parse(&output.pages[0]).unwrap();
+    assert_eq!(
+        doc.descendants()
+            .filter(|n| n.attribute("class") == Some("acorde-tie"))
+            .count(),
+        1
+    );
+}
+
+#[test]
 fn gossec_grace_slur_ends_at_notehead_before_the_stem() {
     let score = acorde_io::parse_mxl(include_bytes!(
         "../../../tests/fixtures/openscore_gossec_quartet_rh189.mxl"
