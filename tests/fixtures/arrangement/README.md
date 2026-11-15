@@ -25,3 +25,33 @@ The holdout split is reserved for final comparison and must not be adjusted to
 make an algorithm look better. Its structural invariant and snapshot tests run
 in CI; these are not listening review or musical-quality scores. The structural
 comparison is recorded in `docs/arrangement-corpus-v1-review.md`.
+
+## Long-form development corpus v2
+
+`development-v2.json` contains twelve distinct original source melodies of
+16–32 written measures. It covers major/minor, 3/4, 4/4, 5/8, 6/8, 7/8,
+a pickup, a local key-signature passage, a written repeat and a two-part source.
+Each case has contiguous, measure-addressed form sections and explicit GM
+programs in the pinned manifest.
+The shared `development_v2.rs` builder gives every score, part and note a
+stable ID. Core tests check complete measures, coverage and playback; I/O tests
+check MusicXML playback round trips for every case. The authored notes are
+development material, not reviewed examples of good music or final holdouts.
+
+To reproduce the source score, MusicXML and matched WAV files, use a new output
+directory:
+
+```sh
+cargo run -p acorde-cli --example arrangement_v2_source_pack --locked -- <new-output-dir>
+```
+
+The example checks the generated SHA-256 manifest against
+`development-v2-manifest.json`. It writes the original instrument programs to
+the source scores and exports. The bundled small SoundFont has only a piano
+preset, so each reference WAV is rendered from an explicitly saved copy with
+all programs set to piano 0. The manifest records both JSON identities, the
+soundfont hash, renderer settings and WAV hashes. These are matched reference
+audio files for pitch/rhythm comparison; they do not evaluate instrument
+specific playability. Twelve new source scores are ready for development
+review. Six independent final works, complete arrangement proposals and
+listening judgments remain to be prepared under the v2 evaluation protocol.

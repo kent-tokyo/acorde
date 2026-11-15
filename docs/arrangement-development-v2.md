@@ -125,11 +125,22 @@ verification. Other related logs are `/private/tmp/acorde-rhythm-core-all.log`,
 and `/private/tmp/acorde-rhythm-clippy-final.log`. These checks prove written rhythms
 and playback events, not listener preference or ensemble playability.
 
+The new `development-v2.json` adds twelve independently authored 16–32-bar
+source works with major/minor keys, five meters, a pickup, a written repeat, a
+local key-signature passage and a two-part source. Core and I/O tests validate
+all twelve and preserve MusicXML playback. The source-pack example generated
+score JSON, MusicXML and reference WAV files twice with identical SHA-256
+manifests; its pinned manifest is `development-v2-manifest.json`. Reference
+audio uses a documented all-piano copy because the bundled SoundFont lacks
+the other programs. These sources have not received listening review. Six
+independent sealed final works, arrangement audio identities and hosted CI
+remain outstanding for the comparison baseline.
+
 ## Required outcomes and evidence
 
 | Outcome | Required final behavior | Current evidence / remaining work |
 | --- | --- | --- |
-| 0. Comparison baseline | Integrate prior arrangement and analysis work; preserve reproducible old outputs and fix comparison conditions. | Integration, native corpus and full/viewer Chrome suites pass. Freeze reviewed baseline audio identities, complete hosted CI/size gates, and establish the new evaluation corpus. |
+| 0. Comparison baseline | Integrate prior arrangement and analysis work; preserve reproducible old outputs and fix comparison conditions. | Integration, native corpus and full/viewer Chrome suites pass. Twelve new long-form development sources and a deterministic piano-reference audio manifest are fixed. Review these sources, create six independent sealed final works, freeze complete-arrangement comparison audio and complete hosted CI/size gates. |
 | 1. Whole-piece development | Coordinate phrases, A/B sections, entrances, pauses, density and ending shape over 16–32 bars; vary a repeated passage on a later visit. | `arrange_ensemble_form` compiles an explicit written form, coordinates phrase endings, varies bass patterns without resetting bass pitch continuity, and restores dynamics at every sounding bar. The visit API selects a different generated event sequence on a later repeat visit. A new API unfolds those visits into an exportable performance score when its playback matches the event contract. The 16-bar fixture, doubled 32-bar traversal, MusicXML/MSCZ round trips, source-bound replay and native/full/viewer browser checks pass. Source-level references still need relocation, and a separately composed longer example and listening acceptance remain. |
 | 2. Harmony | Choose harmonic rhythm by phrase; add borrowed/passing harmony and supplied local-key movement, bounded change amount and cadence intent while preserving melody/locks. | `suggest_phrase_harmony` selects two-bar, one-bar or two-group pace. Its explicit mapping can split or merge an existing source plan while preserving locks and comparing change budgets with the original regions. `local_keys` supplies major/minor movement; `cadences` constrains three named root motions. Explicit `colors` selects parallel-mode borrowing or a short chromatic passing chord. Native and full/viewer Chrome suites pass. A longer local-key example, stronger cadence-quality checks and listening acceptance remain. Use explicit source/key/phrase input before relying on uncertain analysis. |
 | 3. Rhythm and bass | Composable pulse/rest/accent/duration rules, anticipation, syncopation, walking/ostinato bass and phrase-ending fills; coherent transitions. | Form can switch the existing three bass patterns by section. Authored bass rhythm sections now express the named techniques and keep exact bar lengths and chord transitions in focused tests. The full native workspace and full/viewer Chrome WASM suites pass; matched-instrument listening and broader playability checks remain. |
