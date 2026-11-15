@@ -102,6 +102,14 @@ its outputs. See the [freeze](archive/print-parity-freeze-v20.json),
 [retirement receipt](archive/print-parity-holdout-v20-status.json).
 The next final gate requires a separately selected disjoint cohort.
 
+A [second 24-input selection](../benchmarks/print/parity-holdout-selection-v2.json)
+now pins six inputs per group, using a fixed SHA-256 ordering of metadata without
+file-size or notation filters. Related works/cycles and matching imported fixtures
+are excluded. The selection script and metadata hashes record the sampling rule.
+[All source blobs and SHA-256 hashes](archive/print-parity-holdout-source-hashes-v2.json)
+are verified; their score contents and renderings remain unopened until the next
+candidate and font freeze. Selection is not an evaluation result.
+
 Subsequent development exposed valid empty outline paths rejected by PDF, missing
 inline music glyphs, lost Roman-numeral/custom harmony spelling, hidden rests printed
 by the PDF backend, and lost tuplet display instructions. Cross-staff stems and beam
@@ -178,6 +186,50 @@ parsed source element is unchanged. The authored input remains retained separate
 The screening HTML now declares UTF-8: earlier live-text Verovio screening could
 misdecode non-ASCII lyrics, so its text-collision counts need rerunning. The separate
 PDF review generator already declared UTF-8 and is not affected by this HTML fix.
+
+## Equal-size rerun and hidden notation repairs (candidates v47–v49)
+
+The [24-input rerun](archive/print-parity-development-v47.json) succeeds for both
+engines at a shared 1.8 mm staff size: Acorde uses 210 pages and Verovio 182.
+All 41,610 pitched events match. Acorde has no page-edge, text/notehead, text/text,
+lyric/staff or dynamic/staff candidates, but three text/curve candidates remain.
+The [original ten inputs](archive/print-parity-original-development-v47.json)
+produce sixteen pages per engine and match 2,159 pitched events. Their historical
+Acorde MSCZ conversion is retained; this does not establish independent MSCZ fidelity.
+
+[Native/WASM placement checks](archive/print-parity-wasm-development-v47.json)
+pass all 34 development inputs at tolerance 0.0001, with maximum coordinate
+variation 0.00000733. This is geometric agreement, not a source-fidelity or visual
+pass. [CI on d65041b3](archive/print-parity-ci-v47.json) passes the three OS test
+jobs, browser contracts and measured-print Chrome tests. The WASM build job fails
+its size gate: 7,338,641 bytes against 7,220,000. The next candidate records this
+increase, narrows the full-profile gate to 7,380,000, and adds a separate release
+build and size gate for opt-in measured print. These new gates still require CI.
+
+The three candidates came from Gossec RH 189 page 8. Source inspection found
+nonprinting notation containers: across the 34 inputs these contain 560 tuplet
+endpoints and 91 articulation containers. The v49 repair preserves hidden
+articulations as performance data and optional JSON indices, with validated editing,
+undo/redo and separate hidden MusicXML containers on export. Hidden tuplets retain
+their timing but suppress both number and bracket. This covers these two notation
+kinds; it is not universal support for every possible hidden notation element.
+
+Fingerings and technique text now participate in measured collision clearance.
+Fingerings start next to their owning staff and move only to clear actual ink.
+The [Gossec diagnostic](archive/print-parity-hidden-notations-v49.json) has no
+text/curve candidates on all eighteen pages. Assistant inspection of page 8 confirms
+that the three second-violin fingerings sit near that staff and the hidden
+first-violin tuplets are absent. This is a one-page review, not an all-page pass.
+The [subsequent page 1–2 review](archive/print-parity-gossec-review-v49.json)
+finds additional material defects: above-staff bowing symbols are inverted, short
+grace-note slurs reach the main-note stem tip, and system-start measure numbers
+need clearance from clefs. The full-page review therefore fails this candidate.
+The v49 workspace run also stopped at a missing embedded fixture mapping after
+258 round-trip tests passed. That mapping is now supplied for both new fixtures;
+v50 additionally preserves new note print fields in score diffs/patches and melodic
+voice copying. Its full workspace run is pending.
+Current-candidate full-corpus, native/WASM, default/Letter, final reserved input,
+performance and complete assistant review remain pending. All four gates stay pending.
 
 ## Development progress (2026-11-15, candidate v18)
 

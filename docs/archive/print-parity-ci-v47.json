@@ -1,0 +1,99 @@
+{
+  "commit": "d65041b33485ded8ac3ce0291c4a84a53af69338",
+  "run": 43678938474,
+  "checks": [
+    {
+      "link": "https://github.com/kent-tokyo/acorde/actions/runs/43678938474/job/132705127729",
+      "name": "WASM build",
+      "state": "FAILURE"
+    },
+    {
+      "link": "https://github.com/kent-tokyo/acorde/actions/runs/43678938474/job/132705127632",
+      "name": "Renderer performance budget",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kent-tokyo/acorde/actions/runs/43678938474/job/132705127701",
+      "name": "IO feature contract",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kent-tokyo/acorde/actions/runs/43678938474/job/132705127608",
+      "name": "Package workspace",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kent-tokyo/acorde/actions/runs/43678938474/job/132705127564",
+      "name": "MSRV (Rust 1.89)",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kent-tokyo/acorde/actions/runs/43678938474/job/132705127728",
+      "name": "Test (ubuntu-latest)",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kent-tokyo/acorde/actions/runs/43678938474/job/132705127575",
+      "name": "Test (macos-latest)",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kent-tokyo/acorde/actions/runs/43678938474/job/132705127605",
+      "name": "Test (windows-latest)",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kent-tokyo/acorde/actions/runs/43678938474/job/132705127582",
+      "name": "Dependency security and license checks",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kent-tokyo/acorde/actions/runs/43678938474/job/132705127511",
+      "name": "External interoperability contract",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kent-tokyo/acorde/actions/runs/43678938474/job/132705127348",
+      "name": "Parser fuzz smoke",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kent-tokyo/acorde/actions/runs/43678938469/job/132705127279",
+      "name": "Rust coverage",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kent-tokyo/acorde/actions/runs/43678938474/job/132705127601",
+      "name": "WASM browser contract",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kent-tokyo/acorde/actions/runs/43678938474/job/132705127702",
+      "name": "Browser smoke (chromium)",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kent-tokyo/acorde/actions/runs/43678938474/job/132705127671",
+      "name": "Browser smoke (firefox)",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kent-tokyo/acorde/actions/runs/43678938474/job/132705127635",
+      "name": "Browser smoke (webkit)",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kent-tokyo/acorde/actions/runs/43678938474/job/132705127684",
+      "name": "Browser smoke (Chromium HiDPI)",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/kent-tokyo/acorde/actions/runs/43678938474/job/132705127586",
+      "name": "Browser adapter typecheck",
+      "state": "SUCCESS"
+    }
+  ],
+  "wasm_size_bytes": 7338641,
+  "wasm_budget_bytes": 7220000,
+  "note": "Three OS test jobs and measured-print Chrome tests passed; WASM build job failed the distributed artifact size gate."
+}

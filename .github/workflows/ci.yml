@@ -176,6 +176,19 @@ jobs:
       - name: Test measured print in Chrome
         run: wasm-pack test --headless --chrome crates/wasm --features measured-print
 
+      - name: Build and budget measured print profile
+        shell: bash
+        run: |
+          wasm-pack build crates/wasm --target web --release \
+            --out-dir ../../target/wasm-profiles/measured-print \
+            --features measured-print
+          size=$(stat -c%s target/wasm-profiles/measured-print/acorde_wasm_bg.wasm)
+          echo "Measured print WASM bytes: $size"
+          # Includes caller-font shaping and outline geometry. Candidate v47
+          # measured 11,241,046 bytes on macOS; qualify this separate opt-in
+          # profile on Linux with less than 2% cross-toolchain headroom.
+          test "$size" -le 11450000
+
       - name: Check WASM artifact budget
         shell: bash
         run: |
@@ -294,7 +307,10 @@ jobs:
           # measured 7,130,353 bytes, +35,427 over the same-base #433 build.
           # The prior Linux #433 artifact was 7,169,359 bytes; this gate leaves
           # about 15 KB above its size plus the measured feature delta.
-          test "$size" -le 7220000
+          # Print/source-fidelity repairs on d65041b3 measured 7,338,641 bytes
+          # on Linux CI (run 43678938474). Hidden articulation visibility adds
+          # model/import/export handling; keep that cost inside a 41 KB margin.
+          test "$size" -le 7380000
 
   renderer-benchmark:
     name: Renderer performance budget

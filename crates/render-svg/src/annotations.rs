@@ -264,7 +264,7 @@ pub(crate) fn render_measure_semantic_annotations(
                 }
             }
             if kinds.articulations {
-                for (articulation_idx, articulation) in note.articulations.iter().enumerate() {
+                for (articulation_idx, articulation) in note.visible_articulations().enumerate() {
                     if matches!(articulation, Articulation::Tremolo(_)) {
                         // Tremolo strokes cross the stem; they are not stacked with the rest.
                         crate::render::write_stem_tremolo(body, note, x, anchor_y, stem_up, space);

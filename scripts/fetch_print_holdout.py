@@ -12,6 +12,8 @@ from urllib.parse import quote
 REPOSITORIES = {
     "OpenScore/Lieder", "OpenScore/StringQuartets", "DCMLab/cpe_bach_keyboard",
     "DCMLab/chopin_mazurkas", "DCMLab/schumann_kinderszenen",
+    "DCMLab/mozart_piano_sonatas", "DCMLab/beethoven_piano_sonatas",
+    "DCMLab/debussy_other_piano_pieces",
 }
 
 

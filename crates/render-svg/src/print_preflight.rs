@@ -781,7 +781,11 @@ pub(crate) fn resolve(
                         || c.starts_with("acorde-articulation")
                         || matches!(
                             c,
-                            "acorde-dynamic" | "acorde-chord-symbol" | "acorde-measure-number"
+                            "acorde-dynamic"
+                                | "acorde-chord-symbol"
+                                | "acorde-measure-number"
+                                | "acorde-fingering"
+                                | "acorde-technique-text"
                         )
                 })
         }) {
@@ -801,10 +805,10 @@ pub(crate) fn resolve(
                 .iter()
                 .position(|r| *r == (p, s))
                 .ok_or(Error::InvalidGeneratedGeometry)?;
-            if let Some(address) = text
-                .ancestors()
-                .find_map(|n| n.attribute("data-print-note-addr"))
-            {
+            if let Some(address) = text.ancestors().find_map(|n| {
+                n.attribute("data-print-note-addr")
+                    .or_else(|| n.attribute("data-note-addr"))
+            }) {
                 let address = address
                     .split(':')
                     .map(str::parse::<usize>)
@@ -889,6 +893,16 @@ pub(crate) fn resolve(
             right += shift_x;
             let mut y = original_y;
             let mut under = original_y > bottoms[row][staff];
+            if text.attribute("class") == Some("acorde-fingering") {
+                // Start next to the owning staff instead of carrying the screen
+                // renderer's fixed five-space note offset into a crowded score.
+                // The following pass clears actual notes, stems and other marks.
+                y = if under {
+                    bottoms[row][staff] + CLEARANCE - metrics.top_mm
+                } else {
+                    tops[row][staff] - CLEARANCE - metrics.bottom_mm
+                };
+            }
             if text.attribute("class") == Some("acorde-dynamic") {
                 // A note may keep its voice address while moving to another staff.
                 // A dynamic inside that staff follows its physical note, not the voice's staff.

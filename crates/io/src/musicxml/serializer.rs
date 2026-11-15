@@ -1934,6 +1934,43 @@ fn serialize_notations(
     tab_lines: Option<u8>,
     tuplet_marks: (bool, bool),
 ) {
+    if note.hidden_articulations.is_empty() {
+        serialize_visible_notations(xml, note, typed_spanners, address, tab_lines, tuplet_marks);
+        return;
+    }
+    let mut visible = note.clone();
+    visible.articulations = note.visible_articulations().cloned().collect();
+    visible.hidden_articulations.clear();
+    serialize_visible_notations(
+        xml,
+        &visible,
+        typed_spanners,
+        address,
+        tab_lines,
+        tuplet_marks,
+    );
+    let mut hidden = Note::rest(Duration::Quarter);
+    hidden.articulations = note
+        .articulations
+        .iter()
+        .enumerate()
+        .filter(|(index, _)| note.hidden_articulations.contains(index))
+        .map(|(_, mark)| mark.clone())
+        .collect();
+    hidden.tremolo_pair = note.tremolo_pair.clone();
+    let mut contents = String::new();
+    serialize_visible_notations(&mut contents, &hidden, &[], address, None, (false, false));
+    xml.push_str(&contents.replacen("<notations>", "<notations print-object=\"no\">", 1));
+}
+
+fn serialize_visible_notations(
+    xml: &mut String,
+    note: &Note,
+    typed_spanners: &[&NotationSpanner],
+    address: &NoteAddr,
+    tab_lines: Option<u8>,
+    tuplet_marks: (bool, bool),
+) {
     let typed_has =
         |kind: NotationSpannerKind| typed_spanners.iter().any(|spanner| spanner.kind == kind);
     // The first (written) pitch's own ties; chord members write theirs separately.

@@ -92,6 +92,10 @@ tuplet visibility. It is no longer an unseen evaluation input.
 `harmony_written.musicxml` is a self-authored fixture for Roman numerals, local keys,
 inversions, and authored root/kind text including an explicitly empty root label.
 
+`musicxml_hidden_notations.musicxml` is a self-authored fixture for separate visible
+and hidden notation layers. Hidden performance articulations remain in the model
+and playback; hidden tuplet digits and brackets do not appear in print.
+
 `freilachs_no_17.mscz` and `freilachs_no_17_accordion.mscz` are public-domain
 score archives from the pinned fisarmonica.org revision in `manifest.json`.
 Their two independent repeat/alternate-ending groups are tested through direct
@@ -152,3 +156,5 @@ of backward non-note directions remains reported as unsupported.
 crescendo and high notes on the lower staff. It is a focused inter-staff clearance example, not a
 representative corpus. Verovio 6.3.0 and Acorde were rendered from this same input; both avoided
 a wedge/note collision in this example, while Acorde used more inter-staff space.
+
+- `openscore_gossec_quartet_rh189.mxl`: OpenScore StringQuartets, Gossec RH 189 (CC0-1.0), pinned revision and hash in the manifest. Full-score regression for hidden notation layers and second-violin fingerings near adjacent staff notation.

@@ -2703,6 +2703,10 @@ pub struct Note {
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub explicit_unbeamed: bool,
     pub articulations: Vec<Articulation>,
+    /// Indices of articulations retained for performance but not printed.
+    /// Out-of-range indices have no effect; editing commands keep indices aligned.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub hidden_articulations: Vec<usize>,
     /// Two-note tremolo endpoint ("start" or "stop"); absent for a single-note tremolo.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tremolo_pair: Option<String>,
@@ -2809,6 +2813,16 @@ pub struct GuitarBendPoint {
 }
 
 impl Note {
+    /// Articulations whose source visibility permits engraving; playback retains all marks.
+    pub fn visible_articulations(&self) -> impl Iterator<Item = &Articulation> {
+        self.articulations
+            .iter()
+            .enumerate()
+            .filter_map(|(index, mark)| {
+                (!self.hidden_articulations.contains(&index)).then_some(mark)
+            })
+    }
+
     /// Select one authored fingering candidate without changing the score.
     pub fn select_fingering(
         &self,
@@ -2857,6 +2871,7 @@ impl Note {
             beam: BeamState::None,
             explicit_unbeamed: false,
             articulations: Vec::new(),
+            hidden_articulations: Vec::new(),
             tremolo_pair: None,
             dynamic: None,
             dynamic_above: None,
@@ -2925,6 +2940,7 @@ impl Note {
             beam: BeamState::None,
             explicit_unbeamed: false,
             articulations: Vec::new(),
+            hidden_articulations: Vec::new(),
             tremolo_pair: None,
             dynamic: None,
             dynamic_above: None,
@@ -5572,12 +5588,15 @@ fn note_content_eq(a: &Note, b: &Note) -> bool {
         && a.beam == b.beam
         && a.explicit_unbeamed == b.explicit_unbeamed
         && a.articulations == b.articulations
+        && a.hidden_articulations == b.hidden_articulations
         && a.dynamic == b.dynamic
+        && a.dynamic_above == b.dynamic_above
         && a.stem_up == b.stem_up
         && a.hairpin_start == b.hairpin_start
         && a.hairpin_above == b.hairpin_above
         && a.hairpin_end == b.hairpin_end
         && a.tuplet == b.tuplet
+        && a.tuplet_display == b.tuplet_display
         && a.chord_symbol == b.chord_symbol
         && a.is_grace == b.is_grace
         && a.grace_slash == b.grace_slash
@@ -7915,6 +7934,41 @@ mod tests {
         a.stem_up = Some(true);
         c.stem_up = Some(false);
         assert!(!note_content_eq(&a, &c));
+    }
+
+    #[test]
+    fn diff_and_patch_preserve_note_print_visibility_and_placement() {
+        let mut before = Score::new("Print metadata", 120, 4, 4, 0, 1);
+        before.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(crate::Step::C, 4), Duration::Whole)];
+        before.parts[0].staves[0].measures[0].voices[0][0]
+            .articulations
+            .push(Articulation::Staccato);
+        for field in 0..3 {
+            let mut after = before.clone();
+            let note = &mut after.parts[0].staves[0].measures[0].voices[0][0];
+            match field {
+                0 => note.hidden_articulations = vec![0],
+                1 => note.dynamic_above = Some(true),
+                _ => {
+                    note.tuplet_display = Some(crate::TupletDisplay {
+                        bracket: Some(false),
+                        number: crate::TupletNumberDisplay::None,
+                        above: None,
+                    });
+                }
+            }
+            assert!(
+                diff(&before, &after)
+                    .iter()
+                    .any(|change| matches!(change, ScoreChange::NoteModified { .. }))
+            );
+            let patched = apply_patch(&before, &score_patch(&before, &after)).unwrap();
+            assert_eq!(
+                serde_json::to_value(&patched).unwrap(),
+                serde_json::to_value(&after).unwrap()
+            );
+        }
     }
 
     #[test]

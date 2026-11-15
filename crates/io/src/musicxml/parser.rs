@@ -332,16 +332,24 @@ fn add_tuplet_boundary(boundary: &mut Option<TupletBoundary>, kind: Option<&str>
     };
 }
 
-fn tuplet_display(e: &quick_xml::events::BytesStart<'_>) -> Option<acorde_core::TupletDisplay> {
+fn tuplet_display(
+    e: &quick_xml::events::BytesStart<'_>,
+    hidden: bool,
+) -> Option<acorde_core::TupletDisplay> {
     (attr_str(e, b"type").as_deref() == Some("start")).then(|| acorde_core::TupletDisplay {
-        bracket: attr_str(e, b"bracket").and_then(|v| match v.as_str() {
-            "yes" => Some(true),
-            "no" => Some(false),
-            _ => None,
-        }),
-        number: match attr_str(e, b"show-number").as_deref() {
-            Some("none") => acorde_core::TupletNumberDisplay::None,
-            Some("both") => acorde_core::TupletNumberDisplay::Both,
+        bracket: if hidden {
+            Some(false)
+        } else {
+            attr_str(e, b"bracket").and_then(|v| match v.as_str() {
+                "yes" => Some(true),
+                "no" => Some(false),
+                _ => None,
+            })
+        },
+        number: match (hidden, attr_str(e, b"show-number").as_deref()) {
+            (true, _) => acorde_core::TupletNumberDisplay::None,
+            (_, Some("none")) => acorde_core::TupletNumberDisplay::None,
+            (_, Some("both")) => acorde_core::TupletNumberDisplay::Both,
             _ => acorde_core::TupletNumberDisplay::Actual,
         },
         above: attr_str(e, b"placement").and_then(|v| match v.as_str() {
@@ -500,6 +508,8 @@ pub(crate) fn parse_musicxml_collecting(
     let mut slur_events: Vec<(NoteAddr, f64, ParsedSpannerEvent)> = Vec::new();
     let mut open_ottava_types: HashMap<u16, String> = HashMap::new();
     let mut in_notations = false;
+    let mut notations_hidden = false;
+    let mut notations_articulation_start = 0usize;
     let mut in_artic_block = false;
     let mut in_ornament_block = false;
     let mut in_technical_block = false;
@@ -508,6 +518,7 @@ pub(crate) fn parse_musicxml_collecting(
     let mut pending_fret: Option<u8> = None;
     let mut pending_technique_text: Option<String> = None;
     let mut pending_articulations: Vec<Articulation> = Vec::new();
+    let mut pending_hidden_articulations: Vec<usize> = Vec::new();
     let mut pending_tremolo = false;
     let mut pending_tremolo_pair: Option<String> = None;
     let mut note_arpeggiate: Option<bool> = None;
@@ -1040,13 +1051,17 @@ pub(crate) fn parse_musicxml_collecting(
                         Some("stop") => measure_repeat_active = None,
                         _ => measure_repeat_start_pending = true,
                     },
-                    "notations" if in_note => in_notations = true,
+                    "notations" if in_note => {
+                        in_notations = true;
+                        notations_hidden = attr_str(e, b"print-object").as_deref() == Some("no");
+                        notations_articulation_start = pending_articulations.len();
+                    }
                     "tuplet" if in_notations => {
                         add_tuplet_boundary(
                             &mut note_tuplet_boundary,
                             attr_str(e, b"type").as_deref(),
                         );
-                        if let Some(display) = tuplet_display(e) {
+                        if let Some(display) = tuplet_display(e, notations_hidden) {
                             note_tuplet_display = Some(display);
                         }
                     }
@@ -1162,6 +1177,7 @@ pub(crate) fn parse_musicxml_collecting(
                         note_glissando_end = false;
                         note_spanner_events.clear();
                         pending_articulations.clear();
+                        pending_hidden_articulations.clear();
                         pending_tremolo = false;
                         pending_tremolo_pair = None;
                         note_arpeggiate = None;
@@ -1341,7 +1357,7 @@ pub(crate) fn parse_musicxml_collecting(
                             &mut note_tuplet_boundary,
                             attr_str(e, b"type").as_deref(),
                         );
-                        if let Some(display) = tuplet_display(e) {
+                        if let Some(display) = tuplet_display(e, notations_hidden) {
                             note_tuplet_display = Some(display);
                         }
                     }
@@ -3027,7 +3043,14 @@ pub(crate) fn parse_musicxml_collecting(
                         pending_articulations.push(Articulation::Tremolo(n));
                         pending_tremolo = false;
                     }
-                    "notations" => in_notations = false,
+                    "notations" => {
+                        if notations_hidden {
+                            pending_hidden_articulations
+                                .extend(notations_articulation_start..pending_articulations.len());
+                        }
+                        in_notations = false;
+                        notations_hidden = false;
+                    }
                     "articulations" => in_artic_block = false,
                     "ornaments" => in_ornament_block = false,
                     "technical" => in_technical_block = false,
@@ -3540,10 +3563,15 @@ pub(crate) fn parse_musicxml_collecting(
                                     }
                                     // MusicXML permits an ornament on any chord member;
                                     // the canonical note stores the chord as one event.
-                                    for mark in pending_articulations.drain(..) {
+                                    for (index, mark) in pending_articulations.drain(..).enumerate()
+                                    {
                                         if matches!(mark, Articulation::Tremolo(_))
                                             && !last.articulations.contains(&mark)
                                         {
+                                            if pending_hidden_articulations.contains(&index) {
+                                                last.hidden_articulations
+                                                    .push(last.articulations.len());
+                                            }
                                             last.articulations.push(mark);
                                         }
                                     }
@@ -3692,6 +3720,8 @@ pub(crate) fn parse_musicxml_collecting(
                                     if !pending_articulations.is_empty() {
                                         note.articulations =
                                             std::mem::take(&mut pending_articulations);
+                                        note.hidden_articulations =
+                                            std::mem::take(&mut pending_hidden_articulations);
                                     }
                                     crate::assign_note_verses(
                                         &mut note,

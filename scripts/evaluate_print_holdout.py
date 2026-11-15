@@ -20,6 +20,12 @@ def sha(path):
     return hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest()
 
 
+def save_json(path, value):
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(json.dumps(value, indent=2) + "\n")
+    temporary.replace(path)
+
+
 def main():
     preparation_path, freeze_path, output = map(pathlib.Path, sys.argv[1:])
     preparation = json.loads(preparation_path.read_text())
@@ -42,7 +48,9 @@ def main():
     for prepared in preparation["rows"]:
         name = prepared["score"]
         row = {"score": name, "group": prepared["group"], "review": "pending",
-               "freeze_sha256": sha(freeze_path), "preparation_status": prepared["status"]}
+               "freeze_sha256": sha(freeze_path), "preparation_status": prepared["status"],
+               "evaluation_harness_sha256": sha(__file__),
+               "measurement_harness_sha256": sha(c.__file__)}
         if prepared["status"] != "prepared":
             row.update(status="failed", stage="source-preparation", error=prepared.get("error"))
         else:
@@ -75,6 +83,8 @@ def main():
                     measurement = c.measure(svgs, c.SELECTORS[engine], output / f"{name}-{engine}.html")
                     if engine == "acorde":
                         measurement["systems"] = sum(len(re.findall(r"\(\[", line)) for line in log.splitlines() if line.startswith("page "))
+                        measurement["pdf_sha256"] = sha(output / f"{name}-acorde.pdf")
+                        measurement["native_json_sha256"] = sha(output / f"{name}-native.json")
                     measurement["status"] = "rendered"
                     measurement["svg_sha256"] = {p.name: sha(p) for p in svgs}
                     row[engine] = measurement
@@ -82,7 +92,8 @@ def main():
                     row[engine] = {"status": "failed", "error": str(error), "stderr": getattr(error, "stderr", None)}
             row["status"] = "rendered" if all(row[e]["status"] == "rendered" for e in ("acorde", "verovio")) else "failed"
         records.append(row)
-        (output / "evaluation.json").write_text(json.dumps(records, indent=2) + "\n")
+        save_json(output / f"{name}-result.json", row)
+        save_json(output / "evaluation.json", records)
         print(name, row["status"], flush=True)
 
 

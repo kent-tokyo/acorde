@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
+import { gunzipSync } from 'node:zlib';
 
 const [modulePath, fontPath, ...cases] = process.argv.slice(2);
 assert(modulePath && fontPath && cases.length, 'usage: check-measured-print-wasm.mjs WASM.js FONT.ttf NATIVE.json ...');
@@ -32,12 +33,15 @@ function compare(a, b, location) {
   } else assert.equal(a, b, location);
 }
 const results = cases.map(path => {
-  const input = readFileSync(path);
+  const stored = readFileSync(path);
+  const input = path.endsWith('.gz') ? gunzipSync(stored) : stored;
   const evidence = JSON.parse(input);
   const start = performance.now();
   const output = JSON.parse(api.engrave_print_pages(JSON.stringify(evidence.score), JSON.stringify(evidence.config), font));
   const elapsedMs = performance.now() - start;
   compare(evidence.rendered, output, 'rendered');
-  return { path, sha256: createHash('sha256').update(input).digest('hex'), pages: output.pages.length, elapsed_ms: elapsedMs };
+  return { path, sha256: createHash('sha256').update(input).digest('hex'),
+    stored_sha256: createHash('sha256').update(stored).digest('hex'),
+    compressed: path.endsWith('.gz'), pages: output.pages.length, elapsed_ms: elapsedMs };
 });
 console.log(JSON.stringify({ status: 'pass', tolerance, maximum_delta: maximumDelta, font_sha256: createHash('sha256').update(font).digest('hex'), cases: results }, null, 2));

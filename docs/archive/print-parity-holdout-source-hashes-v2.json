@@ -1,0 +1,248 @@
+{
+  "schema_version": 1,
+  "selection_sha256": "806a0f0a7323d63f3f7c941d5505aac225ad99e7ef12038710f9018f6cbe020b",
+  "source_contents_inspected": false,
+  "renders_inspected": false,
+  "files": [
+    {
+      "group": "piano",
+      "id": "K311-1",
+      "source_url": "https://raw.githubusercontent.com/DCMLab/mozart_piano_sonatas/5337257a5318711e6302cfe85c3f1a6ade3c6271/MS3/K311-1.mscx",
+      "license": "CC-BY-NC-SA-4.0",
+      "git_blob_sha1": "f01d46a81f91ad25b0f1bc9abc1a83ac00f4b642",
+      "sha256": "20d13012e2d0e6e54410c28d93fb5fc1effa0811a17acb93048495be82fd2b72",
+      "bytes": 760473,
+      "local_path": "piano/K311-1.mscx"
+    },
+    {
+      "group": "piano",
+      "id": "K570-2",
+      "source_url": "https://raw.githubusercontent.com/DCMLab/mozart_piano_sonatas/5337257a5318711e6302cfe85c3f1a6ade3c6271/MS3/K570-2.mscx",
+      "license": "CC-BY-NC-SA-4.0",
+      "git_blob_sha1": "bb7b726ad890598764912ed6e577670ec5fdaa7d",
+      "sha256": "486c340a244ddf946eed6cca4ad87454b5627c303bb1eaba189f8e7aa6a072b8",
+      "bytes": 501722,
+      "local_path": "piano/K570-2.mscx"
+    },
+    {
+      "group": "piano",
+      "id": "14-3",
+      "source_url": "https://raw.githubusercontent.com/DCMLab/beethoven_piano_sonatas/ea7181bff88abc8713257234f7ec4033178c57a9/MS3/14-3.mscx",
+      "license": "CC-BY-NC-SA-4.0",
+      "git_blob_sha1": "c3cba3d5f0a2d1cf7a9ae061a8e427a5e96affc6",
+      "sha256": "bd60aaee19180b32901ec362cce67ee33f3c60dc3006599d2a8caa9faad2922b",
+      "bytes": 1224670,
+      "local_path": "piano/14-3.mscx"
+    },
+    {
+      "group": "piano",
+      "id": "12-1",
+      "source_url": "https://raw.githubusercontent.com/DCMLab/beethoven_piano_sonatas/ea7181bff88abc8713257234f7ec4033178c57a9/MS3/12-1.mscx",
+      "license": "CC-BY-NC-SA-4.0",
+      "git_blob_sha1": "849b241497b22c5bf671324461db0badc6e9ab94",
+      "sha256": "0bf773a1e9d1a9880439002b1a14c286cb1429eaddc884188980094e15662964",
+      "bytes": 929981,
+      "local_path": "piano/12-1.mscx"
+    },
+    {
+      "group": "piano",
+      "id": "l082_nocturne",
+      "source_url": "https://raw.githubusercontent.com/DCMLab/debussy_other_piano_pieces/74224fd3979ddec4a4a818cca51a883f6d91ca94/MS3/l082_nocturne.mscx",
+      "license": "CC-BY-NC-SA-4.0",
+      "git_blob_sha1": "b607689289bf8fa9e9a6d71949e91cdc11c71743",
+      "sha256": "010d9371b4210a513addb9db5a52ed60bd35ef29573a83e310a951176be7b0ae",
+      "bytes": 784757,
+      "local_path": "piano/l082_nocturne.mscx"
+    },
+    {
+      "group": "piano",
+      "id": "l099_cahier",
+      "source_url": "https://raw.githubusercontent.com/DCMLab/debussy_other_piano_pieces/74224fd3979ddec4a4a818cca51a883f6d91ca94/MS3/l099_cahier.mscx",
+      "license": "CC-BY-NC-SA-4.0",
+      "git_blob_sha1": "af890f3a6790cdee04a2cc14833ed150697480ff",
+      "sha256": "38fc0ba3d3d8dfe21d17b5d5d6d52486399f32025dd2ab68e22b26b4111f5fc1",
+      "bytes": 550737,
+      "local_path": "piano/l099_cahier.mscx"
+    },
+    {
+      "group": "vocal",
+      "id": "lc6898041",
+      "source_url": "https://raw.githubusercontent.com/OpenScore/Lieder/38c5db510224d9facdc4b08d741fc788cfb58ea8/scores/Bizet%2C_Georges/20_M%C3%A9lodies%2C_Op.21/09_Pastorale/lc6898041.mxl",
+      "license": "CC0-1.0",
+      "git_blob_sha1": "c314f1ec8ac799c2d4aa3507f1d07964cb27943e",
+      "sha256": "9862bc25a1689ef27d15394dd17034db3600a76fa73eee3d18325694174029c3",
+      "bytes": 13605,
+      "local_path": "vocal/lc6898041.mxl"
+    },
+    {
+      "group": "vocal",
+      "id": "lc5930707",
+      "source_url": "https://raw.githubusercontent.com/OpenScore/Lieder/38c5db510224d9facdc4b08d741fc788cfb58ea8/scores/Holm%C3%A8s%2C_Augusta_Mary_Anne/_/%C3%80_Trianon/lc5930707.mxl",
+      "license": "CC0-1.0",
+      "git_blob_sha1": "0eefe5c84257e20a7e991280b24228a5361a8e6a",
+      "sha256": "6f70400839d78a0fcb5916a46c463fa154f3a4800d0b83520d76e378399102a7",
+      "bytes": 14547,
+      "local_path": "vocal/lc5930707.mxl"
+    },
+    {
+      "group": "vocal",
+      "id": "lc5098709",
+      "source_url": "https://raw.githubusercontent.com/OpenScore/Lieder/38c5db510224d9facdc4b08d741fc788cfb58ea8/scores/Brahms%2C_Johannes/8_Lieder_und_Ges%C3%A4nge%2C_Op.58/5_Schwermut/lc5098709.mxl",
+      "license": "CC0-1.0",
+      "git_blob_sha1": "c3145c579e3932b3f57c1bc7b6691dc6e9e42a51",
+      "sha256": "f2e6a88b4b7e41d4f28215307e22ad046f38b39fe1e8c4ca5d0565da5b514f30",
+      "bytes": 6189,
+      "local_path": "vocal/lc5098709.mxl"
+    },
+    {
+      "group": "vocal",
+      "id": "lc5000341",
+      "source_url": "https://raw.githubusercontent.com/OpenScore/Lieder/38c5db510224d9facdc4b08d741fc788cfb58ea8/scores/Chaminade%2C_C%C3%A9cile/_/Ritournelle/lc5000341.mxl",
+      "license": "CC0-1.0",
+      "git_blob_sha1": "9c73603c470a6388861d8cd684db03fd64060302",
+      "sha256": "2c88da112c82025bd205645063c51546177f18c24fe09e1b798d6ddbb3b6ef62",
+      "bytes": 16309,
+      "local_path": "vocal/lc5000341.mxl"
+    },
+    {
+      "group": "vocal",
+      "id": "lc6218728",
+      "source_url": "https://raw.githubusercontent.com/OpenScore/Lieder/38c5db510224d9facdc4b08d741fc788cfb58ea8/scores/Davies%2C_Walford/8_New_Nursery_Rhymes%2C_Op.23/3_A_Tragedy/lc6218728.mxl",
+      "license": "CC0-1.0",
+      "git_blob_sha1": "63b96e2b31fdd1c6c5e1e6a1fb66bbf13c6d82e3",
+      "sha256": "e9c3bd06b2679272389d1121a19c213b95f8beb2ca772d33a102858a258d427c",
+      "bytes": 8632,
+      "local_path": "vocal/lc6218728.mxl"
+    },
+    {
+      "group": "vocal",
+      "id": "lc6548330",
+      "source_url": "https://raw.githubusercontent.com/OpenScore/Lieder/38c5db510224d9facdc4b08d741fc788cfb58ea8/scores/Stanford%2C_Charles_Villiers/Songs_of_a_Roving_Celt%2C_Op.157/5_The_Call/lc6548330.mxl",
+      "license": "CC0-1.0",
+      "git_blob_sha1": "2c4c2e811c6a733d9535ec8951e12980b98aa7e4",
+      "sha256": "8a7974a69908b2f969a375bca89187e53b8d96a71b98ffb68deda822d4c5a3f1",
+      "bytes": 14581,
+      "local_path": "vocal/lc6548330.mxl"
+    },
+    {
+      "group": "chamber",
+      "id": "sq7302710",
+      "source_url": "https://raw.githubusercontent.com/OpenScore/StringQuartets/2614b0b2958dd1ce3f52e172a43e5f4d0e29570f/scores/Mozart%2C_Wolfgang_Amadeus/String_Quartet_No.16_in_E-flat_major%2C_K.428421b_%28Op._10%2C_No._4%29/sq7302710.mxl",
+      "license": "CC0-1.0",
+      "git_blob_sha1": "9e49034282d0a3a223a6c63a0ba116167e7514c1",
+      "sha256": "1ac1d1ddf2b1dfb570e5bee06ca98b2c7815c321b2e3dffcbafb4b849727bf45",
+      "bytes": 160378,
+      "local_path": "chamber/sq7302710.mxl"
+    },
+    {
+      "group": "chamber",
+      "id": "sq22759075",
+      "source_url": "https://raw.githubusercontent.com/OpenScore/StringQuartets/2614b0b2958dd1ce3f52e172a43e5f4d0e29570f/scores/Suk%2C_Josef/String_Quartet_No.1%2C_Op.11/sq22759075.mxl",
+      "license": "CC0-1.0",
+      "git_blob_sha1": "427bfea9a831a1078a7be2a712ac53e1713e0345",
+      "sha256": "493faf659e052a20291e0fdbe855605a8d2dd32af4d889388f5433cd7b9310e8",
+      "bytes": 460698,
+      "local_path": "chamber/sq22759075.mxl"
+    },
+    {
+      "group": "chamber",
+      "id": "sq26380840",
+      "source_url": "https://raw.githubusercontent.com/OpenScore/StringQuartets/2614b0b2958dd1ce3f52e172a43e5f4d0e29570f/scores/Haydn%2C_Joseph/String_Quartet_in_E_major%2C_Hob.III8%2C_Op.2_No.2/sq26380840.mxl",
+      "license": "CC0-1.0",
+      "git_blob_sha1": "1cc80e254210bbf4f8f3d590b960cbe431cc1edc",
+      "sha256": "9c2d879f825529517dfbc183004d908587730d85a589fd3640f434fee95159a1",
+      "bytes": 111154,
+      "local_path": "chamber/sq26380840.mxl"
+    },
+    {
+      "group": "chamber",
+      "id": "sq10517302",
+      "source_url": "https://raw.githubusercontent.com/OpenScore/StringQuartets/2614b0b2958dd1ce3f52e172a43e5f4d0e29570f/scores/Stanford%2C_Charles_Villiers/String_Quartet_No.1%2C_Op.44/sq10517302.mxl",
+      "license": "CC0-1.0",
+      "git_blob_sha1": "317ae062b6a2be18da815ed0093c6b50d4879460",
+      "sha256": "35fb73ec987b47e3d98a01b5e5a9877006aba121ca7f102930fe284b77b344f6",
+      "bytes": 315551,
+      "local_path": "chamber/sq10517302.mxl"
+    },
+    {
+      "group": "chamber",
+      "id": "sq34642727",
+      "source_url": "https://raw.githubusercontent.com/OpenScore/StringQuartets/2614b0b2958dd1ce3f52e172a43e5f4d0e29570f/scores/Onslow%2C_George/String_Quartet_No.28_in_E-flat_major%2C_Op.54/sq34642727.mxl",
+      "license": "CC0-1.0",
+      "git_blob_sha1": "94c3bf11b3c524668ce6b77494abf6e3abad626d",
+      "sha256": "6c03648de19fe27523a0896c1d9a45af53765819d4a89ac19b1e90ba264bbc8b",
+      "bytes": 226505,
+      "local_path": "chamber/sq34642727.mxl"
+    },
+    {
+      "group": "chamber",
+      "id": "sq7397765",
+      "source_url": "https://raw.githubusercontent.com/OpenScore/StringQuartets/2614b0b2958dd1ce3f52e172a43e5f4d0e29570f/scores/Schubert%2C_Franz/String_Quartet_in_D_minor%2C_D.810%2C_No.14_%28%E2%80%9CDeath_and_the_Maiden%E2%80%9D%29/sq7397765.mxl",
+      "license": "CC0-1.0",
+      "git_blob_sha1": "1bd44e2520fe3bd72b2244fca59cba9f4a178a55",
+      "sha256": "c1370ff43b2272b88e04d41d3cc31ca6717a982eaa09cc5540a5952b4f3c1bd5",
+      "bytes": 380491,
+      "local_path": "chamber/sq7397765.mxl"
+    },
+    {
+      "group": "part",
+      "id": "sq9529900",
+      "source_url": "https://raw.githubusercontent.com/OpenScore/StringQuartets/2614b0b2958dd1ce3f52e172a43e5f4d0e29570f/scores/Schumann%2C_Robert/String_Quartet_No.3%2C_Op.41_No.3/sq9529900.mxl",
+      "license": "CC0-1.0",
+      "git_blob_sha1": "9dbf0287bee28e45b63e2ab00e8b61c554f25370",
+      "sha256": "884953786be6d685906ddf63a2c169c1bae7806663388e7cbc580e56a567e7f7",
+      "bytes": 249438,
+      "local_path": "part/sq9529900.mxl"
+    },
+    {
+      "group": "part",
+      "id": "sq26652775",
+      "source_url": "https://raw.githubusercontent.com/OpenScore/StringQuartets/2614b0b2958dd1ce3f52e172a43e5f4d0e29570f/scores/Franck%2C_C%C3%A9sar/String_Quartet/sq26652775.mxl",
+      "license": "CC0-1.0",
+      "git_blob_sha1": "bf02b3f72227ff9b0206441df1fb89a7f4c56314",
+      "sha256": "380b26585eb96ae363c8a74f9148957b137d8a889b5452b7158e36758f8b89a3",
+      "bytes": 512008,
+      "local_path": "part/sq26652775.mxl"
+    },
+    {
+      "group": "part",
+      "id": "sq8913219",
+      "source_url": "https://raw.githubusercontent.com/OpenScore/StringQuartets/2614b0b2958dd1ce3f52e172a43e5f4d0e29570f/scores/Beethoven%2C_Ludwig_van/String_Quartet_No.4%2C_Op.18_No.4/sq8913219.mxl",
+      "license": "CC0-1.0",
+      "git_blob_sha1": "66132f16a1407e9d33486b6785d5df8b81af005d",
+      "sha256": "946d8fca05ec781cba1e294367e946011be590129b21dacea2ac7e44e50e57d8",
+      "bytes": 198526,
+      "local_path": "part/sq8913219.mxl"
+    },
+    {
+      "group": "part",
+      "id": "sq9094235",
+      "source_url": "https://raw.githubusercontent.com/OpenScore/StringQuartets/2614b0b2958dd1ce3f52e172a43e5f4d0e29570f/scores/Bridge%2C_Frank/String_Quartet_No.2%2C_H.115/sq9094235.mxl",
+      "license": "CC0-1.0",
+      "git_blob_sha1": "79c9b2a598190661047468c00cc4db8b917c7478",
+      "sha256": "2c9d46f33d4029e56a8bc54883f0d83b8df801811650a56783123932a9dcb505",
+      "bytes": 304843,
+      "local_path": "part/sq9094235.mxl"
+    },
+    {
+      "group": "part",
+      "id": "sq7577795",
+      "source_url": "https://raw.githubusercontent.com/OpenScore/StringQuartets/2614b0b2958dd1ce3f52e172a43e5f4d0e29570f/scores/Hensel%2C_Fanny_%28Mendelssohn%29/String_Quartet_in_E-flat_major%2C_Op._277/sq7577795.mxl",
+      "license": "CC0-1.0",
+      "git_blob_sha1": "62ecc25dcf7d151f4946f8571c1bd72e58f514e6",
+      "sha256": "bef8615575a793c1f3b1d02070877d1e712bc5e260c9e83bd03aa8d91bf551c3",
+      "bytes": 191378,
+      "local_path": "part/sq7577795.mxl"
+    },
+    {
+      "group": "part",
+      "id": "sq14619670",
+      "source_url": "https://raw.githubusercontent.com/OpenScore/StringQuartets/2614b0b2958dd1ce3f52e172a43e5f4d0e29570f/scores/Lalo%2C_Edouard/String_Quartet%2C_Op.19/sq14619670.mxl",
+      "license": "CC0-1.0",
+      "git_blob_sha1": "98d662772caf46fde2629a8ff6555ba7c67c3ec0",
+      "sha256": "59ed15abf9bd4615aa942884df6d7bc3dcd3eb80f4bb8c5f79292d0d85aa146a",
+      "bytes": 371013,
+      "local_path": "part/sq14619670.mxl"
+    }
+  ]
+}

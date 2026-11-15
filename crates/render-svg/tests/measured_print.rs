@@ -526,6 +526,124 @@ fn final_slur_geometry_clears_lyrics_on_the_previous_staff() {
 }
 
 #[test]
+fn hidden_notation_layers_are_absent_from_print_but_keep_visible_slurs() {
+    let score = acorde_io::parse_musicxml(include_str!(
+        "../../../tests/fixtures/musicxml_hidden_notations.musicxml"
+    ))
+    .unwrap();
+    let output = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    let doc = roxmltree::Document::parse(&output.pages[0]).unwrap();
+    let count = |class| {
+        doc.descendants()
+            .filter(|n| {
+                n.attribute("class")
+                    .is_some_and(|classes| classes.split_whitespace().any(|c| c == class))
+            })
+            .count()
+    };
+    assert_eq!(count("acorde-tuplet-number"), 0);
+    assert_eq!(count("acorde-tuplet-bracket"), 0);
+    assert_eq!(count("acorde-slur"), 1);
+    assert_eq!(count("acorde-articulation"), 1);
+    assert_eq!(count("acorde-notehead"), 3);
+}
+
+#[test]
+fn gossec_fingerings_remain_nearer_their_own_staff_than_the_previous_violin() {
+    let score = acorde_io::parse_mxl(include_bytes!(
+        "../../../tests/fixtures/openscore_gossec_quartet_rh189.mxl"
+    ))
+    .unwrap();
+    let output = engrave_print_pages(
+        &score,
+        &PrintConfig {
+            measures_per_system: 8,
+            ..Default::default()
+        },
+        FONT,
+    )
+    .unwrap();
+    let font = TextFont::new(FONT, 0).unwrap();
+    let mut checked = 0;
+    for (svg, page) in output.pages.iter().zip(&output.layout.pages) {
+        let Some(row) = page
+            .systems
+            .iter()
+            .position(|system| system.measure_indices.contains(&75))
+        else {
+            continue;
+        };
+        let doc = roxmltree::Document::parse(svg).unwrap();
+        let staff_edges: Vec<(f32, f32)> = doc
+            .descendants()
+            .filter(|n| n.attribute("class") == Some("acorde-staff"))
+            .map(|staff| {
+                staff
+                    .children()
+                    .filter(|n| n.attribute("class") == Some("acorde-staff-line"))
+                    .map(|n| n.attribute("y1").unwrap().parse::<f32>().unwrap())
+                    .fold((f32::INFINITY, f32::NEG_INFINITY), |(a, b), y| {
+                        (a.min(y), b.max(y))
+                    })
+            })
+            .collect();
+        let previous_bottom = staff_edges[row * 4].1;
+        let own_top = staff_edges[row * 4 + 1].0;
+        for mark in doc
+            .descendants()
+            .filter(|n| n.attribute("class") == Some("acorde-fingering"))
+        {
+            let owner = mark
+                .ancestors()
+                .find(|n| n.attribute("data-note-addr").is_some())
+                .unwrap();
+            if owner.attribute("data-measure") != Some("75") {
+                continue;
+            }
+            assert_eq!(owner.attribute("data-part"), Some("1"));
+            let glyph = mark.children().find(|n| n.has_tag_name("path")).unwrap();
+            let matrix: Vec<f32> = glyph
+                .attribute("transform")
+                .unwrap()
+                .trim_start_matches("matrix(")
+                .trim_end_matches(')')
+                .split_whitespace()
+                .map(|s| s.parse().unwrap())
+                .collect();
+            let shift: f32 = mark
+                .ancestors()
+                .take_while(|n| n.attribute("class") != Some("acorde-print-notation acorde-score"))
+                .filter_map(|n| n.attribute("transform"))
+                .map(|s| {
+                    s.trim_start_matches("translate(")
+                        .trim_end_matches(')')
+                        .split_whitespace()
+                        .nth(1)
+                        .unwrap()
+                        .parse::<f32>()
+                        .unwrap()
+                })
+                .sum();
+            let metrics = font
+                .measure(
+                    "3",
+                    mark.attribute("data-font-size").unwrap().parse().unwrap(),
+                )
+                .unwrap();
+            let top = matrix[5] + shift + metrics.top_mm;
+            let bottom = matrix[5] + shift + metrics.bottom_mm;
+            assert!(top > previous_bottom && bottom < own_top);
+            assert!(
+                own_top - bottom < top - previous_bottom,
+                "second-violin fingering reads as previous-staff notation: {top}..{bottom} between {previous_bottom} and {own_top}"
+            );
+            checked += 1;
+        }
+    }
+    assert_eq!(checked, 3);
+}
+
+#[test]
 fn authored_dynamic_side_takes_precedence_over_the_lyric_policy() {
     for has_lyrics in [false, true] {
         for above in [false, true] {

@@ -2952,8 +2952,8 @@ fn note_annotation_margins(note: &Note, voice_stem_up: bool) -> (f32, f32) {
     if note.pitches.iter().any(|pitch| pitch.microtone_cents != 0) {
         top = top.max(3.9);
     }
-    if !note.articulations.is_empty() {
-        let extent = 2.0 + note.articulations.len().saturating_sub(1) as f32;
+    if note.visible_articulations().next().is_some() {
+        let extent = 2.0 + note.visible_articulations().count().saturating_sub(1) as f32;
         if note.stem_up.unwrap_or(voice_stem_up) {
             top = top.max(extent);
         } else {
@@ -4954,7 +4954,7 @@ fn render_measure_semantic_annotations(
                 }
             }
             if kinds.articulations {
-                for (articulation_idx, articulation) in note.articulations.iter().enumerate() {
+                for (articulation_idx, articulation) in note.visible_articulations().enumerate() {
                     let distance = 1.2 + articulation_idx as f32;
                     let y = if stem_up {
                         anchor_y - distance * space
@@ -7964,7 +7964,7 @@ fn note_annotation_lane_width_u(note: &Note, above: bool) -> f32 {
                 .fold(0.0_f32, f32::max),
         );
     }
-    if !note.articulations.is_empty() {
+    if note.visible_articulations().next().is_some() {
         let articulation_width = note_annotation_width_u(note);
         reserve_annotation_lane(&mut width, direction, above, articulation_width, true);
     }
@@ -8013,7 +8013,7 @@ fn note_annotation_width_u(note: &Note) -> f32 {
             width = width.max(format!("{:+}c", pitch.microtone_cents).len() as f32 * 0.42);
         }
     }
-    for articulation in &note.articulations {
+    for articulation in note.visible_articulations() {
         let text_width = match articulation {
             acorde_core::Articulation::Fermata => Some(7.0),
             acorde_core::Articulation::Trill => Some(2.0),
@@ -11457,8 +11457,7 @@ pub(crate) fn write_stem_tremolo(
     space: f32,
 ) {
     let Some(acorde_core::Articulation::Tremolo(strokes)) = note
-        .articulations
-        .iter()
+        .visible_articulations()
         .find(|articulation| matches!(articulation, acorde_core::Articulation::Tremolo(_)))
     else {
         return;
@@ -11569,7 +11568,7 @@ fn note_annotation_lane_extents(note: &Note, voice_stem_up: bool) -> (f32, f32) 
             },
         );
     }
-    for (index, _) in note.articulations.iter().enumerate() {
+    for (index, _) in note.visible_articulations().enumerate() {
         reserve(stem_up, 1.2 + index as f32);
     }
     (
@@ -12280,7 +12279,7 @@ fn chord_accidental_offsets(
 /// Jazz slides at a notehead: a scoop or plop curving in from the left (below or above), a
 /// doit or fall-off curving out to the right (up or down).
 fn render_chord_lines(body: &mut String, note: &Note, cx: f32, cy: f32, space: f32) {
-    for articulation in &note.articulations {
+    for articulation in note.visible_articulations() {
         let (class, from_left, rise) = match articulation {
             acorde_core::Articulation::Scoop => ("acorde-scoop", true, 1.0_f32),
             acorde_core::Articulation::Plop => ("acorde-plop", true, -1.0),

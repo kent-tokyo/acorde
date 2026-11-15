@@ -7,6 +7,47 @@ use acorde_core::{
 /// that key musical properties are preserved across the round-trip.
 use acorde_io::{parse_midi, parse_musicxml, serialize_musicxml};
 
+#[test]
+fn hidden_notation_layers_keep_performance_marks_and_roundtrip_visibility() {
+    let xml = include_str!("../../../tests/fixtures/musicxml_hidden_notations.musicxml");
+    let parsed = parse_musicxml(xml).unwrap();
+    let first = &parsed.parts[0].staves[0].measures[0].voices[0][0];
+    assert_eq!(first.articulations.len(), 3);
+    assert_eq!(first.hidden_articulations, vec![0, 1]);
+    assert_eq!(
+        first.visible_articulations().collect::<Vec<_>>(),
+        vec![&acorde_core::Articulation::Tenuto]
+    );
+    assert_eq!(
+        first.tuplet_display.as_ref().unwrap().number,
+        acorde_core::TupletNumberDisplay::None
+    );
+    assert_eq!(first.tuplet_display.as_ref().unwrap().bracket, Some(false));
+    let written = serialize_musicxml(&parsed).unwrap();
+    assert!(written.contains("<notations print-object=\"no\">"));
+    let reparsed = parse_musicxml(&written).unwrap();
+    let second = &reparsed.parts[0].staves[0].measures[0].voices[0][0];
+    let inventory = |note: &acorde_core::Note| {
+        let mut result: Vec<_> = note
+            .articulations
+            .iter()
+            .enumerate()
+            .map(|(i, a)| (format!("{a:?}"), !note.hidden_articulations.contains(&i)))
+            .collect();
+        result.sort();
+        result
+    };
+    assert_eq!(inventory(first), inventory(second));
+    assert_eq!(first.tuplet_display, second.tuplet_display);
+    let events = |score: &acorde_core::Score| {
+        acorde_core::to_playback_events(score, &acorde_core::PlaybackOptions::default())
+            .into_iter()
+            .map(|e| (e.pitch_midi, e.time_beats, e.duration_beats))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(events(&parsed), events(&reparsed));
+}
+
 #[cfg(feature = "abc")]
 #[test]
 fn abc_midbar_chord_plan_uses_source_onsets_and_arranges_without_snapping() {
@@ -1662,6 +1703,12 @@ fn fixture_manifest_sha256_matches_checked_in_files() {
             ),
             "harmony_written.musicxml" => {
                 include_bytes!("../../../tests/fixtures/harmony_written.musicxml")
+            }
+            "musicxml_hidden_notations.musicxml" => {
+                include_bytes!("../../../tests/fixtures/musicxml_hidden_notations.musicxml")
+            }
+            "openscore_gossec_quartet_rh189.mxl" => {
+                include_bytes!("../../../tests/fixtures/openscore_gossec_quartet_rh189.mxl")
             }
             other => panic!("manifest fixture has no embedded test mapping: {other}"),
         };

@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- Retain hidden MusicXML articulations as performance data with optional
+  `Note::hidden_articulations` indices and `SetHiddenArticulations` editing.
+  Hidden notation containers suppress their tuplet digits/brackets and articulation
+  ink through export. Measured print reserves final fingering and technique-text bounds.
 - Preserve authored dynamic placement in optional, serde-defaulted
   `Note::dynamic_above`, `SetDynamicPlacement`, MusicXML import/export and print
   engraving. Unspecified placement stays unspecified through round trips.

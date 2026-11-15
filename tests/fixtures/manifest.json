@@ -487,6 +487,26 @@
       "sha256": "e97b33310beb4437c640e23a3c66cb4d713e5e1071648c7b517c30acd0284568",
       "round_trip": "semantic",
       "expected_losses": []
+    },
+    {
+      "path": "musicxml_hidden_notations.musicxml",
+      "format": "musicxml",
+      "license": "self-authored",
+      "sha256": "ae66effa75f5d45b378da8d6b3fe30bb90a61881eafb95f990263ae8815a8223",
+      "round_trip": "semantic",
+      "expected_losses": []
+    },
+    {
+      "path": "openscore_gossec_quartet_rh189.mxl",
+      "format": "mxl",
+      "license": "CC0-1.0",
+      "source_url": "https://github.com/OpenScore/StringQuartets/blob/2614b0b2958dd1ce3f52e172a43e5f4d0e29570f/scores/Gossec%2C_Fran%C3%A7ois_Joseph/String_Quartet_in_C_minor%2C_RH_189/sq27571393.mxl",
+      "source_revision": "2614b0b2958dd1ce3f52e172a43e5f4d0e29570f",
+      "sha256": "a0764ad885be2179a43a8b4809c490d18228bf7e2d064bdf4306c0413f358b1e",
+      "round_trip": "import-only",
+      "expected_losses": [
+        "MusicXML rendering attributes"
+      ]
     }
   ]
 }

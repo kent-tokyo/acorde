@@ -50,6 +50,7 @@ pub enum Command {
     ToggleTie(ToggleTieCmd),
     SetDynamic(SetDynamicCmd),
     SetDynamicPlacement(SetDynamicPlacementCmd),
+    SetHiddenArticulations(SetHiddenArticulationsCmd),
     ToggleArticulation(ToggleArticulationCmd),
     SetKeySignature(SetKeySignatureCmd),
     SetTimeSignature(SetTimeSignatureCmd),
@@ -277,6 +278,16 @@ pub struct SetDynamicPlacementCmd {
     pub voice: usize,
     pub note_index: usize,
     pub above: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetHiddenArticulationsCmd {
+    pub part_index: usize,
+    pub staff_index: usize,
+    pub measure_index: usize,
+    pub voice: usize,
+    pub note_index: usize,
+    pub hidden: Vec<usize>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1511,6 +1522,7 @@ pub fn command_hint(cmd: &Command) -> ChangeHint {
         Command::ToggleTie(c) => hint!(meas!(c), false, true),
         Command::SetDynamic(c) => hint!(meas!(c), false, true),
         Command::SetDynamicPlacement(c) => hint!(meas!(c), false, false),
+        Command::SetHiddenArticulations(c) => hint!(meas!(c), false, false),
         Command::ToggleArticulation(c) => hint!(meas!(c), false, true),
         Command::SetGrace(c) => hint!(meas!(c), false, true),
         Command::SetOttava(c) => hint!(meas!(c), false, true),
@@ -1600,6 +1612,7 @@ pub fn command_label(cmd: &Command) -> String {
         Command::ToggleTie(_) => "Toggle Tie".to_string(),
         Command::SetDynamic(_) => "Set Dynamic".to_string(),
         Command::SetDynamicPlacement(_) => "Set Dynamic Placement".to_string(),
+        Command::SetHiddenArticulations(_) => "Set Hidden Articulations".to_string(),
         Command::ToggleArticulation(_) => "Toggle Articulation".to_string(),
         Command::SetKeySignature(_) => "Set Key Signature".to_string(),
         Command::SetTimeSignature(_) => "Set Time Signature".to_string(),
@@ -1767,6 +1780,7 @@ pub fn command_key(cmd: &Command) -> String {
         Command::ToggleTie(_) => "ToggleTie".to_string(),
         Command::SetDynamic(_) => "SetDynamic".to_string(),
         Command::SetDynamicPlacement(_) => "SetDynamicPlacement".to_string(),
+        Command::SetHiddenArticulations(_) => "SetHiddenArticulations".to_string(),
         Command::ToggleArticulation(_) => "ToggleArticulation".to_string(),
         Command::SetKeySignature(_) => "SetKeySignature".to_string(),
         Command::SetTimeSignature(_) => "SetTimeSignature".to_string(),
@@ -1917,6 +1931,26 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
         Command::AddHairpin(c) => apply_add_hairpin(c, score),
         Command::ToggleTie(c) => apply_toggle_tie(c, score),
         Command::SetDynamic(c) => apply_set_dynamic(c, score),
+        Command::SetHiddenArticulations(c) => {
+            let note = get_note_mut(
+                score,
+                c.part_index,
+                c.staff_index,
+                c.measure_index,
+                c.voice,
+                c.note_index,
+            )?;
+            if c.hidden.iter().any(|&i| i >= note.articulations.len()) {
+                return Err(Error::InvalidCommand(
+                    "hidden articulation index is out of range".into(),
+                ));
+            }
+            let mut hidden = c.hidden.clone();
+            hidden.sort_unstable();
+            hidden.dedup();
+            note.hidden_articulations = hidden;
+            Ok(())
+        }
         Command::SetDynamicPlacement(c) => {
             get_note_mut(
                 score,
@@ -3347,6 +3381,15 @@ fn apply_toggle_articulation(cmd: &ToggleArticulationCmd, score: &mut Score) -> 
         .position(|a| a == &cmd.articulation)
     {
         note.articulations.remove(pos);
+        note.hidden_articulations.retain_mut(|index| {
+            if *index == pos {
+                return false;
+            }
+            if *index > pos {
+                *index -= 1;
+            }
+            true
+        });
     } else {
         note.articulations.push(cmd.articulation.clone());
     }
@@ -4378,6 +4421,7 @@ fn apply_explode_voices(cmd: &ExplodeVoicesCmd, score: &mut Score) -> Result<(),
 
 fn clear_derived_chord_note_notation(note: &mut Note) {
     note.articulations.clear();
+    note.hidden_articulations.clear();
     note.dynamic = None;
     note.dynamic_above = None;
     note.stem_up = None;
@@ -7884,6 +7928,74 @@ mod tests {
         assert_eq!(
             serde_json::to_value(&score).unwrap(),
             serde_json::to_value(&original).unwrap()
+        );
+    }
+
+    #[test]
+    fn hidden_articulations_are_undoable_and_remap_when_toggled() {
+        let mut score = Score::new("Visibility", 120, 4, 4, 0, 1);
+        let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+        let old = serde_json::to_value(&note).unwrap();
+        assert!(old.get("hidden_articulations").is_none());
+        assert!(
+            serde_json::from_value::<Note>(old)
+                .unwrap()
+                .hidden_articulations
+                .is_empty()
+        );
+        assert!(Note::rest(Duration::Whole).hidden_articulations.is_empty());
+        note.articulations = vec![Articulation::Tenuto, Articulation::Staccato];
+        score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+        let mut stack = CommandStack::new(4);
+        let command = SetHiddenArticulationsCmd {
+            part_index: 0,
+            staff_index: 0,
+            measure_index: 0,
+            voice: 0,
+            note_index: 0,
+            hidden: vec![1],
+        };
+        stack
+            .execute(Command::SetHiddenArticulations(command.clone()), &mut score)
+            .unwrap();
+        assert_eq!(
+            score.parts[0].staves[0].measures[0].voices[0][0].hidden_articulations,
+            vec![1]
+        );
+        stack.undo(&mut score).unwrap();
+        assert!(
+            score.parts[0].staves[0].measures[0].voices[0][0]
+                .hidden_articulations
+                .is_empty()
+        );
+        stack.redo(&mut score).unwrap();
+        assert_eq!(
+            score.parts[0].staves[0].measures[0].voices[0][0].hidden_articulations,
+            vec![1]
+        );
+        apply_command(
+            &Command::ToggleArticulation(ToggleArticulationCmd {
+                part_index: 0,
+                staff_index: 0,
+                measure_index: 0,
+                voice: 0,
+                note_index: 0,
+                articulation: Articulation::Tenuto,
+            }),
+            &mut score,
+        )
+        .unwrap();
+        let note = &score.parts[0].staves[0].measures[0].voices[0][0];
+        assert_eq!(note.hidden_articulations, vec![0]);
+        assert!(note.visible_articulations().next().is_none());
+        let invalid = SetHiddenArticulationsCmd {
+            hidden: vec![2],
+            ..command
+        };
+        assert!(apply_command(&Command::SetHiddenArticulations(invalid), &mut score).is_err());
+        assert_eq!(
+            score.parts[0].staves[0].measures[0].voices[0][0].hidden_articulations,
+            vec![0]
         );
     }
 

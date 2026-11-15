@@ -1601,9 +1601,12 @@ pub(super) fn arrange_with_layer_sequence(
             added.dot_count = source_note.dot_count;
             added.tuplet = source_note.tuplet.clone();
             added.tuplet_boundary = source_note.tuplet_boundary;
+            added.tuplet_display = source_note.tuplet_display.clone();
             added.beam = source_note.beam;
             added.articulations = source_note.articulations.clone();
+            added.hidden_articulations = source_note.hidden_articulations.clone();
             added.dynamic = source_note.dynamic;
+            added.dynamic_above = source_note.dynamic_above;
             added.is_grace = source_note.is_grace;
             added.grace_slash = source_note.grace_slash;
             added.is_cue = source_note.is_cue;
