@@ -48,6 +48,8 @@ pub(crate) fn parse_chord_label(value: &str) -> Option<ChordSymbol> {
         "sus2" => "suspended-second",
         "sus4" => "suspended-fourth",
         "m7b5" => "half-diminished",
+        "add9" => "major-add9",
+        "madd9" => "minor-add9",
         "6" => "major-sixth",
         "m6" => "minor-sixth",
         other => other,

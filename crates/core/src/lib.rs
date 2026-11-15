@@ -4,6 +4,25 @@
 
 pub mod model;
 
+pub use model::accordion_dynamics::{
+    AccordionDynamicSchedule, AccordionDynamicSection, DynamicSectionedAccordionResult,
+    arrange_sections_with_dynamics,
+};
+pub use model::accordion_response::{
+    AccordionResponseFill, AccordionResponseOptions, ResponseFilledAccordionResult,
+    arrange_with_response_fills,
+};
+pub use model::accordion_sections::{
+    AccordionAccompanimentSection, AccordionMelodicSchedule, AccordionMelodicSection,
+    MelodicSectionedAccordionResult, SectionedAccordionOptions, SectionedAccordionResult,
+    arrange_sections_with_melodic_voices, arrange_with_sections,
+};
+pub use model::accordion_voicing::{
+    AccordionVoicing, AccordionVoicingOptions, VoiceLedAccordionResult,
+    VoiceLedSectionedAccordionResult, arrange_sections_with_voice_leading,
+    arrange_with_voice_leading,
+};
+
 pub use model::arrange::{
     AccordionAnalysis, AccordionBassMode, AccordionDroneOptions, AccordionDroneResult,
     AccordionInversion, AccordionLossPolicy, AccordionMelodicVoice, AccordionPattern,
@@ -22,9 +41,20 @@ pub use model::arrange_presets::{
     arrange_accordion_preset, arrange_from_resolved_layers, arrange_from_resolved_preset,
     shuffle_accordion_layers, shuffle_accordion_preset,
 };
+pub use model::arrangement_proposals::{
+    ARRANGEMENT_PROPOSAL_CONTRACT_VERSION, ArrangementProposalCandidate,
+    ArrangementProposalDiagnostic, ArrangementProposalFeatures, ArrangementProposalReplayResult,
+    ArrangementProposalRequest, ArrangementProposalResult, ArrangementRegionRequest,
+    ArrangementRegionResult, ResolvedArrangementProposal, regenerate_arrangement_region,
+    replay_arrangement_proposal, suggest_arrangement_proposals,
+};
 pub use model::authored_chords::{
     AuthoredChordAnnotation, AuthoredChordDiagnostic, AuthoredChordOptions, AuthoredChordResult,
     annotate_from_authored_chords,
+};
+pub use model::bass_line::{
+    BassLineDiagnostic, BassLineMotionReport, BassLineOptions, BassLinePattern, BassLineResult,
+    arrange_bass_line,
 };
 pub use model::change_hint::{ChangeHint, ChangeScope};
 pub use model::chord_plan::{
@@ -38,7 +68,12 @@ pub use model::chord_proposals::{
     ChordPresetAssessment, ChordPresetAssessmentResult, ChordProposalArrangementResult,
     ChordProposalCandidate, ChordProposalDiagnostic, ChordProposalRequest, ChordProposalResult,
     ResolvedChordProposal, SourceRangeViolation, arrange_from_chord_proposal, assess_chord_presets,
-    suggest_chord_plans,
+    suggest_chord_plans, suggest_chord_plans_at_positions, suggest_chord_plans_with_locks,
+};
+pub use model::chordal_pad::{
+    ChordalPadDiagnostic, ChordalPadMeterGroupSection, ChordalPadMotionReport, ChordalPadOptions,
+    ChordalPadPattern, ChordalPadPatternSection, ChordalPadResolvedVoicing, ChordalPadResult,
+    ChordalPadVoicing, arrange_chordal_pad,
 };
 pub use model::commands::{
     AddHairpinCmd, AddMeasureCmd, AddNoteCmd, AddPartCmd, AddPedalCmd, AddPitchCmd, AddSpannerCmd,
@@ -66,8 +101,19 @@ pub use model::commands::{
     TransposeStaffRegionCmd, TupletScalePolicy, UnrollRepeatsCmd, UpdateSpannerCmd,
     UpsertScoreViewCmd, command_key, command_label,
 };
+pub use model::countermelody::{
+    CountermelodyDiagnostic, CountermelodyOptions, CountermelodyResult, arrange_countermelody,
+};
 pub use model::duration::Duration;
 pub use model::engine::{EngineHistory, HistoryConflict, HistoryRelation, ScoreEngine};
+pub use model::ensemble_melody::{
+    EnsembleMelodyDiagnostic, EnsembleMelodyRequest, EnsembleMelodyResult, MelodyRoleSection,
+    arrange_ensemble_with_melody,
+};
+pub use model::ensemble_roles::{
+    EnsembleMeasureActivity, EnsembleRole, EnsembleRoleDiagnostic, EnsembleRoleOptions,
+    EnsembleRolePart, EnsembleRoleResult, EnsembleRoleSection, arrange_ensemble_roles,
+};
 pub use model::fragment::{
     MIN_SUPPORTED_SCORE_FRAGMENT_CONTRACT_VERSION, SCORE_FRAGMENT_CONTRACT_VERSION, ScoreFragment,
     ScoreFragmentCrossStaffTarget, ScoreFragmentDiagnostic, ScoreFragmentMeasure,

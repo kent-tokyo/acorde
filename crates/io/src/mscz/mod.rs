@@ -3782,6 +3782,8 @@ fn mscx_chord_symbol(
         "sus2" => "suspended-second",
         "sus4" => "suspended-fourth",
         "m7b5" => "half-diminished",
+        "add9" => "major-add9",
+        "madd9" => "minor-add9",
         "6" => "major-sixth",
         "m6" => "minor-sixth",
         other => other,
@@ -3806,6 +3808,9 @@ fn mscx_chord_symbol(
 /// The parser intentionally recognizes only unambiguous MusicXML-compatible
 /// tokens. Unknown suffixes remain in the kind string instead of being guessed.
 fn mscx_harmony_kind_and_degrees(name: &str) -> (&str, Vec<ChordDegree>) {
+    if matches!(name, "add9" | "madd9") {
+        return (name, Vec::new());
+    }
     let quality_len = [
         "maj7", "m7b5", "dim7", "sus2", "sus4", "min7", "m6", "maj", "min", "dim", "aug", "m", "7",
         "6",
