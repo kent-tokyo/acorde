@@ -115,7 +115,9 @@ Start with the [documentation guide](docs/README.md) for current contracts and
 [roadmap](ROADMAP.md) for planned work. The most common references are the
 [notation coverage matrix](docs/notation-coverage.md),
 [migration notes](docs/migrations.md), [browser contract](docs/browser-rendering.md), and
-[PDF export boundary](docs/pdf-export.md).
+[PDF export boundary](docs/pdf-export.md). For music-analysis comparisons,
+use the [source-positioned evaluation contract](docs/analysis-evaluation.md)
+and its task-specific evidence before making a music21 parity claim.
 
 The [Japanese overview](README_ja.md), [security contract](docs/security/threat-model.md), and
 [contribution guide](CONTRIBUTING.md) remain separate entry points.

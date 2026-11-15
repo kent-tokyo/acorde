@@ -109,7 +109,10 @@ This cannot distinguish changes within a measure, may lack an estimate for a
 silent or uniform window, and uses written pitches. On 24 inspected When in
 Rome development works, a radius of four matched 2,325 of 3,405 annotated
 local-key positions. The radius was selected on those same works, so this is
-development evidence rather than a held-out or paired music21 result.
+single-tool development evidence. A [paired development comparison](../../docs/archive/analysis-wir-local-key-paired-development-v1.md)
+found 2,157/3,405 for music21 at its best window on the inspected works; a
+separate [fixed 12-work holdout](../../docs/archive/analysis-wir-local-key-holdout-v1.md)
+failed the local-key gate at 1,921 versus 1,934 exact labels.
 
 `analyze_batch` preserves input order for finite collections, while `analyze_stream` returns a
 lazy iterator for host-side streaming. Both use the same deterministic result contract.

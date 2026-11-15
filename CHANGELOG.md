@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+- Add opt-in located `analyze_voice_leading_quartets` in Rust and WASM plus
+  CLI `analyze-voice-leading`. It compares all pairs of monophonic written
+  voices across parts and bar lines, retaining four note addresses, pitches,
+  onsets, durations, and keyless motion, perfect-interval, and resolution
+  flags. A pinned six-quartet development comparison agrees with music21
+  10.5.2 on five flags; independent multi-style accuracy is not established.
+  The headless browser WASM test remains unverified locally.
 - Add opt-in `analyze-local-keys --radius` and a Rust centered-window
   Aarden-Essen local-key estimate for each physical measure. It reports the
   source window and correlation, with the written key signature used only to
@@ -36,7 +43,8 @@
   Different note durations no longer cause index-matched voices to be compared
   at different times; lone whole rests use the actual measure length. The
   serialized analysis result schema and cache key advance to 14. This does not
-  yet align malformed bars across parts or analyze motion across barlines.
+  yet align malformed bars across parts or analyze motion across barlines in
+  the default SATB-facing result; the separate opt-in quartet pass does.
 - Vertical-sonority reports now identify missing or unequal physical measures,
   invalid note durations, and overfull voices; affected measures produce no
   inferred sonority. The preceding CLI schema 2 added `timeline_issues` while

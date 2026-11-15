@@ -13,6 +13,7 @@ acorde print-report input.musicxml --preset a4-score --fail-on-issues
 acorde compatibility-report source.musicxml candidate.musicxml --fail-on-differences
 acorde mcp --root ./scores
 acorde analyze-vertical score.krn --infer-key
+acorde analyze-voice-leading score.musicxml
 ~~~
 
 Use `acorde <command> --help` for the full surface. Commands are grouped as conversion and
@@ -37,6 +38,13 @@ making the selected condition a non-zero exit.
 `analyze-vertical` emits opt-in simultaneous-note chord candidates with written
 measure/beat positions and source addresses. `--infer-key` uses the first
 Aarden-Essen global-key candidate; otherwise written key changes apply.
+`analyze-voice-leading` emits opt-in, located four-note comparisons across
+monophonic voice pairs, including nonadjacent voices and bar lines. Its JSON
+contains source addresses, written pitches, absolute quarter-beat positions,
+durations, five keyless motion/interval/resolution flags, and a score
+fingerprint. The [development comparison](../../docs/archive/analysis-voice-leading-quartet-development-v1.md)
+sets the music21 10.5.2 boundary; six matching fixtures are not an accuracy
+or superiority result.
 
 `auto-tab-report`, `tab-performance-report`, and `fingering-report` provide deterministic
 tablature and fingering diagnostics. `playback-report` produces the expected event schedule, while

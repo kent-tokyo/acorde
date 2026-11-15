@@ -83,6 +83,8 @@ Harumiを使う任意のメモリ内アダプターであり、フォント、UI
 対応範囲は[記譜対応マトリクス](docs/notation-coverage.md)、現行機能は
 [scorecard](docs/scorecard.md)、外部ツールの限定観測は
 [相互運用証跡](docs/external-interoperability-evidence.md)を参照してください。
+楽曲分析とmusic21の比較条件・未達項目は
+[分析評価の契約](docs/analysis-evaluation.md)と[ロードマップ](ROADMAP.md)に記録しています。
 
 ## CLI
 

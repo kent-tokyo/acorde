@@ -101,3 +101,37 @@ the Rust `estimate_keys_with_aarden_essen_profile` function, CLI
 `estimate_keys_with_aarden_essen_profile`. Default analysis results remain
 unchanged. The corpus and comparator do not establish harmony, cadence or
 voice-leading parity.
+
+## Later task-specific gates
+
+The [three-style global-key holdout](archive/analysis-global-key-holdout-v1.md)
+uses a separately frozen 12-score cohort. One chorale is ineligible under the
+preregistered reference rule; Acorde and music21 10.5.2 each match 10/11
+remaining keys with equal coverage. Its superiority gate failed.
+
+The [third When in Rome harmony holdout](archive/analysis-wir-harmony-holdout-3-v1.md)
+passes a narrower aggregate gate at 559 versus 508 exact Roman labels among
+2,341 aligned primary annotation positions. The result does not cover other
+harmony positions or styles. The [disjoint local-key holdout](archive/analysis-wir-local-key-holdout-v1.md)
+fails at 1,921 versus 1,934 exact labels among 2,903 paired positions. Its
+source-beat transitions remain untested. The [Mozart cadence development
+audit](archive/analysis-mozart-cadence-sonority-development-v1.md) has no
+pinned music21 cadence recipe or scored reserved labels; simple half/deceptive
+transition hypotheses made 96 false predictions for 33 correct positions and
+were not adopted.
+
+## Located voice-leading quartets (2026-11-15)
+
+The opt-in [quartet comparison](archive/analysis-voice-leading-quartet-development-v1.md)
+passes identical written pitches, onsets, and durations from Acorde's located
+output to music21 10.5.2's `VoiceLeadingQuartet`. All five checked flags agree
+on six selected quartets in two MusicXML fixtures. The fixtures cover a
+cross-bar nonadjacent voice pair, antiparallel fifths, and parallel octaves;
+separate Rust cases check spelling, rests, unisons, cross-part alignment, and
+keyless resolution families.
+
+This is a development semantic check with no independent precision/recall
+labels or multi-style holdout. The new Rust, CLI, and native WASM paths passed
+local checks; the headless browser WASM test did not run because the pinned
+wasm-bindgen CLI could not be installed in that environment. Do not infer a
+browser result or overall analysis superiority from the six agreements.

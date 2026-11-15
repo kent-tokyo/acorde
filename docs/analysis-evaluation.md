@@ -54,11 +54,14 @@ to development and freeze a new untouched holdout. This evaluator does not
 enforce those research procedures; the manifest and per-score reports must
 document them.
 
-Local-key, cadence, and voice-leading adapters still need common source
-positions, explicit normalization rules, and hand-reviewed gold. The harmony
-adapter below covers only BCMH's source-annotated onsets in a previously used
-development corpus. New untouched holdouts must fix eligibility without using
-either system's analysis prediction.
+The local-key scorer below has common annotated measure positions; source-beat
+transitions remain unsupported. Cadence still needs a pinned music21 recipe,
+source-position mapping, and a label-level adapter. The voice-leading quartet
+comparator now fixes the same four source notes for both tools, but it has no
+independently labeled precision/recall adapter. The harmony adapter below
+covers only BCMH's source-annotated onsets in a previously used development
+corpus. New untouched holdouts must fix eligibility without using either
+system's analysis prediction.
 
 ## Existing global-key comparison adapter
 
@@ -218,3 +221,21 @@ to the folded MusicXML note IDs, define exact score positions and class mapping,
 and score false positives over the same eligible positions. Pin the music21
 cadence recipe, its version, and the candidate binary before touching the
 reserved labels. Parser acceptance alone does not validate note alignment.
+
+## Voice-leading quartet development comparison
+
+`acorde analyze-voice-leading` and the opt-in Rust/WASM API emit the four
+written pitches, absolute quarter-beat onsets, durations, source addresses,
+five rule flags, and a score fingerprint for each located quartet. The
+[pinned comparison](archive/analysis-voice-leading-quartet-development-v1.md)
+passes those same notes to music21 10.5.2's `VoiceLeadingQuartet`. On two
+selected MusicXML fixtures, all five flags agree for six quartets, including a
+cross-bar nonadjacent pair, an antiparallel fifth, and parallel octaves.
+
+This checks rule semantics on chosen cases. It does not estimate correctness,
+precision, recall, or coverage on unseen music. For a scored task, freeze
+independently annotated works and eligible note quartets before running either
+analyzer, retain every zero-prediction case, and report per-rule and per-work
+false positives and missed labels. Keep written-pitch, ties, chords, malformed
+voice bars, and microtonal exclusions visible rather than treating omitted
+quartets as correct negatives. The browser WASM test remains a separate gate.

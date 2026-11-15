@@ -18,6 +18,7 @@ For a release claim, check its tag, CI, registry, and artifacts separately.
 | Arrange for accordion | [Reduction](accordion-reduction.md), [guided arrangement](accordion-guided-arrangement.md), [layers](accordion-layered-arrangement.md), [preset contract](accordion-preset-contract.md) |
 | Insert passing or neighbor notes | [Melodic insertion contract](melodic-insertion.md) |
 | Review an OMR proposal | [Proposal contract](omr-proposal-contract.md), [provider matrix](omr-license-matrix.md), [validation boundary](omr-validation.md) |
+| Evaluate music analysis against music21 | [Analysis roadmap](../ROADMAP.md#3-music-analysis-music21-1052), [source-positioned evaluation](analysis-evaluation.md), [external evidence](external-analysis-evidence.md) |
 
 ## Evidence and maintenance
 

@@ -128,13 +128,22 @@ and expressive playback before a broader claim.
 
 ### 3. Music analysis: music21 10.5.2
 
-The [source-positioned evaluation contract](docs/analysis-evaluation.md) now
-checks labels and locations rather than category counts, and records parse
-failures separately. The saved Beethoven global-key comparison has an adapter
-that reproduces its 57/64 versus 56/64 counts as development evidence. Other
-task adapters, frozen untouched holdouts, and the analysis improvements below
-are still required before a parity or
-superiority claim.
+The [source-positioned evaluation contract](docs/analysis-evaluation.md) checks
+labels and locations rather than category counts, and records parse failures
+separately. Global-key and harmony reports have label-level adapters. The
+new voice-leading quartet comparator checks five rule outputs on identical
+located notes, but has no independent corpus labels yet. Cadence and
+voice-leading scoring adapters, new untouched holdouts, and the improvements
+below remain necessary before an overall superiority claim.
+
+| Analysis task | Current gate evidence | Status |
+| --- | --- | --- |
+| Global key | Three-style fixed set: 10/11 exact for each tool, equal coverage | Superiority gate failed |
+| Harmony | Third When in Rome fixed set: 559/2,341 versus 508/2,341 at annotated positions | Narrow aggregate gate passed; six of 12 works favor Acorde |
+| Local key | Disjoint fixed set: 1,921 versus 1,934 exact at 2,903 paired positions | Gate failed |
+| Cadence | Mozart development: 30/333 annotated positions, 29 false positives; no music21 cadence recipe yet | Development only |
+| Voice leading | Six selected quartets: five flags agree with music21 10.5.2; no independent accuracy labels | Semantic comparison only |
+| Final multi-style suite | Not frozen or scored across all tasks | Pending |
 
 The [current development candidate](docs/archive/analysis-wir-harmony-development-v5.md)
 uses opt-in bar-arpeggio and short forward-completion rules. On the inspected
@@ -215,13 +224,14 @@ Next analysis gates, in order:
    pitches, onset, and duration. Compare located parallel fifths/octaves,
    contrary/similar motion, and resolution checks with pinned music21
    [`VoiceLeadingQuartet`](https://music21.org/music21docs/moduleReference/moduleVoiceLeading.html)
-   semantics on the same quartets. Include cross-bar and
-   nonadjacent voice pairs; the current pass covers adjacent voices within one
-   measure. Use separately reviewed cases for correctness, not agreement alone.
-   The opt-in located-quartet API and CLI now include cross-bar and
-   nonadjacent pairs. A [pinned development comparison](docs/archive/analysis-voice-leading-quartet-development-v1.md)
-   matches music21 10.5.2 on six fixture quartets and records hand-reviewed
-   cases. Expand independent labels and styles before claiming accuracy.
+   semantics on the same quartets. Include cross-bar and nonadjacent voice
+   pairs. The default SATB-facing pass still covers adjacent voices within one
+   measure; the opt-in located-quartet Rust, CLI, and WASM APIs now include
+   cross-bar, nonadjacent, and cross-part pairs. A [pinned development comparison](docs/archive/analysis-voice-leading-quartet-development-v1.md)
+   matches music21 10.5.2 on six selected fixture quartets, with separately
+   reviewed synthetic cases. Freeze independently labeled multi-style cases,
+   define eligibility and false-positive positions, then score each work and
+   rule family. Browser WASM execution remains unverified locally.
 5. Run a final untouched, multi-style suite for each task after algorithm
    changes stop. Require no lower import coverage and report both aggregate
    and per-work results; a single aggregate lead cannot establish broad

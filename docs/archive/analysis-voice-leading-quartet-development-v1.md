@@ -23,14 +23,13 @@ and m7 rules implemented by music21. It is not a general counterpoint verdict.
 
 ```sh
 cargo build -p acorde-cli --locked
-PYTHONPATH=/Users/k_tanabe/.cache/uv/archive-v0/RJI-3mPUEWBi42ME \
-  python3 -B scripts/analysis_voice_leading_compare.py \
+python3 -B scripts/analysis_voice_leading_compare.py \
   tests/fixtures/voice_leading_crossbar.musicxml
-PYTHONPATH=/Users/k_tanabe/.cache/uv/archive-v0/RJI-3mPUEWBi42ME \
-  python3 -B scripts/analysis_voice_leading_compare.py \
+python3 -B scripts/analysis_voice_leading_compare.py \
   tests/fixtures/voice_leading_motion.musicxml
 ```
 
+Run these commands in an environment with `music21==10.5.2` installed.
 The script rejects a music21 version other than 10.5.2, constructs the same
 four `music21.note.Note` values from Acorde's JSON, sets their written onset
 and duration, and compares all five flags. It rejects microtonal notes until
@@ -40,6 +39,13 @@ an exact cross-library cents contract is established.
 | --- | --- | ---: | ---: |
 | `voice_leading_crossbar.musicxml` | `fnv1a64-c09ecadac13e621c` | 3 | 0 |
 | `voice_leading_motion.musicxml` | `fnv1a64-2f0d9ba18858f133` | 3 | 0 |
+
+At source commit `f4894402`, `cargo test --all --locked` and
+`cargo clippy --all --locked -- -D warnings` passed, as did the native WASM
+JSON-shape test. `wasm-pack test --headless --chrome crates/wasm` compiled the
+WASM target but stopped before browser execution: the available wasm-bindgen
+CLI was 0.2.125, while the build required 0.2.130, and the local install
+failed. No browser WASM result is claimed.
 
 The independently checked outer-voice pair in the cross-bar fixture is
 G4/C4 → A4/D4: a spelled perfect fifth persists across the bar line between

@@ -38,5 +38,9 @@ regression tests must change together.
   positives. A development audit locates vertical sonorities at only 160/333
   cadence onsets; simple half/deceptive transition rules produce 96 false
   positives for 33 correct positions. The reserved cadence labels remain unread.
+  The opt-in located voice-leading quartet API covers nonadjacent and cross-bar
+  pairs. Five keyless rule flags agree with music21 10.5.2 on six selected
+  quartets, but this is not an independently labeled accuracy result. Native
+  Rust/CLI/WASM tests passed; browser WASM execution remains unverified locally.
 - `evidence.security_checks` mirrors local release gates. Browser E2E, raster fidelity, latency,
   publication, and downstream adoption need their own evidence.
