@@ -227,7 +227,7 @@ fn section(
     }
 }
 
-fn signature(score: &Score, source_parts: usize) -> Vec<(usize, u64, u64, u8, u8)> {
+pub(crate) fn signature(score: &Score, source_parts: usize) -> Vec<(usize, u64, u64, u8, u8)> {
     to_playback_events(score, &PlaybackOptions::default())
         .into_iter()
         .filter_map(|event| {

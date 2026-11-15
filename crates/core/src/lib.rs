@@ -111,6 +111,12 @@ pub use model::countermelody_development::{
     MotifRhythmCell, ResolvedCountermelodyDevelopment, arrange_countermelody_development,
     replay_countermelody_development,
 };
+pub use model::developed_form_proposals::{
+    DEVELOPED_FORM_PROPOSAL_CONTRACT_VERSION, DevelopedFormProposalCandidate,
+    DevelopedFormProposalError, DevelopedFormProposalResult, DevelopedFormRejection,
+    ResolvedDevelopedFormProposal, replay_developed_form_proposal,
+    suggest_developed_form_proposals,
+};
 pub use model::duration::Duration;
 pub use model::engine::{EngineHistory, HistoryConflict, HistoryRelation, ScoreEngine};
 pub use model::ensemble_form::{

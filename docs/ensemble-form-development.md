@@ -31,3 +31,5 @@ their own density and collision constraints. This is structural and playback
 coverage, not a listening judgment. The other two works have no accepted
 countermelody base. Independent inner voices, phrase-join voice leading and
 performer review remain in [the development plan](arrangement-development-v2.md).
+For automatic comparison of form profiles and rhythmic treatments, use
+[developed form proposals](developed-form-proposals.md).

@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+- Add opt-in `suggest_developed_form_proposals` and replay in Rust and
+  full/viewer WASM. Select three to five source-bound sectional scores from
+  form profiles and source-rhythm countermelody treatments, deduplicate their
+  generated playback, and report failed combinations with form diagnostics.
+
 - Add opt-in `arrange_ensemble_form_development` and source-bound replay in
   Rust and full/viewer WASM. Source-rhythm countermelody transformations now
   follow written section activity and dynamics alongside harmony and bass;

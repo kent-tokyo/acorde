@@ -1963,6 +1963,30 @@ pub fn replay_ensemble_form_proposal(score_json: &str, resolved_json: &str) -> R
         .map_err(|error| js_err(format!("ensemble form proposal replay serialization failed: {error}")))
 }
 
+/// Select complete form variants with distinct source-rhythm treatments.
+#[wasm_bindgen]
+pub fn suggest_developed_form_proposals(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::EnsembleFormProposalRequest =
+        parse_json(request_json, "developed form proposal request", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::suggest_developed_form_proposals(&score, &request)
+        .map_err(|error| js_err(format!("developed form proposal failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("developed form proposal serialization failed: {error}")))
+}
+
+/// Rebuild a selected form and countermelody treatment from its saved contract.
+#[wasm_bindgen]
+pub fn replay_developed_form_proposal(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedDevelopedFormProposal =
+        parse_json(resolved_json, "resolved developed form proposal", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::replay_developed_form_proposal(&score, &resolved)
+        .map_err(|error| js_err(format!("developed form proposal replay failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("developed form proposal replay serialization failed: {error}")))
+}
+
 /// Realize a later repeat visit with a different generated ensemble texture.
 #[wasm_bindgen]
 pub fn arrange_ensemble_form_visits(score_json: &str, request_json: &str) -> Result<String, JsValue> {
