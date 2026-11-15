@@ -45,6 +45,7 @@ fn options() -> EnsembleRoleOptions {
             low_midi: 28,
             high_midi: 60,
             center_midi: 40,
+            rhythm_sections: vec![],
         }),
         countermelody: None,
         harmony_dynamic: None,

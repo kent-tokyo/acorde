@@ -107,6 +107,24 @@ relationships and realization; it does not establish that listeners prefer the
 chromatic harmony. A longer local-key example, stronger cadence-quality checks
 and listening notes remain.
 
+Authored bass rhythm sections now compose note/rest durations, chord-relative
+tones and accents. Focused core tests cover walking, syncopation, ostinato,
+anticipation, a phrase-ending fill, pickup and 5/8 lengths, mid-bar chord
+changes, repeat-back motion, atomic rejection and source-bound form replay.
+MusicXML/MSCZ round trips and the WASM JSON test pass natively. `cargo test
+-p acorde-core`, the full native workspace suite and warning-free Clippy pass.
+An earlier full-suite run was stopped during compilation when shared disk free
+space fell below 150 MiB; the completed rerun is recorded at
+`/private/tmp/acorde-rhythm-all.log`. Complete full/viewer Chrome WASM suites
+also pass, including authored-bass JSON/replay cases. Their logs are
+`/private/tmp/acorde-rhythm-full-wasm.log` and
+`/private/tmp/acorde-rhythm-viewer-wasm.log`. The dedicated generated native
+target was removed after process/open-file checks to make room for browser
+verification. Other related logs are `/private/tmp/acorde-rhythm-core-all.log`,
+`/private/tmp/acorde-rhythm-io.log`, `/private/tmp/acorde-rhythm-wasm-native.log`
+and `/private/tmp/acorde-rhythm-clippy-final.log`. These checks prove written rhythms
+and playback events, not listener preference or ensemble playability.
+
 ## Required outcomes and evidence
 
 | Outcome | Required final behavior | Current evidence / remaining work |
@@ -114,7 +132,7 @@ and listening notes remain.
 | 0. Comparison baseline | Integrate prior arrangement and analysis work; preserve reproducible old outputs and fix comparison conditions. | Integration, native corpus and full/viewer Chrome suites pass. Freeze reviewed baseline audio identities, complete hosted CI/size gates, and establish the new evaluation corpus. |
 | 1. Whole-piece development | Coordinate phrases, A/B sections, entrances, pauses, density and ending shape over 16–32 bars; vary a repeated passage on a later visit. | `arrange_ensemble_form` compiles an explicit written form, coordinates phrase endings, varies bass patterns without resetting bass pitch continuity, and restores dynamics at every sounding bar. The visit API selects a different generated event sequence on a later repeat visit. A new API unfolds those visits into an exportable performance score when its playback matches the event contract. The 16-bar fixture, doubled 32-bar traversal, MusicXML/MSCZ round trips, source-bound replay and native/full/viewer browser checks pass. Source-level references still need relocation, and a separately composed longer example and listening acceptance remain. |
 | 2. Harmony | Choose harmonic rhythm by phrase; add borrowed/passing harmony and supplied local-key movement, bounded change amount and cadence intent while preserving melody/locks. | `suggest_phrase_harmony` selects two-bar, one-bar or two-group pace. Its explicit mapping can split or merge an existing source plan while preserving locks and comparing change budgets with the original regions. `local_keys` supplies major/minor movement; `cadences` constrains three named root motions. Explicit `colors` selects parallel-mode borrowing or a short chromatic passing chord. Native and full/viewer Chrome suites pass. A longer local-key example, stronger cadence-quality checks and listening acceptance remain. Use explicit source/key/phrase input before relying on uncertain analysis. |
-| 3. Rhythm and bass | Composable pulse/rest/accent/duration rules, anticipation, syncopation, walking/ostinato bass and phrase-ending fills; coherent transitions. | Form can switch the existing three bass patterns by section. New rhythmic grammar and the named techniques remain. |
+| 3. Rhythm and bass | Composable pulse/rest/accent/duration rules, anticipation, syncopation, walking/ostinato bass and phrase-ending fills; coherent transitions. | Form can switch the existing three bass patterns by section. Authored bass rhythm sections now express the named techniques and keep exact bar lengths and chord transitions in focused tests. The full native workspace and full/viewer Chrome WASM suites pass; matched-instrument listening and broader playability checks remain. |
 | 4. Countermelody and voice leading | Capture motif rhythm as well as contour; inversion, augmentation/diminution, imitation, question/answer and independent inner voices across phrases. | Existing contour-based countermelody and section activity are integrated. Rhythmic development and new transformations remain. Apply style-specific voice-leading rules; analysis flags are not a general musical-quality verdict. |
 | 5. Instruments and difficulty | Piano hand allocation, accordion buttons, wind breathing, string sustain; solo/duet/small ensemble and simplified versions. | Existing register/button infrastructure is available. Joint playability constraints, role redistribution and instrument-specific performance evaluation remain. |
 | 6. Proposal selection and editing | Three to five musically distinct complete proposals measured across harmony/rhythm/bass/register/roles/form; intent-directed local changes respecting locks. | Prior proposal replay/regeneration exists. Whole-form proposal search, quality/diversity selection and intent-to-constraint mapping remain. |

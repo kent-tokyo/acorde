@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+- Add authored bass rhythm sections to `arrange_bass_line` and `FormBass`.
+  Composable note/rest slots choose chord-relative tones, duration and accents,
+  including walking motion, syncopation, ostinato, anticipation and phrase-end
+  fills. Bars close at their actual length, mid-bar chord changes split slots,
+  and invalid plans return no partial score.
+
 - Add explicit parallel-mode borrowed and short chromatic passing chord targets
   to phrase-harmony search. Passing diminished chords require free bass and
   connect neighboring roots by semitone in one direction. Both targets respect

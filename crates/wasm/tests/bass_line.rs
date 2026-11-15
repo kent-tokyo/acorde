@@ -82,3 +82,52 @@ fn independent_bass_matches_native_and_survives_formats() {
     assert!(rejected["motion_report"].is_null());
     assert_eq!(rejected["diagnostics"][0]["code"], "chord-position");
 }
+
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
+#[cfg_attr(not(target_arch = "wasm32"), test)]
+fn authored_bass_rhythm_matches_native_and_round_trips() {
+    let source: acorde_core::Score =
+        serde_json::from_str(&acorde_wasm::parse_abc("X:1\nM:4/4\nL:1/4\nK:C\nc4 | d4 |").unwrap())
+            .unwrap();
+    let input = serde_json::to_string(&source).unwrap();
+    let options = json!({
+        "chords":[
+            {"measure_index":0,"offset_beats":0.0,"chord":{"root":"C","kind":"major"}},
+            {"measure_index":1,"offset_beats":0.0,"chord":{"root":"F","kind":"major"}}
+        ],
+        "pattern":"root-pulse", "midi_program":32,
+        "low_midi":28, "high_midi":60, "center_midi":40,
+        "rhythm_sections":[{
+            "start_measure":0,"end_measure_exclusive":1,
+            "slots":[
+                {"ticks":32,"tone":"bass","accent":true},
+                {"ticks":32,"tone":"third"},
+                {"ticks":32,"tone":"fifth"},
+                {"ticks":32,"tone":"approach-below"}
+            ]
+        }]
+    });
+    let web: acorde_core::BassLineResult = serde_json::from_str(
+        &acorde_wasm::arrange_bass_line(&input, &options.to_string()).unwrap(),
+    )
+    .unwrap();
+    let native = acorde_core::arrange_bass_line(&source, serde_json::from_value(options).unwrap());
+    assert!(web.diagnostics.is_empty(), "{:?}", web.diagnostics);
+    assert_eq!(web.motion_report, native.motion_report);
+    let generated = serde_json::to_string(web.score.as_ref().unwrap()).unwrap();
+    let expected = serde_json::to_string(native.score.as_ref().unwrap()).unwrap();
+    assert_eq!(playback(&generated), playback(&expected));
+    let mscz = acorde_wasm::serialize_mscz(&generated).unwrap();
+    assert_eq!(
+        playback(&generated),
+        playback(&acorde_wasm::parse_mscz(&mscz).unwrap())
+    );
+    #[cfg(feature = "musicxml")]
+    {
+        let xml = acorde_wasm::serialize_musicxml(&generated).unwrap();
+        assert_eq!(
+            playback(&generated),
+            playback(&acorde_wasm::parse_musicxml(&xml).unwrap())
+        );
+    }
+}

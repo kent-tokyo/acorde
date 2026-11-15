@@ -19,6 +19,11 @@ Already-held harmony retains a single attack through the chord region. The
 countermelody pauses while inactive and restarts its contour on re-entry.
 Bass pattern changes are realized in a single pass, retaining preceding pitch
 context and upcoming harmonic targets across section boundaries.
+An active section's optional `FormBass.rhythm` supplies authored bass slots
+instead of its base bass pattern. Sections can therefore place walking motion,
+syncopated rests, an anticipation or a phrase-ending fill in selected bars;
+the same slot lengths must cover every bar of that section. The resulting form
+and its rhythm instructions remain in the source-bound replay request.
 
 Every sounding generated measure carries its requested dynamic on its first
 attack, so repeat/navigation entry restores the appropriate level. No marking
@@ -38,9 +43,8 @@ The original 16-bar development fixture in
 offbeat contrast, arpeggiated return, metered closing phrase and quiet release.
 It is shared by native, I/O and browser contract tests. See
 [outcomes 0–6](arrangement-development-v2.md) for the full goal and evidence gaps.
-In particular contract 1 applies the same treatment to every playback visit of
-a written bar; visit-specific variation and independent phrase-aware harmony
-are still required before the whole-piece outcome is complete.
+Contract 1 applies the same treatment to every playback visit of a written
+bar. The separate visit-specific API below can change a later visit.
 
 `arrange_ensemble_form_visits` adds a second, opt-in performance-order contract.
 Its ordered variations select zero-based visits in the repeat-expanded sequence.

@@ -69,6 +69,7 @@ fn extended_chords_reach_pad_bass_and_free_bass_preset() {
                 low_midi: 28,
                 high_midi: 60,
                 center_midi: 40,
+                rhythm_sections: vec![],
             },
         );
         assert!(

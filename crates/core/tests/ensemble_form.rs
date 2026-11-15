@@ -2,8 +2,8 @@
 mod fixture;
 
 use acorde_core::{
-    Barline, BassLinePattern, Dynamic, EnsembleRole, FormBass, arrange_ensemble_form,
-    replay_ensemble_form,
+    Barline, BassLinePattern, BassRhythmSlot, BassRhythmTone, Dynamic, EnsembleRole, FormBass,
+    arrange_ensemble_form, replay_ensemble_form,
 };
 
 #[test]
@@ -63,6 +63,113 @@ fn sixteen_bar_form_coordinates_entrances_rhythm_phrase_ends_and_dynamics() {
     assert_eq!(result.measures, replay.measures);
     assert_eq!(
         fixture::events(output),
+        fixture::events(replay.score.as_ref().unwrap())
+    );
+}
+
+#[test]
+fn form_section_uses_authored_walking_bass_and_replays_it() {
+    let source = fixture::source();
+    let mut request = fixture::request();
+    request.sections[1].bass.as_mut().unwrap().rhythm = Some(
+        [
+            BassRhythmTone::Bass,
+            BassRhythmTone::Third,
+            BassRhythmTone::Fifth,
+            BassRhythmTone::ApproachBelow,
+        ]
+        .into_iter()
+        .map(|tone| BassRhythmSlot {
+            ticks: 32,
+            tone: Some(tone),
+            accent: tone == BassRhythmTone::Bass,
+        })
+        .collect(),
+    );
+    let result = arrange_ensemble_form(&source, &request);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    let score = result.score.as_ref().unwrap();
+    let bass = result
+        .role_parts
+        .iter()
+        .find(|part| part.role == EnsembleRole::Bass)
+        .unwrap()
+        .part_index;
+    let classes = score.parts[bass].staves[0].measures[4].voices[0]
+        .iter()
+        .filter(|note| !note.is_rest)
+        .map(|note| note.pitches[0].to_midi() % 12)
+        .collect::<Vec<_>>();
+    assert_eq!(classes, [5, 9, 0, 6]);
+    assert_eq!(
+        serde_json::to_value(&score.parts[..1]).unwrap(),
+        serde_json::to_value(&source.parts).unwrap()
+    );
+    let replay = replay_ensemble_form(&source, result.resolved.as_ref().unwrap());
+    assert!(replay.diagnostics.is_empty(), "{:?}", replay.diagnostics);
+    assert_eq!(
+        fixture::events(score),
+        fixture::events(replay.score.as_ref().unwrap())
+    );
+}
+
+#[test]
+fn phrase_ending_bass_fill_anticipates_the_returning_section() {
+    let source = fixture::source();
+    let mut request = fixture::request();
+    let mut fill = request.sections[1].clone();
+    request.sections[1].end_measure_exclusive = 7;
+    fill.label = "B phrase fill".into();
+    fill.start_measure = 7;
+    fill.end_measure_exclusive = 8;
+    fill.bass.as_mut().unwrap().rhythm = Some(vec![
+        BassRhythmSlot {
+            ticks: 32,
+            tone: Some(BassRhythmTone::Bass),
+            accent: true,
+        },
+        BassRhythmSlot {
+            ticks: 32,
+            tone: Some(BassRhythmTone::Third),
+            accent: false,
+        },
+        BassRhythmSlot {
+            ticks: 32,
+            tone: Some(BassRhythmTone::Fifth),
+            accent: false,
+        },
+        BassRhythmSlot {
+            ticks: 16,
+            tone: Some(BassRhythmTone::ApproachBelow),
+            accent: false,
+        },
+        BassRhythmSlot {
+            ticks: 16,
+            tone: Some(BassRhythmTone::NextBass),
+            accent: true,
+        },
+    ]);
+    request.sections.insert(2, fill);
+    let result = arrange_ensemble_form(&source, &request);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert_eq!(result.measures[7].bass_attacks, 5);
+    let score = result.score.as_ref().unwrap();
+    let bass = result
+        .role_parts
+        .iter()
+        .find(|part| part.role == EnsembleRole::Bass)
+        .unwrap()
+        .part_index;
+    let classes = score.parts[bass].staves[0].measures[7].voices[0]
+        .iter()
+        .filter(|note| !note.is_rest)
+        .map(|note| note.pitches[0].to_midi() % 12)
+        .collect::<Vec<_>>();
+    assert_eq!(classes, [7, 11, 2, 11, 0]);
+    let replay = replay_ensemble_form(&source, result.resolved.as_ref().unwrap());
+    assert!(replay.diagnostics.is_empty(), "{:?}", replay.diagnostics);
+    assert_eq!(
+        fixture::events(score),
         fixture::events(replay.score.as_ref().unwrap())
     );
 }
@@ -153,6 +260,7 @@ fn replay_rejects_changed_source_or_engine_and_keeps_collision_guards() {
     request.sections[0].bass = Some(FormBass {
         pattern: BassLinePattern::RootPulse,
         dynamic: Dynamic::P,
+        rhythm: None,
     });
     assert!(arrange_ensemble_form(&source, &request).score.is_none());
 }

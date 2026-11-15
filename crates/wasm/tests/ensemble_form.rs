@@ -59,6 +59,57 @@ fn form_contract_matches_native_and_replays_through_json() {
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
 #[cfg_attr(not(target_arch = "wasm32"), test)]
+fn authored_bass_rhythm_in_form_matches_native_and_replays() {
+    let source = fixture::source();
+    let mut request = fixture::request();
+    request.sections[1].bass.as_mut().unwrap().rhythm = Some(
+        [
+            acorde_core::BassRhythmTone::Bass,
+            acorde_core::BassRhythmTone::Third,
+            acorde_core::BassRhythmTone::Fifth,
+            acorde_core::BassRhythmTone::ApproachBelow,
+        ]
+        .into_iter()
+        .map(|tone| acorde_core::BassRhythmSlot {
+            ticks: 32,
+            tone: Some(tone),
+            accent: tone == acorde_core::BassRhythmTone::Bass,
+        })
+        .collect(),
+    );
+    let native = acorde_core::arrange_ensemble_form(&source, &request);
+    assert!(native.diagnostics.is_empty(), "{:?}", native.diagnostics);
+    let source_json = serde_json::to_string(&source).unwrap();
+    let browser: acorde_core::EnsembleFormResult = serde_json::from_str(
+        &acorde_wasm::arrange_ensemble_form(
+            &source_json,
+            &serde_json::to_string(&request).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert!(browser.diagnostics.is_empty(), "{:?}", browser.diagnostics);
+    assert_eq!(
+        fixture::events(native.score.as_ref().unwrap()),
+        fixture::events(browser.score.as_ref().unwrap())
+    );
+    let replay: acorde_core::EnsembleFormResult = serde_json::from_str(
+        &acorde_wasm::replay_ensemble_form(
+            &source_json,
+            &serde_json::to_string(browser.resolved.as_ref().unwrap()).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert!(replay.diagnostics.is_empty());
+    assert_eq!(
+        fixture::events(browser.score.as_ref().unwrap()),
+        fixture::events(replay.score.as_ref().unwrap())
+    );
+}
+
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
+#[cfg_attr(not(target_arch = "wasm32"), test)]
 fn second_repeat_visit_has_a_separate_replayable_performance() {
     let signature = |events: &[acorde_core::PlaybackEvent]| {
         events

@@ -4,10 +4,11 @@ use serde::{Deserialize, Serialize};
 
 use super::arrange::{PositionedAccordionChord, accordion_pitch_class, preset_chord_pitch_classes};
 use super::chordal_pad::{
-    MAX_CHANGES, MAX_GENERATED_NOTES, MAX_MEASURES, MAX_SOURCE_NOTES, emit_span, free_channel, tick,
+    MAX_CHANGES, MAX_GENERATED_NOTES, MAX_MEASURES, MAX_SOURCE_NOTES, emit_rest, emit_span,
+    free_channel, tick,
 };
 use super::gm::{instrument_range, program_name};
-use super::notation::Clef;
+use super::notation::{Articulation, Clef};
 use super::repeat::measure_sequence;
 use super::score::{Measure, MeasureLength, Note, NoteAddr, Part, Score, Staff};
 
@@ -20,6 +21,38 @@ pub enum BassLinePattern {
     Approach,
 }
 
+/// Chord-relative pitch selected for one authored rhythmic slot.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum BassRhythmTone {
+    Bass,
+    Third,
+    Fifth,
+    NextBass,
+    ApproachBelow,
+    ApproachAbove,
+}
+
+/// A slot lasts `ticks` units of 1/32 quarter beat. `None` is a rest.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct BassRhythmSlot {
+    pub ticks: u16,
+    pub tone: Option<BassRhythmTone>,
+    #[serde(default)]
+    pub accent: bool,
+}
+
+/// Repeat the same slots in every written measure of this half-open range.
+/// Their durations must sum to each measure's actual sounding length.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct BassRhythmSection {
+    pub start_measure: usize,
+    pub end_measure_exclusive: usize,
+    pub slots: Vec<BassRhythmSlot>,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BassLineOptions {
     pub chords: Vec<PositionedAccordionChord>,
@@ -28,6 +61,9 @@ pub struct BassLineOptions {
     pub low_midi: u8,
     pub high_midi: u8,
     pub center_midi: u8,
+    /// Sparse non-overlapping authored rhythms. Uncovered bars use `pattern`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub rhythm_sections: Vec<BassRhythmSection>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -62,6 +98,7 @@ pub struct BassLineResult {
 struct Change {
     tick: u32,
     bass_class: u8,
+    third_class: Option<u8>,
     fifth_class: u8,
 }
 
@@ -207,6 +244,40 @@ pub(crate) fn arrange_bass_line_with_patterns(
         }
         starts.push(end);
     }
+    if options.rhythm_sections.len() > 64 {
+        return reject(result, "rhythm-section-limit", None);
+    }
+    let mut rhythm_by_measure = vec![None; count];
+    let mut prior_end = 0;
+    for (section_index, section) in options.rhythm_sections.iter().enumerate() {
+        if section.start_measure < prior_end
+            || section.start_measure >= section.end_measure_exclusive
+            || section.end_measure_exclusive > count
+            || section.slots.is_empty()
+            || section.slots.len() > 64
+            || section.slots.iter().any(|slot| {
+                slot.ticks < 4
+                    || slot.ticks > 256
+                    || slot.ticks % 4 != 0
+                    || slot.tone.is_none() && slot.accent
+            })
+        {
+            let measure = section.start_measure;
+            return reject(result, "invalid-bass-rhythm", Some(measure));
+        }
+        let total = section
+            .slots
+            .iter()
+            .map(|slot| u32::from(slot.ticks))
+            .sum::<u32>();
+        for measure in section.start_measure..section.end_measure_exclusive {
+            if total != starts[measure + 1] - starts[measure] {
+                return reject(result, "bass-rhythm-length", Some(measure));
+            }
+            rhythm_by_measure[measure] = Some(section_index);
+        }
+        prior_end = section.end_measure_exclusive;
+    }
     let mut changes = Vec::with_capacity(options.chords.len());
     for placed in &options.chords {
         let measure = placed.measure_index;
@@ -256,6 +327,10 @@ pub(crate) fn arrange_bass_line_with_patterns(
         changes.push(Change {
             tick: position,
             bass_class,
+            third_class: [3, 4]
+                .into_iter()
+                .map(|interval| (root + interval) % 12)
+                .find(|class| tones.contains(class)),
             fifth_class,
         });
     }
@@ -275,58 +350,141 @@ pub(crate) fn arrange_bass_line_with_patterns(
         let pattern = patterns.map_or(options.pattern, |patterns| patterns[measure]);
         let mut voice = Vec::<Note>::new();
         let mut cursor = starts[measure];
-        while cursor < starts[measure + 1] {
-            while changes
-                .get(change_index + 1)
-                .is_some_and(|change| change.tick <= cursor)
-            {
-                change_index += 1;
+        if let Some(section_index) = rhythm_by_measure[measure] {
+            for slot in &options.rhythm_sections[section_index].slots {
+                let slot_end = cursor + u32::from(slot.ticks);
+                if let Some(tone) = slot.tone {
+                    let slot_start = cursor;
+                    while cursor < slot_end {
+                        while changes
+                            .get(change_index + 1)
+                            .is_some_and(|change| change.tick <= cursor)
+                        {
+                            change_index += 1;
+                        }
+                        let Some(current) = changes.get(change_index) else {
+                            return reject(result, "unsupported-chord", Some(measure));
+                        };
+                        let next = changes.get(change_index + 1);
+                        let anticipation = matches!(
+                            tone,
+                            BassRhythmTone::NextBass
+                                | BassRhythmTone::ApproachBelow
+                                | BassRhythmTone::ApproachAbove
+                        );
+                        if anticipation
+                            && next
+                                .is_none_or(|next| next.tick < slot_end || next.tick - cursor > 32)
+                        {
+                            return reject(
+                                result,
+                                "bass-rhythm-anticipation-position",
+                                Some(measure),
+                            );
+                        }
+                        let class = match tone {
+                            BassRhythmTone::Bass => Some(current.bass_class),
+                            BassRhythmTone::Third => current.third_class,
+                            BassRhythmTone::Fifth => Some(current.fifth_class),
+                            BassRhythmTone::NextBass => next.map(|next| next.bass_class),
+                            BassRhythmTone::ApproachBelow => {
+                                next.map(|next| (next.bass_class + 11) % 12)
+                            }
+                            BassRhythmTone::ApproachAbove => {
+                                next.map(|next| (next.bass_class + 1) % 12)
+                            }
+                        };
+                        let Some(class) = class else {
+                            return reject(result, "unsupported-bass-rhythm-tone", Some(measure));
+                        };
+                        let Some(pitch) = pitch_for(class, options, previous_pitch) else {
+                            return reject(result, "unplayable-register", Some(measure));
+                        };
+                        let segment_end = next.map_or(slot_end, |next| slot_end.min(next.tick));
+                        let span = segment_end - cursor;
+                        let before = voice.len();
+                        if span == 0 || !emit_span(&[pitch], span, &mut voice) {
+                            return reject(result, "unsupported-rhythm", Some(measure));
+                        }
+                        if slot.accent
+                            && cursor == slot_start
+                            && let Some(note) = voice.get_mut(before)
+                        {
+                            note.articulations.push(Articulation::Accent);
+                        }
+                        if generated_events.saturating_add(voice.len()) > MAX_GENERATED_NOTES {
+                            return reject(result, "generated-note-limit", Some(measure));
+                        }
+                        attacks[measure].push(pitch);
+                        previous_pitch = Some(pitch);
+                        cursor = segment_end;
+                    }
+                } else {
+                    if !emit_rest(u32::from(slot.ticks), &mut voice) {
+                        return reject(result, "unsupported-rhythm", Some(measure));
+                    }
+                    cursor = slot_end;
+                }
+                if generated_events.saturating_add(voice.len()) > MAX_GENERATED_NOTES {
+                    return reject(result, "generated-note-limit", Some(measure));
+                }
             }
-            let Some(current) = changes.get(change_index) else {
-                return reject(result, "unsupported-chord", Some(measure));
-            };
-            let next = changes.get(change_index + 1);
-            let region_end = next.map_or(starts[measure + 1], |change| {
-                change.tick.min(starts[measure + 1])
-            });
-            let span = (region_end - cursor).min(32);
-            if span == 0 {
-                return reject(result, "chord-position", Some(measure));
+        } else {
+            while cursor < starts[measure + 1] {
+                while changes
+                    .get(change_index + 1)
+                    .is_some_and(|change| change.tick <= cursor)
+                {
+                    change_index += 1;
+                }
+                let Some(current) = changes.get(change_index) else {
+                    return reject(result, "unsupported-chord", Some(measure));
+                };
+                let next = changes.get(change_index + 1);
+                let region_end = next.map_or(starts[measure + 1], |change| {
+                    change.tick.min(starts[measure + 1])
+                });
+                let span = (region_end - cursor).min(32);
+                if span == 0 {
+                    return reject(result, "chord-position", Some(measure));
+                }
+                let slot = (cursor - current.tick) / 32;
+                let mut class = if pattern == BassLinePattern::RootPulse || slot.is_multiple_of(2) {
+                    current.bass_class
+                } else {
+                    current.fifth_class
+                };
+                if pattern == BassLinePattern::Approach
+                    && let Some(next) = next
+                    && next.tick - current.tick >= 64
+                    && cursor >= next.tick.saturating_sub(32)
+                {
+                    class = (next.bass_class + 11) % 12;
+                }
+                let Some(pitch) = pitch_for(class, options, previous_pitch) else {
+                    return reject(result, "unplayable-register", Some(measure));
+                };
+                if !emit_span(&[pitch], span, &mut voice) {
+                    return reject(result, "unsupported-rhythm", Some(measure));
+                }
+                if generated_events.saturating_add(voice.len()) > MAX_GENERATED_NOTES {
+                    return reject(result, "generated-note-limit", Some(measure));
+                }
+                attacks[measure].push(pitch);
+                previous_pitch = Some(pitch);
+                cursor += span;
             }
-            let slot = (cursor - current.tick) / 32;
-            let mut class = if pattern == BassLinePattern::RootPulse || slot.is_multiple_of(2) {
-                current.bass_class
-            } else {
-                current.fifth_class
-            };
-            if pattern == BassLinePattern::Approach
-                && let Some(next) = next
-                && next.tick - current.tick >= 64
-                && cursor >= next.tick.saturating_sub(32)
-            {
-                class = (next.bass_class + 11) % 12;
-            }
-            let Some(pitch) = pitch_for(class, options, previous_pitch) else {
-                return reject(result, "unplayable-register", Some(measure));
-            };
-            if !emit_span(&[pitch], span, &mut voice) {
-                return reject(result, "unsupported-rhythm", Some(measure));
-            }
-            if generated_events.saturating_add(voice.len()) > MAX_GENERATED_NOTES {
-                return reject(result, "generated-note-limit", Some(measure));
-            }
-            attacks[measure].push(pitch);
-            previous_pitch = Some(pitch);
-            cursor += span;
         }
-        for note in 0..voice.len() {
-            result.generated_notes.push(NoteAddr {
-                part: added_part,
-                staff: 0,
-                measure,
-                voice: 0,
-                note,
-            });
+        for (note, event) in voice.iter().enumerate() {
+            if !event.is_rest {
+                result.generated_notes.push(NoteAddr {
+                    part: added_part,
+                    staff: 0,
+                    measure,
+                    voice: 0,
+                    note,
+                });
+            }
         }
         generated_events += voice.len();
         let meter = reference.meter_at(measure, &score.settings.time_signature);

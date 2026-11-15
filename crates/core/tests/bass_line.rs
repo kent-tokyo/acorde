@@ -1,6 +1,7 @@
 use acorde_core::{
-    BassLineOptions, BassLinePattern, ChordalPadOptions, ChordalPadPattern, ChordalPadVoicing,
-    Duration, Note, Pitch, PositionedAccordionChord, Score, arrange_bass_line, arrange_chordal_pad,
+    BassLineOptions, BassLinePattern, BassRhythmSection, BassRhythmSlot, BassRhythmTone,
+    ChordalPadOptions, ChordalPadPattern, ChordalPadVoicing, Duration, Note, Pitch,
+    PositionedAccordionChord, Score, arrange_bass_line, arrange_chordal_pad,
 };
 
 fn placed(measure_index: usize, offset_beats: f64, root: &str) -> PositionedAccordionChord {
@@ -19,6 +20,222 @@ fn options(pattern: BassLinePattern) -> BassLineOptions {
         low_midi: 28,
         high_midi: 60,
         center_midi: 40,
+        rhythm_sections: vec![],
+    }
+}
+
+fn slot(ticks: u16, tone: Option<BassRhythmTone>, accent: bool) -> BassRhythmSlot {
+    BassRhythmSlot {
+        ticks,
+        tone,
+        accent,
+    }
+}
+
+#[test]
+fn authored_cells_create_walking_syncopation_anticipation_and_ostinato() {
+    let source = Score::new("rhythmic bass", 120, 4, 4, 0, 3);
+    let mut request = options(BassLinePattern::RootPulse);
+    request.chords.push(placed(2, 0.0, "G"));
+    request.rhythm_sections = vec![
+        BassRhythmSection {
+            start_measure: 0,
+            end_measure_exclusive: 1,
+            slots: [
+                BassRhythmTone::Bass,
+                BassRhythmTone::Third,
+                BassRhythmTone::Fifth,
+                BassRhythmTone::ApproachBelow,
+            ]
+            .into_iter()
+            .map(|tone| slot(32, Some(tone), false))
+            .collect(),
+        },
+        BassRhythmSection {
+            start_measure: 1,
+            end_measure_exclusive: 2,
+            slots: [
+                None,
+                Some(BassRhythmTone::Bass),
+                None,
+                Some(BassRhythmTone::Fifth),
+                None,
+                Some(BassRhythmTone::Bass),
+                None,
+                Some(BassRhythmTone::NextBass),
+            ]
+            .into_iter()
+            .map(|tone| slot(16, tone, tone.is_some()))
+            .collect(),
+        },
+        BassRhythmSection {
+            start_measure: 2,
+            end_measure_exclusive: 3,
+            slots: [
+                Some(BassRhythmTone::Bass),
+                None,
+                Some(BassRhythmTone::Fifth),
+                None,
+                Some(BassRhythmTone::Bass),
+                None,
+                Some(BassRhythmTone::Fifth),
+                None,
+            ]
+            .into_iter()
+            .map(|tone| slot(16, tone, false))
+            .collect(),
+        },
+    ];
+    let result = arrange_bass_line(&source, request);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    let score = result.score.as_ref().unwrap();
+    assert_eq!(
+        serde_json::to_value(&score.parts[0]).unwrap(),
+        serde_json::to_value(&source.parts[0]).unwrap()
+    );
+    let classes = |measure: usize| {
+        score.parts[1].staves[0].measures[measure].voices[0]
+            .iter()
+            .filter(|note| !note.is_rest && !note.tie_end)
+            .map(|note| note.pitches[0].to_midi() % 12)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(classes(0), [0, 4, 7, 4]);
+    assert_eq!(classes(1), [5, 0, 5, 7]);
+    assert_eq!(classes(2), [7, 2, 7, 2]);
+    let syncopated = &score.parts[1].staves[0].measures[1].voices[0];
+    assert!(syncopated.iter().any(|note| note.is_rest));
+    assert_eq!(
+        syncopated
+            .iter()
+            .filter(|note| !note.is_rest)
+            .filter(|note| note
+                .articulations
+                .contains(&acorde_core::Articulation::Accent))
+            .count(),
+        4
+    );
+    let events = acorde_core::to_playback_events(score, &Default::default());
+    let onsets = events
+        .iter()
+        .filter(|event| event.part_index == 1 && (4.0..8.0).contains(&event.time_beats))
+        .map(|event| event.time_beats)
+        .collect::<Vec<_>>();
+    assert_eq!(onsets, [4.5, 5.5, 6.5, 7.5]);
+    assert!(result.generated_notes.iter().all(|address| {
+        !score.parts[address.part].staves[address.staff].measures[address.measure].voices
+            [address.voice][address.note]
+            .is_rest
+    }));
+    assert!(acorde_core::model::validate::validate(score).is_valid());
+}
+
+#[test]
+fn authored_bass_cells_cover_pickup_and_irregular_meter_and_split_chord_changes() {
+    let mut source = Score::new("irregular bass", 120, 5, 8, 0, 2);
+    source.parts[0].staves[0].measures[0].actual_length =
+        acorde_core::MeasureLength::from_beats(0.5);
+    source.parts[0].staves[0].measures[0].voices[0] =
+        vec![Note::new(Pitch::from_midi(72, false), Duration::Eighth)];
+    let mut request = options(BassLinePattern::RootPulse);
+    request.rhythm_sections = vec![
+        BassRhythmSection {
+            start_measure: 0,
+            end_measure_exclusive: 1,
+            slots: vec![slot(16, Some(BassRhythmTone::Bass), false)],
+        },
+        BassRhythmSection {
+            start_measure: 1,
+            end_measure_exclusive: 2,
+            slots: vec![
+                slot(48, Some(BassRhythmTone::Bass), true),
+                slot(32, None, false),
+            ],
+        },
+    ];
+    let result = arrange_bass_line(&source, request);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    let score = result.score.unwrap();
+    let bars = &score.parts[1].staves[0].measures;
+    assert_eq!(bars[0].voices[0].iter().map(Note::beats).sum::<f64>(), 0.5);
+    assert_eq!(bars[1].voices[0].iter().map(Note::beats).sum::<f64>(), 2.5);
+    assert!(acorde_core::model::validate::validate(&score).is_valid());
+
+    let source = Score::new("split bass", 120, 4, 4, 0, 1);
+    let mut request = options(BassLinePattern::RootPulse);
+    request.chords = vec![placed(0, 0.0, "C"), placed(0, 2.0, "F")];
+    request.rhythm_sections = vec![BassRhythmSection {
+        start_measure: 0,
+        end_measure_exclusive: 1,
+        slots: vec![slot(128, Some(BassRhythmTone::Bass), false)],
+    }];
+    let result = arrange_bass_line(&source, request);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    let score = result.score.unwrap();
+    let events = acorde_core::to_playback_events(&score, &Default::default())
+        .into_iter()
+        .filter(|event| event.part_index == 1)
+        .map(|event| (event.time_beats, event.pitch_midi % 12))
+        .collect::<Vec<_>>();
+    assert_eq!(events, [(0.0, 0), (2.0, 5)]);
+}
+
+#[test]
+fn authored_rhythm_keeps_repeat_back_motion_in_playback_report() {
+    let mut source = Score::new("repeated authored rhythm", 120, 4, 4, 0, 2);
+    source.parts[0].staves[0].measures[0].barline_left = acorde_core::Barline::RepeatStart;
+    source.parts[0].staves[0].measures[1].barline_right = acorde_core::Barline::RepeatEnd;
+    let mut request = options(BassLinePattern::RootPulse);
+    request.rhythm_sections = vec![BassRhythmSection {
+        start_measure: 0,
+        end_measure_exclusive: 1,
+        slots: vec![
+            slot(64, Some(BassRhythmTone::Bass), false),
+            slot(64, None, false),
+        ],
+    }];
+    let result = arrange_bass_line(&source, request);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    let report = result.motion_report.unwrap();
+    assert_eq!(report.written_attack_count, 5);
+    assert_eq!(report.playback_attack_count, 10);
+    assert_eq!(report.backward_jump_transition_count, 1);
+    assert!(report.backward_jump_motion_cost > 0);
+    assert!(acorde_core::model::validate::validate(&result.score.unwrap()).is_valid());
+}
+
+#[test]
+fn invalid_authored_bass_rhythm_fails_without_partial_score() {
+    let source = Score::new("invalid rhythm", 120, 4, 4, 0, 2);
+    let mut request = options(BassLinePattern::RootPulse);
+    request.rhythm_sections = vec![BassRhythmSection {
+        start_measure: 0,
+        end_measure_exclusive: 1,
+        slots: vec![slot(32, Some(BassRhythmTone::Bass), false)],
+    }];
+    let invalid_length = arrange_bass_line(&source, request.clone());
+    assert_eq!(invalid_length.diagnostics[0].code, "bass-rhythm-length");
+    request.rhythm_sections[0].slots = vec![slot(128, None, true)];
+    let invalid_rest = arrange_bass_line(&source, request.clone());
+    assert_eq!(invalid_rest.diagnostics[0].code, "invalid-bass-rhythm");
+    request.rhythm_sections[0].slots = vec![slot(128, Some(BassRhythmTone::NextBass), false)];
+    let too_early = arrange_bass_line(&source, request.clone());
+    assert_eq!(
+        too_early.diagnostics[0].code,
+        "bass-rhythm-anticipation-position"
+    );
+    request.rhythm_sections[0].start_measure = 1;
+    request.rhythm_sections[0].end_measure_exclusive = 2;
+    let missing_next = arrange_bass_line(&source, request);
+    assert_eq!(
+        missing_next.diagnostics[0].code,
+        "bass-rhythm-anticipation-position"
+    );
+    for rejected in [invalid_length, invalid_rest, too_early, missing_next] {
+        assert!(rejected.score.is_none());
+        assert!(rejected.added_part.is_none());
+        assert!(rejected.generated_notes.is_empty());
+        assert!(rejected.motion_report.is_none());
     }
 }
 

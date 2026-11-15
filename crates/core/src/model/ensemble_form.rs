@@ -8,7 +8,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::accordion_dynamics::supported_level;
-use super::bass_line::BassLinePattern;
+use super::bass_line::{BassLinePattern, BassRhythmSection, BassRhythmSlot};
 use super::chord_proposals::fingerprint;
 use super::chordal_pad::{
     ChordalPadPattern, ChordalPadPatternSection, MAX_MEASURES, MAX_SOURCE_NOTES,
@@ -37,6 +37,9 @@ pub struct FormHarmony {
 pub struct FormBass {
     pub pattern: BassLinePattern,
     pub dynamic: Dynamic,
+    /// Optional authored cells repeated in every bar of this section.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rhythm: Option<Vec<BassRhythmSlot>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -179,6 +182,10 @@ fn compile(
             !pad.pattern_sections.is_empty() || !pad.phrase_end_measures.is_empty()
         })
         || template
+            .bass
+            .as_ref()
+            .is_some_and(|bass| !bass.rhythm_sections.is_empty())
+        || template
             .countermelody
             .as_ref()
             .is_some_and(|counter| !counter.phrase_end_measures.is_empty())
@@ -270,6 +277,15 @@ fn compile(
             .bass
             .as_ref()
             .map_or(BassLinePattern::RootPulse, |bass| bass.pattern);
+        if let (Some(bass), Some(treatment)) = (&mut ensemble.bass, &section.bass)
+            && let Some(slots) = &treatment.rhythm
+        {
+            bass.rhythm_sections.push(BassRhythmSection {
+                start_measure: section.start_measure,
+                end_measure_exclusive: section.end_measure_exclusive,
+                slots: slots.clone(),
+            });
+        }
         owners.resize(section.end_measure_exclusive, index);
         bass_patterns.resize(section.end_measure_exclusive, pattern);
     }

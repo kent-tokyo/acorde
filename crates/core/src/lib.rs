@@ -54,7 +54,7 @@ pub use model::authored_chords::{
 };
 pub use model::bass_line::{
     BassLineDiagnostic, BassLineMotionReport, BassLineOptions, BassLinePattern, BassLineResult,
-    arrange_bass_line,
+    BassRhythmSection, BassRhythmSlot, BassRhythmTone, arrange_bass_line,
 };
 pub use model::change_hint::{ChangeHint, ChangeScope};
 pub use model::chord_plan::{

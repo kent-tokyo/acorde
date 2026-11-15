@@ -376,6 +376,7 @@ fn fixed_development_and_holdout_sources_survive_two_independent_parts() {
                     low_midi: 28,
                     high_midi: 60,
                     center_midi: 40,
+                    rhythm_sections: vec![],
                 },
             );
             assert!(

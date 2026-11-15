@@ -13,6 +13,45 @@ fn form_events_and_dynamics_survive_musicxml() {
     assert_eq!(fixture::events(&score), fixture::events(&reparsed));
 }
 
+fn form_with_authored_bass_rhythm() -> acorde_core::Score {
+    let source = fixture::source();
+    let mut request = fixture::request();
+    request.sections[1].bass.as_mut().unwrap().rhythm = Some(
+        [
+            acorde_core::BassRhythmTone::Bass,
+            acorde_core::BassRhythmTone::Third,
+            acorde_core::BassRhythmTone::Fifth,
+            acorde_core::BassRhythmTone::ApproachBelow,
+        ]
+        .into_iter()
+        .map(|tone| acorde_core::BassRhythmSlot {
+            ticks: 32,
+            tone: Some(tone),
+            accent: tone == acorde_core::BassRhythmTone::Bass,
+        })
+        .collect(),
+    );
+    let result = acorde_core::arrange_ensemble_form(&source, &request);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    result.score.unwrap()
+}
+
+#[test]
+fn authored_form_bass_rhythm_survives_musicxml() {
+    let score = form_with_authored_bass_rhythm();
+    let reparsed =
+        acorde_io::parse_musicxml(&acorde_io::serialize_musicxml(&score).unwrap()).unwrap();
+    assert_eq!(fixture::events(&score), fixture::events(&reparsed));
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn authored_form_bass_rhythm_survives_mscz() {
+    let score = form_with_authored_bass_rhythm();
+    let reparsed = acorde_io::parse_mscz(&acorde_io::serialize_mscz(&score).unwrap()).unwrap();
+    assert_eq!(fixture::events(&score), fixture::events(&reparsed));
+}
+
 fn performance_score() -> acorde_core::Score {
     let mut source = fixture::source();
     source.parts[0].staves[0].measures[0].barline_left = acorde_core::Barline::RepeatStart;
