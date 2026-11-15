@@ -33,3 +33,22 @@ sources. Mechanical tests require five distinct forms for every source and
 preserve source playback, validity and replay. MusicXML/MSCZ tests cover the
 16-bar fixture. Instrument-specific playback and blinded listening review
 remain required by [the development plan](arrangement-development-v2.md).
+
+To regenerate the pinned development listening pack, run:
+
+```sh
+cargo run -p acorde-cli --example arrangement_v2_form_pack --offline -- \
+  /private/tmp/acorde-arrangement-v2-sources-sheet \
+  /private/tmp/acorde-arrangement-v2-form-new
+```
+
+The source pack can be regenerated with `arrangement_v2_source_pack`; both
+output directories must be new. The form example checks the pinned source and
+form manifests, source playback, source preservation, score validity, distinct
+generated events, replay and MusicXML playback. Its `index.html` compares each
+source with five anonymized labels in a fixed, work-specific shuffled order and
+exports a JSON listening note. The manifest retains the label-to-candidate
+mapping and all audio hashes. WAVs use
+the same piano SoundFont, original tempo, 22,050 Hz mono and no normalization.
+This isolates section treatment in the audio comparison; it does not establish
+instrument-specific sound or performer approval.
