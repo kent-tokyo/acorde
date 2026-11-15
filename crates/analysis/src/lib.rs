@@ -512,6 +512,39 @@ pub struct VoiceLeadingObservation {
     pub evidence: Vec<NoteAddr>,
 }
 
+/// One monophonic written note in a located two-voice comparison.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct QuartetNote {
+    pub address: NoteAddr,
+    pub pitch: Pitch,
+    /// Absolute written onset in quarter-note beats from the score start.
+    pub onset_beats: f64,
+    pub duration_beats: f64,
+}
+
+/// Four sounding notes at two successive aligned events in distinct voices.
+///
+/// Voice order is source order (part, staff, voice), not pitch height. Chords,
+/// rests, unpitched notes, and malformed voice bars do not form quartet notes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct VoiceLeadingQuartet {
+    pub first_before: QuartetNote,
+    pub first_after: QuartetNote,
+    pub second_before: QuartetNote,
+    pub second_after: QuartetNote,
+    pub contrary_motion: bool,
+    pub similar_motion: bool,
+    /// A perfect fifth to a perfect fifth, including octave displacement and
+    /// antiparallel motion, using written pitch spelling.
+    pub parallel_fifth: bool,
+    /// A perfect octave to a perfect octave, excluding unisons.
+    pub parallel_octave: bool,
+    /// music21's keyless P4/A4/d5/m7 resolution rule on the four written notes.
+    pub proper_resolution_without_key: bool,
+    pub rule_id: String,
+    pub evidence: Vec<NoteAddr>,
+}
+
 /// A typed SATB constraint finding with source addresses for UI selection.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SatbDiagnostic {
@@ -3152,6 +3185,211 @@ fn roman_figure(roman: &str) -> &str {
     roman.find('/').map_or(roman, |index| &roman[..index])
 }
 
+/// Locate two-voice quartets across parts, staves, and physical bar lines.
+///
+/// A voice is identified by its part/staff/voice indices. Only successive
+/// simultaneous states are compared, and neither voice may have a gap between
+/// them. Each state needs exactly one written pitch per voice. Source order is
+/// retained so a caller can pass the same four pitches to another analyzer.
+pub fn analyze_voice_leading_quartets(score: &Score) -> Vec<VoiceLeadingQuartet> {
+    const EPSILON: f64 = 1e-7;
+    let starts = vertical_measure_starts(score);
+    let mut voices: BTreeMap<(usize, usize, usize), Vec<QuartetNote>> = BTreeMap::new();
+    for (part_index, part) in score.parts.iter().enumerate() {
+        for (staff_index, staff) in part.staves.iter().enumerate() {
+            for (measure_index, measure) in staff.measures.iter().enumerate() {
+                let bar_start = starts[part_index][staff_index][measure_index];
+                let bar_length = staff.measure_beats(measure_index, &score.settings.time_signature);
+                if !bar_start.is_finite() || !bar_length.is_finite() || bar_length <= 0.0 {
+                    continue;
+                }
+                let written =
+                    written_staff_measure_events(score, part_index, staff_index, measure_index);
+                for (voice_index, voice) in measure.voices.iter().enumerate() {
+                    let events: Vec<_> = written
+                        .iter()
+                        .filter(|event| event.address.voice == voice_index)
+                        .collect();
+                    // The shared traversal omits invalid-duration events. Reject the
+                    // whole voice bar so an omission cannot shift later onsets.
+                    if events.len() != voice.len()
+                        || events.iter().any(|event| {
+                            event.end > bar_length + EPSILON
+                                || event.start < -EPSILON
+                                || event.end < event.start - EPSILON
+                        })
+                    {
+                        continue;
+                    }
+                    let stream = voices
+                        .entry((part_index, staff_index, voice_index))
+                        .or_default();
+                    for event in events {
+                        if event.note.is_rest
+                            || event.note.is_unpitched
+                            || event.note.pitches.len() != 1
+                            || event.end <= event.start + EPSILON
+                        {
+                            continue;
+                        }
+                        stream.push(QuartetNote {
+                            address: event.address.clone(),
+                            pitch: event.note.pitches[0].clone(),
+                            onset_beats: bar_start + event.start,
+                            duration_beats: event.end - event.start,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    let streams: Vec<_> = voices
+        .into_values()
+        .filter(|voice| !voice.is_empty())
+        .collect();
+    let mut quartets = Vec::new();
+    for (first_index, first) in streams.iter().enumerate() {
+        for second in streams.iter().skip(first_index + 1) {
+            let mut onsets: Vec<_> = first
+                .iter()
+                .chain(second.iter())
+                .map(|note| note.onset_beats)
+                .collect();
+            onsets.sort_by(f64::total_cmp);
+            onsets.dedup_by(|left, right| (*left - *right).abs() < EPSILON);
+            let mut first_index = 0;
+            let mut second_index = 0;
+            let mut previous: Option<(&QuartetNote, &QuartetNote)> = None;
+            for beat in onsets {
+                while first_index + 1 < first.len()
+                    && first[first_index + 1].onset_beats <= beat + EPSILON
+                {
+                    first_index += 1;
+                }
+                while second_index + 1 < second.len()
+                    && second[second_index + 1].onset_beats <= beat + EPSILON
+                {
+                    second_index += 1;
+                }
+                let current =
+                    first
+                        .get(first_index)
+                        .zip(second.get(second_index))
+                        .filter(|(a, b)| {
+                            a.onset_beats <= beat + EPSILON
+                                && b.onset_beats <= beat + EPSILON
+                                && a.onset_beats + a.duration_beats > beat + EPSILON
+                                && b.onset_beats + b.duration_beats > beat + EPSILON
+                        });
+                let Some((first_after, second_after)) = current else {
+                    previous = None;
+                    continue;
+                };
+                if let Some((first_before, second_before)) = previous
+                    && (first_before.address != first_after.address
+                        || second_before.address != second_after.address)
+                    && first_before.onset_beats + first_before.duration_beats + EPSILON >= beat
+                    && second_before.onset_beats + second_before.duration_beats + EPSILON >= beat
+                {
+                    let first_motion =
+                        first_after.pitch.to_midi_cents() - first_before.pitch.to_midi_cents();
+                    let second_motion =
+                        second_after.pitch.to_midi_cents() - second_before.pitch.to_midi_cents();
+                    let similar_motion = first_motion != 0
+                        && second_motion != 0
+                        && first_motion.signum() == second_motion.signum();
+                    let contrary_motion = first_motion != 0
+                        && second_motion != 0
+                        && first_motion.signum() != second_motion.signum();
+                    let parallel_fifth = (similar_motion || contrary_motion)
+                        && spelled_perfect_interval(&first_before.pitch, &second_before.pitch, 5)
+                        && spelled_perfect_interval(&first_after.pitch, &second_after.pitch, 5);
+                    let parallel_octave = (similar_motion || contrary_motion)
+                        && spelled_perfect_interval(&first_before.pitch, &second_before.pitch, 8)
+                        && spelled_perfect_interval(&first_after.pitch, &second_after.pitch, 8);
+                    let proper_resolution_without_key = keyless_quartet_resolution(
+                        &first_before.pitch,
+                        &first_after.pitch,
+                        &second_before.pitch,
+                        &second_after.pitch,
+                        first_motion,
+                        second_motion,
+                    );
+                    quartets.push(VoiceLeadingQuartet {
+                        first_before: first_before.clone(),
+                        first_after: first_after.clone(),
+                        second_before: second_before.clone(),
+                        second_after: second_after.clone(),
+                        contrary_motion,
+                        similar_motion,
+                        parallel_fifth,
+                        parallel_octave,
+                        proper_resolution_without_key,
+                        rule_id: "located-written-voice-quartet".to_string(),
+                        evidence: vec![
+                            first_before.address.clone(),
+                            first_after.address.clone(),
+                            second_before.address.clone(),
+                            second_after.address.clone(),
+                        ],
+                    });
+                }
+                previous = Some((first_after, second_after));
+            }
+        }
+    }
+    quartets
+}
+
+fn spelled_perfect_interval(a: &Pitch, b: &Pitch, number: u8) -> bool {
+    let diatonic = quartet_diatonic_distance(a, b);
+    let cents = (a.to_midi_cents() - b.to_midi_cents()).abs();
+    match number {
+        5 => diatonic % 7 == 4 && cents % 1200 == 700,
+        8 => diatonic >= 7 && diatonic % 7 == 0 && cents >= 1200 && cents % 1200 == 0,
+        _ => false,
+    }
+}
+
+fn keyless_quartet_resolution(
+    first_before: &Pitch,
+    first_after: &Pitch,
+    second_before: &Pitch,
+    second_after: &Pitch,
+    first_motion: i32,
+    second_motion: i32,
+) -> bool {
+    if first_motion == 0 && second_motion == 0 {
+        return true;
+    }
+    let initial_diatonic = quartet_diatonic_distance(first_before, second_before) % 7;
+    let initial_cents = (first_before.to_midi_cents() - second_before.to_midi_cents()).abs() % 1200;
+    let final_generic = quartet_diatonic_distance(first_after, second_after) % 7 + 1;
+    match (initial_diatonic, initial_cents) {
+        (3, 500) => first_motion <= 0, // P4: first voice stays or descends.
+        (3, 600) => first_motion > 0 && second_motion < 0 && final_generic == 6, // A4.
+        (4, 600) => first_motion < 0 && second_motion > 0 && final_generic == 3, // d5.
+        (6, 1000) => final_generic == 3, // m7.
+        _ => true,
+    }
+}
+
+fn quartet_diatonic_distance(a: &Pitch, b: &Pitch) -> i32 {
+    fn index(step: &Step) -> i32 {
+        match step {
+            Step::C => 0,
+            Step::D => 1,
+            Step::E => 2,
+            Step::F => 3,
+            Step::G => 4,
+            Step::A => 5,
+            Step::B => 6,
+        }
+    }
+    ((i32::from(a.octave) - i32::from(b.octave)) * 7 + index(&a.step) - index(&b.step)).abs()
+}
+
 /// Check simultaneously sounding notes in adjacent voices for motion and parallel intervals.
 pub fn analyze_voice_leading(score: &Score) -> Vec<VoiceLeadingObservation> {
     analyze_voice_leading_in_region(score, None)
@@ -5338,6 +5576,159 @@ mod tests {
         assert_eq!(diagnostics.len(), 1);
         assert_eq!(diagnostics[0].kind, SatbDiagnosticKind::ParallelPerfect);
         assert_eq!(diagnostics[0].severity, SatbSeverity::Warning);
+    }
+
+    #[test]
+    fn located_quartets_include_cross_bar_nonadjacent_voices() {
+        let mut score = Score::default();
+        for (measure_index, pitches) in [
+            [(Step::G, 4), (Step::E, 4), (Step::C, 4)],
+            [(Step::A, 4), (Step::F, 4), (Step::D, 4)],
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let measure = &mut score.parts[0].staves[0].measures[measure_index];
+            for (voice_index, (step, octave)) in pitches.into_iter().enumerate() {
+                measure.voices[voice_index] =
+                    vec![Note::new(Pitch::new(step, octave), Duration::Whole)];
+            }
+        }
+        let quartets = analyze_voice_leading_quartets(&score);
+        assert_eq!(quartets.len(), 3);
+        let outer = quartets
+            .iter()
+            .find(|quartet| quartet.second_before.address.voice == 2)
+            .unwrap();
+        assert_eq!(outer.first_before.address.measure, 0);
+        assert_eq!(outer.first_after.address.measure, 1);
+        assert_eq!(outer.first_after.onset_beats, 4.0);
+        assert_eq!(outer.second_before.duration_beats, 4.0);
+        assert!(outer.similar_motion);
+        assert!(outer.parallel_fifth);
+        assert_eq!(outer.evidence.len(), 4);
+    }
+
+    #[test]
+    fn located_quartets_separate_perfect_spelling_and_motion() {
+        let mut score = Score::default();
+        let measure = &mut score.parts[0].staves[0].measures[0];
+        measure.voices[0] = vec![
+            Note::new(Pitch::new(Step::G, 4), Duration::Quarter),
+            Note::new(Pitch::new(Step::A, 4), Duration::Quarter),
+        ];
+        measure.voices[1] = vec![
+            Note::new(Pitch::new(Step::C, 4), Duration::Quarter),
+            Note::new(Pitch::new(Step::D, 3), Duration::Quarter),
+        ];
+        let quartet = &analyze_voice_leading_quartets(&score)[0];
+        assert!(quartet.contrary_motion);
+        assert!(!quartet.similar_motion);
+        assert!(quartet.parallel_fifth);
+        assert!(!quartet.parallel_octave);
+
+        score.parts[0].staves[0].measures[0].voices[1][0].pitches[0] =
+            Pitch::with_alter(Step::C, 4, 1);
+        assert!(!analyze_voice_leading_quartets(&score)[0].parallel_fifth);
+    }
+
+    #[test]
+    fn located_quartets_align_distinct_parts_and_reject_overfull_bars() {
+        let mut score = Score::default();
+        score.parts.push(score.parts[0].clone());
+        score.parts[0].staves[0].measures[0].voices[0] = vec![
+            Note::new(Pitch::new(Step::C, 5), Duration::Half),
+            Note::new(Pitch::new(Step::D, 5), Duration::Half),
+        ];
+        score.parts[1].staves[0].measures[0].voices[0] = vec![
+            Note::new(Pitch::new(Step::C, 4), Duration::Half),
+            Note::new(Pitch::new(Step::D, 4), Duration::Half),
+        ];
+        let quartets = analyze_voice_leading_quartets(&score);
+        assert_eq!(quartets.len(), 1);
+        assert_eq!(quartets[0].first_before.address.part, 0);
+        assert_eq!(quartets[0].second_before.address.part, 1);
+        assert!(quartets[0].parallel_octave);
+
+        score.parts[1].staves[0].measures[0].voices[0]
+            .push(Note::new(Pitch::new(Step::E, 4), Duration::Quarter));
+        assert!(analyze_voice_leading_quartets(&score).is_empty());
+    }
+
+    #[test]
+    fn located_quartets_do_not_bridge_rests_or_call_unisons_octaves() {
+        let mut score = Score::default();
+        {
+            let measure = &mut score.parts[0].staves[0].measures[0];
+            for voice in measure.voices.iter_mut().take(2) {
+                *voice = vec![
+                    Note::new(Pitch::new(Step::C, 4), Duration::Quarter),
+                    Note::rest(Duration::Quarter),
+                    Note::new(Pitch::new(Step::D, 4), Duration::Quarter),
+                ];
+            }
+        }
+        assert!(analyze_voice_leading_quartets(&score).is_empty());
+        for voice in score.parts[0].staves[0].measures[0]
+            .voices
+            .iter_mut()
+            .take(2)
+        {
+            voice.remove(1);
+        }
+        let quartet = &analyze_voice_leading_quartets(&score)[0];
+        assert!(quartet.similar_motion);
+        assert!(!quartet.parallel_octave);
+    }
+
+    #[test]
+    fn keyless_quartet_resolution_checks_each_dissonance_family() {
+        let pitch = |step, octave| Pitch::new(step, octave);
+        let flat = |step, octave| Pitch::with_alter(step, octave, -1);
+        let resolves = |a: Pitch, b: Pitch, c: Pitch, d: Pitch| {
+            let first_motion = b.to_midi_cents() - a.to_midi_cents();
+            let second_motion = d.to_midi_cents() - c.to_midi_cents();
+            keyless_quartet_resolution(&a, &b, &c, &d, first_motion, second_motion)
+        };
+        // Perfect fourth: the first voice may stay or descend.
+        assert!(!resolves(
+            pitch(Step::F, 5),
+            pitch(Step::G, 5),
+            pitch(Step::C, 4),
+            pitch(Step::C, 4)
+        ));
+        assert!(resolves(
+            pitch(Step::F, 5),
+            pitch(Step::E, 5),
+            pitch(Step::C, 4),
+            pitch(Step::C, 4)
+        ));
+        // Augmented fourth opens to a sixth; diminished fifth closes to a third.
+        assert!(resolves(
+            pitch(Step::E, 5),
+            pitch(Step::F, 5),
+            flat(Step::B, 4),
+            pitch(Step::A, 4)
+        ));
+        assert!(resolves(
+            flat(Step::B, 4),
+            pitch(Step::A, 4),
+            pitch(Step::E, 4),
+            pitch(Step::F, 4)
+        ));
+        // Minor seventh must arrive at a generic third.
+        assert!(resolves(
+            flat(Step::B, 4),
+            pitch(Step::A, 4),
+            pitch(Step::C, 4),
+            pitch(Step::F, 4)
+        ));
+        assert!(!resolves(
+            flat(Step::B, 4),
+            pitch(Step::A, 4),
+            pitch(Step::C, 4),
+            pitch(Step::G, 4)
+        ));
     }
 
     #[test]

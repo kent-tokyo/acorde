@@ -333,6 +333,11 @@ enum Commands {
         #[arg(long)]
         infer_key: bool,
     },
+    /// Locate two-voice note quartets and classify written motion as JSON
+    AnalyzeVoiceLeading {
+        /// Input score file
+        input: PathBuf,
+    },
     /// Estimate a local key for each physical measure from a centered window
     AnalyzeLocalKeys {
         /// Input score file
@@ -714,6 +719,7 @@ fn run(cli: &Cli) -> Result<(), String> {
             arpeggiated_bars,
         } => cmd_analyze_vertical(input, *infer_key, *arpeggiated_bars),
         Commands::AnalyzeCadences { input, infer_key } => cmd_analyze_cadences(input, *infer_key),
+        Commands::AnalyzeVoiceLeading { input } => cmd_analyze_voice_leading(input),
         Commands::AnalyzeLocalKeys { input, radius } => cmd_analyze_local_keys(input, *radius),
         Commands::Benchmark {
             manifest,
@@ -1224,6 +1230,19 @@ fn cmd_analyze_cadences(input: &Path, infer_key: bool) -> Result<(), String> {
     });
     let json = serde_json::to_string_pretty(&report)
         .map_err(|error| format!("cadence analysis serialization failed: {error}"))?;
+    println!("{json}");
+    Ok(())
+}
+
+fn cmd_analyze_voice_leading(input: &Path) -> Result<(), String> {
+    let score = parse_score(input)?;
+    let quartets = acorde_analysis::analyze_voice_leading_quartets(&score);
+    let output = serde_json::json!({
+        "score_fingerprint": acorde_analysis::score_fingerprint(&score),
+        "quartets": quartets,
+    });
+    let json = serde_json::to_string_pretty(&output)
+        .map_err(|error| format!("voice-leading serialization failed: {error}"))?;
     println!("{json}");
     Ok(())
 }

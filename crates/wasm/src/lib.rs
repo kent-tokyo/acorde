@@ -1191,6 +1191,21 @@ pub fn analyze_score(score_json: &str) -> Result<String, JsValue> {
         .map_err(|e| js_err(format!("analysis serialization failed: {e}")))
 }
 
+/// Locate written two-voice quartets across parts and bar lines as JSON.
+///
+/// The result has the same `score_fingerprint` and `quartets` fields as the
+/// `acorde analyze-voice-leading` CLI command.
+#[wasm_bindgen]
+pub fn analyze_voice_leading_quartets(score_json: &str) -> Result<String, JsValue> {
+    let score = validated_score_from_json(score_json)?;
+    let report = serde_json::json!({
+        "score_fingerprint": acorde_analysis::score_fingerprint(&score),
+        "quartets": acorde_analysis::analyze_voice_leading_quartets(&score),
+    });
+    serde_json::to_string(&report)
+        .map_err(|error| js_err(format!("voice-leading serialization failed: {error}")))
+}
+
 /// Rank all major/minor keys in a score by the Aarden-Essen profile.
 ///
 /// The returned JSON is an array of `KeyEstimate` objects. This opt-in route
@@ -2740,6 +2755,27 @@ impl ScoreEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[cfg(feature = "musicxml")]
+    fn native_web_voice_leading_quartets_match_analysis_and_cli_shape() {
+        let score_json = parse_musicxml(include_str!(
+            "../../../tests/fixtures/voice_leading_crossbar.musicxml"
+        ))
+        .unwrap();
+        let score: Score = serde_json::from_str(&score_json).unwrap();
+        let output: serde_json::Value =
+            serde_json::from_str(&analyze_voice_leading_quartets(&score_json).unwrap()).unwrap();
+        assert_eq!(
+            output["score_fingerprint"],
+            acorde_analysis::score_fingerprint(&score)
+        );
+        assert_eq!(
+            output["quartets"],
+            serde_json::to_value(acorde_analysis::analyze_voice_leading_quartets(&score)).unwrap()
+        );
+        assert_eq!(output["quartets"].as_array().unwrap().len(), 3);
+    }
 
     #[test]
     fn chord_plan_and_proposal_json_match_native_contracts() {

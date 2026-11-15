@@ -14,6 +14,20 @@ candidates, so relative-major/minor ambiguity is preserved instead of inventing 
 Vertical sonorities, adjacent-voice motion, and SATB spacing/crossing share written onset
 positions within each physical measure. A held note is paired with the note actually sounding
 at that beat.
+`analyze_voice_leading_quartets` is an opt-in comparison pass that emits four
+exact written pitches, absolute onsets, durations, and source addresses for
+every pair of monophonic voices. It includes nonadjacent voices, separate
+parts and staves, and changes across physical bar lines. Its flags distinguish
+similar/contrary motion, spelled perfect fifths/octaves (including
+antiparallel motion), and keyless P4/A4/d5/m7 resolution. It excludes rests,
+chords, unpitched and zero-duration notes and skips malformed voice bars.
+The existing `analyze_voice_leading` and SATB result retain their original
+adjacent-voice, within-bar contract. The CLI exposes the new pass as
+`acorde analyze-voice-leading <score>`; its JSON includes a score fingerprint.
+`acorde-wasm::analyze_voice_leading_quartets(score_json)` returns the same
+report shape from a validated score JSON input.
+The [music21 quartet comparison](../../docs/archive/analysis-voice-leading-quartet-development-v1.md)
+records the pinned comparator, reviewed cases, and current gaps.
 `analyze_vertical_sonorities_report` and its in-key variant report physical-bar
 alignment and malformed-duration issues. Affected measures are omitted from
 inferred sonorities; callers that need to distinguish absent harmony from

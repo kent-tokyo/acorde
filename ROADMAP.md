@@ -218,6 +218,10 @@ Next analysis gates, in order:
    semantics on the same quartets. Include cross-bar and
    nonadjacent voice pairs; the current pass covers adjacent voices within one
    measure. Use separately reviewed cases for correctness, not agreement alone.
+   The opt-in located-quartet API and CLI now include cross-bar and
+   nonadjacent pairs. A [pinned development comparison](docs/archive/analysis-voice-leading-quartet-development-v1.md)
+   matches music21 10.5.2 on six fixture quartets and records hand-reviewed
+   cases. Expand independent labels and styles before claiming accuracy.
 5. Run a final untouched, multi-style suite for each task after algorithm
    changes stop. Require no lower import coverage and report both aggregate
    and per-work results; a single aggregate lead cannot establish broad
