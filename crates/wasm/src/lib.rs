@@ -1935,6 +1935,26 @@ pub fn replay_ensemble_form_visits(score_json: &str, resolved_json: &str) -> Res
         .map_err(|error| js_err(format!("ensemble form visits serialization failed: {error}")))
 }
 
+/// Export a repeat-unfolded score for visit-specific generated performance.
+#[wasm_bindgen]
+pub fn arrange_ensemble_form_visits_score(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::EnsembleFormVisitsRequest =
+        parse_json(request_json, "ensemble form visits score", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::arrange_ensemble_form_visits_score(&score, &request))
+        .map_err(|error| js_err(format!("ensemble form visits score serialization failed: {error}")))
+}
+
+/// Rebuild an unfolded performance score from its source-bound contract.
+#[wasm_bindgen]
+pub fn replay_ensemble_form_visits_score(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedFormVisits =
+        parse_json(resolved_json, "resolved form visits score", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::replay_ensemble_form_visits_score(&score, &resolved))
+        .map_err(|error| js_err(format!("ensemble form visits score serialization failed: {error}")))
+}
+
 /// Build a performance copy with independently scheduled source-melody rests.
 #[wasm_bindgen]
 pub fn arrange_ensemble_with_melody(score_json: &str, request_json: &str) -> Result<String, JsValue> {

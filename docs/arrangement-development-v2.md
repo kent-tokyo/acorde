@@ -42,8 +42,19 @@ Its fixture repeats measures 0–7: visit 0 retains the opening chord while visi
 8 has an eight-attack arpeggio. Tests compare unchanged source melody events,
 all unselected visits, and source-bound replay. The full/viewer logs are at
 `/private/tmp/acorde-arrangement-v2-visits-full-wasm.log` and
-`/private/tmp/acorde-arrangement-v2-visits-viewer-wasm.log`. It does not yet
-provide a notation/export score for the changed visit.
+`/private/tmp/acorde-arrangement-v2-visits-viewer-wasm.log`. A separate
+performance-score API now unfolds visits for notation/export. Its focused core
+tests cover the 16-bar return, a structurally doubled 32-bar form, source-bound
+replay, key/clef restoration at repeat edges and atomic rejection of unresolved
+view references. MusicXML and MSCZ round trips preserve the exported sound.
+The full native suite, warning-free Clippy and complete full/viewer Chrome WASM
+suites pass; the browser contract test checks the new JSON APIs in both builds.
+Logs are `/private/tmp/acorde-performance-all.log`,
+`/private/tmp/acorde-performance-clippy.log`,
+`/private/tmp/acorde-performance-full-wasm.log` and
+`/private/tmp/acorde-performance-viewer-wasm.log`. The doubled form checks
+scaling and repeat traversal; a separately composed 32-bar development piece
+and listening review remain.
 
 The phrase-harmony API passes four focused core tests, the full native
 workspace suite, warning-free Clippy, and the complete full/viewer Chrome WASM
@@ -86,7 +97,7 @@ chord-root motion, not a complete classical cadence or listener acceptance.
 | Outcome | Required final behavior | Current evidence / remaining work |
 | --- | --- | --- |
 | 0. Comparison baseline | Integrate prior arrangement and analysis work; preserve reproducible old outputs and fix comparison conditions. | Integration, native corpus and full/viewer Chrome suites pass. Freeze reviewed baseline audio identities, complete hosted CI/size gates, and establish the new evaluation corpus. |
-| 1. Whole-piece development | Coordinate phrases, A/B sections, entrances, pauses, density and ending shape over 16–32 bars; vary a repeated passage on a later visit. | `arrange_ensemble_form` compiles an explicit written form, coordinates phrase endings, varies bass patterns without resetting bass pitch continuity, and restores dynamics at every sounding bar. A second API selects a different generated event sequence on a later repeat visit; its written score still displays the base form. Source-bound replay and the 16-bar development fixture pass native, MusicXML/MSCZ and full/viewer browser checks. Full performance-score export for visit changes, longer examples and listening acceptance remain. |
+| 1. Whole-piece development | Coordinate phrases, A/B sections, entrances, pauses, density and ending shape over 16–32 bars; vary a repeated passage on a later visit. | `arrange_ensemble_form` compiles an explicit written form, coordinates phrase endings, varies bass patterns without resetting bass pitch continuity, and restores dynamics at every sounding bar. The visit API selects a different generated event sequence on a later repeat visit. A new API unfolds those visits into an exportable performance score when its playback matches the event contract. The 16-bar fixture, doubled 32-bar traversal, MusicXML/MSCZ round trips, source-bound replay and native/full/viewer browser checks pass. Source-level references still need relocation, and a separately composed longer example and listening acceptance remain. |
 | 2. Harmony | Choose harmonic rhythm by phrase; add borrowed/passing harmony and supplied local-key movement, bounded change amount and cadence intent while preserving melody/locks. | `suggest_phrase_harmony` selects two-bar, one-bar or two-group pace. Its explicit mapping can split or merge an existing source plan while preserving locks and comparing change budgets with the original regions. `local_keys` supplies major/minor movement; `cadences` constrains three named root motions. Native and full/viewer Chrome suites pass. Borrowed/passing language, stronger cadence-quality checks and listening acceptance remain. Use explicit source/key/phrase input before relying on uncertain analysis. |
 | 3. Rhythm and bass | Composable pulse/rest/accent/duration rules, anticipation, syncopation, walking/ostinato bass and phrase-ending fills; coherent transitions. | Form can switch the existing three bass patterns by section. New rhythmic grammar and the named techniques remain. |
 | 4. Countermelody and voice leading | Capture motif rhythm as well as contour; inversion, augmentation/diminution, imitation, question/answer and independent inner voices across phrases. | Existing contour-based countermelody and section activity are integrated. Rhythmic development and new transformations remain. Apply style-specific voice-leading rules; analysis flags are not a general musical-quality verdict. |

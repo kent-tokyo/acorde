@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+- Add opt-in `arrange_ensemble_form_visits_score` and replay in Rust and
+  full/viewer WASM. Repeat visits are unfolded into a separate exportable
+  performance score with the selected generated variation. The function
+  checks that playback equals the visit-specific event contract and rejects
+  source-level references it cannot relocate safely.
+
 - Add explicit root-motion cadence targets to phrase-harmony requests. The
   bounded progression search can require dominant–tonic, subdominant–tonic or
   dominant arrival at caller-selected harmonic positions. Candidates,

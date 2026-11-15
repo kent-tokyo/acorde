@@ -116,3 +116,60 @@ fn second_repeat_visit_has_a_separate_replayable_performance() {
     assert!(replay.diagnostics.is_empty());
     assert_eq!(signature(&browser.events), signature(&replay.events));
 }
+
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
+#[cfg_attr(not(target_arch = "wasm32"), test)]
+fn second_repeat_visit_exports_the_selected_performance_score() {
+    let mut source = fixture::source();
+    source.parts[0].staves[0].measures[0].barline_left = acorde_core::Barline::RepeatStart;
+    source.parts[0].staves[0].measures[7].barline_right = acorde_core::Barline::RepeatEnd;
+    let base = fixture::request();
+    let mut alternative = base.clone();
+    alternative.sections[0].harmony.as_mut().unwrap().pattern =
+        acorde_core::ChordalPadPattern::ArpeggioUpDown;
+    let request = acorde_core::EnsembleFormVisitsRequest {
+        base,
+        variations: vec![acorde_core::FormVisitVariation {
+            visit_index: 8,
+            alternative,
+        }],
+    };
+    let source_json = serde_json::to_string(&source).unwrap();
+    let request_json = serde_json::to_string(&request).unwrap();
+    let selected = acorde_core::arrange_ensemble_form_visits(&source, &request);
+    let browser: acorde_core::EnsembleFormPerformanceScoreResult = serde_json::from_str(
+        &acorde_wasm::arrange_ensemble_form_visits_score(&source_json, &request_json).unwrap(),
+    )
+    .unwrap();
+    assert!(browser.diagnostics.is_empty(), "{:?}", browser.diagnostics);
+    assert_eq!(browser.written_measures_by_visit.len(), 24);
+    assert_eq!(
+        fixture::events(browser.score.as_ref().unwrap()),
+        selected
+            .events
+            .iter()
+            .map(|event| {
+                (
+                    event.part_index,
+                    (event.time_beats * 480.0).round() as u64,
+                    (event.duration_beats * 480.0).round() as u64,
+                    event.pitch_midi,
+                    event.velocity,
+                )
+            })
+            .collect::<Vec<_>>()
+    );
+    let replay: acorde_core::EnsembleFormPerformanceScoreResult = serde_json::from_str(
+        &acorde_wasm::replay_ensemble_form_visits_score(
+            &source_json,
+            &serde_json::to_string(browser.resolved.as_ref().unwrap()).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert!(replay.diagnostics.is_empty());
+    assert_eq!(
+        fixture::events(browser.score.as_ref().unwrap()),
+        fixture::events(replay.score.as_ref().unwrap())
+    );
+}

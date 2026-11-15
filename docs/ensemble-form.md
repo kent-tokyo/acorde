@@ -56,6 +56,17 @@ visits fail atomically.
 The 16-bar development score repeats its first eight bars. Visit 0 retains a
 held chord, while visit 8 can play an eight-attack arpeggio over the same first
 bar. All source-melody events and the other 23 visits retain their prior
-pitch, onset, duration and velocity. A future notation/export path must render
-the variation itself in a full performance score; the returned written score
-shows the base form.
+pitch, onset, duration and velocity. The returned written score shows the base
+form.
+
+`arrange_ensemble_form_visits_score` returns a separate performance score whose
+bars follow playback order, with visit-specific generated notes written into
+their selected bars. `written_measures_by_visit` maps each performance bar back
+to its original written bar. Repeat and navigation marks are removed from the
+unfolded bars, and distinct note IDs are assigned per visit. The score can be
+serialized with MusicXML or MSCZ. The API verifies its complete playback against
+`arrange_ensemble_form_visits` and returns no score on a mismatch. Replay checks
+the original source fingerprint and contract marker. Source scores with
+spanners, views or object style overrides currently return
+`unsupported-form-performance-refs`, since those references need explicit
+relocation. The compact written base and event-only APIs remain available.

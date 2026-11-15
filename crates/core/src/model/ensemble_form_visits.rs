@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use super::chord_proposals::fingerprint;
 use super::ensemble_form::{EnsembleFormDiagnostic, EnsembleFormRequest, arrange_ensemble_form};
+use super::notation::Barline;
 use super::playback::{PlaybackEvent, PlaybackOptions, to_playback_events};
 use super::repeat::measure_sequence;
 use super::score::Score;
@@ -51,6 +52,227 @@ pub struct EnsembleFormVisitsResult {
     pub written_measures_by_visit: Vec<usize>,
     pub resolved: Option<ResolvedFormVisits>,
     pub diagnostics: Vec<EnsembleFormDiagnostic>,
+}
+
+/// An unfolded score whose written bars follow the selected playback visits.
+/// The original source and the compact written base remain separate.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EnsembleFormPerformanceScoreResult {
+    pub score: Option<Score>,
+    pub written_measures_by_visit: Vec<usize>,
+    pub resolved: Option<ResolvedFormVisits>,
+    pub diagnostics: Vec<EnsembleFormDiagnostic>,
+}
+
+fn score_fail(code: &str, visit: Option<usize>) -> EnsembleFormPerformanceScoreResult {
+    EnsembleFormPerformanceScoreResult {
+        score: None,
+        written_measures_by_visit: Vec::new(),
+        resolved: None,
+        diagnostics: vec![issue(code, visit)],
+    }
+}
+
+fn same_sounding_event(left: &PlaybackEvent, right: &PlaybackEvent) -> bool {
+    let close = |a: f64, b: f64| a.is_finite() && b.is_finite() && (a - b).abs() < 1e-8;
+    if !close(left.time_beats, right.time_beats)
+        || !close(left.time_secs, right.time_secs)
+        || !close(left.duration_beats, right.duration_beats)
+        || !close(left.duration_secs, right.duration_secs)
+    {
+        return false;
+    }
+    let mut left = left.clone();
+    let mut right = right.clone();
+    for item in [&mut left, &mut right] {
+        item.address = None;
+        item.source = None;
+        item.time_beats = 0.0;
+        item.time_secs = 0.0;
+        item.duration_beats = 0.0;
+        item.duration_secs = 0.0;
+    }
+    left == right
+}
+
+fn unfolded_measure(
+    written_score: &Score,
+    written_staff: &super::score::Staff,
+    written: &super::score::Measure,
+    physical: usize,
+    visit: usize,
+    part: usize,
+    staff: usize,
+) -> Option<super::score::Measure> {
+    let mut bar = written.clone();
+    bar.number = u32::try_from(visit + 1).ok()?;
+    bar.barline_left = Barline::Normal;
+    bar.barline_right = Barline::Normal;
+    bar.volta = None;
+    bar.navigation = None;
+    bar.measure_repeat = None;
+    bar.multi_rest_count = None;
+    bar.time_sig = Some(
+        written_staff
+            .meter_at(physical, &written_score.settings.time_signature)
+            .clone(),
+    );
+    bar.key_sig = written_staff
+        .measures
+        .get(..=physical)?
+        .iter()
+        .rev()
+        .find_map(|measure| measure.key_sig.clone())
+        .or_else(|| Some(written_score.settings.key_signature.clone()));
+    let mut clef = written_staff.clef.clone();
+    for prior in written_staff.measures.get(..physical)? {
+        if let Some(change) = &prior.clef {
+            clef = change.clone();
+        }
+        clef = prior.clef_at(&clef, f64::MAX);
+    }
+    bar.clef = Some(written.clef.clone().unwrap_or(clef));
+    for (voice_index, voice) in bar.voices.iter_mut().enumerate() {
+        for (note_index, note) in voice.iter_mut().enumerate() {
+            note.id = format!("performance:{visit}:{part}:{staff}:{voice_index}:{note_index}");
+        }
+    }
+    Some(bar)
+}
+
+/// Unfold repeats into a notation/export score, choosing each generated
+/// measure from the base or its visit-specific alternative. Accept the result
+/// only if its complete playback matches the source-bound event contract.
+pub fn arrange_ensemble_form_visits_score(
+    source: &Score,
+    request: &EnsembleFormVisitsRequest,
+) -> EnsembleFormPerformanceScoreResult {
+    let selected = arrange_ensemble_form_visits(source, request);
+    if let Some(diagnostic) = selected.diagnostics.first() {
+        return EnsembleFormPerformanceScoreResult {
+            score: None,
+            written_measures_by_visit: Vec::new(),
+            resolved: None,
+            diagnostics: vec![diagnostic.clone()],
+        };
+    }
+    if !source.spanners.is_empty()
+        || !source.views.is_empty()
+        || !source.object_style_overrides.is_empty()
+    {
+        return score_fail("unsupported-form-performance-refs", None);
+    }
+    let Some(base) = selected.written_score.as_ref() else {
+        return score_fail("base-form-failed", None);
+    };
+    let mut variants = Vec::with_capacity(request.variations.len());
+    for variation in &request.variations {
+        let built = arrange_ensemble_form(source, &variation.alternative);
+        let Some(score) = built.score else {
+            return score_fail("variant-form-failed", Some(variation.visit_index));
+        };
+        if score.parts.len() != base.parts.len()
+            || score
+                .parts
+                .iter()
+                .zip(&base.parts)
+                .any(|(left, right)| left.staves.len() != right.staves.len())
+        {
+            return score_fail("form-visit-part-mismatch", Some(variation.visit_index));
+        }
+        variants.push((variation.visit_index, score));
+    }
+    let mut performance = base.clone();
+    for (part_index, part) in performance.parts.iter_mut().enumerate() {
+        for (staff_index, staff) in part.staves.iter_mut().enumerate() {
+            let mut measures = Vec::with_capacity(selected.written_measures_by_visit.len());
+            let mut prior_meter = None;
+            let mut prior_key = None;
+            let mut prior_clef = staff.clef.clone();
+            for (visit, &physical) in selected.written_measures_by_visit.iter().enumerate() {
+                let chosen = if part_index < source.parts.len() {
+                    base
+                } else {
+                    variants
+                        .iter()
+                        .find(|(index, _)| *index == visit)
+                        .map_or(base, |(_, score)| score)
+                };
+                let Some(written_staff) = chosen
+                    .parts
+                    .get(part_index)
+                    .and_then(|part| part.staves.get(staff_index))
+                else {
+                    return score_fail("form-visit-part-mismatch", Some(visit));
+                };
+                let Some(written) = written_staff.measures.get(physical) else {
+                    return score_fail("form-visit-part-mismatch", Some(visit));
+                };
+                let Some(mut bar) = unfolded_measure(
+                    chosen,
+                    written_staff,
+                    written,
+                    physical,
+                    visit,
+                    part_index,
+                    staff_index,
+                ) else {
+                    return score_fail("form-performance-unfold-failed", Some(visit));
+                };
+                let effective_meter = bar.time_sig.clone();
+                let effective_key = bar.key_sig.clone();
+                let effective_clef = bar.clef.clone().unwrap_or_else(|| prior_clef.clone());
+                if visit > 0 && effective_meter == prior_meter {
+                    bar.time_sig = None;
+                }
+                if visit > 0 && effective_key == prior_key {
+                    bar.key_sig = None;
+                }
+                if effective_clef == prior_clef {
+                    bar.clef = None;
+                }
+                prior_clef = bar.clef_at(&effective_clef, f64::MAX);
+                prior_meter = effective_meter;
+                prior_key = effective_key;
+                measures.push(bar);
+            }
+            staff.measures = measures;
+        }
+    }
+    if !super::validate::validate(&performance).is_valid() {
+        return score_fail("invalid-form-performance-score", None);
+    }
+    let actual = to_playback_events(&performance, &PlaybackOptions::default());
+    if actual.len() != selected.events.len()
+        || !actual
+            .iter()
+            .zip(&selected.events)
+            .all(|(left, right)| same_sounding_event(left, right))
+    {
+        return score_fail("form-performance-playback-mismatch", None);
+    }
+    EnsembleFormPerformanceScoreResult {
+        score: Some(performance),
+        written_measures_by_visit: selected.written_measures_by_visit,
+        resolved: selected.resolved,
+        diagnostics: Vec::new(),
+    }
+}
+
+/// Rebuild a saved performance score against the original source and engine.
+pub fn replay_ensemble_form_visits_score(
+    source: &Score,
+    resolved: &ResolvedFormVisits,
+) -> EnsembleFormPerformanceScoreResult {
+    if resolved.contract_version != FORM_VISITS_CONTRACT_VERSION
+        || resolved.engine_version != FORM_VISITS_ENGINE_VERSION
+    {
+        return score_fail("unsupported-form-visits-contract", None);
+    }
+    if fingerprint(source).as_deref() != Some(resolved.source_fingerprint.as_str()) {
+        return score_fail("form-source-mismatch", None);
+    }
+    arrange_ensemble_form_visits_score(source, &resolved.request)
 }
 
 fn issue(code: &str, visit: Option<usize>) -> EnsembleFormDiagnostic {
