@@ -14,6 +14,7 @@ pub mod chordal_pad;
 pub mod commands;
 pub mod countermelody;
 pub mod countermelody_development;
+pub mod cross_plan_form_proposals;
 pub mod developed_form_proposals;
 pub mod duration;
 pub mod engine;

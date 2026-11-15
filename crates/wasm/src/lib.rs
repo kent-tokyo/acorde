@@ -2127,6 +2127,30 @@ pub fn replay_developed_form_proposal(score_json: &str, resolved_json: &str) -> 
         .map_err(|error| js_err(format!("developed form proposal replay serialization failed: {error}")))
 }
 
+/// Select sectioned arrangements across different locked chord plans.
+#[wasm_bindgen]
+pub fn suggest_cross_plan_forms(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::CrossPlanFormRequest =
+        parse_json(request_json, "cross-plan form request", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::suggest_cross_plan_forms(&score, &request)
+        .map_err(|error| js_err(format!("cross-plan form search failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("cross-plan form serialization failed: {error}")))
+}
+
+/// Recheck a selected chord plan and form against the exact source score.
+#[wasm_bindgen]
+pub fn replay_cross_plan_form(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedCrossPlanForm =
+        parse_json(resolved_json, "resolved cross-plan form", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::replay_cross_plan_form(&score, &resolved)
+        .map_err(|error| js_err(format!("cross-plan form replay failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("cross-plan form replay serialization failed: {error}")))
+}
+
 /// Realize a later repeat visit with a different generated ensemble texture.
 #[wasm_bindgen]
 pub fn arrange_ensemble_form_visits(score_json: &str, request_json: &str) -> Result<String, JsValue> {

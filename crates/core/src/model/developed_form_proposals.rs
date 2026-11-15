@@ -4,6 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
+use super::chord_plan::ChordPlan;
 use super::chord_proposals::fingerprint;
 use super::countermelody_development::CountermelodyDevelopmentKind;
 use super::ensemble_form::{EnsembleFormDiagnostic, EnsembleFormMeasure, EnsembleFormSection};
@@ -43,6 +44,9 @@ pub struct DevelopedFormProposalCandidate {
     pub score: Score,
     pub resolved: ResolvedDevelopedFormProposal,
     pub measures: Vec<EnsembleFormMeasure>,
+    /// Generated parts and their role identity, used by downstream selection.
+    #[serde(default)]
+    pub role_parts: Vec<EnsembleRolePart>,
     pub difference_codes: Vec<String>,
     /// Difference from the first selected form, on six observed axes. Each
     /// axis is a Jaccard distance in 0..=1000 (0 means identical).
@@ -80,8 +84,9 @@ impl DevelopedFormAxisDistance {
 }
 
 #[derive(Default)]
-struct ObservedAxes {
+pub(super) struct ObservedAxes {
     harmony: BTreeSet<(usize, i32)>,
+    harmony_plan: BTreeSet<(usize, u64, String)>,
     rhythm: BTreeSet<(EnsembleRole, u64, u64)>,
     bass: BTreeSet<(u64, u64, i32)>,
     register: BTreeSet<(EnsembleRole, i32)>,
@@ -94,7 +99,7 @@ fn ticks(beats: f64) -> u64 {
 }
 
 impl ObservedAxes {
-    fn collect(
+    pub(super) fn collect(
         score: &Score,
         role_parts: &[EnsembleRolePart],
         measures: &[EnsembleFormMeasure],
@@ -163,9 +168,25 @@ impl ObservedAxes {
         axes
     }
 
-    fn distance(&self, other: &Self) -> DevelopedFormAxisDistance {
+    pub(super) fn with_plan(mut self, plan: &ChordPlan) -> Self {
+        self.harmony_plan = plan
+            .entries
+            .iter()
+            .map(|entry| {
+                (
+                    entry.position.measure_index,
+                    ticks(entry.position.offset.beats()),
+                    serde_json::to_string(&entry.chord).unwrap_or_default(),
+                )
+            })
+            .collect();
+        self
+    }
+
+    pub(super) fn distance(&self, other: &Self) -> DevelopedFormAxisDistance {
         DevelopedFormAxisDistance {
-            harmony: jaccard(&self.harmony, &other.harmony),
+            harmony: jaccard(&self.harmony, &other.harmony)
+                .max(jaccard(&self.harmony_plan, &other.harmony_plan)),
             rhythm: jaccard(&self.rhythm, &other.rhythm),
             bass: jaccard(&self.bass, &other.bass),
             register: jaccard(&self.register, &other.register),
@@ -184,7 +205,7 @@ fn jaccard<T: Ord>(left: &BTreeSet<T>, right: &BTreeSet<T>) -> u16 {
     (((union - common) * 1000 + union / 2) / union) as u16
 }
 
-fn observed_difference_codes(distance: DevelopedFormAxisDistance) -> Vec<String> {
+pub(super) fn observed_difference_codes(distance: DevelopedFormAxisDistance) -> Vec<String> {
     [
         (distance.harmony, "harmony-pitch-classes-changed"),
         (distance.rhythm, "generated-rhythm-changed"),
@@ -351,6 +372,7 @@ pub fn suggest_developed_form_proposals(
                         development: developed.resolved,
                     },
                     measures: developed.measures,
+                    role_parts: developed.role_parts,
                     difference_codes: Vec::new(),
                     axis_distance_from_first: DevelopedFormAxisDistance::default(),
                     nearest_selected_distance: 0,

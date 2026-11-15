@@ -111,6 +111,11 @@ pub use model::countermelody_development::{
     MotifRhythmCell, ResolvedCountermelodyDevelopment, arrange_countermelody_development,
     replay_countermelody_development,
 };
+pub use model::cross_plan_form_proposals::{
+    CROSS_PLAN_FORM_CONTRACT_VERSION, CrossPlanFormCandidate, CrossPlanFormError,
+    CrossPlanFormRequest, CrossPlanFormResult, CrossPlanRejection, ResolvedCrossPlanForm,
+    replay_cross_plan_form, suggest_cross_plan_forms,
+};
 pub use model::developed_form_proposals::{
     DEVELOPED_FORM_PROPOSAL_CONTRACT_VERSION, DevelopedFormAxisDistance,
     DevelopedFormProposalCandidate, DevelopedFormProposalError, DevelopedFormProposalResult,
