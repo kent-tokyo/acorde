@@ -219,7 +219,7 @@ fn staff_lyric_baseline_u(staff: &acorde_core::Staff) -> (f32, u8) {
 pub(crate) fn required_hairpin_staff_gap(score: &Score, layout: &LayoutResult, base: f32) -> f32 {
     let staff_refs = collect_staff_refs(score);
     let mut required = base;
-    for span in &layout.spans {
+    for (span_index, span) in layout.spans.iter().enumerate() {
         let acorde_layout::SpanMark::Hairpin { start, end, .. } = span else {
             continue;
         };
@@ -233,10 +233,17 @@ pub(crate) fn required_hairpin_staff_gap(score: &Score, layout: &LayoutResult, b
         else {
             continue;
         };
-        let above = note.hairpin_above == Some(true);
+        let physical_staff = if measured_print_active() {
+            note.cross_staff
+                .as_ref()
+                .map_or(start.staff, |cross| cross.target_staff)
+        } else {
+            start.staff
+        };
+        let above = spans::hairpin_above(score, layout, span_index);
         let Some(index) = staff_refs
             .iter()
-            .position(|&address| address == (start.part, start.staff))
+            .position(|&address| address == (start.part, physical_staff))
         else {
             continue;
         };
@@ -250,9 +257,9 @@ pub(crate) fn required_hairpin_staff_gap(score: &Score, layout: &LayoutResult, b
             continue;
         };
         let (upper_part, upper_staff, lower_part, lower_staff) = if above {
-            (neighbor_part, neighbor_staff, start.part, start.staff)
+            (neighbor_part, neighbor_staff, start.part, physical_staff)
         } else {
-            (start.part, start.staff, neighbor_part, neighbor_staff)
+            (start.part, physical_staff, neighbor_part, neighbor_staff)
         };
         let upper = &score.parts[upper_part].staves[upper_staff];
         let lower = &score.parts[lower_part].staves[lower_staff];
@@ -8187,6 +8194,8 @@ fn render_all_spans(
             if matches!(span, SpanMark::Hairpin { .. }) {
                 spans::hairpin_baseline(
                     score,
+                    layout,
+                    span_index,
                     points,
                     beam_tip_points,
                     staff_bottoms,
@@ -8508,6 +8517,8 @@ fn render_all_spans(
                 acorde_core::NotationSpannerKind::TrillLine => "trill-line",
                 acorde_core::NotationSpannerKind::Pedal => "pedal",
                 acorde_core::NotationSpannerKind::Ottava => "ottava",
+                acorde_core::NotationSpannerKind::HairpinCrescendo
+                | acorde_core::NotationSpannerKind::HairpinDecrescendo => "hairpin",
                 acorde_core::NotationSpannerKind::Dashes => "dashes",
             };
             let _ = write!(

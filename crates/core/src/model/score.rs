@@ -336,6 +336,8 @@ pub enum NotationSpannerKind {
     TrillLine,
     Pedal,
     Ottava,
+    HairpinCrescendo,
+    HairpinDecrescendo,
     /// A dashed continuation line after a text direction ("cresc. - - -"), MusicXML
     /// `<dashes>`.
     Dashes,
@@ -457,6 +459,16 @@ impl Score {
                     !start.is_some_and(|n| n.ottava_start.is_some())
                         || !end.is_some_and(|n| n.ottava_end)
                 }
+                NotationSpannerKind::HairpinCrescendo => {
+                    !start.is_some_and(|n| {
+                        n.hairpin_start == Some(crate::model::notation::HairpinKind::Crescendo)
+                    }) || !end.is_some_and(|n| n.hairpin_end)
+                }
+                NotationSpannerKind::HairpinDecrescendo => {
+                    !start.is_some_and(|n| {
+                        n.hairpin_start == Some(crate::model::notation::HairpinKind::Decrescendo)
+                    }) || !end.is_some_and(|n| n.hairpin_end)
+                }
                 // No note flag holds dashes; consumers read the typed spanner.
                 NotationSpannerKind::Dashes => false,
             }
@@ -472,6 +484,12 @@ impl Score {
                     NotationSpannerKind::Glissando => note.glissando_start = true,
                     NotationSpannerKind::TrillLine => note.trill_line_start = true,
                     NotationSpannerKind::Pedal => note.pedal_start = true,
+                    NotationSpannerKind::HairpinCrescendo if note.hairpin_start.is_none() => {
+                        note.hairpin_start = Some(crate::model::notation::HairpinKind::Crescendo);
+                    }
+                    NotationSpannerKind::HairpinDecrescendo if note.hairpin_start.is_none() => {
+                        note.hairpin_start = Some(crate::model::notation::HairpinKind::Decrescendo);
+                    }
                     NotationSpannerKind::Ottava if note.ottava_start.is_none() => {
                         let two = spanner.ottava_size.is_some_and(|size| size >= 15);
                         // MusicXML `up` displays the notes higher: an 8vb.
@@ -483,7 +501,10 @@ impl Score {
                             (true, true) => OttavaKind::Mb15,
                         });
                     }
-                    NotationSpannerKind::Ottava | NotationSpannerKind::Dashes => {}
+                    NotationSpannerKind::Ottava
+                    | NotationSpannerKind::Dashes
+                    | NotationSpannerKind::HairpinCrescendo
+                    | NotationSpannerKind::HairpinDecrescendo => {}
                 }
             }
             if let Some(note) = score.note_at_mut(&spanner.end) {
@@ -492,6 +513,8 @@ impl Score {
                     NotationSpannerKind::Glissando => note.glissando_end = true,
                     NotationSpannerKind::TrillLine => note.trill_line_end = true,
                     NotationSpannerKind::Pedal => note.pedal_end = true,
+                    NotationSpannerKind::HairpinCrescendo
+                    | NotationSpannerKind::HairpinDecrescendo => note.hairpin_end = true,
                     NotationSpannerKind::Ottava => note.ottava_end = true,
                     NotationSpannerKind::Dashes => {}
                 }

@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- Preserve concurrent numbered MusicXML wedges as typed crescendo/decrescendo
+  spanners, including starts on notes beamed across staves. MusicXML round trips
+  retain their numbers and placements. This extends the serialized
+  `NotationSpannerKind` enum; release-version review is required.
 - Retain hidden MusicXML articulations as performance data with optional
   `Note::hidden_articulations` indices and `SetHiddenArticulations` editing.
   Hidden notation containers suppress their tuplet digits/brackets and articulation

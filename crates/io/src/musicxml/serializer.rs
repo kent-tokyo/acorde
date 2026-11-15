@@ -1228,7 +1228,10 @@ fn serialize_note(
     );
 
     // Hairpin start
-    if let Some(hp) = &note.hairpin_start {
+    if let Some(hp) = &note.hairpin_start
+        && !has_typed_endpoint(NotationSpannerKind::HairpinCrescendo)
+        && !has_typed_endpoint(NotationSpannerKind::HairpinDecrescendo)
+    {
         let wedge_type = match hp {
             HairpinKind::Crescendo => "crescendo",
             HairpinKind::Decrescendo => "diminuendo",
@@ -1558,7 +1561,10 @@ fn serialize_note(
     }
 
     // Hairpin stop
-    if note.hairpin_end {
+    if note.hairpin_end
+        && !has_typed_endpoint(NotationSpannerKind::HairpinCrescendo)
+        && !has_typed_endpoint(NotationSpannerKind::HairpinDecrescendo)
+    {
         xml.push_str("      <direction placement=\"below\">\n");
         xml.push_str("        <direction-type>\n");
         xml.push_str("          <wedge type=\"stop\"/>\n");
@@ -1859,6 +1865,29 @@ fn serialize_typed_direction_spanners(
         };
         let number = spanner.number.unwrap_or(1);
         match spanner.kind {
+            NotationSpannerKind::HairpinCrescendo | NotationSpannerKind::HairpinDecrescendo => {
+                let wedge_type = if endpoint == "stop" {
+                    "stop"
+                } else if spanner.kind == NotationSpannerKind::HairpinCrescendo {
+                    "crescendo"
+                } else {
+                    "diminuendo"
+                };
+                let placement = spanner
+                    .placement
+                    .as_deref()
+                    .map_or_else(String::new, |value| {
+                        format!(" placement=\"{}\"", escape_xml(value))
+                    });
+                xml.push_str(&format!("      <direction{placement}>\n"));
+                xml.push_str("        <direction-type>\n");
+                xml.push_str(&format!(
+                    "          <wedge type=\"{wedge_type}\" number=\"{number}\"/>\n"
+                ));
+                xml.push_str("        </direction-type>\n");
+                xml.push_str(&format!("        <staff>{}</staff>\n", address.staff + 1));
+                xml.push_str("      </direction>\n");
+            }
             NotationSpannerKind::Pedal => {
                 let paired = paired_timed_pedal(score, spanner, endpoint == "start");
                 let placement = spanner.placement.as_deref().map_or_else(
@@ -2082,6 +2111,8 @@ fn serialize_visible_notations(
             )),
             NotationSpannerKind::Pedal
             | NotationSpannerKind::Ottava
+            | NotationSpannerKind::HairpinCrescendo
+            | NotationSpannerKind::HairpinDecrescendo
             | NotationSpannerKind::Dashes => {}
         }
     }

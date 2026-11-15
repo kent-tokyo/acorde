@@ -122,6 +122,10 @@ struct OpenSpanner {
 /// A hairpin start whose stop is resolved by time at the end of its part.
 struct HairpinRecord {
     start: NoteAddr,
+    end: Option<NoteAddr>,
+    kind: HairpinKind,
+    number: u16,
+    above: Option<bool>,
     /// (measure index, quarter-note offset) of the stop, when it is placed by time.
     stop: Option<(usize, f64)>,
 }
@@ -142,10 +146,12 @@ fn note_at_mut<'a>(part: &'a mut acorde_core::Part, address: &NoteAddr) -> Optio
 /// before the stop; among notes starting together, the one whose end is nearest the stop.
 /// A hairpin lasts to the end of its end note, as in playback; layout pairs hairpin starts and
 /// ends per staff in time order.
-fn end_hairpin_by_time(part: &mut acorde_core::Part, start: &NoteAddr, stop: (usize, f64)) {
-    let Some(staff) = part.staves.get(start.staff) else {
-        return;
-    };
+fn end_hairpin_by_time(
+    part: &mut acorde_core::Part,
+    start: &NoteAddr,
+    stop: (usize, f64),
+) -> Option<NoteAddr> {
+    let staff = part.staves.get(start.staff)?;
     let mut best: Option<((usize, f64), f64, NoteAddr)> = None;
     let mut start_position = None;
     for (mi, measure) in staff.measures.iter().enumerate().skip(start.measure) {
@@ -194,6 +200,9 @@ fn end_hairpin_by_time(part: &mut acorde_core::Part, start: &NoteAddr, stop: (us
     };
     if let Some(note) = note_at_mut(part, &end) {
         note.hairpin_end = true;
+        Some(end)
+    } else {
+        None
     }
 }
 
@@ -1857,8 +1866,37 @@ pub(crate) fn parse_musicxml_collecting(
                     "part" => {
                         if let Some(pi) = part_index {
                             for record in hairpin_records.drain(..) {
-                                if let Some(stop) = record.stop {
-                                    end_hairpin_by_time(&mut score.parts[pi], &record.start, stop);
+                                let end = record.end.or_else(|| {
+                                    record.stop.and_then(|stop| {
+                                        end_hairpin_by_time(
+                                            &mut score.parts[pi],
+                                            &record.start,
+                                            stop,
+                                        )
+                                    })
+                                });
+                                if let Some(end) = end {
+                                    score.spanners.push(NotationSpanner {
+                                        id: format!("musicxml-hairpin-{}", score.spanners.len()),
+                                        kind: match record.kind {
+                                            HairpinKind::Crescendo => {
+                                                NotationSpannerKind::HairpinCrescendo
+                                            }
+                                            HairpinKind::Decrescendo => {
+                                                NotationSpannerKind::HairpinDecrescendo
+                                            }
+                                        },
+                                        start: record.start,
+                                        end,
+                                        number: Some(record.number),
+                                        line_type: None,
+                                        text: None,
+                                        placement: record.above.map(|above| {
+                                            if above { "above" } else { "below" }.to_string()
+                                        }),
+                                        ottava_size: None,
+                                        ottava_type: None,
+                                    });
                                 }
                             }
                         }
@@ -2448,7 +2486,6 @@ pub(crate) fn parse_musicxml_collecting(
                             _ => None,
                         };
                         pending_direction_placement = None;
-                        pending_direction_position_beats = None;
                         pending_direction_offset_x = None;
                         pending_direction_offset_y = None;
                         pending_direction_relative_x = None;
@@ -2501,8 +2538,11 @@ pub(crate) fn parse_musicxml_collecting(
                                         let latest = last_voice_notes.get(&(key.0, voice));
                                         match (part_index, latest) {
                                             (Some(pi), Some(address))
-                                                if *address != hairpin_records[record].start =>
+                                                if *address != hairpin_records[record].start
+                                                    && address.staff
+                                                        == hairpin_records[record].start.staff =>
                                             {
+                                                hairpin_records[record].end = Some(address.clone());
                                                 if let Some(note) =
                                                     note_at_mut(&mut score.parts[pi], address)
                                                 {
@@ -2517,6 +2557,7 @@ pub(crate) fn parse_musicxml_collecting(
                             }
                             None => {}
                         }
+                        pending_direction_position_beats = None;
                         pending_direction_staff = 0;
                         in_direction = false;
                     }
@@ -3637,21 +3678,32 @@ pub(crate) fn parse_musicxml_collecting(
                                         note.tuplet_boundary = note_tuplet_boundary;
                                         note.tuplet_display = note_tuplet_display.clone();
                                     }
-                                    let mut started_hairpin = None;
+                                    let mut started_hairpins = Vec::new();
                                     if !note.is_grace {
                                         let mut numbers = staff_hairpin_starts
                                             .keys()
-                                            .filter(|(staff, _)| *staff == target_staff_index)
-                                            .map(|(_, number)| *number)
+                                            .filter(|(staff, _)| {
+                                                *staff == target_staff_index
+                                                    || cross_target == Some(*staff)
+                                            })
+                                            .copied()
                                             .collect::<Vec<_>>();
                                         numbers.sort_unstable();
-                                        if let Some(&number) = numbers.first()
-                                            && let Some((kind, above)) = staff_hairpin_starts
-                                                .remove(&(target_staff_index, number))
-                                        {
-                                            note.hairpin_start = Some(kind);
-                                            note.hairpin_above = above;
-                                            started_hairpin = Some(number);
+                                        for (direction_staff, number) in numbers {
+                                            if let Some((kind, above)) = staff_hairpin_starts
+                                                .remove(&(direction_staff, number))
+                                            {
+                                                if note.hairpin_start.is_none() {
+                                                    note.hairpin_start = Some(kind);
+                                                    note.hairpin_above = above;
+                                                }
+                                                started_hairpins.push((
+                                                    direction_staff,
+                                                    number,
+                                                    kind,
+                                                    above,
+                                                ));
+                                            }
                                         }
                                     }
                                     if let Some(cs) = pending_chord.take() {
@@ -3772,7 +3824,7 @@ pub(crate) fn parse_musicxml_collecting(
                                     last_note_start =
                                         Some((target_staff_index, voice_index, note_start));
                                     last_note_cross_home = cross_home;
-                                    if let Some(number) = started_hairpin {
+                                    for (direction_staff, number, kind, above) in started_hairpins {
                                         let record = hairpin_records.len();
                                         let start_position = (
                                             address.measure,
@@ -3782,19 +3834,23 @@ pub(crate) fn parse_musicxml_collecting(
                                         // A stop read before this start but timed after it.
                                         let early = early_hairpin_stops.iter().position(
                                             |&(staff, stop_number, position)| {
-                                                staff == target_staff_index
+                                                staff == direction_staff
                                                     && stop_number == number
                                                     && position_after(position, start_position)
                                             },
                                         );
                                         hairpin_records.push(HairpinRecord {
                                             start: address.clone(),
+                                            end: None,
+                                            kind,
+                                            number,
+                                            above,
                                             stop: early
                                                 .map(|index| early_hairpin_stops.remove(index).2),
                                         });
                                         if early.is_none() {
                                             open_hairpin_voices.insert(
-                                                (target_staff_index, number),
+                                                (direction_staff, number),
                                                 (voice_index, record),
                                             );
                                         }
@@ -4730,6 +4786,68 @@ mod tests {
         // Content past the bar imports as an irregular length, but not without bound.
         let runaway = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>1</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>100</duration><type>whole</type></note></measure></part></score-partwise>"#;
         assert!(parse_musicxml(runaway).is_err());
+    }
+
+    #[test]
+    fn simultaneous_numbered_wedges_keep_both_sides_through_roundtrip() {
+        let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>2</beats><beat-type>4</beat-type></time></attributes><direction placement="above"><direction-type><wedge type="crescendo" number="1"/></direction-type></direction><direction placement="below"><direction-type><wedge type="crescendo" number="2"/></direction-type></direction><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note><note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note><direction><direction-type><wedge type="stop" number="1"/></direction-type></direction><direction><direction-type><wedge type="stop" number="2"/></direction-type></direction></measure></part></score-partwise>"#;
+        let assert_wedges = |score: &Score| {
+            let wedges = score
+                .spanners
+                .iter()
+                .filter(|span| span.kind == NotationSpannerKind::HairpinCrescendo)
+                .collect::<Vec<_>>();
+            assert_eq!(wedges.len(), 2);
+            assert_eq!(
+                wedges.iter().map(|span| span.number).collect::<Vec<_>>(),
+                vec![Some(1), Some(2)]
+            );
+            assert_eq!(
+                wedges
+                    .iter()
+                    .map(|span| span.placement.as_deref())
+                    .collect::<Vec<_>>(),
+                vec![Some("above"), Some("below")]
+            );
+            assert!(
+                wedges
+                    .iter()
+                    .all(|span| span.start.note == 0 && span.end.note == 1)
+            );
+        };
+        let score = parse_musicxml(xml).expect("imports both wedges");
+        assert_wedges(&score);
+        let restored =
+            parse_musicxml(&crate::serialize_musicxml(&score).expect("serializes wedges"))
+                .expect("reimports wedges");
+        assert_wedges(&restored);
+    }
+
+    #[test]
+    fn wedge_on_cross_staff_beam_attaches_to_displayed_staff_note() {
+        let xml = r#"<score-partwise><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>24</divisions><staves>2</staves><time><beats>2</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>B</step><octave>2</octave></pitch><duration>4</duration><voice>1</voice><type>16th</type><stem>up</stem><staff>2</staff><beam number="1">begin</beam></note><note><pitch><step>D</step><octave>3</octave></pitch><duration>4</duration><voice>1</voice><type>16th</type><stem>up</stem><staff>1</staff><beam number="1">continue</beam></note><direction placement="below"><direction-type><wedge type="crescendo" number="1"/></direction-type><staff>1</staff></direction><note><pitch><step>C</step><octave>4</octave></pitch><duration>12</duration><voice>1</voice><type>eighth</type><stem>up</stem><staff>1</staff><beam number="1">end</beam></note><direction><direction-type><wedge type="stop" number="1"/></direction-type><staff>1</staff></direction><direction placement="below"><direction-type><wedge type="diminuendo" number="1"/></direction-type><staff>1</staff></direction><note><pitch><step>C</step><octave>4</octave></pitch><duration>8</duration><voice>1</voice><type>eighth</type><staff>1</staff></note><direction><direction-type><wedge type="stop" number="1"/></direction-type><staff>1</staff></direction></measure></part></score-partwise>"#;
+        let score = parse_musicxml(xml).expect("imports cross-staff wedges");
+        let wedges = score
+            .spanners
+            .iter()
+            .filter(|span| {
+                matches!(
+                    span.kind,
+                    NotationSpannerKind::HairpinCrescendo | NotationSpannerKind::HairpinDecrescendo
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            wedges.len(),
+            2,
+            "{wedges:?} notes={:?}",
+            score.parts[0]
+                .staves
+                .iter()
+                .map(|staff| &staff.measures[0].voices[0])
+                .collect::<Vec<_>>()
+        );
+        assert_ne!(wedges[0].start, wedges[1].start);
     }
 
     #[test]

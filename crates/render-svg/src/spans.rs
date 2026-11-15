@@ -167,9 +167,52 @@ fn has_overlapping_lower_voice(score: &Score, start: &NoteAddr, end: &NoteAddr) 
 }
 
 /// Place an authored hairpin on its chosen side; unqualified marks default below.
+pub(crate) fn hairpin_above(score: &Score, layout: &LayoutResult, span_index: usize) -> bool {
+    let Some(SpanMark::Hairpin { kind, start, end }) = layout.spans.get(span_index) else {
+        return false;
+    };
+    let rank = layout.spans[..span_index]
+        .iter()
+        .filter(|span| matches!(span, SpanMark::Hairpin { kind: other_kind, start: other_start, end: other_end }
+            if other_kind == kind && other_start == start && other_end == end))
+        .count();
+    let typed = score
+        .spanners
+        .iter()
+        .filter(|span| {
+            span.start == *start
+                && span.end == *end
+                && matches!(
+                    (&span.kind, kind),
+                    (
+                        acorde_core::NotationSpannerKind::HairpinCrescendo,
+                        acorde_core::HairpinKind::Crescendo
+                    ) | (
+                        acorde_core::NotationSpannerKind::HairpinDecrescendo,
+                        acorde_core::HairpinKind::Decrescendo
+                    )
+                )
+        })
+        .nth(rank);
+    if let Some(span) = typed {
+        return span.placement.as_deref() == Some("above");
+    }
+    score
+        .parts
+        .get(start.part)
+        .and_then(|part| part.staves.get(start.staff))
+        .and_then(|staff| staff.measures.get(start.measure))
+        .and_then(|measure| measure.voices.get(start.voice))
+        .and_then(|voice| voice.get(start.note))
+        .and_then(|note| note.hairpin_above)
+        .unwrap_or(false)
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn hairpin_baseline(
     score: &Score,
+    layout: &LayoutResult,
+    span_index: usize,
     points: &HashMap<NoteKey, NotePoint>,
     beam_tips: &HashMap<NoteKey, f32>,
     staff_bottoms: &HashMap<(usize, usize, usize), f32>,
@@ -192,15 +235,7 @@ pub(crate) fn hairpin_baseline(
     } else {
         start.staff
     };
-    let above = score
-        .parts
-        .get(start.part)
-        .and_then(|p| p.staves.get(start.staff))
-        .and_then(|s| s.measures.get(start.measure))
-        .and_then(|m| m.voices.get(start.voice))
-        .and_then(|v| v.get(start.note))
-        .and_then(|n| n.hairpin_above)
-        .unwrap_or(false);
+    let above = hairpin_above(score, layout, span_index);
     let mut extreme: Option<f32> = None;
     let mut beam_extreme: Option<f32> = None;
     for (&key @ (part, staff, measure, voice, note_index), &(x, y, stem_up, point_row)) in points {
@@ -320,6 +355,8 @@ pub(crate) fn resolve_lane_offsets(
             let (baseline, above) = if matches!(span, SpanMark::Hairpin { .. }) {
                 hairpin_baseline(
                     score,
+                    layout,
+                    span_index,
                     points,
                     beam_tips,
                     staff_bottoms,

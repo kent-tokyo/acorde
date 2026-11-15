@@ -374,3 +374,28 @@ opened under the v20 freeze and retired after that run failed, as recorded above
 Corrections informed by those inputs require fresh qualification, a disjoint final
 reserved cohort, final-candidate performance/memory and cross-platform execution,
 and final artifact integration. Current overall gates remain pending.
+
+## Numbered-wedge development check (after 0bf6a641)
+
+MusicXML could contain two numbered wedges starting at one note, while the legacy
+`Note::hairpin_start` held only one. The parser now records each complete wedge as
+a typed spanner. Layout uses the typed endpoints without drawing the legacy flag
+again; rendering uses each span's placement. A wedge attached to a note beamed
+across staves is anchored to that note's displayed staff. MusicXML export retains
+number and placement. The release example rendered three previously deficient
+development inputs from the same prepared XML and Tuffy font. The [working
+receipt](archive/print-parity-hairpin-working-review.json) pins inputs, binary,
+PDFs and the one page inspected here.
+
+Raw Acorde hairpin path counts changed from 10 to 11 against 11 source starts
+for the piano input; from 102 to 110 against 105 for the vocal input; and from
+127 to 139 against 139 for the chamber input. The five extra vocal paths are
+continuation segments for wedges crossing system or page breaks. A separate pair
+of wedges shares a start note in measure 48. A part/measure start-count screen has no
+remaining deficit in these three inputs. This does not prove exact endpoint,
+side, timing or page-wide notation fidelity. The assistant inspected vocal page
+3 after the cross-staff fix: both short wedges in measures 21 and 22 are now
+visible, but their vertical placement and the large lower-page whitespace need
+comparison with Verovio and review of the entire score. The full 24-input
+development corpus, default/Letter configurations and final reserved cohort have
+not been rerun for this candidate. All four gates remain pending.

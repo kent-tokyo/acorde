@@ -9,6 +9,63 @@ use acorde_render_svg::{
 const FONT: &[u8] = include_bytes!("fixtures/Tuffy.ttf");
 
 #[test]
+fn simultaneous_typed_hairpins_print_on_opposite_sides() {
+    use acorde_core::{NotationSpanner, NotationSpannerKind, NoteAddr};
+    let mut score = Score::new("Two wedges", 120, 2, 4, 0, 1);
+    score.parts[0].staves[0].measures[0].voices[0] = vec![
+        Note::new(Pitch::new(Step::C, 4), Duration::Quarter),
+        Note::new(Pitch::new(Step::D, 4), Duration::Quarter),
+    ];
+    let start = NoteAddr {
+        part: 0,
+        staff: 0,
+        measure: 0,
+        voice: 0,
+        note: 0,
+    };
+    let end = NoteAddr {
+        note: 1,
+        ..start.clone()
+    };
+    score.spanners = ["above", "below"]
+        .into_iter()
+        .enumerate()
+        .map(|(index, side)| NotationSpanner {
+            id: format!("wedge-{index}"),
+            kind: NotationSpannerKind::HairpinCrescendo,
+            start: start.clone(),
+            end: end.clone(),
+            number: Some(index as u16 + 1),
+            line_type: None,
+            text: None,
+            placement: Some(side.to_string()),
+            ottava_size: None,
+            ottava_type: None,
+        })
+        .collect();
+    let output = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    let doc = roxmltree::Document::parse(&output.pages[0]).unwrap();
+    let baselines = doc
+        .descendants()
+        .filter(|node| node.attribute("class") == Some("acorde-hairpin"))
+        .map(|node| {
+            let values = node
+                .attribute("d")
+                .unwrap()
+                .split(|c: char| c == ',' || c.is_whitespace())
+                .filter_map(|value| value.parse::<f32>().ok())
+                .collect::<Vec<_>>();
+            (values[1] + values[5]) / 2.0
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(baselines.len(), 2);
+    assert!(
+        baselines[0] < baselines[1],
+        "hairpins must straddle the staff: {baselines:?}"
+    );
+}
+
+#[test]
 fn extracted_part_keeps_its_label_and_canonical_layout_identity_on_letter() {
     let mut score = vocal_score("word", 4);
     score.parts[0].name = "Voice".into();

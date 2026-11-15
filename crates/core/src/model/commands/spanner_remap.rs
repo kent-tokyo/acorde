@@ -28,6 +28,9 @@ pub(super) fn clear_legacy_spanner_endpoints(score: &mut Score, spanner: &Notati
         NotationSpannerKind::Glissando => note.glissando_start = false,
         NotationSpannerKind::TrillLine => note.trill_line_start = false,
         NotationSpannerKind::Pedal => note.pedal_start = false,
+        NotationSpannerKind::HairpinCrescendo | NotationSpannerKind::HairpinDecrescendo => {
+            note.hairpin_start = None
+        }
         NotationSpannerKind::Ottava => note.ottava_start = None,
         NotationSpannerKind::Dashes => {}
     };
@@ -36,6 +39,9 @@ pub(super) fn clear_legacy_spanner_endpoints(score: &mut Score, spanner: &Notati
         NotationSpannerKind::Glissando => note.glissando_end = false,
         NotationSpannerKind::TrillLine => note.trill_line_end = false,
         NotationSpannerKind::Pedal => note.pedal_end = false,
+        NotationSpannerKind::HairpinCrescendo | NotationSpannerKind::HairpinDecrescendo => {
+            note.hairpin_end = false
+        }
         NotationSpannerKind::Ottava => note.ottava_end = false,
         NotationSpannerKind::Dashes => {}
     };

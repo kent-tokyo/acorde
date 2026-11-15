@@ -254,13 +254,16 @@ fn resolve_staff_hairpins(
     part: usize,
     staff_index: usize,
     staff: &acorde_core::Staff,
+    typed_endpoints: &HashSet<(usize, usize, usize, usize, usize)>,
 ) {
     let mut events = Vec::new();
     for (mi, measure) in staff.measures.iter().enumerate() {
         for (voice, notes) in measure.voices.iter().enumerate().take(4) {
             let mut onset = 0.0f64;
             for (ni, note) in notes.iter().enumerate() {
-                if note.hairpin_start.is_some() || note.hairpin_end {
+                if (note.hairpin_start.is_some() || note.hairpin_end)
+                    && !typed_endpoints.contains(&(part, staff_index, mi, voice, ni))
+                {
                     events.push((mi, onset, voice, ni, note.hairpin_start, note.hairpin_end));
                 }
                 onset += note.beats();
@@ -310,6 +313,17 @@ fn resolve_staff_hairpins(
 
 fn resolve_spans(score: &Score, typed_spanners: &[NotationSpanner]) -> Vec<SpanMark> {
     let mut spans = Vec::new();
+    let typed_hairpin_endpoints = typed_spanners
+        .iter()
+        .filter(|span| {
+            matches!(
+                span.kind,
+                NotationSpannerKind::HairpinCrescendo | NotationSpannerKind::HairpinDecrescendo
+            )
+        })
+        .flat_map(|span| [&span.start, &span.end])
+        .map(|addr| (addr.part, addr.staff, addr.measure, addr.voice, addr.note))
+        .collect::<HashSet<_>>();
     let typed_slur_endpoints = typed_spanners
         .iter()
         .filter(|span| span.kind == NotationSpannerKind::Slur)
@@ -319,7 +333,7 @@ fn resolve_spans(score: &Score, typed_spanners: &[NotationSpanner]) -> Vec<SpanM
 
     for (pi, part) in score.parts.iter().enumerate() {
         for (si, staff) in part.staves.iter().enumerate() {
-            resolve_staff_hairpins(&mut spans, pi, si, staff);
+            resolve_staff_hairpins(&mut spans, pi, si, staff, &typed_hairpin_endpoints);
             for voice in 0..4usize {
                 let mut open_ottava: Option<(NoteAddr, OttavaKind)> = None;
                 let mut open_pedal: Option<NoteAddr> = None;
@@ -438,6 +452,18 @@ fn resolve_spans(score: &Score, typed_spanners: &[NotationSpanner]) -> Vec<SpanM
                 end: span.end.clone(),
             }),
     );
+    spans.extend(typed_spanners.iter().filter_map(|span| {
+        let kind = match span.kind {
+            NotationSpannerKind::HairpinCrescendo => HairpinKind::Crescendo,
+            NotationSpannerKind::HairpinDecrescendo => HairpinKind::Decrescendo,
+            _ => return None,
+        };
+        Some(SpanMark::Hairpin {
+            kind,
+            start: span.start.clone(),
+            end: span.end.clone(),
+        })
+    }));
     spans
 }
 
