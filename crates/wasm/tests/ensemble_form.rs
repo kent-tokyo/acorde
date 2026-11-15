@@ -11,6 +11,51 @@ wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
 #[cfg_attr(not(target_arch = "wasm32"), test)]
+fn sectional_proposals_match_native_and_replay_through_json() {
+    let source = fixture::source();
+    let form = fixture::request();
+    let request = acorde_core::EnsembleFormProposalRequest {
+        ensemble: form.ensemble,
+        sections: form
+            .sections
+            .into_iter()
+            .map(|section| acorde_core::FormProposalBoundary {
+                label: section.label,
+                start_measure: section.start_measure,
+                end_measure_exclusive: section.end_measure_exclusive,
+            })
+            .collect(),
+        phrase_end_measures: Vec::new(),
+        count: 3,
+    };
+    let native = acorde_core::suggest_ensemble_form_proposals(&source, &request).unwrap();
+    let source_json = serde_json::to_string(&source).unwrap();
+    let browser: acorde_core::EnsembleFormProposalResult = serde_json::from_str(
+        &acorde_wasm::suggest_ensemble_form_proposals(
+            &source_json,
+            &serde_json::to_string(&request).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(native.candidates.len(), browser.candidates.len());
+    for (a, b) in native.candidates.iter().zip(&browser.candidates) {
+        assert_eq!(a.id, b.id);
+        assert_eq!(fixture::events(&a.score), fixture::events(&b.score));
+        let replay: acorde_core::Score = serde_json::from_str(
+            &acorde_wasm::replay_ensemble_form_proposal(
+                &source_json,
+                &serde_json::to_string(&b.resolved).unwrap(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(fixture::events(&b.score), fixture::events(&replay));
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
+#[cfg_attr(not(target_arch = "wasm32"), test)]
 fn form_contract_matches_native_and_replays_through_json() {
     let source = fixture::source();
     let request = fixture::request();

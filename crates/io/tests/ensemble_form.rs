@@ -3,6 +3,51 @@
 #[path = "../../../tests/fixtures/arrangement/form_development_v2.rs"]
 mod fixture;
 
+fn sectional_proposals() -> acorde_core::EnsembleFormProposalResult {
+    let form = fixture::request();
+    let request = acorde_core::EnsembleFormProposalRequest {
+        ensemble: form.ensemble,
+        sections: form
+            .sections
+            .into_iter()
+            .map(|section| acorde_core::FormProposalBoundary {
+                label: section.label,
+                start_measure: section.start_measure,
+                end_measure_exclusive: section.end_measure_exclusive,
+            })
+            .collect(),
+        phrase_end_measures: Vec::new(),
+        count: 3,
+    };
+    acorde_core::suggest_ensemble_form_proposals(&fixture::source(), &request).unwrap()
+}
+
+#[test]
+fn sectional_proposals_survive_musicxml() {
+    for candidate in sectional_proposals().candidates {
+        let reparsed =
+            acorde_io::parse_musicxml(&acorde_io::serialize_musicxml(&candidate.score).unwrap())
+                .unwrap();
+        assert_eq!(
+            fixture::events(&candidate.score),
+            fixture::events(&reparsed)
+        );
+    }
+}
+
+#[cfg(feature = "mscz")]
+#[test]
+fn sectional_proposals_survive_mscz() {
+    for candidate in sectional_proposals().candidates {
+        let reparsed =
+            acorde_io::parse_mscz(&acorde_io::serialize_mscz(&candidate.score).unwrap()).unwrap();
+        assert_eq!(
+            fixture::events(&candidate.score),
+            fixture::events(&reparsed)
+        );
+    }
+}
+
 #[test]
 fn form_events_and_dynamics_survive_musicxml() {
     let result = acorde_core::arrange_ensemble_form(&fixture::source(), &fixture::request());

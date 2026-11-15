@@ -112,6 +112,11 @@ pub use model::ensemble_form::{
     EnsembleFormMeasure, EnsembleFormRequest, EnsembleFormResult, EnsembleFormSection, FormBass,
     FormHarmony, ResolvedEnsembleForm, arrange_ensemble_form, replay_ensemble_form,
 };
+pub use model::ensemble_form_proposals::{
+    EnsembleFormProposalCandidate, EnsembleFormProposalRequest, EnsembleFormProposalResult,
+    FORM_PROPOSAL_CONTRACT_VERSION, FormProposalBoundary, FormProposalError, ResolvedFormProposal,
+    replay_ensemble_form_proposal, suggest_ensemble_form_proposals,
+};
 pub use model::ensemble_form_visits::{
     EnsembleFormPerformanceScoreResult, EnsembleFormVisitsRequest, EnsembleFormVisitsResult,
     FORM_VISITS_CONTRACT_VERSION, FORM_VISITS_ENGINE_VERSION, FormVisitVariation,

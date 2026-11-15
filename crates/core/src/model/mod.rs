@@ -16,6 +16,7 @@ pub mod countermelody;
 pub mod duration;
 pub mod engine;
 pub mod ensemble_form;
+pub mod ensemble_form_proposals;
 pub mod ensemble_form_visits;
 pub mod ensemble_melody;
 pub mod ensemble_roles;

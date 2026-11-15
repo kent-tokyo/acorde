@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+- Add opt-in `suggest_ensemble_form_proposals` and source-bound replay in Rust
+  and full/viewer WASM. Three to five whole-piece proposals vary role entrances,
+  section textures, dynamics and attack shape. Candidates are deduplicated by
+  generated playback events; collided countermelody sections are omitted with
+  their indices recorded in the resolved contract. Invalid or insufficient
+  requests return a typed error without a partial proposal set.
+
 - Add authored bass rhythm sections to `arrange_bass_line` and `FormBass`.
   Composable note/rest slots choose chord-relative tones, duration and accents,
   including walking motion, syncopation, ostinato, anticipation and phrase-end
