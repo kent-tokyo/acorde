@@ -265,3 +265,42 @@ fn pickup_and_tuplet_boundary_keep_written_measure_context() {
         serde_json::to_value(&score.parts[0].staves[0].measures[4].voices[0]).unwrap()
     );
 }
+
+#[test]
+fn mixed_meter_allows_waltz_only_in_three_four_section() {
+    let mut score = source();
+    for measure in &mut score.parts[0].staves[0].measures[..4] {
+        measure.voices[0][0].duration = Duration::Half;
+        measure.voices[0][0].dot_count = 1;
+    }
+    score.parts[0].staves[0].measures[0].time_sig = Some(TimeSignature {
+        numerator: 3,
+        denominator: 4,
+    });
+    score.parts[0].staves[0].measures[4].time_sig = Some(TimeSignature {
+        numerator: 4,
+        denominator: 4,
+    });
+    let mut req = request();
+    req.sections[0].allowed_accompaniments = vec![
+        Some(AccordionPattern::WaltzBassChord),
+        Some(AccordionPattern::HeldBassChord),
+    ];
+    req.max_attempts = 2;
+    let mut saw_waltz = false;
+    for seed in 0..16 {
+        req.seed = seed.to_string();
+        let result = shuffle_accordion_plan(&score, req.clone());
+        let output = result
+            .plan
+            .score
+            .as_ref()
+            .expect("compatible mixed-meter plan");
+        assert_eq!(output.playback_measure_beats(0), 3.0);
+        assert_eq!(output.playback_measure_beats(4), 4.0);
+        if result.plan.applied_sections[0].accompaniment == Some(AccordionPattern::WaltzBassChord) {
+            saw_waltz = true;
+        }
+    }
+    assert!(saw_waltz);
+}
