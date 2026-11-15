@@ -31,6 +31,7 @@ fn phrase_harmony_json_matches_native_and_rejects_invalid_schedule() {
         locked_chord_entries: vec![],
         source_reanchor: None,
         local_keys: vec![],
+        cadences: vec![],
     };
     let native =
         acorde_core::suggest_phrase_harmony(&serde_json::from_str(&score_json).unwrap(), &request);
@@ -103,6 +104,7 @@ fn source_reanchor_keeps_locked_chord_and_provenance_in_wasm() {
         locked_chord_entries: vec![1],
         source_reanchor: Some(vec![0, 0, 1, 1]),
         local_keys: vec![],
+        cadences: vec![],
     };
     let native =
         acorde_core::suggest_phrase_harmony(&serde_json::from_str(&score_json).unwrap(), &request);
@@ -156,6 +158,7 @@ fn local_key_schedule_matches_native_without_changing_source_identity() {
         locked_chord_entries: vec![],
         source_reanchor: None,
         local_keys: vec![],
+        cadences: vec![],
     };
     let source: acorde_core::Score = serde_json::from_str(&score_json).unwrap();
     let baseline = acorde_core::suggest_phrase_harmony(&source, &request);
@@ -166,6 +169,10 @@ fn local_key_schedule_matches_native_without_changing_source_identity() {
             fifths: 1,
             mode: "major".into(),
         },
+    }];
+    request.cadences = vec![acorde_core::ChordCadenceTarget {
+        arrival_position_index: 3,
+        kind: acorde_core::ChordCadenceKind::DominantTonic,
     }];
     let native = acorde_core::suggest_phrase_harmony(&source, &request);
     let wasm: acorde_core::PhraseHarmonyResult = serde_json::from_str(
@@ -182,9 +189,22 @@ fn local_key_schedule_matches_native_without_changing_source_identity() {
     );
     assert!(wasm.diagnostics.is_empty(), "{:?}", wasm.diagnostics);
     assert_eq!(wasm.applied_local_keys, request.local_keys);
+    assert_eq!(wasm.applied_cadences, request.cadences);
     assert_eq!(
         wasm.proposals.input_fingerprint,
         baseline.proposals.input_fingerprint
     );
     assert!(!wasm.proposals.candidates.is_empty());
+    assert!(wasm.proposals.candidates.iter().all(|candidate| {
+        candidate
+            .plan
+            .entries
+            .iter()
+            .any(|entry| entry.position == wasm.positions[2] && entry.chord.root == "D")
+            && candidate
+                .plan
+                .entries
+                .iter()
+                .any(|entry| entry.position == wasm.positions[3] && entry.chord.root == "G")
+    }));
 }

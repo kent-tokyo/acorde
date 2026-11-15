@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+- Add explicit root-motion cadence targets to phrase-harmony requests. The
+  bounded progression search can require dominant–tonic, subdominant–tonic or
+  dominant arrival at caller-selected harmonic positions. Candidates,
+  including supplied source plans, must satisfy the target; contradictory
+  locks return no candidate. The source score and replay fingerprint remain
+  unchanged.
+
 - Add explicit `local_keys` to phrase-harmony requests. Bounded major/minor key
   regions override written keys only during chord search; the original score
   and candidate replay fingerprint remain unchanged. Regions must start and

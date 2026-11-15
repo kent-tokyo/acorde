@@ -345,6 +345,37 @@ pub(super) fn choose_progression(
         {
             available.push(choice(entry.chord.clone(), None, 64)?);
         }
+        let required_root = if let Some(target) = settings
+            .cadences
+            .iter()
+            .find(|target| target.arrival_position_index == index)
+        {
+            Some(match target.kind {
+                ChordCadenceKind::DominantArrival => (tonic(key)? + 7) % 12,
+                ChordCadenceKind::DominantTonic | ChordCadenceKind::SubdominantTonic => tonic(key)?,
+            })
+        } else if let Some(target) = settings
+            .cadences
+            .iter()
+            .find(|target| target.arrival_position_index == index + 1)
+        {
+            let arrival_key = key_at(
+                score,
+                positions[index + 1].measure_index,
+                settings.local_keys,
+            );
+            let arrival_home = tonic(arrival_key)?;
+            match target.kind {
+                ChordCadenceKind::DominantTonic => Some((arrival_home + 7) % 12),
+                ChordCadenceKind::SubdominantTonic => Some((arrival_home + 5) % 12),
+                ChordCadenceKind::DominantArrival => None,
+            }
+        } else {
+            None
+        };
+        if let Some(root) = required_root {
+            available.retain(|item| item.root == root);
+        }
         regions.push(Region {
             key: key.clone(),
             home: tonic(key)?,

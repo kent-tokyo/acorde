@@ -39,6 +39,7 @@ let request = PhraseHarmonyRequest {
     locked_chord_entries: vec![],
     source_reanchor: None,
     local_keys: vec![],
+    cadences: vec![],
 };
 ```
 
@@ -89,9 +90,28 @@ records `applied_local_keys`; candidate reason codes mark the supplied key.
 Selected chord plans remain bound to the original score fingerprint and replay
 against the unmodified score.
 
+`cadences` supplies root-motion targets using zero-based indices into the
+returned chord positions. `dominant-tonic` requires the preceding position to
+have the local key's dominant root and the arrival to have its tonic root;
+`subdominant-tonic` requires subdominant then tonic; `dominant-arrival` requires
+the dominant at arrival. For example, a four-position phrase in C major can
+request `ChordCadenceTarget { arrival_position_index: 3,
+kind: ChordCadenceKind::DominantTonic }` for G–C over its last two regions.
+These names specify chord roots, not a claim about a complete classical
+cadence: melody and bass inversion are evaluated separately.
+
+Targets must be ordered, nonoverlapping and have an earlier position available
+for an approach. The progression search constrains those positions before
+ranking candidates; supplied source plans are checked against the same targets.
+An incompatible locked chord returns no candidate with `cadence-incompatible`.
+The result records `applied_cadences`, and each accepted candidate carries a
+`caller-supplied-cadence` reason code. The requested candidate limit is applied
+after cadence filtering so a one-candidate request still searches past an
+incompatible supplied source plan. Cadence requests do not rewrite the melody.
+
 The phrase schedule must cover every written measure once, in order. Invalid
 gaps, overlaps, groupings and limits return no positions or candidates. The
 limits are 64 phrases and 512 change positions. Candidate results retain the
 source fingerprint and resolved-plan replay contract of the underlying chord
-proposal API. The next harmony work adds borrowed and passing chords, and
-explicit cadence constraints.
+proposal API. The next harmony work adds borrowed and passing chords, then
+musical listening checks for the resulting phrases.

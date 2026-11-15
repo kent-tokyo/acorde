@@ -7,9 +7,10 @@ use super::chord_plan::{
     chord_plan_to_preset_selection,
 };
 use super::chord_proposals::{
-    ChordKeyRegion, ChordProposalDiagnostic, ChordProposalRequest, ChordProposalResult,
-    changed_spans, suggest_chord_plans_at_positions_with_keys,
-    suggest_chord_plans_with_locks_and_keys,
+    ChordCadenceKind, ChordCadenceTarget, ChordKeyRegion, ChordProposalDiagnostic,
+    ChordProposalRequest, ChordProposalResult, changed_spans, key_at,
+    suggest_chord_plans_at_positions_with_context, suggest_chord_plans_with_locks_and_context,
+    tonic,
 };
 use super::chordal_pad::default_meter_groups;
 use super::score::Score;
@@ -54,6 +55,9 @@ pub struct PhraseHarmonyRequest {
     /// ending at generated bar-start chord boundaries.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub local_keys: Vec<ChordKeyRegion>,
+    /// Root-motion targets at generated harmonic positions.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub cadences: Vec<ChordCadenceTarget>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -70,6 +74,8 @@ pub struct PhraseHarmonyResult {
     pub omitted_source_entries: Vec<usize>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub applied_local_keys: Vec<ChordKeyRegion>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub applied_cadences: Vec<ChordCadenceTarget>,
 }
 
 fn failure(code: &str, measure: Option<usize>) -> PhraseHarmonyResult {
@@ -89,6 +95,7 @@ fn failure(code: &str, measure: Option<usize>) -> PhraseHarmonyResult {
         reanchored_source_plan: None,
         omitted_source_entries: Vec::new(),
         applied_local_keys: Vec::new(),
+        applied_cadences: Vec::new(),
     }
 }
 
@@ -142,6 +149,41 @@ fn changed_original_regions(
                 .any(|span| before(&entry.position, &span.end) && before(&span.start, &end))
         })
         .count()
+}
+
+fn matches_cadences(
+    score: &Score,
+    plan: &ChordPlan,
+    positions: &[ChordPlanPosition],
+    cadences: &[ChordCadenceTarget],
+    local_keys: &[ChordKeyRegion],
+) -> bool {
+    cadences.iter().all(|target| {
+        let arrival = &positions[target.arrival_position_index];
+        let Some(home) = tonic(key_at(score, arrival.measure_index, local_keys)) else {
+            return false;
+        };
+        let root_at = |position: &ChordPlanPosition| {
+            plan.entries
+                .iter()
+                .find(|entry| same_position(&entry.position, position))
+                .and_then(|entry| super::arrange::accordion_pitch_class(&entry.chord.root))
+        };
+        let arrival_root = root_at(arrival);
+        match target.kind {
+            ChordCadenceKind::DominantArrival => arrival_root == Some((home + 7) % 12),
+            ChordCadenceKind::DominantTonic => {
+                arrival_root == Some(home)
+                    && root_at(&positions[target.arrival_position_index - 1])
+                        == Some((home + 7) % 12)
+            }
+            ChordCadenceKind::SubdominantTonic => {
+                arrival_root == Some(home)
+                    && root_at(&positions[target.arrival_position_index - 1])
+                        == Some((home + 5) % 12)
+            }
+        }
+    })
 }
 
 struct ReanchoredSource {
@@ -372,6 +414,23 @@ pub fn suggest_phrase_harmony(
         }
         prior_key_end = region.end_measure_exclusive;
     }
+    if request.cadences.len() > MAX_PHRASES {
+        return failure("cadence-limit", None);
+    }
+    let mut prior_arrival = None;
+    for target in &request.cadences {
+        if target.arrival_position_index == 0
+            || target.arrival_position_index >= positions.len()
+            || prior_arrival.is_some_and(|prior| target.arrival_position_index < prior + 2)
+        {
+            return failure("invalid-cadence-target", None);
+        }
+        prior_arrival = Some(target.arrival_position_index);
+    }
+    let mut search_request = request.proposal.clone();
+    if !request.cadences.is_empty() && (1..=4).contains(&search_request.max_candidates) {
+        search_request.max_candidates = 4;
+    }
     let mut reanchored_source_plan = None;
     let mut omitted_source_entries = Vec::new();
     let proposal = if let Some(mapping) = &request.source_reanchor {
@@ -389,13 +448,14 @@ pub fn suggest_phrase_harmony(
             Ok(mapped) => mapped,
             Err((code, measure)) => return failure(code, measure),
         };
-        let mut proposal_request = request.proposal.clone();
+        let mut proposal_request = search_request.clone();
         proposal_request.source_plan = Some(reanchored.plan.clone());
-        let mut generated = suggest_chord_plans_with_locks_and_keys(
+        let mut generated = suggest_chord_plans_with_locks_and_context(
             score,
             &proposal_request,
             &reanchored.locked_targets,
             &request.local_keys,
+            &request.cadences,
         );
         let before_budget = generated.candidates.len();
         for candidate in &mut generated.candidates {
@@ -434,24 +494,53 @@ pub fn suggest_phrase_harmony(
         if !aligned {
             return failure("source-harmonic-positions-mismatch", None);
         }
-        suggest_chord_plans_with_locks_and_keys(
+        suggest_chord_plans_with_locks_and_context(
             score,
-            &request.proposal,
+            &search_request,
             &request.locked_chord_entries,
             &request.local_keys,
+            &request.cadences,
         )
     } else {
         if !request.locked_chord_entries.is_empty() {
             return failure("chord-lock-requires-source-plan", None);
         }
-        suggest_chord_plans_at_positions_with_keys(
+        suggest_chord_plans_at_positions_with_context(
             score,
-            &request.proposal,
+            &search_request,
             &positions,
             &request.local_keys,
+            &request.cadences,
         )
     };
     let mut proposal = proposal;
+    if !request.cadences.is_empty() {
+        let had_candidates = !proposal.candidates.is_empty();
+        proposal.candidates.retain(|candidate| {
+            matches_cadences(
+                score,
+                &candidate.plan,
+                &positions,
+                &request.cadences,
+                &request.local_keys,
+            )
+        });
+        if had_candidates && proposal.candidates.is_empty() {
+            proposal.diagnostics.push(ChordProposalDiagnostic {
+                code: "cadence-incompatible".into(),
+                measure_index: None,
+            });
+        }
+        for candidate in &mut proposal.candidates {
+            candidate
+                .reason_codes
+                .push("caller-supplied-cadence".into());
+            candidate.resolved.max_candidates = request.proposal.max_candidates;
+        }
+        proposal
+            .candidates
+            .truncate(usize::from(request.proposal.max_candidates));
+    }
     if !request.local_keys.is_empty() {
         for candidate in &mut proposal.candidates {
             candidate
@@ -467,5 +556,6 @@ pub fn suggest_phrase_harmony(
         reanchored_source_plan,
         omitted_source_entries,
         applied_local_keys: request.local_keys.clone(),
+        applied_cadences: request.cadences.clone(),
     }
 }

@@ -64,11 +64,12 @@ pub use model::chord_plan::{
     chord_plan_to_preset_selection, extract_chord_plan,
 };
 pub use model::chord_proposals::{
-    CHORD_PROPOSAL_CONTRACT_VERSION, CHORD_PROPOSAL_MAX_MEASURES, ChordChangedSpan, ChordKeyRegion,
-    ChordPresetAssessment, ChordPresetAssessmentResult, ChordProposalArrangementResult,
-    ChordProposalCandidate, ChordProposalDiagnostic, ChordProposalRequest, ChordProposalResult,
-    ResolvedChordProposal, SourceRangeViolation, arrange_from_chord_proposal, assess_chord_presets,
-    suggest_chord_plans, suggest_chord_plans_at_positions, suggest_chord_plans_with_locks,
+    CHORD_PROPOSAL_CONTRACT_VERSION, CHORD_PROPOSAL_MAX_MEASURES, ChordCadenceKind,
+    ChordCadenceTarget, ChordChangedSpan, ChordKeyRegion, ChordPresetAssessment,
+    ChordPresetAssessmentResult, ChordProposalArrangementResult, ChordProposalCandidate,
+    ChordProposalDiagnostic, ChordProposalRequest, ChordProposalResult, ResolvedChordProposal,
+    SourceRangeViolation, arrange_from_chord_proposal, assess_chord_presets, suggest_chord_plans,
+    suggest_chord_plans_at_positions, suggest_chord_plans_with_locks,
 };
 pub use model::chordal_pad::{
     ChordalPadDiagnostic, ChordalPadMeterGroupSection, ChordalPadMotionReport, ChordalPadOptions,

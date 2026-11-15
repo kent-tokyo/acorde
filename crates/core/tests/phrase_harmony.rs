@@ -1,8 +1,8 @@
 use acorde_core::{
-    BeatFraction, ChordKeyRegion, ChordPlan, ChordPlanEntry, ChordPlanOrigin, ChordPlanPosition,
-    ChordPlanSource, ChordProposalRequest, ChordSymbol, Duration, KeySignature, Note,
-    PhraseHarmonicPace, PhraseHarmonyRequest, PhraseHarmonySection, Pitch, Score,
-    arrange_from_chord_proposal, suggest_phrase_harmony,
+    BeatFraction, ChordCadenceKind, ChordCadenceTarget, ChordKeyRegion, ChordPlan, ChordPlanEntry,
+    ChordPlanOrigin, ChordPlanPosition, ChordPlanSource, ChordProposalRequest, ChordSymbol,
+    Duration, KeySignature, Note, PhraseHarmonicPace, PhraseHarmonyRequest, PhraseHarmonySection,
+    Pitch, Score, arrange_from_chord_proposal, suggest_phrase_harmony,
 };
 
 fn score(numerator: u8, denominator: u8, bars: usize) -> Score {
@@ -44,6 +44,7 @@ fn request(bars: usize, pace: PhraseHarmonicPace) -> PhraseHarmonyRequest {
         locked_chord_entries: vec![],
         source_reanchor: None,
         local_keys: vec![],
+        cadences: vec![],
     }
 }
 
@@ -384,6 +385,92 @@ fn local_key_regions_must_use_harmonic_bar_boundaries_and_valid_keys() {
     ];
     let overlap = suggest_phrase_harmony(&source, &input);
     assert_eq!(overlap.diagnostics[0].code, "invalid-local-key-region");
+}
+
+#[test]
+fn cadence_targets_constrain_approach_and_arrival_without_touching_melody() {
+    let source = score(4, 4, 4);
+    let original = serde_json::to_value(&source).unwrap();
+    for (kind, approach, arrival) in [
+        (ChordCadenceKind::DominantTonic, "G", "C"),
+        (ChordCadenceKind::SubdominantTonic, "F", "C"),
+        (ChordCadenceKind::DominantArrival, "", "G"),
+    ] {
+        let mut input = request(4, PhraseHarmonicPace::EveryBar);
+        input.cadences = vec![ChordCadenceTarget {
+            arrival_position_index: 3,
+            kind,
+        }];
+        let result = suggest_phrase_harmony(&source, &input);
+        assert!(
+            result.diagnostics.is_empty(),
+            "{kind:?}: {:?}",
+            result.diagnostics
+        );
+        assert!(!result.proposals.candidates.is_empty(), "{kind:?}");
+        assert_eq!(result.applied_cadences, input.cadences);
+        for candidate in &result.proposals.candidates {
+            assert_eq!(candidate.plan.entries.last().unwrap().chord.root, arrival);
+            if !approach.is_empty() {
+                assert_eq!(
+                    candidate.plan.entries[candidate.plan.entries.len() - 2]
+                        .chord
+                        .root,
+                    approach
+                );
+            }
+            assert!(
+                candidate
+                    .reason_codes
+                    .contains(&"caller-supplied-cadence".into())
+            );
+        }
+        let selected = &result.proposals.candidates[0];
+        let replay = arrange_from_chord_proposal(&source, &selected.resolved, "held-chord");
+        assert!(replay.diagnostics.is_empty(), "{:?}", replay.diagnostics);
+        assert!(replay.arrangement.unwrap().score.is_some());
+    }
+    assert_eq!(serde_json::to_value(&source).unwrap(), original);
+}
+
+#[test]
+fn cadence_rejects_invalid_targets_and_conflicting_source_locks() {
+    let source = score(4, 4, 4);
+    let mut input = request(4, PhraseHarmonicPace::EveryBar);
+    input.cadences = vec![ChordCadenceTarget {
+        arrival_position_index: 0,
+        kind: ChordCadenceKind::DominantTonic,
+    }];
+    let invalid = suggest_phrase_harmony(&source, &input);
+    assert_eq!(invalid.diagnostics[0].code, "invalid-cadence-target");
+    assert!(invalid.proposals.candidates.is_empty());
+    input.cadences[0].arrival_position_index = 3;
+    input.cadences.push(ChordCadenceTarget {
+        arrival_position_index: 2,
+        kind: ChordCadenceKind::DominantArrival,
+    });
+    let overlap = suggest_phrase_harmony(&source, &input);
+    assert_eq!(overlap.diagnostics[0].code, "invalid-cadence-target");
+    input.cadences.pop();
+    input.proposal.source_plan = Some(authored_plan(4));
+    input.locked_chord_entries = vec![2];
+    let conflicting = suggest_phrase_harmony(&source, &input);
+    assert!(conflicting.proposals.candidates.is_empty());
+    assert!(
+        conflicting
+            .diagnostics
+            .iter()
+            .any(|issue| issue.code == "cadence-incompatible")
+    );
+
+    input.locked_chord_entries.clear();
+    input.proposal.max_candidates = 1;
+    let one = suggest_phrase_harmony(&source, &input);
+    assert!(one.diagnostics.is_empty(), "{:?}", one.diagnostics);
+    assert_eq!(one.proposals.candidates.len(), 1);
+    assert_eq!(one.proposals.candidates[0].resolved.max_candidates, 1);
+    assert_eq!(one.proposals.candidates[0].plan.entries[2].chord.root, "G");
+    assert_eq!(one.proposals.candidates[0].plan.entries[3].chord.root, "C");
 }
 
 #[test]
