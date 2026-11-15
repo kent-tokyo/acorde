@@ -7,6 +7,8 @@
 [![crates.io](https://img.shields.io/crates/v/acorde.svg)](https://crates.io/crates/acorde)
 [![Ask DeepWiki](https://img.shields.io/badge/Ask-DeepWiki-blue.svg)](https://deepwiki.com/kent-tokyo/acorde)
 
+[English](README.md) · [日本語](README_ja.md) · [简体中文](README_zh.md)
+
 プラットフォーム非依存の Rust / WebAssembly 楽譜基盤ライブラリです。
 
 > **リリース注意:** v1.2.19 と v1.2.20 は `SvgRenderOptions` の公開フィールド追加により、
@@ -113,7 +115,7 @@ acorde omr-apply-report provider-result.json draft.mscz --report application.jso
 [文書案内](docs/README.md)から用途別に参照してください。主な入口は、[記譜対応と既知の情報欠落](docs/notation-coverage.md)、
 [移行メモ](docs/migrations.md)、[ブラウザ契約](docs/browser-rendering.md)、[PDF出力契約](docs/pdf-export.md)です。
 
-[English README](README.md)、[セキュリティ契約](docs/security/threat-model.md)、
+[English README](README.md)、[简体中文 README](README_zh.md)、[セキュリティ契約](docs/security/threat-model.md)、
 [貢献ガイド](CONTRIBUTING.md)は独立した入口として維持します。
 
 ## 開発
