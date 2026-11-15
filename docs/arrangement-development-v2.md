@@ -65,6 +65,30 @@ the generated positions exactly; reanchoring is not yet implemented.
 | 5. Instruments and difficulty | Piano hand allocation, accordion buttons, wind breathing, string sustain; solo/duet/small ensemble and simplified versions. | Existing register/button infrastructure is available. Joint playability constraints, role redistribution and instrument-specific performance evaluation remain. |
 | 6. Proposal selection and editing | Three to five musically distinct complete proposals measured across harmony/rhythm/bass/register/roles/form; intent-directed local changes respecting locks. | Prior proposal replay/regeneration exists. Whole-form proposal search, quality/diversity selection and intent-to-constraint mapping remain. |
 
+## Execution order and completion gates
+
+Complete each numbered outcome before treating the next one as a release
+candidate. Development fixtures can grow alongside implementation, but the
+final six-work set stays unopened until the algorithm and review protocol are
+frozen. Each stage gets a focused commit or PR and a written failure list with
+measure and role references.
+
+| Step | Work to ship | Exit gate |
+| --- | --- | --- |
+| 0. Freeze the comparison | Pin the integrated commit, old/new API requests, renderer, soundfont, tempo, audio hashes and source identities. Add 12 development works and six sealed final works with explicit key, meter, form and instrumentation coverage. | Old eight-score regressions reproduce; corpus manifest and comparison settings are reviewed before any final-set scoring. Hosted CI and optimized WASM size are recorded under the same build settings as the v1.3.12 limit. |
+| 1. Complete whole-piece form | Turn visit-specific generated events into an exportable performance score; test 16- and 32-bar forms with repeats, entrances, rests, density and final release. | Every visit has an unambiguous written or performance representation; source parts, repeat traversal and MusicXML/MSCZ round trips agree with playback; three development pieces receive listening notes. |
+| 2. Complete harmony | Reanchor an existing chord plan only through an explicit old-to-new region mapping that preserves locked spelling, bass and provenance. Add supplied local-key regions, borrowed/passing chord candidates and cadence targets to the phrase request and resolved replay contract. | Melody and locked regions are exact; invalid mappings fail atomically; changed-span budget and cadence are checked on development works in major, minor and local-key passages; native/full/viewer outputs agree. |
+| 3. Build rhythm and bass grammar | Compose pulse, rest, accent and duration rules; add anticipation, syncopation, walking and ostinato bass, plus phrase-ending fills and transitions. | Generated note/rest durations cover each measure, including pickup and irregular meters; cross-section and repeat edges preserve bass continuity; rhythm and bass produce audible differences at matched tempo/instruments. |
+| 4. Develop contrapuntal voices | Retain motif rhythm as well as contour, and add inversion, augmentation, diminution, imitation and answer phrases. Apply voice-leading rules to independent inner voices across phrase boundaries. | No source melody edits or forbidden register clashes; transformed motifs can be traced to their input; every generated voice is independently playable and musically reviewed at phrase joins. |
+| 5. Add instrument and difficulty plans | Allocate piano hands, accordion buttons, wind breathing and string sustain, then redistribute roles for solo, duet and small ensemble versions with a simplified option. | Each exported part passes its explicit range, physical-control, breath or sustain constraints; simplified versions retain melody and intended cadence; performers review the relevant instrument parts. |
+| 6. Select and edit full proposals | Rank three to five whole-piece candidates using measured harmony, rhythm, bass, register, roles and form differences. Convert local user intent into bounded regeneration constraints and preserve all locks and untouched regions. | Candidates are genuinely different in playback, replayable and source-bound; local edits are confined to their requested region; the frozen six-work set passes the listening gate below without tuning to that set. |
+
+For every code stage, run focused invariants, `cargo test --all`, Clippy with
+warnings denied, formatting and the full/viewer Chrome WASM suites. Run
+MusicXML/MSCZ round trips when the stage changes written score or playback.
+The relevant CI job and optimized size receipt are required before a release
+claim; local checks alone do not satisfy that gate.
+
 ## Evaluation protocol to implement
 
 Retain the existing eight original v1 scores as structural regressions. Create
@@ -81,6 +105,17 @@ matched instrumentation and tempo; instrument-specific comparisons use the
 intended instruments with recorded playback settings. Retain failures at exact
 measures/roles. Final-set feedback cannot be used to tune and then re-score the
 same set as unseen evidence.
+
+Use at least three independent listeners for the final set. Each scores melody
+audibility, phrase continuity, cadence/ending and playability from 1 to 5,
+with a short measure-specific note for any score below 4. Before opening that
+set, freeze the acceptance rule: at least five of six works must have a median
+of at least 4 on every axis, and at least four of six must have a majority
+preference for a new complete proposal over the pinned baseline. Record all
+individual scores and exact audio identities. Six works give descriptive
+evidence only; do not present this as a statistically significant superiority
+claim. If the gate fails, keep those results as final-set evidence and use new
+works for any later tuned comparison.
 
 Every implementation step also checks source/lock preservation, full-duration
 notes/rests, repeat transitions, source-bound replay, no partial result on error,
