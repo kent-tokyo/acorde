@@ -231,6 +231,33 @@ voice copying. Its full workspace run is pending.
 Current-candidate full-corpus, native/WASM, default/Letter, final reserved input,
 performance and complete assistant review remain pending. All four gates stay pending.
 
+## Gossec page correction under review (post-v49 working candidate)
+
+The renderer now keeps up-bow and down-bow shapes upright on either side of a
+staff, puts system-start measure numbers clear of the clef, and anchors short
+grace-note connectors at noteheads. Grace stems no longer pull the anchor of a
+longer phrase slur to a distant tip. The span drawing and collision placement
+pass share the same final curve. The Gossec regression checks both the short
+connector and the longer, authored curve.
+
+The source has two numbered slurs beginning on the same grace note in measure
+2. Their MusicXML Bézier Y values imply a short curve below and a longer curve
+above. The latter initially appeared unusually high in Acorde. Assistant
+inspection of the source reversed an exploratory idea to put it below; the
+working correction retains the authored sides and reduces its excess height.
+This distinction matters because Verovio's preferred shape alone cannot
+override the source.
+
+Physical A4 PDFs of Gossec were regenerated with Verovio 6.4.1 and Acorde's
+measured path. The [partial review and artifact hashes](archive/print-parity-gossec-working-review.json)
+cover inspected Acorde pages 1, 2 and 8. These show the corrected bowing,
+grace slurs, measure numbers and earlier fingering repair. The page-use result
+remains open: Acorde uses 18 pages against Verovio's 16, and its opening page
+has two systems against three. A trial reducing the initial staff gap to 4.5
+staff spaces increased Acorde's total to 19 pages and was reverted. A full
+source/ink audit and all-page physical review are still required. These pages
+are development evidence only, not a reserved-corpus pass.
+
 ## Development progress (2026-11-15, candidate v18)
 
 The opt-in `font-metrics` renderer and `measured-print` PDF/WASM feature accept

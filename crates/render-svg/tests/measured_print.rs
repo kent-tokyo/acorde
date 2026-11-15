@@ -549,6 +549,80 @@ fn hidden_notation_layers_are_absent_from_print_but_keep_visible_slurs() {
 }
 
 #[test]
+fn gossec_grace_slur_ends_at_notehead_before_the_stem() {
+    let score = acorde_io::parse_mxl(include_bytes!(
+        "../../../tests/fixtures/openscore_gossec_quartet_rh189.mxl"
+    ))
+    .unwrap();
+    let output = engrave_print_pages(
+        &score,
+        &PrintConfig {
+            measures_per_system: 8,
+            ..Default::default()
+        },
+        FONT,
+    )
+    .unwrap();
+    let first_page = roxmltree::Document::parse(&output.pages[0]).unwrap();
+    let principal = first_page
+        .descendants()
+        .find(|n| n.attribute("data-note-addr") == Some("0:0:1:0:2"))
+        .unwrap();
+    let head = principal
+        .descendants()
+        .find(|n| n.attribute("class") == Some("acorde-notehead"))
+        .unwrap();
+    let stem = principal
+        .descendants()
+        .find(|n| n.attribute("class") == Some("acorde-stem"))
+        .unwrap();
+    let head_y: f32 = head.attribute("cy").unwrap().parse().unwrap();
+    let stem_x: f32 = stem.attribute("x1").unwrap().parse().unwrap();
+    let connector = first_page
+        .descendants()
+        .find(|n| {
+            n.attribute("data-start-note-addr") == Some("0:0:1:0:0")
+                && n.attribute("data-end-note-addr") == Some("0:0:1:0:2")
+        })
+        .unwrap();
+    let path = connector
+        .children()
+        .find(|n| n.has_tag_name("path"))
+        .unwrap();
+    let coordinates: Vec<f32> = path
+        .attribute("d")
+        .unwrap()
+        .split(|c: char| c == ',' || c.is_whitespace())
+        .filter_map(|s| s.parse().ok())
+        .collect();
+    assert!(coordinates[4] < stem_x - 0.1 * 7.2);
+    assert!(coordinates[5] > head_y && coordinates[5] < head_y + 7.2);
+    assert!(coordinates[3] > (coordinates[1] + coordinates[5]) / 2.0);
+    let outer = first_page
+        .descendants()
+        .find(|n| {
+            n.attribute("data-start-note-addr") == Some("0:0:1:0:0")
+                && n.attribute("data-end-note-addr") == Some("0:0:1:0:3")
+        })
+        .unwrap();
+    let outer_path = outer.children().find(|n| n.has_tag_name("path")).unwrap();
+    let outer_coordinates: Vec<f32> = outer_path
+        .attribute("d")
+        .unwrap()
+        .split(|c: char| c == ',' || c.is_whitespace())
+        .filter_map(|s| s.parse().ok())
+        .collect();
+    assert!(
+        outer_coordinates[3] < (outer_coordinates[1] + outer_coordinates[5]) / 2.0,
+        "authored outer phrase must remain above: {outer_coordinates:?}"
+    );
+    assert!(
+        (outer_coordinates[1] + outer_coordinates[5]) / 2.0 - outer_coordinates[3] < 4.0 * 7.2,
+        "grace stem must not force an oversized bow: {outer_coordinates:?}"
+    );
+}
+
+#[test]
 fn gossec_fingerings_remain_nearer_their_own_staff_than_the_previous_violin() {
     let score = acorde_io::parse_mxl(include_bytes!(
         "../../../tests/fixtures/openscore_gossec_quartet_rh189.mxl"

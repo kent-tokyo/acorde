@@ -1457,22 +1457,23 @@ pub(crate) fn build_svg_with_metadata_placement(
                     space,
                 );
             }
-            // Bar number above the clef of every system after the first.
+            // Bar number at the start of every system after the first.
             if col == 0 && row_idx > 0 {
+                let label = measure.number.max(1).to_string();
+                let measured = measured_print_active();
+                let beside = measured && left_margin_u > annotation_text_width_u(&label) + 1.0;
+                let number_x = (left_margin_u - if beside { 0.45 } else { 0.0 }) * space;
+                let number_y = system_top_y - if measured && !beside { 3.5 } else { 1.2 } * space;
                 let _ = write!(
                     body,
-                    r#"<text class="acorde-measure-number" data-part="{}" data-staff="{}" data-measure="{}" x="{}" y="{}" font-family="serif" font-style="italic" font-size="{}">{}</text>"#,
+                    r#"<text class="acorde-measure-number" data-part="{}" data-staff="{}" data-measure="{}" x="{}" y="{}" text-anchor="{}" font-family="serif" font-style="italic" font-size="{}">{label}</text>"#,
                     staff_refs[0].0,
                     staff_refs[0].1,
                     measure_idx,
-                    f(left_margin_u * space),
-                    f(system_top_y - 1.2 * space),
-                    f(if measured_print_active() {
-                        1.5 * space
-                    } else {
-                        1.2 * space
-                    }),
-                    measure.number.max(1)
+                    f(number_x),
+                    f(number_y),
+                    if beside { "end" } else { "start" },
+                    f(if measured { 1.5 * space } else { 1.2 * space })
                 );
             }
             // Volta brackets over the top staff: opened with their number, closed with a
@@ -8414,9 +8415,6 @@ fn render_all_spans(
                 space,
             )
         });
-        let slur_anchors = slur_geometry.map(|geometry| geometry.0);
-        let (slur_extreme, slur_clearance_control) =
-            slur_geometry.map_or((None, None), |geometry| (geometry.1, geometry.2));
         let measured_slur = measured_print_active() && matches!(span, SpanMark::Slur { .. });
         if measured_slur {
             write_measured_slur_owner(body, score, points, start, end, row1);
@@ -8432,9 +8430,7 @@ fn render_all_spans(
             up2,
             space,
             slur_above,
-            slur_anchors,
-            slur_extreme,
-            slur_clearance_control,
+            slur_geometry,
         );
         if measured_slur {
             body.push_str("</g>");
@@ -8869,7 +8865,7 @@ fn placed_slur_curves(
             }
         }
         let above = spans::slur_above(score, layout, points, start, end, up1, up2, span_index);
-        let (anchors, extreme, clearance) = same_row_slur_geometry(
+        let curve = same_row_slur_geometry(
             score,
             points,
             beam_tip_points,
@@ -8881,14 +8877,7 @@ fn placed_slur_curves(
             0.0,
             space,
         );
-        let control_y = slur_control_y(above, (y1, y2), anchors, extreme, clearance, space);
-        let direction = if x2 >= x1 { 1.0 } else { -1.0 };
-        curves.push((
-            (x1 + direction * 0.3 * space, anchors.0),
-            ((x1 + x2) / 2.0, control_y),
-            (x2 - direction * 0.3 * space, anchors.1),
-            above,
-        ));
+        curves.push(curve);
     }
     curves
 }
@@ -8943,8 +8932,7 @@ fn slur_control_y(
     }
 }
 
-/// A same-row slur's end anchors, the outermost covered note, and the control height that keeps
-/// the curve clear of covered notes. Shared by span drawing and text placement.
+/// Final same-row slur geometry, shared by span drawing and text placement.
 #[allow(clippy::too_many_arguments)]
 fn same_row_slur_geometry(
     score: &Score,
@@ -8957,13 +8945,111 @@ fn same_row_slur_geometry(
     above: bool,
     offset: f32,
     space: f32,
-) -> ((f32, f32), Option<f32>, Option<f32>) {
+) -> SlurCurve {
+    if measured_print_active()
+        && x2 > x1
+        && start.part == end.part
+        && start.staff == end.staff
+        && start.measure == end.measure
+        && start.voice == end.voice
+        && start.note < end.note
+        && let Some(notes) = score
+            .parts
+            .get(start.part)
+            .and_then(|p| p.staves.get(start.staff))
+            .and_then(|s| s.measures.get(start.measure))
+            .and_then(|m| m.voices.get(start.voice))
+            .and_then(|v| v.get(start.note..=end.note))
+        && let (Some(first), Some(last)) = (notes.first(), notes.last())
+        && (first.is_grace || last.is_grace)
+        && notes[1..notes.len() - 1].iter().all(|note| note.is_grace)
+        && notes.iter().all(|note| note.cross_staff.is_none())
+        && notes.iter().enumerate().all(|(index, note)| {
+            !note.is_grace
+                || points
+                    .get(&(
+                        start.part,
+                        start.staff,
+                        start.measure,
+                        start.voice,
+                        start.note + index,
+                    ))
+                    .is_some_and(|(_, _, stem_up, _)| *stem_up != above)
+        })
+    {
+        let scale = |note: &Note| if note.is_grace { GRACE_SCALE } else { 1.0 };
+        let first_scale = scale(first);
+        let last_scale = scale(last);
+        let left = x1
+            + if above && up1 {
+                (glyphs::NOTEHEAD_RX_U * 0.92 * first_scale + 0.2) * space
+            } else {
+                0.3 * first_scale * space
+            };
+        let right = x2
+            - if !above && !up2 {
+                (glyphs::NOTEHEAD_RX_U * 0.92 * last_scale + 0.2) * space
+            } else {
+                0.3 * last_scale * space
+            };
+        if right > left {
+            // Grace connectors attach beside heads. A main note with its stem
+            // toward the slur must not pull the endpoint to the far stem tip.
+            let side = if above { -1.0 } else { 1.0 };
+            let start_y = y1 + offset + side * 0.65 * first_scale * space;
+            let end_y = y2 + offset + side * 0.65 * last_scale * space;
+            let outer = if above {
+                start_y.min(end_y)
+            } else {
+                start_y.max(end_y)
+            };
+            let mut control_y = outer + side * (0.8 * space).min(0.6 * (right - left));
+            for (index, note) in notes.iter().enumerate().skip(1).take(notes.len() - 2) {
+                if let Some(&(x, y, _, _)) = points.get(&(
+                    start.part,
+                    start.staff,
+                    start.measure,
+                    start.voice,
+                    start.note + index,
+                )) {
+                    let t = (x - left) / (right - left);
+                    if t > 0.0 && t < 1.0 {
+                        let remaining = 1.0 - t;
+                        let desired = y + offset + side * 0.9 * scale(note) * space;
+                        let required = (desired - remaining.powi(2) * start_y - t * t * end_y)
+                            / (2.0 * t * remaining);
+                        control_y = if above {
+                            control_y.min(required)
+                        } else {
+                            control_y.max(required)
+                        };
+                    }
+                }
+            }
+            return (
+                (left, start_y),
+                ((left + right) / 2.0, control_y),
+                (right, end_y),
+                above,
+            );
+        }
+    }
     let slur_anchors = {
         let side = if above { -1.0 } else { 1.0 };
         let anchor = |addr: &acorde_layout::NoteAddr, y: f32, stem_up: bool| {
             let normal = y + offset + side * 0.65 * space;
             let key = (addr.part, addr.staff, addr.measure, addr.voice, addr.note);
+            let grace = measured_print_active()
+                && score
+                    .parts
+                    .get(addr.part)
+                    .and_then(|p| p.staves.get(addr.staff))
+                    .and_then(|s| s.measures.get(addr.measure))
+                    .and_then(|m| m.voices.get(addr.voice))
+                    .and_then(|v| v.get(addr.note))
+                    .is_some_and(|note| note.is_grace);
             if stem_up == above
+                && !grace
                 && let Some(tip) = beam_tip_points.get(&key)
             {
                 let clearance = tip + offset + side * 0.5 * space;
@@ -9052,7 +9138,8 @@ fn same_row_slur_geometry(
                 let select = |a: f32, b: f32| if above { a.min(b) } else { a.max(b) };
                 if *x >= x1.min(x2) && *x <= x1.max(x2) {
                     let note_y = *y + offset;
-                    let value = if *stem_up == above {
+                    let value = if *stem_up == above && !(measured_print_active() && note.is_grace)
+                    {
                         beam_tip_points
                             .get(key)
                             .map_or(note_y, |tip| select(note_y, tip + offset))
@@ -9065,7 +9152,10 @@ fn same_row_slur_geometry(
                     continue;
                 }
                 // Beam tips sit at the stem, not at the notehead center.
-                let clearance_x = if *stem_up == above && beam_tip_points.contains_key(key) {
+                let clearance_x = if *stem_up == above
+                    && !(measured_print_active() && note.is_grace)
+                    && beam_tip_points.contains_key(key)
+                {
                     x + (if *stem_up { 1.0 } else { -1.0 })
                         * glyphs::NOTEHEAD_RX_U
                         * 0.92
@@ -9084,7 +9174,7 @@ fn same_row_slur_geometry(
                 }
                 let remaining = 1.0 - t;
                 let desired_note = y + offset + side * 0.8 * space;
-                let desired = if *stem_up == above {
+                let desired = if *stem_up == above && !(measured_print_active() && note.is_grace) {
                     beam_tip_points.get(key).map_or(desired_note, |tip| {
                         select(desired_note, tip + offset + side * 0.6 * space)
                     })
@@ -9098,7 +9188,21 @@ fn same_row_slur_geometry(
         }
         (extreme, control)
     };
-    (slur_anchors, slur_extreme, slur_clearance_control)
+    let control = slur_control_y(
+        above,
+        (y1, y2),
+        slur_anchors,
+        slur_extreme,
+        slur_clearance_control,
+        space,
+    );
+    let direction = if x2 >= x1 { 1.0 } else { -1.0 };
+    (
+        (x1 + direction * 0.3 * space, slur_anchors.0),
+        ((x1 + x2) / 2.0, control),
+        (x2 - direction * 0.3 * space, slur_anchors.1),
+        above,
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -9113,9 +9217,7 @@ fn render_same_row_span(
     up2: bool,
     space: f32,
     slur_above: Option<bool>,
-    slur_anchors: Option<(f32, f32)>,
-    slur_extreme: Option<f32>,
-    slur_clearance_control: Option<f32>,
+    slur_geometry: Option<SlurCurve>,
 ) {
     let (left, right) = if x1 <= x2 { (x1, x2) } else { (x2, x1) };
     match span {
@@ -9142,26 +9244,21 @@ fn render_same_row_span(
             let above = slur_above.unwrap_or(!up1);
             let direction = if x2 >= x1 { 1.0 } else { -1.0 };
             let side = if above { -1.0 } else { 1.0 };
-            let (start_y, end_y) =
-                slur_anchors.unwrap_or((y1 + side * 0.65 * space, y2 + side * 0.65 * space));
-            let control_y = slur_control_y(
-                above,
-                (y1, y2),
-                (start_y, end_y),
-                slur_extreme,
-                slur_clearance_control,
-                space,
-            );
+            let ((start_x, start_y), (control_x, control_y), (end_x, end_y), _) = slur_geometry
+                .unwrap_or_else(|| {
+                    let anchors = (y1 + side * 0.65 * space, y2 + side * 0.65 * space);
+                    (
+                        (x1 + direction * 0.3 * space, anchors.0),
+                        (
+                            (x1 + x2) / 2.0,
+                            slur_control_y(above, (y1, y2), anchors, None, None, space),
+                        ),
+                        (x2 - direction * 0.3 * space, anchors.1),
+                        above,
+                    )
+                });
             render_slur_ribbon(
-                body,
-                x1 + direction * 0.3 * space,
-                start_y,
-                (x1 + x2) / 2.0,
-                control_y,
-                x2 - direction * 0.3 * space,
-                end_y,
-                above,
-                space,
+                body, start_x, start_y, control_x, control_y, end_x, end_y, above, space,
             );
         }
         SpanMark::TrillLine { .. } | SpanMark::Glissando { .. } => {
@@ -11260,18 +11357,19 @@ pub(crate) fn render_articulation(
             );
         }
         acorde_core::Articulation::DownBow => {
-            // An open bracket whose closed edge faces away from the note.
+            // Bowing signs keep their orientation on either side of the staff.
+            // A turned sign is a different SMuFL symbol, not a placement rule.
             let _ = write!(
                 body,
                 r#"<path class="acorde-articulation acorde-down-bow" d="M {},{} L {},{} L {},{} L {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
                 f(x - 0.3 * space),
-                f(y + dir * 0.3 * space),
+                f(y + 0.3 * space),
                 f(x - 0.3 * space),
-                f(y - dir * 0.25 * space),
+                f(y - 0.25 * space),
                 f(x + 0.3 * space),
-                f(y - dir * 0.25 * space),
+                f(y - 0.25 * space),
                 f(x + 0.3 * space),
-                f(y + dir * 0.3 * space),
+                f(y + 0.3 * space),
                 f(0.12 * space)
             );
         }
@@ -11280,11 +11378,11 @@ pub(crate) fn render_articulation(
                 body,
                 r#"<path class="acorde-articulation acorde-up-bow" d="M {},{} L {},{} L {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
                 f(x - 0.25 * space),
-                f(y - dir * 0.35 * space),
+                f(y - 0.35 * space),
                 f(x),
-                f(y + dir * 0.35 * space),
+                f(y + 0.35 * space),
                 f(x + 0.25 * space),
-                f(y - dir * 0.35 * space),
+                f(y - 0.35 * space),
                 f(0.09 * space)
             );
         }
@@ -12492,6 +12590,32 @@ mod tests {
     };
     use acorde_layout::{LayoutConfig, SpanMark, compute_layout};
     use std::collections::HashMap;
+
+    #[test]
+    fn bowing_signs_remain_upright_above_and_below_the_staff() {
+        for dir in [-1.0, 1.0] {
+            for (mark, up_bow) in [(Articulation::UpBow, true), (Articulation::DownBow, false)] {
+                let mut svg = String::new();
+                render_articulation(&mut svg, &mark, 10.0, 20.0, dir, 2.0);
+                let doc = roxmltree::Document::parse(&svg).unwrap();
+                let coordinates: Vec<f32> = doc
+                    .root_element()
+                    .attribute("d")
+                    .unwrap()
+                    .split(|c: char| c == ',' || c.is_whitespace())
+                    .filter_map(|s| s.parse().ok())
+                    .collect();
+                if up_bow {
+                    assert_eq!(coordinates[1], coordinates[5]);
+                    assert!(coordinates[3] > coordinates[1], "up-bow must point down");
+                } else {
+                    assert_eq!(coordinates[3], coordinates[5]);
+                    assert_eq!(coordinates[1], coordinates[7]);
+                    assert!(coordinates[3] < coordinates[1], "down-bow must open down");
+                }
+            }
+        }
+    }
 
     #[test]
     fn measured_accidentals_reserve_only_the_left_side_of_the_anchor() {
