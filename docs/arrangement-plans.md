@@ -6,7 +6,8 @@ one `Score` for rendering, playback and export. The source is never sliced:
 pickup phase, carried harmony, tempo changes, source note addresses, ties,
 tuplets, repeats and endings keep their full-score context.
 
-This is the explicit-plan stage of [#433](https://github.com/kent-tokyo/acorde/issues/433).
+This is the explicit-plan stage of [#433](https://github.com/kent-tokyo/acorde/issues/433),
+with bounded seeded section selection from [#435](https://github.com/kent-tokyo/acorde/issues/435).
 It does not infer phrases, alter the melody, choose a genre or certify musical
 quality or physical playability. Instrument-specific patterns remain separate.
 
@@ -125,10 +126,65 @@ provenance is returned.
 The explicit engine makes one generation pass, with at most 64 sections, 512
 written measures, 2,048 supplied chords and 8,192 source notes (including rests).
 Requests exceeding these budgets return `limit-exceeded` before generation.
-There is no candidate enumeration or search in contract 1. Seeded selection from
-allowed section combinations, including separate no-candidate/search-limit
-outcomes, is deferred to the next stage; existing whole-score shuffle APIs keep
-their current behavior.
+The explicit `arrange_accordion_plan` call makes no candidate search. The seeded
+selector below calls it for each attempted combination, so these constraints
+and diagnostics remain authoritative.
+
+## Seeded selection from section choices
+
+`shuffle_accordion_plan` accepts the same explicit chords and bass mode, a
+decimal unsigned 64-bit seed string, `max_attempts`, and ordered, adjacent
+`sections`. Each section has `start_measure`, `end_measure`,
+`allowed_accompaniments` and `allowed_melodic_voices` arrays. Include `null`
+in the accompaniment array to allow silence. The arrays are sets: order and
+duplicates have no selection weight. All ranges must cover the written score.
+
+```json
+{
+  "chords": [{"measure_index": 0, "offset_beats": 0,
+    "chord": {"root": "C", "kind": "major", "bass": null}}],
+  "bass_mode": "standard-bass",
+  "sections": [
+    {"start_measure": 0, "end_measure": 4,
+      "allowed_accompaniments": ["bass-chord-pulse", "held-bass-chord"],
+      "allowed_melodic_voices": ["unchanged"]},
+    {"start_measure": 4, "end_measure": 7,
+      "allowed_accompaniments": ["driving-bass-chord", "held-bass-chord"],
+      "allowed_melodic_voices": ["third-below", "unchanged"]},
+    {"start_measure": 7, "end_measure": 8,
+      "allowed_accompaniments": ["held-bass-chord"],
+      "allowed_melodic_voices": ["unchanged"]}
+  ],
+  "seed": "1234567890123456789",
+  "max_attempts": 64
+}
+```
+
+The Rust function takes `&Score` and `AccordionPlanShuffleRequest`. Full and
+viewer WASM accept score/request JSON and return JSON. A successful result
+contains the explicit plan fields, including `score`, `applied_sections`,
+`resolved_config`, chord and note provenance, plus
+`selection_contract_version`, `seed`, `pool_size`, `attempted`,
+`selected_pool_index` and `rejected` diagnostic counts. Save `resolved_config`
+and call `arrange_from_resolved_plan` to replay on the same source with the
+same engine marker. The seed identifies the choice order, while the saved
+resolved plan identifies the actual techniques. Fresh generated UUIDs can vary.
+
+The selection order is fixed for the same source content, options, seed and
+engine version. It uses the version 2 source fingerprint, sorted unique
+choices and a seeded permutation without replacement. Version 1 permits
+1–8 sections, 1–8 listed choices per axis per section, at most 65,536 distinct
+combinations, and 1–64 attempted candidates. Each attempt runs the explicit
+plan engine. It never changes an allowed technique, chord or bass mode.
+
+Failures return no score or partial provenance. `unsupported` means the seed,
+range, input or bounded request cannot be processed; `no-candidate` means every
+combination was tried and rejected; `search-limit` means the attempt budget
+ended before the pool was exhausted. `attempted` and `rejected` show how far
+the search got and why candidates failed. A candidate rejected for meter,
+harmony, ties, tuplets, tempo or standard-bass constraints may be followed by
+another permitted candidate. These outcomes do not imply a musical-quality
+ranking or a physical playability check.
 
 ## Regression evidence
 
@@ -140,6 +196,12 @@ their current behavior.
   endings, source spanners and absolute playback times.
 - `scripts/check-wasm-arrangement-plan.mjs`: executes both built full and viewer
   web WASM packages and compares events, configurations, provenance and errors.
+- `crates/core/tests/arrangement_plan_shuffle.rs` and
+  `crates/wasm/tests/issue_435_arrangement_plan_shuffle.rs`: deterministic
+  selection, bounded failure outcomes, source and replay invariants, and
+  playback, SVG and MSCZ checks.
+- `scripts/check-wasm-arrangement-plan-shuffle.mjs`: full/viewer built WASM
+  parity for seeded choices and replay.
 
 The committed ABC and JSON fixtures under `tests/fixtures/arrangement_plan_*`
 require no downloads. These checks establish the covered examples, not broad

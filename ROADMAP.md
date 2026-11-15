@@ -17,8 +17,8 @@ caller-supplied button IDs; it does not infer fingering or physical reach.
 
 Unreleased: [explicit arrangement plans](docs/arrangement-plans.md) select existing
 accompaniment and melodic layers by written-measure range (#433), with source-checked
-replay and section provenance. Seeded selection from allowed section combinations
-and performance-order variants remain future work.
+replay and section provenance. Bounded seeded selection from allowed section
+combinations (#435) is available. Performance-order variants remain future work.
 
 The CLI also provides `acorde mcp --root <dir>` over local stdio. Its inspection and
 validation tools are read-only by default. Reviewed editing uses sessions, a validated
