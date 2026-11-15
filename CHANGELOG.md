@@ -2,8 +2,15 @@
 
 ## [Unreleased]
 
+- Add opt-in `arrange_ensemble_form` and `replay_ensemble_form` in Rust and
+  full/viewer WASM. An explicit whole-piece plan coordinates generated role
+  entrances, harmony and bass patterns, phrase endings and per-section dynamics.
+  Source-bound, versioned replay retains the source parts. Invalid plans and
+  downstream realization failures return no partial score or reports. A written
+  bar retains its treatment on every repeat visit in this initial contract.
+
 - Add opt-in `suggest_arrangement_proposals` to Rust and full/viewer WASM. It
-  combines source-bound chord plans with five complete ensemble profiles,
+  combines source-bound chord plans with seven bounded ensemble profiles,
   returns three to five distinct scores or an atomic diagnostic, reports
   written note-event difference axes and replays each resolved proposal.
   `regenerate_arrangement_region` replaces a selected physical-measure range

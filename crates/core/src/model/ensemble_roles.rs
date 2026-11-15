@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::accordion_dynamics::supported_level;
-use super::bass_line::{BassLineOptions, arrange_bass_line};
+use super::bass_line::{BassLineOptions, BassLinePattern, arrange_bass_line_with_patterns};
 use super::chordal_pad::{ChordalPadOptions, arrange_chordal_pad, emit_rest, tick};
 use super::countermelody::{CountermelodyOptions, arrange_countermelody_with_activity};
 use super::notation::Dynamic;
@@ -166,9 +166,14 @@ fn vertical_collision(lower: &[(f64, f64, i16)], upper: &[(f64, f64, i16)], gap:
 
 /// Append role parts, then apply independent measure activity. Original source
 /// parts and note IDs remain unchanged. All invalid requests return no score.
-pub fn arrange_ensemble_roles(
+pub fn arrange_ensemble_roles(score: &Score, options: EnsembleRoleOptions) -> EnsembleRoleResult {
+    arrange_ensemble_roles_with_bass_patterns(score, options, None)
+}
+
+pub(crate) fn arrange_ensemble_roles_with_bass_patterns(
     score: &Score,
     mut options: EnsembleRoleOptions,
+    bass_patterns: Option<&[BassLinePattern]>,
 ) -> EnsembleRoleResult {
     options.sections.sort_by_key(|section| {
         (
@@ -297,7 +302,7 @@ pub fn arrange_ensemble_roles(
         output = next;
     }
     if let Some(bass) = result.resolved_options.bass.clone() {
-        let arranged = arrange_bass_line(&output, bass);
+        let arranged = arrange_bass_line_with_patterns(&output, bass, bass_patterns);
         let Some(next) = arranged.score else {
             let issue = arranged.diagnostics.first();
             return fail(

@@ -126,7 +126,15 @@ fn motion_report(score: &Score, attacks: &[Vec<u8>]) -> BassLineMotionReport {
 
 /// Append a monophonic GM bass part. Chords must cover the beginning of the
 /// score; unsupported input returns diagnostics and no partially changed score.
-pub fn arrange_bass_line(score: &Score, mut options: BassLineOptions) -> BassLineResult {
+pub fn arrange_bass_line(score: &Score, options: BassLineOptions) -> BassLineResult {
+    arrange_bass_line_with_patterns(score, options, None)
+}
+
+pub(crate) fn arrange_bass_line_with_patterns(
+    score: &Score,
+    mut options: BassLineOptions,
+    patterns: Option<&[BassLinePattern]>,
+) -> BassLineResult {
     options.chords.sort_by(|left, right| {
         left.measure_index
             .cmp(&right.measure_index)
@@ -155,6 +163,7 @@ pub fn arrange_bass_line(score: &Score, mut options: BassLineOptions) -> BassLin
         .fold(0usize, |sum, voice| sum.saturating_add(voice.len()));
     if count == 0
         || count > MAX_MEASURES
+        || patterns.is_some_and(|patterns| patterns.len() != count)
         || score.parts.len() > 32
         || source_notes > MAX_SOURCE_NOTES
         || options.chords.is_empty()
@@ -263,6 +272,7 @@ pub fn arrange_bass_line(score: &Score, mut options: BassLineOptions) -> BassLin
         let Some(source_bar) = reference.measures.get(measure) else {
             return reject(result, "unsupported-source", Some(measure));
         };
+        let pattern = patterns.map_or(options.pattern, |patterns| patterns[measure]);
         let mut voice = Vec::<Note>::new();
         let mut cursor = starts[measure];
         while cursor < starts[measure + 1] {
@@ -284,13 +294,12 @@ pub fn arrange_bass_line(score: &Score, mut options: BassLineOptions) -> BassLin
                 return reject(result, "chord-position", Some(measure));
             }
             let slot = (cursor - current.tick) / 32;
-            let mut class =
-                if options.pattern == BassLinePattern::RootPulse || slot.is_multiple_of(2) {
-                    current.bass_class
-                } else {
-                    current.fifth_class
-                };
-            if options.pattern == BassLinePattern::Approach
+            let mut class = if pattern == BassLinePattern::RootPulse || slot.is_multiple_of(2) {
+                current.bass_class
+            } else {
+                current.fifth_class
+            };
+            if pattern == BassLinePattern::Approach
                 && let Some(next) = next
                 && next.tick - current.tick >= 64
                 && cursor >= next.tick.saturating_sub(32)

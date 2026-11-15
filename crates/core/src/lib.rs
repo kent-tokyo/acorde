@@ -106,6 +106,11 @@ pub use model::countermelody::{
 };
 pub use model::duration::Duration;
 pub use model::engine::{EngineHistory, HistoryConflict, HistoryRelation, ScoreEngine};
+pub use model::ensemble_form::{
+    ENSEMBLE_FORM_CONTRACT_VERSION, ENSEMBLE_FORM_ENGINE_VERSION, EnsembleFormDiagnostic,
+    EnsembleFormMeasure, EnsembleFormRequest, EnsembleFormResult, EnsembleFormSection, FormBass,
+    FormHarmony, ResolvedEnsembleForm, arrange_ensemble_form, replay_ensemble_form,
+};
 pub use model::ensemble_melody::{
     EnsembleMelodyDiagnostic, EnsembleMelodyRequest, EnsembleMelodyResult, MelodyRoleSection,
     arrange_ensemble_with_melody,

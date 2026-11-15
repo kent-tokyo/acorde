@@ -1895,6 +1895,26 @@ pub fn arrange_ensemble_roles(score_json: &str, options_json: &str) -> Result<St
         .map_err(|error| js_err(format!("ensemble role serialization failed: {error}")))
 }
 
+/// Coordinate section textures, role entrances, phrase endings and dynamics.
+#[wasm_bindgen]
+pub fn arrange_ensemble_form(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::EnsembleFormRequest =
+        parse_json(request_json, "ensemble form", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::arrange_ensemble_form(&score, &request))
+        .map_err(|error| js_err(format!("ensemble form serialization failed: {error}")))
+}
+
+/// Replay the saved form against its original source and generator version.
+#[wasm_bindgen]
+pub fn replay_ensemble_form(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedEnsembleForm =
+        parse_json(resolved_json, "resolved ensemble form", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::replay_ensemble_form(&score, &resolved))
+        .map_err(|error| js_err(format!("ensemble form serialization failed: {error}")))
+}
+
 /// Build a performance copy with independently scheduled source-melody rests.
 #[wasm_bindgen]
 pub fn arrange_ensemble_with_melody(score_json: &str, request_json: &str) -> Result<String, JsValue> {
