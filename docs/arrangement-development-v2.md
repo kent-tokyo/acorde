@@ -292,7 +292,10 @@ melody events, MusicXML/MSCZ playback, source-bound replay and native/WASM JSON
 results agree in focused tests. Source scores with unresolved cross-measure
 references or mismatched unfolded playback fail atomically. This does not yet
 integrate visit-specific inner pitches into the sectioned ensemble form or
-prove musical quality on the broader corpus.
+prove musical quality on the broader corpus. The full native workspace suite,
+warning-free Clippy, and complete full/viewer Chrome WASM suites pass on this
+change. The browser runs use the direct `wasm-bindgen-test-runner` with Chrome;
+optimized release size, hosted CI and listening remain separate gates.
 
 | Outcome | Required final behavior | Current evidence / remaining work |
 | --- | --- | --- |
