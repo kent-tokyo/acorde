@@ -133,20 +133,31 @@ score JSON, MusicXML and reference WAV files twice with identical SHA-256
 manifests; its pinned manifest is `development-v2-manifest.json`. Reference
 audio uses a documented all-piano copy because the bundled SoundFont lacks
 the other programs. These sources have not received listening review. Six
-independent sealed final works, arrangement audio identities and hosted CI
+independent sealed final works and hosted CI
 remain outstanding for the comparison baseline.
+
+The twelve works now each produce three replayable complete proposals under
+an explicit, source-specific request. The proposal pack pins 36 MusicXML and
+WAV identities and offers a numbered local listening sheet. A core test
+checks three distinct generated-event sequences per source, source-part
+preservation and source-bound replay. The lower cello melody needs an authored
+upper-harmony placement; this is a request choice, not automatic orchestration.
+At least one candidate in ten works adds a countermelody, diversifying its
+orchestration. `five-step` and `low-tide` still have no countermelody candidate.
+Whole-piece form differences are not established by this pack.
+Listener judgments, instrument-specific audio and six sealed final works remain.
 
 ## Required outcomes and evidence
 
 | Outcome | Required final behavior | Current evidence / remaining work |
 | --- | --- | --- |
-| 0. Comparison baseline | Integrate prior arrangement and analysis work; preserve reproducible old outputs and fix comparison conditions. | Integration, native corpus and full/viewer Chrome suites pass. Twelve new long-form development sources and a deterministic piano-reference audio manifest are fixed. Review these sources, create six independent sealed final works, freeze complete-arrangement comparison audio and complete hosted CI/size gates. |
+| 0. Comparison baseline | Integrate prior arrangement and analysis work; preserve reproducible old outputs and fix comparison conditions. | Integration, native corpus and full/viewer Chrome suites pass. Twelve new long-form development sources and 36 complete-proposal piano-reference audio identities are fixed. Review the development works, create six independent sealed final works and complete hosted CI/size gates. |
 | 1. Whole-piece development | Coordinate phrases, A/B sections, entrances, pauses, density and ending shape over 16–32 bars; vary a repeated passage on a later visit. | `arrange_ensemble_form` compiles an explicit written form, coordinates phrase endings, varies bass patterns without resetting bass pitch continuity, and restores dynamics at every sounding bar. The visit API selects a different generated event sequence on a later repeat visit. A new API unfolds those visits into an exportable performance score when its playback matches the event contract. The 16-bar fixture, doubled 32-bar traversal, MusicXML/MSCZ round trips, source-bound replay and native/full/viewer browser checks pass. Source-level references still need relocation, and a separately composed longer example and listening acceptance remain. |
 | 2. Harmony | Choose harmonic rhythm by phrase; add borrowed/passing harmony and supplied local-key movement, bounded change amount and cadence intent while preserving melody/locks. | `suggest_phrase_harmony` selects two-bar, one-bar or two-group pace. Its explicit mapping can split or merge an existing source plan while preserving locks and comparing change budgets with the original regions. `local_keys` supplies major/minor movement; `cadences` constrains three named root motions. Explicit `colors` selects parallel-mode borrowing or a short chromatic passing chord. Native and full/viewer Chrome suites pass. A longer local-key example, stronger cadence-quality checks and listening acceptance remain. Use explicit source/key/phrase input before relying on uncertain analysis. |
 | 3. Rhythm and bass | Composable pulse/rest/accent/duration rules, anticipation, syncopation, walking/ostinato bass and phrase-ending fills; coherent transitions. | Form can switch the existing three bass patterns by section. Authored bass rhythm sections now express the named techniques and keep exact bar lengths and chord transitions in focused tests. The full native workspace and full/viewer Chrome WASM suites pass; matched-instrument listening and broader playability checks remain. |
 | 4. Countermelody and voice leading | Capture motif rhythm as well as contour; inversion, augmentation/diminution, imitation, question/answer and independent inner voices across phrases. | Existing contour-based countermelody and section activity are integrated. Rhythmic development and new transformations remain. Apply style-specific voice-leading rules; analysis flags are not a general musical-quality verdict. |
 | 5. Instruments and difficulty | Piano hand allocation, accordion buttons, wind breathing, string sustain; solo/duet/small ensemble and simplified versions. | Existing register/button infrastructure is available. Joint playability constraints, role redistribution and instrument-specific performance evaluation remain. |
-| 6. Proposal selection and editing | Three to five musically distinct complete proposals measured across harmony/rhythm/bass/register/roles/form; intent-directed local changes respecting locks. | Prior proposal replay/regeneration exists. Whole-form proposal search, quality/diversity selection and intent-to-constraint mapping remain. |
+| 6. Proposal selection and editing | Three to five musically distinct complete proposals measured across harmony/rhythm/bass/register/roles/form; intent-directed local changes respecting locks. | Twelve new long-form works produce three valid, replayable proposals with distinct piano-reference WAV hashes each. Ten works include a countermelody candidate; two do not. Whole-form search, quality/diversity selection, intent-to-constraint mapping and listening acceptance remain. |
 
 ## Execution order and completion gates
 
