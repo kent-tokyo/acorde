@@ -1963,6 +1963,30 @@ pub fn replay_ensemble_form(score_json: &str, resolved_json: &str) -> Result<Str
         .map_err(|error| js_err(format!("ensemble form serialization failed: {error}")))
 }
 
+/// Assign named instruments to selected parts after playback-order screening.
+#[wasm_bindgen]
+pub fn plan_instruments(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::InstrumentPlanRequest =
+        parse_json(request_json, "instrument plan", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::plan_instruments(&score, &request)
+        .map_err(|error| js_err(format!("instrument plan failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("instrument plan serialization failed: {error}")))
+}
+
+/// Recheck a saved instrument plan against its exact source score.
+#[wasm_bindgen]
+pub fn replay_instrument_plan(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedInstrumentPlan =
+        parse_json(resolved_json, "resolved instrument plan", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::replay_instrument_plan(&score, &resolved)
+        .map_err(|error| js_err(format!("instrument plan replay failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("instrument plan replay serialization failed: {error}")))
+}
+
 /// Unfold a sectioned inner-voice form for playback and export.
 #[wasm_bindgen]
 pub fn arrange_form_inner_voices_performance(score_json: &str, request_json: &str) -> Result<String, JsValue> {

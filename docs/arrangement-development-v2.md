@@ -307,6 +307,23 @@ native/WASM JSON comparison cover this form. The full native workspace suite,
 warning-free Clippy, and complete full/viewer Chrome WASM suites pass.
 Form-specific listening and broader corpus acceptance remain open.
 
+An opt-in instrument plan now assigns named instruments and MIDI programs to
+selected arrangement parts only after checking caller-supplied performance
+limits on the complete playback traversal. A keyboard-hand envelope checks
+range, simultaneous pitch count and span across overlapping notes; a wind-line
+envelope checks monophony and continuous playing time, with short rests kept
+inside the same breath run. Focused tests cover a sectioned 16-bar arrangement,
+repeated-visit breath rejection, range/chord/span rejection, source-bound replay,
+MusicXML/MSCZ name/program and event round trips, and native/WASM JSON parity.
+MusicXML and MSCZ currently preserve the exported part name and MIDI program,
+but do not reconstruct the full `InstrumentDefinition` on import. These
+explicit envelopes are screens, not fingering or breathing certificates.
+The full native workspace suite, warning-free Clippy, formatting and complete
+full/viewer Chrome WASM suites pass on this increment. Hosted CI and optimized
+size remain separate gates.
+Piano two-hand allocation, accordion button control, string sustain, role
+redistribution, simplified versions and performer acceptance remain open.
+
 | Outcome | Required final behavior | Current evidence / remaining work |
 | --- | --- | --- |
 | 0. Comparison baseline | Integrate prior arrangement and analysis work; preserve reproducible old outputs and fix comparison conditions. | Integration, native corpus and full/viewer Chrome suites pass. Twelve new long-form development sources, 36 complete-proposal and 60 sectional-form piano-reference audio identities are fixed. Review the development works, create six independent sealed final works and complete hosted CI/size gates. |
@@ -314,7 +331,7 @@ Form-specific listening and broader corpus acceptance remain open.
 | 2. Harmony | Choose harmonic rhythm by phrase; add borrowed/passing harmony and supplied local-key movement, bounded change amount and cadence intent while preserving melody/locks. | `suggest_phrase_harmony` selects two-bar, one-bar or two-group pace. Its explicit mapping can split or merge an existing source plan while preserving locks and comparing change budgets with the original regions. `local_keys` supplies major/minor movement; `cadences` constrains three named root motions. Explicit `colors` selects parallel-mode borrowing or a short chromatic passing chord. Native and full/viewer Chrome suites pass. A longer local-key example, stronger cadence-quality checks and listening acceptance remain. Use explicit source/key/phrase input before relying on uncertain analysis. |
 | 3. Rhythm and bass | Composable pulse/rest/accent/duration rules, anticipation, syncopation, walking/ostinato bass and phrase-ending fills; coherent transitions. | Form can switch the existing three bass patterns by section. Authored bass rhythm sections now express the named techniques and keep exact bar lengths and chord transitions in focused tests. The full native workspace and full/viewer Chrome WASM suites pass; matched-instrument listening and broader playability checks remain. |
 | 4. Countermelody and voice leading | Capture motif rhythm as well as contour; inversion, augmentation/diminution, imitation, question/answer and independent inner voices across phrases. | An opt-in source-rhythm API extracts note/rest durations and generates imitation, inversion, augmentation, diminution and delayed answer treatments. Ten long-form development works produce five valid distinct standalone event sequences each. Form development coordinates this role with section activity, harmony, bass, dynamics and collision checks. The selector chooses three distinct rhythmic treatments in each of the ten countermelody-capable works. A new opt-in bound selects the next phrase's chord tone near the prior ending pitch and rejects impossible joins; all ten works have at least one form accepting four semitones. An independent two-voice API adds separate rhythm grids, bounded cross-phrase motion, fixed voice ordering and melody clearance. A form-level option replaces the chordal pad with those lines and checks section activity, dynamics, cross-role order and total density. The sectioned form now also chooses inner pitches in playback order, checks every repeat visit's spacing and density, and bounds the return's inner-voice leaps. Texture choice within a form, instrument playability and listening acceptance remain. |
-| 5. Instruments and difficulty | Piano hand allocation, accordion buttons, wind breathing, string sustain; solo/duet/small ensemble and simplified versions. | Existing register/button infrastructure is available. Joint playability constraints, role redistribution and instrument-specific performance evaluation remain. |
+| 5. Instruments and difficulty | Piano hand allocation, accordion buttons, wind breathing, string sustain; solo/duet/small ensemble and simplified versions. | An opt-in instrument plan assigns names and MIDI programs to selected parts, then screens sounding range, one-hand keyboard chords and wind breath runs across repeats. Existing accordion button infrastructure remains separate. Two-hand allocation, accordion integration, string sustain, role redistribution, simplified versions and performer review remain. |
 | 6. Proposal selection and editing | Three to five musically distinct complete proposals measured across harmony/rhythm/bass/register/roles/form; intent-directed local changes respecting locks. | Twelve long-form works produce three replayable complete proposals and five distinct sectional forms with pinned piano-reference WAV identities. A new selector combines the five form profiles with five rhythmic countermelody treatments, yielding three different selected treatments in all ten countermelody-capable works. It reports rejected combinations and replays the chosen forms. Harmony-plan search remains separate; a full cross-axis ranking, intent-to-constraint mapping, final-set review and listening acceptance remain. |
 
 ## Execution order and completion gates

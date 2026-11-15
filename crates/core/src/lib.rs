@@ -181,6 +181,11 @@ pub use model::inner_voices_performance::{
     ResolvedInnerVoicesPerformance, arrange_inner_voices_performance,
     replay_inner_voices_performance,
 };
+pub use model::instrument_plan::{
+    INSTRUMENT_PLAN_CONTRACT_VERSION, INSTRUMENT_PLAN_ENGINE_VERSION, InstrumentPartAssignment,
+    InstrumentPartReport, InstrumentPlanError, InstrumentPlanRequest, InstrumentPlanResult,
+    PartTechnique, ResolvedInstrumentPlan, plan_instruments, replay_instrument_plan,
+};
 pub use model::interval::{Interval, IntervalQuality};
 pub use model::melodic_insert::{
     MelodicInsertion, MelodicInsertionCandidate, MelodicInsertionContext,
