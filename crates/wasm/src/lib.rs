@@ -1885,6 +1885,30 @@ pub fn arrange_bass_line(score_json: &str, options_json: &str) -> Result<String,
         .map_err(|error| js_err(format!("bass line serialization failed: {error}")))
 }
 
+/// Add two independently timed, chord-grounded inner voices.
+#[wasm_bindgen]
+pub fn arrange_inner_voices(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::InnerVoicesRequest =
+        parse_json(request_json, "inner voices request", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::arrange_inner_voices(&score, request)
+        .map_err(|error| js_err(format!("inner voices failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("inner voices serialization failed: {error}")))
+}
+
+/// Rebuild independently timed inner voices from a source-bound contract.
+#[wasm_bindgen]
+pub fn replay_inner_voices(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedInnerVoices =
+        parse_json(resolved_json, "resolved inner voices", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::replay_inner_voices(&score, &resolved)
+        .map_err(|error| js_err(format!("inner voices replay failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("inner voices replay serialization failed: {error}")))
+}
+
 /// Compose independently scheduled harmony, bass and countermelody parts.
 #[wasm_bindgen]
 pub fn arrange_ensemble_roles(score_json: &str, options_json: &str) -> Result<String, JsValue> {

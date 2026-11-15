@@ -1,6 +1,36 @@
 //! Original 16-bar development melody. Deliberately shared by native, I/O and
 //! browser tests; this is not an untouched evaluation case.
-use acorde_core::{Duration, EnsembleFormRequest, Note, Pitch, Score};
+use acorde_core::{
+    Duration, EnsembleFormRequest, InnerVoiceLine, InnerVoicePattern, InnerVoicesRequest, Note,
+    Pitch, Score,
+};
+
+#[allow(dead_code)]
+pub fn inner_voice_request() -> InnerVoicesRequest {
+    InnerVoicesRequest {
+        chords: request().ensemble.harmony.unwrap().chords,
+        melody_part_index: 0,
+        midi_program: 48,
+        lower: InnerVoiceLine {
+            pattern: InnerVoicePattern::FirstHalf,
+            low_midi: 55,
+            center_midi: 59,
+            high_midi: 62,
+            max_leap_semitones: 7,
+        },
+        upper: InnerVoiceLine {
+            pattern: InnerVoicePattern::OffbeatPulse,
+            low_midi: 64,
+            center_midi: 67,
+            high_midi: 71,
+            max_leap_semitones: 7,
+        },
+        min_voice_gap_semitones: 2,
+        min_melody_gap_semitones: 4,
+        active_measures: vec![],
+        phrase_end_measures: vec![3, 7, 11, 15],
+    }
+}
 
 pub fn source() -> Score {
     let mut score = Score::new("Form development: returning light", 104, 4, 4, 0, 16);

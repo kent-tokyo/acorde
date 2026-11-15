@@ -27,6 +27,7 @@ pub mod fragment;
 pub mod free_bass;
 pub mod gm;
 pub mod harmony;
+pub mod inner_voices;
 pub mod interval;
 pub mod melodic_insert;
 pub mod musical_diff;

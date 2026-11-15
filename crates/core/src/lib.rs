@@ -161,6 +161,11 @@ pub use model::free_bass::{
 };
 pub use model::gm::{drum_name, program_name};
 pub use model::harmony::{detect_chord, roman_numeral, roman_numeral_figured};
+pub use model::inner_voices::{
+    INNER_VOICES_CONTRACT_VERSION, InnerVoiceLine, InnerVoicePattern, InnerVoicesError,
+    InnerVoicesRequest, InnerVoicesResult, ResolvedInnerVoices, arrange_inner_voices,
+    replay_inner_voices,
+};
 pub use model::interval::{Interval, IntervalQuality};
 pub use model::melodic_insert::{
     MelodicInsertion, MelodicInsertionCandidate, MelodicInsertionContext,
