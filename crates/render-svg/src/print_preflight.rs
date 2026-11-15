@@ -703,7 +703,10 @@ pub(crate) fn resolve(
                     distance(a).total_cmp(&distance(b))
                 })
                 .ok_or(Error::InvalidGeneratedGeometry)?;
-            let under = !source.hairpin_above.unwrap_or(false);
+            // The rendered span may be one of several numbered wedges starting on the
+            // same note. Its actual side is encoded by the placement geometry; the
+            // note's single legacy flag cannot describe every wedge.
+            let under = top + bottom >= tops[row][staff] + bottoms[row][staff];
             let mut shift = if under {
                 (bottoms[row][staff] + CLEARANCE - top).max(0.0)
             } else {

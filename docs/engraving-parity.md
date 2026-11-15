@@ -399,3 +399,11 @@ visible, but their vertical placement and the large lower-page whitespace need
 comparison with Verovio and review of the entire score. The full 24-input
 development corpus, default/Letter configurations and final reserved cohort have
 not been rerun for this candidate. All four gates remain pending.
+
+The vocal score currently has 25 Acorde systems on 13 A4 pages, versus 23
+Verovio systems on 8 pages. Measured Acorde system heights on this input range
+from about 85 to 106 mm within a 265 mm content height, so many pages cannot
+hold a third system at the present staff size and spacing. A local trial reducing
+the initial gap for scores with at least three staves from 6 to 4.5 staff spaces
+still produced 13 pages; the trial was reverted. The remaining page-use gap
+requires source-aware ink and inter-staff geometry review.

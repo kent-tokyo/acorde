@@ -63,6 +63,23 @@ fn simultaneous_typed_hairpins_print_on_opposite_sides() {
         baselines[0] < baselines[1],
         "hairpins must straddle the staff: {baselines:?}"
     );
+    let staff_lines = doc
+        .descendants()
+        .filter(|node| node.attribute("class") == Some("acorde-staff-line"))
+        .filter_map(|node| {
+            node.attribute("y1")
+                .and_then(|value| value.parse::<f32>().ok())
+        })
+        .collect::<Vec<_>>();
+    let top = staff_lines.iter().copied().fold(f32::INFINITY, f32::min);
+    let bottom = staff_lines
+        .iter()
+        .copied()
+        .fold(f32::NEG_INFINITY, f32::max);
+    assert!(
+        baselines[0] < top && baselines[1] > bottom,
+        "{baselines:?} versus staff {top}..{bottom}"
+    );
 }
 
 #[test]
