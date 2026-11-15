@@ -111,6 +111,11 @@ pub use model::ensemble_form::{
     EnsembleFormMeasure, EnsembleFormRequest, EnsembleFormResult, EnsembleFormSection, FormBass,
     FormHarmony, ResolvedEnsembleForm, arrange_ensemble_form, replay_ensemble_form,
 };
+pub use model::ensemble_form_visits::{
+    EnsembleFormVisitsRequest, EnsembleFormVisitsResult, FORM_VISITS_CONTRACT_VERSION,
+    FORM_VISITS_ENGINE_VERSION, FormVisitVariation, ResolvedFormVisits,
+    arrange_ensemble_form_visits, replay_ensemble_form_visits,
+};
 pub use model::ensemble_melody::{
     EnsembleMelodyDiagnostic, EnsembleMelodyRequest, EnsembleMelodyResult, MelodyRoleSection,
     arrange_ensemble_with_melody,

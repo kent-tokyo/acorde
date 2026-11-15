@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+- Add opt-in `arrange_ensemble_form_visits` and replay in Rust and full/viewer
+  WASM. A second written-measure visit can select another generated texture and
+  dynamic while retaining the original melody events and a separate written
+  base score. The source-bound contract rejects invalid visit indices,
+  unchanged alternatives, incompatible parts and ambiguous event timing.
+
 - Add opt-in `arrange_ensemble_form` and `replay_ensemble_form` in Rust and
   full/viewer WASM. An explicit whole-piece plan coordinates generated role
   entrances, harmony and bass patterns, phrase endings and per-section dynamics.

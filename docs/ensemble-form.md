@@ -41,3 +41,21 @@ It is shared by native, I/O and browser contract tests. See
 In particular contract 1 applies the same treatment to every playback visit of
 a written bar; visit-specific variation and independent phrase-aware harmony
 are still required before the whole-piece outcome is complete.
+
+`arrange_ensemble_form_visits` adds a second, opt-in performance-order contract.
+Its ordered variations select zero-based visits in the repeat-expanded sequence.
+Each variation supplies an alternative complete written plan. For its selected
+visit, generated playback events replace the base plan's generated events;
+source-part playback events remain those of the base. A written base score is
+returned separately for notation and ordinary MusicXML/MSCZ export. The event
+stream carries the visit-specific sound. It is replayable against the same
+source and engine marker. Unchanged alternatives, invalid visit indices,
+incompatible part layouts and timing that cannot be assigned unambiguously to
+visits fail atomically.
+
+The 16-bar development score repeats its first eight bars. Visit 0 retains a
+held chord, while visit 8 can play an eight-attack arpeggio over the same first
+bar. All source-melody events and the other 23 visits retain their prior
+pitch, onset, duration and velocity. A future notation/export path must render
+the variation itself in a full performance score; the returned written score
+shows the base form.

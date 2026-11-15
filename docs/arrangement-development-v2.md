@@ -36,12 +36,21 @@ artifact size, reviewed audio and publication gates remain pending. The CI size
 limit stays at v1.3.12's 7,170,000 bytes; an older provisional macOS-based budget
 increase was removed because its optimization settings differ.
 
+The visit-specific event extension passes the full native workspace suite,
+Clippy with warnings denied, formatting and both full/viewer Chrome WASM suites.
+Its fixture repeats measures 0–7: visit 0 retains the opening chord while visit
+8 has an eight-attack arpeggio. Tests compare unchanged source melody events,
+all unselected visits, and source-bound replay. The full/viewer logs are at
+`/private/tmp/acorde-arrangement-v2-visits-full-wasm.log` and
+`/private/tmp/acorde-arrangement-v2-visits-viewer-wasm.log`. It does not yet
+provide a notation/export score for the changed visit.
+
 ## Required outcomes and evidence
 
 | Outcome | Required final behavior | Current evidence / remaining work |
 | --- | --- | --- |
 | 0. Comparison baseline | Integrate prior arrangement and analysis work; preserve reproducible old outputs and fix comparison conditions. | Integration, native corpus and full/viewer Chrome suites pass. Freeze reviewed baseline audio identities, complete hosted CI/size gates, and establish the new evaluation corpus. |
-| 1. Whole-piece development | Coordinate phrases, A/B sections, entrances, pauses, density and ending shape over 16–32 bars; vary a repeated passage on a later visit. | First `arrange_ensemble_form` implementation compiles an explicit written form, coordinates phrase endings, varies bass patterns without resetting bass pitch continuity, and restores dynamics at every sounding bar. Source-bound replay and a 16-bar development fixture pass native, MusicXML/MSCZ and browser checks. Playback-visit-specific variation, longer examples and listening acceptance remain. |
+| 1. Whole-piece development | Coordinate phrases, A/B sections, entrances, pauses, density and ending shape over 16–32 bars; vary a repeated passage on a later visit. | `arrange_ensemble_form` compiles an explicit written form, coordinates phrase endings, varies bass patterns without resetting bass pitch continuity, and restores dynamics at every sounding bar. A second API selects a different generated event sequence on a later repeat visit; its written score still displays the base form. Source-bound replay and the 16-bar development fixture pass native, MusicXML/MSCZ and full/viewer browser checks. Full performance-score export for visit changes, longer examples and listening acceptance remain. |
 | 2. Harmony | Choose harmonic rhythm by phrase; add borrowed/passing harmony and supplied local-key movement, bounded change amount and cadence intent while preserving melody/locks. | Existing progression search/locks are integrated. Phrase-aware rhythm, expanded harmonic language and cadence constraints remain. Use explicit source/key/phrase input before relying on uncertain analysis. |
 | 3. Rhythm and bass | Composable pulse/rest/accent/duration rules, anticipation, syncopation, walking/ostinato bass and phrase-ending fills; coherent transitions. | Form can switch the existing three bass patterns by section. New rhythmic grammar and the named techniques remain. |
 | 4. Countermelody and voice leading | Capture motif rhythm as well as contour; inversion, augmentation/diminution, imitation, question/answer and independent inner voices across phrases. | Existing contour-based countermelody and section activity are integrated. Rhythmic development and new transformations remain. Apply style-specific voice-leading rules; analysis flags are not a general musical-quality verdict. |
