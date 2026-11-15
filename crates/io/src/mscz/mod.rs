@@ -3796,6 +3796,7 @@ fn mscx_chord_symbol(
         harmony_function,
         harmony_type: None,
         chord_ref: None,
+        written: None,
         range_end: None,
         degrees,
     }
@@ -5487,6 +5488,7 @@ mod tests {
                 harmony_function: Some("D".to_string()),
                 harmony_type: None,
                 chord_ref: None,
+                written: None,
                 range_end: None,
                 degrees: vec![
                     ChordDegree {

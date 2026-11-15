@@ -2720,6 +2720,8 @@ pub struct Note {
     /// Start/stop of an authored tuplet group, independent of the rhythmic ratio.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tuplet_boundary: Option<TupletBoundary>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tuplet_display: Option<super::notation::TupletDisplay>,
     #[serde(default)]
     pub chord_symbol: Option<ChordSymbol>,
     #[serde(default)]
@@ -2860,6 +2862,7 @@ impl Note {
             hairpin_end: false,
             tuplet: None,
             tuplet_boundary: None,
+            tuplet_display: None,
             chord_symbol: None,
             is_grace: false,
             grace_slash: false,
@@ -2926,6 +2929,7 @@ impl Note {
             hairpin_end: false,
             tuplet: None,
             tuplet_boundary: None,
+            tuplet_display: None,
             chord_symbol: None,
             is_grace: false,
             grace_slash: false,

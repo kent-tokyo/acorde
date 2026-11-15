@@ -1460,7 +1460,10 @@ pub(crate) fn build_svg_with_metadata_placement(
             if col == 0 && row_idx > 0 {
                 let _ = write!(
                     body,
-                    r#"<text class="acorde-measure-number" x="{}" y="{}" font-family="serif" font-style="italic" font-size="{}">{}</text>"#,
+                    r#"<text class="acorde-measure-number" data-part="{}" data-staff="{}" data-measure="{}" x="{}" y="{}" font-family="serif" font-style="italic" font-size="{}">{}</text>"#,
+                    staff_refs[0].0,
+                    staff_refs[0].1,
+                    measure_idx,
                     f(left_margin_u * space),
                     f(system_top_y - 1.2 * space),
                     f(if measured_print_active() {
@@ -5755,7 +5758,11 @@ fn measured_columns(
                         // that space between successive rhythmic columns.
                         let left = notation / 2.0 + accidental + grace_width;
                         let right = notation / 2.0;
-                        events.push((beat, left, right));
+                        let physical_staff = note
+                            .cross_staff
+                            .as_ref()
+                            .map_or(staff_index, |c| c.target_staff);
+                        events.push((beat, left, right, part_index, physical_staff));
                         lane.push((beat, note));
                         if beat < 1e-9 {
                             text_lead = text_lead.max(note_annotation_width_u(note) / 2.0);
@@ -5774,18 +5781,24 @@ fn measured_columns(
     onsets.dedup_by(|a, b| (*a - *b).abs() < 1e-9);
     onsets.retain(|beat| *beat < total_beats - 1e-9);
     let mut lefts = vec![0.7_f32; onsets.len()];
-    let mut rights = vec![0.7_f32; onsets.len()];
-    for (beat, left, right) in events {
+    type StaffInkColumns = Vec<Option<(f32, f32)>>;
+    let mut staff_columns: std::collections::BTreeMap<(usize, usize), StaffInkColumns> =
+        std::collections::BTreeMap::new();
+    for (beat, left, right, part, staff) in events {
         if let Some(i) = onsets.iter().position(|onset| (*onset - beat).abs() < 1e-9) {
             lefts[i] = lefts[i].max(left);
-            rights[i] = rights[i].max(right);
+            let column = &mut staff_columns
+                .entry((part, staff))
+                .or_insert_with(|| vec![None; onsets.len()])[i];
+            *column = Some(column.map_or((left, right), |(l, r)| (l.max(left), r.max(right))));
         }
     }
+    let mut clef_extra = vec![0.0; onsets.len()];
     for change in bars.iter().flat_map(|bar| &bar.mid_clefs) {
         if let Some(beat) = change.offset.beats()
             && let Some(i) = onsets.iter().position(|onset| *onset >= beat - 1e-9)
         {
-            lefts[i] += MID_CLEF_GAP_U;
+            clef_extra[i] = MID_CLEF_GAP_U;
         }
     }
     let repeat_lead = if bars
@@ -5796,12 +5809,40 @@ fn measured_columns(
     } else {
         0.0
     };
-    let lead_u = lefts.first().copied().unwrap_or(0.7).max(text_lead) + 1.0 + repeat_lead;
-    let mut minimums = onsets
-        .iter()
-        .enumerate()
-        .map(|(i, _)| rights[i] + lefts.get(i + 1).copied().unwrap_or(0.0) + 0.5)
-        .collect::<Vec<_>>();
+    let lead_u = (lefts.first().copied().unwrap_or(0.7)
+        + clef_extra.first().copied().unwrap_or(0.0))
+    .max(text_lead)
+        + 1.0
+        + repeat_lead;
+    // Interleaved onsets on different staves need rhythmic order, not another full
+    // notehead-width gap. Reserve actual neighboring ink on each physical staff
+    // across the shared time columns (including cross-staff notes).
+    let mut minimums = vec![0.35_f32; onsets.len()];
+    for columns in staff_columns.values() {
+        let occupied: Vec<_> = columns
+            .iter()
+            .enumerate()
+            .filter_map(|(i, bounds)| bounds.map(|b| (i, b)))
+            .collect();
+        for (position, &(from, (_, right))) in occupied.iter().enumerate() {
+            let (end, needed) = occupied
+                .get(position + 1)
+                .map_or((total_beats, right + 0.5), |&(to, (left, _))| {
+                    (onsets[to], right + left + clef_extra[to] + 0.5)
+                });
+            let span = end - onsets[from];
+            if span <= 0.0 {
+                continue;
+            }
+            for i in from..onsets.len() {
+                if onsets[i] >= end - 1e-9 {
+                    break;
+                }
+                let next = onsets.get(i + 1).copied().unwrap_or(total_beats).min(end);
+                minimums[i] = minimums[i].max(needed * ((next - onsets[i]) / span) as f32);
+            }
+        }
+    }
     // Text in one lyric/annotation lane constrains the distance to the next event
     // in that voice, not the intervening piano notes on another staff.
     for lane in lanes {
@@ -6106,11 +6147,19 @@ fn render_measure_voice_tuplets(body: &mut String, context: &TupletRenderContext
         if group.note_indices.len() < 2 {
             continue;
         }
-        let group_stem_up = group
+        let display = group
             .note_indices
-            .iter()
-            .find_map(|&i| (!notes[i].is_rest).then(|| notes[i].stem_up.unwrap_or(*voice_stem_up)))
-            .unwrap_or(*voice_stem_up);
+            .first()
+            .and_then(|&i| notes[i].tuplet_display.as_ref());
+        let group_stem_up = display.and_then(|d| d.above).unwrap_or_else(|| {
+            group
+                .note_indices
+                .iter()
+                .find_map(|&i| {
+                    (!notes[i].is_rest).then(|| notes[i].stem_up.unwrap_or(*voice_stem_up))
+                })
+                .unwrap_or(*voice_stem_up)
+        });
         let beamed_fully = group
             .note_indices
             .iter()
@@ -6136,16 +6185,35 @@ fn render_measure_voice_tuplets(body: &mut String, context: &TupletRenderContext
                 }
             })
             .collect();
-        let plan = tuplets::plan_tuplet(
+        let plan = tuplets::plan_tuplet_with_display(
             &group_xs,
             &ref_ys,
             group.actual_notes,
+            group.normal_notes,
             group_stem_up,
             beamed_fully,
             *space,
+            display,
         );
+        if plan.svg.is_empty() {
+            continue;
+        }
         if measured_print_active() {
             let [left, right, top, bottom] = plan.bounds;
+            let cross_staff = group.note_indices.iter().any(|&i| {
+                notes[i]
+                    .cross_staff
+                    .as_ref()
+                    .is_some_and(|c| c.target_staff != *staff)
+            });
+            let physical_staves = group.note_indices.iter().map(|&i| {
+                notes[i]
+                    .cross_staff
+                    .as_ref()
+                    .map_or(*staff, |c| c.target_staff)
+            });
+            let first_staff = physical_staves.clone().min().unwrap_or(*staff);
+            let last_staff = physical_staves.max().unwrap_or(*staff);
             let shift = if group_stem_up {
                 (bottom_y - 4.4 * space - bottom).min(0.0)
             } else {
@@ -6155,7 +6223,7 @@ fn render_measure_voice_tuplets(body: &mut String, context: &TupletRenderContext
             let bottom = bottom + shift;
             let _ = write!(
                 body,
-                "<g data-print-tuplet=\"true\" data-part=\"{part}\" data-staff=\"{staff}\" data-measure=\"{measure_idx}\" data-print-left=\"{left}\" data-print-right=\"{right}\" data-print-top=\"{top}\" data-print-bottom=\"{bottom}\" transform=\"translate(0 {shift})\">"
+                "<g data-print-tuplet=\"true\" data-print-cross-staff=\"{cross_staff}\" data-print-above=\"{group_stem_up}\" data-first-staff=\"{first_staff}\" data-last-staff=\"{last_staff}\" data-part=\"{part}\" data-staff=\"{staff}\" data-measure=\"{measure_idx}\" data-print-left=\"{left}\" data-print-right=\"{right}\" data-print-top=\"{top}\" data-print-bottom=\"{bottom}\" transform=\"translate(0 {shift})\">"
             );
         }
         body.push_str(&plan.svg);
@@ -7493,6 +7561,28 @@ fn noncolliding_voice_noteheads(left: &Note, right: &Note) -> bool {
         })
 }
 
+fn shared_print_noteheads(left: &Note, right: &Note) -> bool {
+    let filled = |n: &Note| {
+        !matches!(
+            n.duration,
+            Duration::Longa | Duration::Breve | Duration::Whole | Duration::Half
+        )
+    };
+    measured_print_active()
+        && !left.hidden
+        && !right.hidden
+        && !left.is_rest
+        && !right.is_rest
+        && left.pitches == right.pitches
+        && !left.pitches.is_empty()
+        && filled(left)
+        && filled(right)
+        && left.stem_up.zip(right.stem_up).is_some_and(|(a, b)| a != b)
+        && left.cross_staff == right.cross_staff
+        && left.note_head == right.note_head
+        && left.pitch_parentheses == right.pitch_parentheses
+}
+
 fn voice_separation_u(
     measure: &Measure,
     voice_slots: &[usize],
@@ -7521,10 +7611,9 @@ fn voice_separation_u(
             .iter()
             .all(|note| note_annotation_width_u(note) == 0.0)
         && notes.iter().enumerate().all(|(index, note)| {
-            notes
-                .iter()
-                .skip(index + 1)
-                .all(|other| noncolliding_voice_noteheads(note, other))
+            notes.iter().skip(index + 1).all(|other| {
+                noncolliding_voice_noteheads(note, other) || shared_print_noteheads(note, other)
+            })
         })
     {
         return 0.0;
@@ -8194,7 +8283,7 @@ fn render_all_spans(
                     );
                 }
                 if measured_print_active() {
-                    write_measured_slur_owner(body, score, start, end, row);
+                    write_measured_slur_owner(body, score, points, start, end, row);
                 }
                 render_slur_ribbon(
                     body,
@@ -8300,7 +8389,7 @@ fn render_all_spans(
             slur_geometry.map_or((None, None), |geometry| (geometry.1, geometry.2));
         let measured_slur = measured_print_active() && matches!(span, SpanMark::Slur { .. });
         if measured_slur {
-            write_measured_slur_owner(body, score, start, end, row1);
+            write_measured_slur_owner(body, score, points, start, end, row1);
         }
         render_same_row_span(
             body,
@@ -8584,27 +8673,16 @@ pub(crate) type SlurCurve = ((f32, f32), (f32, f32), (f32, f32), bool);
 fn write_measured_slur_owner(
     body: &mut String,
     score: &Score,
+    points: &HashMap<NoteKey, NotePoint>,
     start: &acorde_layout::NoteAddr,
     end: &acorde_layout::NoteAddr,
     row: usize,
 ) {
-    let physical_staff = |address: &acorde_layout::NoteAddr| {
-        score
-            .parts
-            .get(address.part)
-            .and_then(|p| p.staves.get(address.staff))
-            .and_then(|s| s.measures.get(address.measure))
-            .and_then(|m| m.voices.get(address.voice))
-            .and_then(|v| v.get(address.note))
-            .and_then(|n| n.cross_staff.as_ref())
-            .map_or(address.staff, |c| c.target_staff)
-    };
+    let (first_staff, last_staff) = slur_physical_staves(score, points, start, end, row);
     let _ = write!(
         body,
-        "<g data-print-slur=\"true\" data-row=\"{row}\" data-part=\"{}\" data-staff=\"{}\" data-end-staff=\"{}\" data-start-note-addr=\"{}:{}:{}:{}:{}\" data-end-note-addr=\"{}:{}:{}:{}:{}\">",
+        "<g data-print-slur=\"true\" data-row=\"{row}\" data-part=\"{}\" data-staff=\"{first_staff}\" data-end-staff=\"{last_staff}\" data-start-note-addr=\"{}:{}:{}:{}:{}\" data-end-note-addr=\"{}:{}:{}:{}:{}\">",
         start.part,
-        physical_staff(start),
-        physical_staff(end),
         start.part,
         start.staff,
         start.measure,
@@ -8616,6 +8694,53 @@ fn write_measured_slur_owner(
         end.voice,
         end.note
     );
+}
+
+fn slur_physical_staves(
+    score: &Score,
+    points: &HashMap<NoteKey, NotePoint>,
+    start: &acorde_layout::NoteAddr,
+    end: &acorde_layout::NoteAddr,
+    row: usize,
+) -> (usize, usize) {
+    let physical_staff = |address: &acorde_layout::NoteAddr| {
+        score
+            .parts
+            .get(address.part)
+            .and_then(|p| p.staves.get(address.staff))
+            .and_then(|s| s.measures.get(address.measure))
+            .and_then(|m| m.voices.get(address.voice))
+            .and_then(|v| v.get(address.note))
+            .and_then(|n| n.cross_staff.as_ref())
+            .map_or(address.staff, |c| c.target_staff)
+    };
+    let a = physical_staff(start);
+    let b = physical_staff(end);
+    let (mut first, mut last) = (a.min(b), a.max(b));
+    for (&(part, staff, measure, voice, note), &(_, _, _, point_row)) in points {
+        if part != start.part
+            || point_row != row
+            || staff < start.staff.min(end.staff)
+            || staff > start.staff.max(end.staff)
+            || (voice != start.voice && voice != end.voice)
+            || measure < start.measure
+            || measure > end.measure
+            || (measure == start.measure && note < start.note)
+            || (measure == end.measure && note > end.note)
+        {
+            continue;
+        }
+        let physical = physical_staff(&acorde_layout::NoteAddr {
+            part,
+            staff,
+            measure,
+            voice,
+            note,
+        });
+        first = first.min(physical);
+        last = last.max(physical);
+    }
+    (first, last)
 }
 
 /// Same-row slurs over `measure` whose end notes are already placed, and ties leaving the
@@ -8706,6 +8831,12 @@ fn placed_slur_curves(
         };
         if row1 != row2 || (x2 - x1).abs() < 0.6 * space {
             continue;
+        }
+        if measured_print_active() {
+            let (first, last) = slur_physical_staves(score, points, start, end, row1);
+            if first != last {
+                continue;
+            }
         }
         let above = spans::slur_above(score, layout, points, start, end, up1, up2, span_index);
         let (anchors, extreme, clearance) = same_row_slur_geometry(
@@ -12350,6 +12481,51 @@ mod tests {
     }
 
     #[test]
+    fn interleaved_staves_share_rhythmic_columns_without_full_head_gaps_between_staves() {
+        let mut score = Score::new("polyrhythm", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] = (0..4)
+            .map(|_| Note::new(Pitch::new(Step::C, 4), Duration::Quarter))
+            .collect();
+        let mut lower = acorde_core::Staff::new(acorde_core::Clef::Bass);
+        let mut bar = Measure::empty(4, 4);
+        bar.voices[0] = (0..6)
+            .map(|_| {
+                let mut n = Note::new(Pitch::new(Step::C, 3), Duration::Quarter);
+                n.tuplet = Some(acorde_core::TupletInfo {
+                    actual_notes: 3,
+                    normal_notes: 2,
+                });
+                n
+            })
+            .collect();
+        lower.measures.push(bar);
+        score.parts[0].staves.push(lower);
+        let empty = HashMap::new();
+        let split = super::measured_columns(&score, 0, 4.0, &empty, &empty);
+        // Every pair of consecutive notes on either actual staff retains the
+        // required head clearance, even with another staff's onset between them.
+        for step in [1.0, 2.0 / 3.0] {
+            let mut beat = 0.0;
+            while beat + step < 4.0 - 1e-8 {
+                let gap: f32 = split
+                    .onsets
+                    .iter()
+                    .zip(&split.gaps)
+                    .filter(|(t, _)| **t >= beat - 1e-8 && **t < beat + step - 1e-8)
+                    .map(|(_, g)| g.minimum_mm)
+                    .sum();
+                assert!(gap >= 1.62 - 1e-5);
+                beat += step;
+            }
+        }
+        let lower = score.parts[0].staves.pop().unwrap();
+        score.parts[0].staves[0].measures[0].voices[1] = lower.measures[0].voices[0].clone();
+        let combined = super::measured_columns(&score, 0, 4.0, &empty, &empty);
+        assert_eq!(split.onsets, combined.onsets);
+        assert!(split.spacing().minimum_mm < combined.spacing().minimum_mm);
+    }
+
+    #[test]
     fn figured_bass_standalone_accidental_uses_music_symbol() {
         let mut measure = Measure::empty(4, 4);
         measure.figured_bass.push(acorde_core::FiguredBassFigure {
@@ -12615,6 +12791,7 @@ mod tests {
                 harmony_function: None,
                 harmony_type: None,
                 chord_ref: None,
+                written: None,
                 range_end: None,
                 degrees: Vec::new(),
             });

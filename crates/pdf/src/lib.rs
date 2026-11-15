@@ -290,6 +290,9 @@ fn normalize_svg_rotated_ellipses(svg: &str) -> Result<String, PdfError> {
     if document.descendants().any(|node| {
         node.is_text()
             && node
+                .ancestors()
+                .any(|parent| matches!(parent.tag_name().name(), "text" | "tspan"))
+            && node
                 .text()
                 .is_some_and(|text| text.chars().any(|c| ('\u{E000}'..='\u{F8FF}').contains(&c)))
     }) {
@@ -316,6 +319,17 @@ fn serialize_node(
     output: &mut String,
     flatten_paths: bool,
 ) -> Result<(), PdfError> {
+    // Harumi 1.23.8 ignores SVG visibility on groups. Hidden source notes/rests
+    // must not become printed ink when their editing geometry reaches this adapter.
+    if node.attribute("visibility") == Some("hidden")
+        && node.attribute("class").is_some_and(|classes| {
+            classes
+                .split_whitespace()
+                .any(|class| class == "acorde-hidden")
+        })
+    {
+        return Ok(());
+    }
     match node.node_type() {
         NodeType::Root => serialize_children(node, output, flatten_paths),
         NodeType::Text => {
@@ -557,6 +571,11 @@ enum PathToken {
 }
 
 fn flatten_path(raw: &str) -> Result<Vec<Subpath>, SvgPathError> {
+    // Empty path data is legal SVG and paints nothing (for example an outlined
+    // whitespace-only text run). It is not a malformed initial line command.
+    if raw.trim().is_empty() {
+        return Ok(Vec::new());
+    }
     let tokens = tokenize_path(raw)?;
     let mut index = 0;
     let mut command = None;
@@ -1044,6 +1063,19 @@ mod tests {
     }
 
     #[test]
+    fn outlined_music_metadata_is_allowed_and_hidden_editing_geometry_is_removed() {
+        let svg = "<svg xmlns=\"http://www.w3.org/2000/svg\"><g data-acorde-outlined-text=\"true\"><title>\u{e047}</title><path d=\"M 0 0 L 2 0 L 2 2 Z\"/></g><g class=\"acorde-rest acorde-hidden\" visibility=\"hidden\"><path id=\"hidden-rest\" d=\"M 5 5 L 8 5 L 8 8 Z\"/></g></svg>";
+        let normalized = super::normalize_svg_rotated_ellipses(svg).unwrap();
+        assert!(!normalized.contains("hidden-rest"));
+        assert!(!normalized.contains("acorde-hidden"));
+        assert!(normalized.contains("<polygon"));
+        assert!(matches!(
+            super::normalize_svg_rotated_ellipses("<svg><text>\u{e047}</text></svg>"),
+            Err(PdfError::MusicFontText)
+        ));
+    }
+
+    #[test]
     fn adjacent_triplets_remain_separate_in_pdf_source() {
         let mut score = Score::new("", 120, 4, 4, 0, 1);
         let mut notes = Vec::new();
@@ -1170,6 +1202,18 @@ mod tests {
             Err(PdfError::SvgPath(SvgPathError::IncompleteArguments {
                 command: 'C'
             }))
+        ));
+    }
+
+    #[test]
+    fn empty_outline_paths_are_valid_nonpainting_geometry() {
+        let source = r#"<svg width="10" height="10"><g data-acorde-outlined-text="true"><title> </title><path d=""/></g><path d="  "/><path d="M 0 0 L 1 1" stroke="black" fill="none"/></svg>"#;
+        let normalized = normalize_svg_for_harumi(source).expect("empty SVG paths are valid");
+        assert!(normalized.contains("polyline"));
+        assert!(!normalized.contains("<polygon"));
+        assert!(matches!(
+            super::flatten_path("L 1 2"),
+            Err(SvgPathError::MissingMove)
         ));
     }
 

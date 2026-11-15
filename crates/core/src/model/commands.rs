@@ -113,6 +113,7 @@ pub enum Command {
     SetStem(SetStemCmd),
     SetArpeggio(SetArpeggioCmd),
     SetArpeggioNumber(SetArpeggioNumberCmd),
+    SetTupletDisplay(SetTupletDisplayCmd),
     SetTechniqueText(SetTechniqueTextCmd),
     SetFingering(SetFingeringCmd),
     SetFingerings(SetFingeringsCmd),
@@ -837,6 +838,16 @@ pub struct SetArpeggioNumberCmd {
     pub number: Option<u16>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetTupletDisplayCmd {
+    pub part_index: usize,
+    pub staff_index: usize,
+    pub measure_index: usize,
+    pub voice_index: usize,
+    pub note_index: usize,
+    pub display: Option<super::notation::TupletDisplay>,
+}
+
 /// Set (or clear) the technique-text annotation on a note ("pizz.", "arco", "con sord.", etc.).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SetTechniqueTextCmd {
@@ -1530,6 +1541,7 @@ pub fn command_hint(cmd: &Command) -> ChangeHint {
 
         Command::SetArpeggio(c) => hint!(meas!(c), false, false),
         Command::SetArpeggioNumber(c) => hint!(meas!(c), false, false),
+        Command::SetTupletDisplay(c) => hint!(meas!(c), false, false),
 
         Command::SetTechniqueText(c) => hint!(meas!(c), false, false),
         Command::SetFingering(c) => hint!(meas!(c), false, false),
@@ -1677,6 +1689,7 @@ pub fn command_label(cmd: &Command) -> String {
         Command::SetStem(_) => "Set Stem".to_string(),
         Command::SetArpeggio(_) => "Set Arpeggio".to_string(),
         Command::SetArpeggioNumber(_) => "Set Arpeggio Number".to_string(),
+        Command::SetTupletDisplay(_) => "Set Tuplet Display".to_string(),
         Command::SetTechniqueText(_) => "Set Technique Text".to_string(),
         Command::SetFingering(_) => "Set Fingering".to_string(),
         Command::SetFingerings(_) => "Set Fingering Candidates".to_string(),
@@ -1804,6 +1817,7 @@ pub fn command_key(cmd: &Command) -> String {
         Command::SetStem(_) => "SetStem".to_string(),
         Command::SetArpeggio(_) => "SetArpeggio".to_string(),
         Command::SetArpeggioNumber(_) => "SetArpeggioNumber".to_string(),
+        Command::SetTupletDisplay(_) => "SetTupletDisplay".to_string(),
         Command::SetTechniqueText(_) => "SetTechniqueText".to_string(),
         Command::SetFingering(_) => "SetFingering".to_string(),
         Command::SetFingerings(_) => "SetFingerings".to_string(),
@@ -2231,6 +2245,18 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
                 c.note_index,
             )?
             .arpeggio_number = c.number;
+            Ok(())
+        }
+        Command::SetTupletDisplay(c) => {
+            get_note_mut(
+                score,
+                c.part_index,
+                c.staff_index,
+                c.measure_index,
+                c.voice_index,
+                c.note_index,
+            )?
+            .tuplet_display = c.display.clone();
             Ok(())
         }
         Command::SetGlissando(c) => {
@@ -5637,6 +5663,7 @@ mod tests {
             harmony_function: None,
             harmony_type: None,
             chord_ref: None,
+            written: None,
             range_end: None,
             degrees: Vec::new(),
         });
@@ -7830,6 +7857,55 @@ mod tests {
         assert_eq!(
             serde_json::to_value(&score).unwrap(),
             serde_json::to_value(&original).unwrap()
+        );
+    }
+
+    #[test]
+    fn tuplet_display_is_backward_compatible_and_undoable() {
+        let mut score = Score::new("Tuplet", 120, 4, 4, 0, 1);
+        let note = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+        let old = serde_json::to_value(&note).unwrap();
+        assert!(old.get("tuplet_display").is_none());
+        assert!(
+            serde_json::from_value::<Note>(old)
+                .unwrap()
+                .tuplet_display
+                .is_none()
+        );
+        score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+        let display = super::super::notation::TupletDisplay {
+            bracket: Some(false),
+            number: super::super::notation::TupletNumberDisplay::None,
+            above: Some(true),
+        };
+        let mut stack = CommandStack::new(4);
+        stack
+            .execute(
+                Command::SetTupletDisplay(SetTupletDisplayCmd {
+                    part_index: 0,
+                    staff_index: 0,
+                    measure_index: 0,
+                    voice_index: 0,
+                    note_index: 0,
+                    display: Some(display.clone()),
+                }),
+                &mut score,
+            )
+            .unwrap();
+        assert_eq!(
+            score.parts[0].staves[0].measures[0].voices[0][0].tuplet_display,
+            Some(display.clone())
+        );
+        stack.undo(&mut score).unwrap();
+        assert!(
+            score.parts[0].staves[0].measures[0].voices[0][0]
+                .tuplet_display
+                .is_none()
+        );
+        stack.redo(&mut score).unwrap();
+        assert_eq!(
+            score.parts[0].staves[0].measures[0].voices[0][0].tuplet_display,
+            Some(display)
         );
     }
 

@@ -52,6 +52,7 @@ pub(crate) fn append_gap_rests(
                 actual_notes: 3,
                 normal_notes: 2,
             });
+            hide_gap_tuplet(&mut rest);
             voice.push(rest);
             break;
         }
@@ -85,6 +86,7 @@ pub(crate) fn append_gap_rests(
                 actual_notes,
                 normal_notes,
             });
+            hide_gap_tuplet(&mut rest);
             voice.push(rest);
             break;
         }
@@ -113,4 +115,15 @@ pub(crate) fn append_gap_rests(
         ticks -= duration_ticks;
     }
     Ok(())
+}
+
+// A timing placeholder is never a written tuplet. Keep it separate from the
+// following source group and preserve that invisibility through MusicXML export.
+fn hide_gap_tuplet(rest: &mut Note) {
+    rest.tuplet_boundary = Some(acorde_core::TupletBoundary::StartStop);
+    rest.tuplet_display = Some(acorde_core::TupletDisplay {
+        bracket: Some(false),
+        number: acorde_core::TupletNumberDisplay::None,
+        above: None,
+    });
 }

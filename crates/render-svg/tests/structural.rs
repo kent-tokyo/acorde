@@ -1148,6 +1148,7 @@ fn note_annotations_are_rendered_and_xml_escaped() {
         harmony_function: None,
         harmony_type: None,
         chord_ref: None,
+        written: None,
         range_end: None,
         degrees: Vec::new(),
     });
@@ -1552,6 +1553,7 @@ fn metadata_exposes_typed_note_semantics_without_svg_parsing() {
         harmony_function: None,
         harmony_type: None,
         chord_ref: None,
+        written: None,
         range_end: None,
         degrees: Vec::new(),
     });
@@ -1800,6 +1802,7 @@ fn metadata_exposes_typed_harmony_ranges_for_browser_hosts() {
         harmony_function: None,
         harmony_type: None,
         chord_ref: None,
+        written: None,
         range_end: Some(NoteAddr {
             part: 0,
             staff: 0,
@@ -1897,6 +1900,7 @@ fn measure_text_moves_outside_note_annotation_lane() {
         harmony_function: None,
         harmony_type: None,
         chord_ref: None,
+        written: None,
         range_end: None,
         degrees: Vec::new(),
     });

@@ -1657,6 +1657,12 @@ fn fixture_manifest_sha256_matches_checked_in_files() {
                 include_bytes!("../../../tests/fixtures/UprightPianoKW-small-20190703.sf2")
             }
             "FluidR3Mono_GM.sf3" => include_bytes!("../../../tests/fixtures/FluidR3Mono_GM.sf3"),
+            "openscore_lieder_brahms_gestillte_sehnsucht.mxl" => include_bytes!(
+                "../../../tests/fixtures/openscore_lieder_brahms_gestillte_sehnsucht.mxl"
+            ),
+            "harmony_written.musicxml" => {
+                include_bytes!("../../../tests/fixtures/harmony_written.musicxml")
+            }
             other => panic!("manifest fixture has no embedded test mapping: {other}"),
         };
         let actual = Sha256::digest(bytes)
@@ -3689,6 +3695,7 @@ fn non_mei_exports_report_harmonic_type_loss() {
         harmony_function: None,
         harmony_type: Some("roman".to_string()),
         chord_ref: Some("#harmonychordA".to_string()),
+        written: None,
         range_end: Some(NoteAddr {
             part: 0,
             staff: 0,
@@ -8340,4 +8347,96 @@ mod kern_pae_tests {
             assert!(acorde_io::parse_pae(&huge).is_err());
         }
     }
+}
+
+#[test]
+fn harmony_written_spelling_and_numerals_roundtrip_without_inventing_pitch_roots() {
+    let score = parse_musicxml(include_str!(
+        "../../../tests/fixtures/harmony_written.musicxml"
+    ))
+    .unwrap();
+    let chords = |s: &acorde_core::Score| {
+        s.parts[0].staves[0].measures[0].voices[0]
+            .iter()
+            .map(|n| n.chord_symbol.clone().unwrap())
+            .collect::<Vec<_>>()
+    };
+    let expected = chords(&score);
+    assert_eq!(
+        expected
+            .iter()
+            .map(|c| c.display_text())
+            .collect::<Vec<_>>(),
+        ["|PAC", "i6", "#vii°", "F#sus"]
+    );
+    assert_eq!(expected[0].root, "C");
+    assert!(expected[1].root.is_empty());
+    assert_eq!(
+        expected[2]
+            .written
+            .as_ref()
+            .unwrap()
+            .numeral
+            .as_ref()
+            .unwrap()
+            .key
+            .as_ref()
+            .unwrap()
+            .fifths,
+        -2
+    );
+    let xml = serialize_musicxml(&score).unwrap();
+    assert!(xml.contains("<root-step text=\"\">C</root-step>"));
+    let reparsed = parse_musicxml(&xml).unwrap();
+    assert_eq!(chords(&reparsed), expected);
+    let old_json = r#"{"root":"C","kind":"major","bass":null}"#;
+    let old: acorde_core::ChordSymbol = serde_json::from_str(old_json).unwrap();
+    assert!(old.written.is_none());
+    assert_eq!(old.display_text(), "C");
+}
+
+#[test]
+fn authored_tuplet_visibility_and_placement_survive_musicxml_roundtrip() {
+    let score = acorde_io::parse_mxl(include_bytes!(
+        "../../../tests/fixtures/openscore_lieder_brahms_gestillte_sehnsucht.mxl"
+    ))
+    .unwrap();
+    // The voice starts on the lower staff and crosses upward within the same
+    // authored beam. Its tuplet start must not be separated from the stop.
+    for measure in [21, 22] {
+        let lower = &score.parts[2].staves[1].measures[measure].voices[0];
+        assert_eq!(
+            lower[2].cross_staff.as_ref().map(|c| c.target_staff),
+            Some(0)
+        );
+        assert_eq!(
+            lower[0].tuplet_boundary,
+            Some(acorde_core::TupletBoundary::Start)
+        );
+        assert_eq!(
+            lower[2].tuplet_boundary,
+            Some(acorde_core::TupletBoundary::Stop)
+        );
+        assert!(lower[..3].iter().all(|n| !n.is_rest));
+    }
+    let displays = |score: &acorde_core::Score| {
+        score
+            .parts
+            .iter()
+            .flat_map(|p| &p.staves)
+            .flat_map(|s| &s.measures)
+            .flat_map(|m| &m.voices)
+            .flatten()
+            .filter_map(|n| n.tuplet_display.clone())
+            .collect::<Vec<_>>()
+    };
+    let expected = displays(&score);
+    assert!(expected.iter().any(|d| d.number == acorde_core::TupletNumberDisplay::None && d.bracket == Some(false)));
+    assert!(
+        expected
+            .iter()
+            .any(|d| d.number == acorde_core::TupletNumberDisplay::Actual && d.above == Some(true))
+    );
+    let output = serialize_musicxml(&score).unwrap();
+    assert_eq!(displays(&parse_musicxml(&output).unwrap()), expected);
 }

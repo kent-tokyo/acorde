@@ -467,6 +467,26 @@
       "sha256": "8954e4100ec92b14df3f904e1c2cec79ab9d837c91e9e5c387a3163c23aaf688",
       "round_trip": "semantic",
       "expected_losses": []
+    },
+    {
+      "path": "openscore_lieder_brahms_gestillte_sehnsucht.mxl",
+      "format": "mxl",
+      "license": "CC0-1.0",
+      "source_url": "https://github.com/OpenScore/Lieder/blob/38c5db510224d9facdc4b08d741fc788cfb58ea8/scores/Brahms%2C_Johannes/2_Ges%C3%A4nge%2C_Op.91/1_Gestillte_Sehnsucht/lc6302395.mxl",
+      "source_revision": "38c5db510224d9facdc4b08d741fc788cfb58ea8",
+      "sha256": "9291808a4f38924fda4d54dbe281a81a2ae292dcf460286887f6ce26d04e7279",
+      "round_trip": "import-only",
+      "expected_losses": [
+        "MusicXML rendering attributes"
+      ]
+    },
+    {
+      "path": "harmony_written.musicxml",
+      "format": "musicxml",
+      "license": "self-authored",
+      "sha256": "e97b33310beb4437c640e23a3c66cb4d713e5e1071648c7b517c30acd0284568",
+      "round_trip": "semantic",
+      "expected_losses": []
     }
   ]
 }

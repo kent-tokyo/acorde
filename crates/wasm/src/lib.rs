@@ -3131,6 +3131,7 @@ mod tests {
                 harmony_function: None,
                 harmony_type: None,
                 chord_ref: None,
+                written: None,
                 range_end: None,
                 degrees: Vec::new(),
             }),
@@ -3502,6 +3503,7 @@ mod tests {
                 harmony_function: None,
                 harmony_type: None,
                 chord_ref: None,
+                written: None,
                 range_end: None,
                 degrees: Vec::new(),
             });

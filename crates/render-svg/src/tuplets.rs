@@ -8,6 +8,7 @@
 //! same code path — only the displayed digit(s) change; no per-ratio special-casing.
 
 use crate::glyphs;
+use std::fmt::Write as _;
 
 const BRACKET_CLEARANCE_U: f32 = 0.8; // gap beyond the outermost stem/rest tip
 const HOOK_LEN_U: f32 = 0.6; // vertical hook at each bracket end
@@ -23,6 +24,7 @@ pub(crate) struct TupletPlan {
 /// group by the caller). `ref_ys` is each note's "far" reference point — the stem tip (or
 /// beam-adjusted tip) for a pitched note, or an approximate vertical center for a rest —
 /// i.e. however far the bracket must clear on the `stem_up` side.
+#[cfg(test)]
 pub(crate) fn plan_tuplet(
     xs: &[f32],
     ref_ys: &[f32],
@@ -31,6 +33,40 @@ pub(crate) fn plan_tuplet(
     beamed_fully: bool,
     space: f32,
 ) -> TupletPlan {
+    plan_tuplet_with_display(
+        xs,
+        ref_ys,
+        actual_notes,
+        0,
+        stem_up,
+        beamed_fully,
+        space,
+        None,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn plan_tuplet_with_display(
+    xs: &[f32],
+    ref_ys: &[f32],
+    actual_notes: u8,
+    normal_notes: u8,
+    stem_up: bool,
+    beamed_fully: bool,
+    space: f32,
+    display: Option<&acorde_core::TupletDisplay>,
+) -> TupletPlan {
+    let stem_up = display.and_then(|d| d.above).unwrap_or(stem_up);
+    let beamed_fully = display
+        .and_then(|d| d.bracket)
+        .map_or(beamed_fully, |bracket| !bracket);
+    let show_number = display.map_or(acorde_core::TupletNumberDisplay::Actual, |d| d.number);
+    if beamed_fully && show_number == acorde_core::TupletNumberDisplay::None {
+        return TupletPlan {
+            svg: String::new(),
+            bounds: [0.0; 4],
+        };
+    }
     let dir = if stem_up { -1.0 } else { 1.0 };
     let extreme =
         ref_ys.iter().copied().fold(
@@ -53,7 +89,11 @@ pub(crate) fn plan_tuplet(
         svg.push_str(&glyphs::tuplet_line(
             x_last, hook_end_y, x_last, bracket_y, space,
         ));
-        let gap = NUMBER_HALF_GAP_U * space;
+        let gap = match show_number {
+            acorde_core::TupletNumberDisplay::None => 0.0,
+            acorde_core::TupletNumberDisplay::Both => 2.0 * NUMBER_HALF_GAP_U * space,
+            _ => NUMBER_HALF_GAP_U * space,
+        };
         if x_mid - gap > x_first {
             svg.push_str(&glyphs::tuplet_line(
                 x_first,
@@ -82,17 +122,57 @@ pub(crate) fn plan_tuplet(
     } else {
         bracket_y
     };
-    svg.push_str(&glyphs::tuplet_number(actual_notes, x_mid, number_y, space));
+    match show_number {
+        acorde_core::TupletNumberDisplay::Actual => {
+            svg.push_str(&glyphs::tuplet_number(actual_notes, x_mid, number_y, space))
+        }
+        acorde_core::TupletNumberDisplay::Both => {
+            svg.push_str(&glyphs::tuplet_number(
+                actual_notes,
+                x_mid - 0.9 * space,
+                number_y,
+                space,
+            ));
+            svg.push_str(&glyphs::tuplet_number(
+                normal_notes,
+                x_mid + 0.9 * space,
+                number_y,
+                space,
+            ));
+            for dy in [-0.18, 0.35] {
+                let _ = write!(
+                    svg,
+                    "<circle class=\"acorde-tuplet-colon\" cx=\"{x_mid}\" cy=\"{}\" r=\"{}\" fill=\"black\"/>",
+                    number_y + dy * space,
+                    0.1 * space
+                );
+            }
+        }
+        acorde_core::TupletNumberDisplay::None => {}
+    }
 
     // digit() has a 2-space control-point box and a 0.34-space stroke.
     let digit_space = 0.65 * space;
-    let half_width =
+    let mut half_width =
         f32::from(actual_notes.max(1).ilog10() as u8 + 1) * glyphs::DIGIT_WIDTH_U * digit_space
             / 2.0;
+    if show_number == acorde_core::TupletNumberDisplay::Both {
+        half_width = half_width.max(
+            f32::from(normal_notes.max(1).ilog10() as u8 + 1) * glyphs::DIGIT_WIDTH_U * digit_space
+                / 2.0,
+        ) + 0.9 * space;
+    }
     let number_top = number_y - 0.92 * digit_space;
     let number_bottom = number_y + 1.42 * digit_space;
     let hook_y = bracket_y - dir * HOOK_LEN_U * space;
-    let bounds = if beamed_fully {
+    let bounds = if show_number == acorde_core::TupletNumberDisplay::None {
+        [
+            x_first,
+            x_last,
+            bracket_y.min(hook_y) - 0.05 * space,
+            bracket_y.max(hook_y) + 0.05 * space,
+        ]
+    } else if beamed_fully {
         [
             x_mid - half_width,
             x_mid + half_width,
@@ -141,5 +221,35 @@ mod tests {
         // Just confirm both render distinct, non-empty geometry; exact y assertions live in
         // the crate's integration geometry tests where real notehead coordinates exist.
         assert_ne!(up.svg, down.svg);
+    }
+
+    #[test]
+    fn authored_hidden_ratio_and_placement_override_automatic_tuplet_display() {
+        use acorde_core::{TupletDisplay, TupletNumberDisplay};
+        let xs = [0.0, 100.0];
+        let ys = [50.0, 50.0];
+        let mut display = TupletDisplay {
+            bracket: Some(false),
+            number: TupletNumberDisplay::None,
+            above: Some(false),
+        };
+        let hidden = plan_tuplet_with_display(&xs, &ys, 3, 2, true, false, 10.0, Some(&display));
+        assert!(hidden.svg.is_empty());
+        display.bracket = Some(true);
+        let bracket = plan_tuplet_with_display(&xs, &ys, 3, 2, true, true, 10.0, Some(&display));
+        assert!(bracket.svg.contains("acorde-tuplet-bracket"));
+        assert!(!bracket.svg.contains("acorde-tuplet-number"));
+        assert!(bracket.bounds[2] > 50.0);
+        display.number = TupletNumberDisplay::Both;
+        let ratio = plan_tuplet_with_display(&xs, &ys, 3, 2, true, true, 10.0, Some(&display));
+        assert_eq!(
+            ratio.svg.matches("class=\"acorde-tuplet-number\"").count(),
+            2
+        );
+        assert_eq!(
+            ratio.svg.matches("class=\"acorde-tuplet-colon\"").count(),
+            2
+        );
+        assert!(ratio.svg.contains("acorde-tuplet-bracket"));
     }
 }

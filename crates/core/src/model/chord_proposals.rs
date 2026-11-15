@@ -313,6 +313,7 @@ fn chord(root: u8, kind: &str, flats: bool) -> ChordSymbol {
         harmony_function: None,
         harmony_type: None,
         chord_ref: None,
+        written: None,
         range_end: None,
         degrees: Vec::new(),
     }

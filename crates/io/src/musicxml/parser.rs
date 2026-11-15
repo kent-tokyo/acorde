@@ -332,6 +332,26 @@ fn add_tuplet_boundary(boundary: &mut Option<TupletBoundary>, kind: Option<&str>
     };
 }
 
+fn tuplet_display(e: &quick_xml::events::BytesStart<'_>) -> Option<acorde_core::TupletDisplay> {
+    (attr_str(e, b"type").as_deref() == Some("start")).then(|| acorde_core::TupletDisplay {
+        bracket: attr_str(e, b"bracket").and_then(|v| match v.as_str() {
+            "yes" => Some(true),
+            "no" => Some(false),
+            _ => None,
+        }),
+        number: match attr_str(e, b"show-number").as_deref() {
+            Some("none") => acorde_core::TupletNumberDisplay::None,
+            Some("both") => acorde_core::TupletNumberDisplay::Both,
+            _ => acorde_core::TupletNumberDisplay::Actual,
+        },
+        above: attr_str(e, b"placement").and_then(|v| match v.as_str() {
+            "above" => Some(true),
+            "below" => Some(false),
+            _ => None,
+        }),
+    })
+}
+
 // Resolve after all voices are known: MusicXML directions may precede their target in
 // document order, or use a negative offset after a backup. Dynamics remain staff scoped.
 fn resolve_direction_dynamics(
@@ -512,6 +532,7 @@ pub(crate) fn parse_musicxml_collecting(
     let mut note_tuplet_actual: Option<u8> = None;
     let mut note_tuplet_normal: Option<u8> = None;
     let mut note_tuplet_boundary: Option<TupletBoundary> = None;
+    let mut note_tuplet_display: Option<acorde_core::TupletDisplay> = None;
     let mut in_time_modification = false;
     let mut note_trill_line_start = false;
     let mut note_trill_line_end = false;
@@ -542,6 +563,9 @@ pub(crate) fn parse_musicxml_collecting(
     let mut harmony_root_step = String::new();
     let mut harmony_root_alter: i8 = 0;
     let mut harmony_kind = String::new();
+    let mut harmony_written = acorde_core::WrittenHarmony::default();
+    let mut in_harmony_numeral = false;
+    let mut in_numeral_key = false;
     let mut harmony_function: Option<String> = None;
     let mut harmony_bass_step = String::new();
     let mut harmony_bass_alter: i8 = 0;
@@ -808,6 +832,9 @@ pub(crate) fn parse_musicxml_collecting(
                         harmony_root_step.clear();
                         harmony_root_alter = 0;
                         harmony_kind.clear();
+                        harmony_written = acorde_core::WrittenHarmony::default();
+                        in_harmony_numeral = false;
+                        in_numeral_key = false;
                         harmony_function = None;
                         harmony_bass_step.clear();
                         harmony_bass_alter = 0;
@@ -843,6 +870,31 @@ pub(crate) fn parse_musicxml_collecting(
                         );
                     }
                     "root" if in_harmony => in_harmony_root = true,
+                    "root-step" if in_harmony_root => {
+                        harmony_written.root_text = attr_str(e, b"text")
+                    }
+                    "kind" if in_harmony => harmony_written.kind_text = attr_str(e, b"text"),
+                    "inversion" if in_harmony => {
+                        harmony_written.inversion_text = attr_str(e, b"text")
+                    }
+                    "numeral" if in_harmony => in_harmony_numeral = true,
+                    "numeral-root" if in_harmony_numeral => {
+                        harmony_written.numeral = Some(acorde_core::HarmonyNumeral {
+                            root: 1,
+                            text: attr_str(e, b"text"),
+                            alter: 0.0,
+                            key: None,
+                        });
+                    }
+                    "numeral-key" if in_harmony_numeral => {
+                        in_numeral_key = true;
+                        if let Some(numeral) = &mut harmony_written.numeral {
+                            numeral.key = Some(KeySignature {
+                                fifths: 0,
+                                mode: "major".into(),
+                            });
+                        }
+                    }
                     "bass" if in_harmony => in_harmony_bass = true,
                     "degree" if in_harmony => {
                         in_harmony_degree = true;
@@ -967,10 +1019,15 @@ pub(crate) fn parse_musicxml_collecting(
                         _ => measure_repeat_start_pending = true,
                     },
                     "notations" if in_note => in_notations = true,
-                    "tuplet" if in_notations => add_tuplet_boundary(
-                        &mut note_tuplet_boundary,
-                        attr_str(e, b"type").as_deref(),
-                    ),
+                    "tuplet" if in_notations => {
+                        add_tuplet_boundary(
+                            &mut note_tuplet_boundary,
+                            attr_str(e, b"type").as_deref(),
+                        );
+                        if let Some(display) = tuplet_display(e) {
+                            note_tuplet_display = Some(display);
+                        }
+                    }
                     "articulations" if in_notations => in_artic_block = true,
                     "ornaments" if in_notations => in_ornament_block = true,
                     "technical" if in_notations => in_technical_block = true,
@@ -1067,6 +1124,7 @@ pub(crate) fn parse_musicxml_collecting(
                         note_tuplet_actual = None;
                         note_tuplet_normal = None;
                         note_tuplet_boundary = None;
+                        note_tuplet_display = None;
                         in_time_modification = false;
                         note_trill_line_start = false;
                         note_trill_line_end = false;
@@ -1255,10 +1313,15 @@ pub(crate) fn parse_musicxml_collecting(
                         metronome_dots = metronome_dots.saturating_add(1).min(4);
                     }
                     "chord" if in_note => note_chord = true,
-                    "tuplet" if in_notations => add_tuplet_boundary(
-                        &mut note_tuplet_boundary,
-                        attr_str(e, b"type").as_deref(),
-                    ),
+                    "tuplet" if in_notations => {
+                        add_tuplet_boundary(
+                            &mut note_tuplet_boundary,
+                            attr_str(e, b"type").as_deref(),
+                        );
+                        if let Some(display) = tuplet_display(e) {
+                            note_tuplet_display = Some(display);
+                        }
+                    }
                     "slur" if in_note => match attr_str(e, b"type").as_deref() {
                         Some("start") => {
                             note_slur_start = true;
@@ -1940,6 +2003,44 @@ pub(crate) fn parse_musicxml_collecting(
                         pending_midi_pan = pan_to_cc(current_text.trim());
                     }
                     "root" if in_harmony => in_harmony_root = false,
+                    "numeral" if in_harmony => in_harmony_numeral = false,
+                    "numeral-key" if in_harmony_numeral => in_numeral_key = false,
+                    "numeral-root" if in_harmony_numeral => {
+                        if let Some(numeral) = &mut harmony_written.numeral {
+                            numeral.root = current_text.trim().parse().unwrap_or(1);
+                        }
+                    }
+                    "numeral-alter" if in_harmony_numeral => {
+                        if let Some(numeral) = &mut harmony_written.numeral {
+                            numeral.alter = current_text
+                                .trim()
+                                .parse::<f32>()
+                                .ok()
+                                .filter(|v| v.is_finite())
+                                .unwrap_or(0.0);
+                        }
+                    }
+                    "numeral-fifths" if in_numeral_key => {
+                        if let Some(key) = harmony_written
+                            .numeral
+                            .as_mut()
+                            .and_then(|n| n.key.as_mut())
+                        {
+                            key.fifths = current_text.trim().parse().unwrap_or(0);
+                        }
+                    }
+                    "numeral-mode" if in_numeral_key => {
+                        if let Some(key) = harmony_written
+                            .numeral
+                            .as_mut()
+                            .and_then(|n| n.key.as_mut())
+                        {
+                            key.mode = current_text.trim().to_owned();
+                        }
+                    }
+                    "inversion" if in_harmony => {
+                        harmony_written.inversion = current_text.trim().parse().ok()
+                    }
                     "bass" if in_harmony => in_harmony_bass = false,
                     "degree-value" if in_harmony_degree => {
                         harmony_degree_value = current_text.trim().to_string();
@@ -1987,7 +2088,7 @@ pub(crate) fn parse_musicxml_collecting(
                     "harmony" => {
                         in_harmony = false;
                         let root = build_note_name(&harmony_root_step, harmony_root_alter);
-                        if !root.is_empty() {
+                        if !root.is_empty() || harmony_written.numeral.is_some() {
                             let bass = if harmony_bass_step.is_empty() {
                                 None
                             } else {
@@ -2003,6 +2104,9 @@ pub(crate) fn parse_musicxml_collecting(
                                 harmony_function: harmony_function.take(),
                                 harmony_type: None,
                                 chord_ref: None,
+                                written: (harmony_written
+                                    != acorde_core::WrittenHarmony::default())
+                                .then(|| Box::new(std::mem::take(&mut harmony_written))),
                                 range_end: None,
                                 degrees: std::mem::take(&mut harmony_degrees),
                             });
@@ -3085,17 +3189,52 @@ pub(crate) fn parse_musicxml_collecting(
                         if let Some(pi) = part_index {
                             let requested_staff_index = note_staff.saturating_sub(1);
                             let staff_count = score.parts[pi].staves.len();
+                            // A beamed voice can begin on either staff. Keep a continuous
+                            // authored beam together even before its conventional home staff
+                            // has sounded; a backup/forward clears last_note_start.
+                            let beam_home = last_note_start.and_then(|(staff, slot, _)| {
+                                let previous = last_note_address.as_ref().and_then(|addr| {
+                                    score
+                                        .parts
+                                        .get(addr.part)?
+                                        .staves
+                                        .get(addr.staff)?
+                                        .measures
+                                        .get(addr.measure)?
+                                        .voices
+                                        .get(addr.voice)?
+                                        .get(addr.note)
+                                })?;
+                                (staff != requested_staff_index
+                                    && requested_staff_index < staff_count
+                                    && source_voice_slots.get(&(staff, note_voice)) == Some(&slot)
+                                    && voice_cursor_ticks.get(&(staff, slot))
+                                        == Some(&measure_cursor_ticks)
+                                    && matches!(
+                                        previous.beam,
+                                        acorde_core::BeamState::Begin
+                                            | acorde_core::BeamState::Continue
+                                    )
+                                    && matches!(
+                                        note_beam,
+                                        acorde_core::BeamState::Continue
+                                            | acorde_core::BeamState::End
+                                    ))
+                                .then_some(staff)
+                            });
                             let cross_home = if note_chord {
                                 last_note_cross_home
                             } else {
-                                declared_cross_staff_home(
-                                    requested_staff_index,
-                                    staff_count,
-                                    note_voice,
-                                    measure_cursor_ticks,
-                                    &source_voice_slots,
-                                    &voice_cursor_ticks,
-                                )
+                                beam_home.or_else(|| {
+                                    declared_cross_staff_home(
+                                        requested_staff_index,
+                                        staff_count,
+                                        note_voice,
+                                        measure_cursor_ticks,
+                                        &source_voice_slots,
+                                        &voice_cursor_ticks,
+                                    )
+                                })
                             };
                             let (target_staff_index, cross_target) = if let Some(home) = cross_home
                             {
@@ -3438,6 +3577,7 @@ pub(crate) fn parse_musicxml_collecting(
                                             normal_notes,
                                         });
                                         note.tuplet_boundary = note_tuplet_boundary;
+                                        note.tuplet_display = note_tuplet_display.clone();
                                     }
                                     let mut started_hairpin = None;
                                     if !note.is_grace {

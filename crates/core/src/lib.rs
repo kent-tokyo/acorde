@@ -61,10 +61,10 @@ pub use model::commands::{
     SetScoreStyleOverridesCmd, SetScoreTextCmd, SetSectionBreakCmd, SetStaffPresentationCmd,
     SetStemCmd, SetStringNumberCmd, SetSystemBreakCmd, SetSystemBreakIntervalCmd,
     SetTabPositionCmd, SetTablatureConfigCmd, SetTechniqueTextCmd, SetTempoAtMeasureCmd,
-    SetTempoCmd, SetTimeSignatureCmd, SetTransposeCmd, SetTupletCmd, SetUnpitchedCmd, SetVoltaCmd,
-    SplitMeasureCmd, ToggleArticulationCmd, ToggleSlurCmd, ToggleTieCmd, ToggleTrillLineCmd,
-    TransposeStaffRegionCmd, TupletScalePolicy, UnrollRepeatsCmd, UpdateSpannerCmd,
-    UpsertScoreViewCmd, command_key, command_label,
+    SetTempoCmd, SetTimeSignatureCmd, SetTransposeCmd, SetTupletCmd, SetTupletDisplayCmd,
+    SetUnpitchedCmd, SetVoltaCmd, SplitMeasureCmd, ToggleArticulationCmd, ToggleSlurCmd,
+    ToggleTieCmd, ToggleTrillLineCmd, TransposeStaffRegionCmd, TupletScalePolicy, UnrollRepeatsCmd,
+    UpdateSpannerCmd, UpsertScoreViewCmd, command_key, command_label,
 };
 pub use model::duration::Duration;
 pub use model::engine::{EngineHistory, HistoryConflict, HistoryRelation, ScoreEngine};
@@ -96,9 +96,10 @@ pub use model::musical_diff::{
 pub use model::notation::{
     AccidentalDisplay, Articulation, Barline, BeamState, ChordBarre, ChordDefinition,
     ChordDefinitionMember, ChordDegree, ChordSymbol, Clef, CrossStaff, Dynamic, FiguredBassFigure,
-    FiguredBassGroup, FingeringSelectionPolicy, GuitarTechnique, HairpinKind, KeySignature, Lyric,
-    NoteHead, OttavaKind, StyledText, TabPosition, TablatureConfig, TextStyle, TimeSignature,
-    TimeSymbol, TupletBoundary, TupletInfo, VerseLyric,
+    FiguredBassGroup, FingeringSelectionPolicy, GuitarTechnique, HairpinKind, HarmonyNumeral,
+    KeySignature, Lyric, NoteHead, OttavaKind, StyledText, TabPosition, TablatureConfig, TextStyle,
+    TimeSignature, TimeSymbol, TupletBoundary, TupletDisplay, TupletInfo, TupletNumberDisplay,
+    VerseLyric, WrittenHarmony,
 };
 pub use model::omr::{
     MAX_OMR_ANNOTATIONS, MAX_OMR_EVENTS_PER_MEASURE, MAX_OMR_MEASURES, MAX_OMR_PAGES,

@@ -1,6 +1,7 @@
 //! Semantic-annotation collision ownership for SVG rendering.
 
 use std::collections::HashMap;
+use std::fmt::Write as _;
 
 use acorde_core::{Articulation, Measure};
 use acorde_layout::{GlyphCollisionClass, GlyphCollisionDirection, GlyphMetrics, GlyphPlacement};
@@ -328,6 +329,13 @@ pub(crate) fn render_measure_semantic_annotations(
                 x,
                 italic,
             } => {
+                if crate::render::measured_print_active() {
+                    let address = placement
+                        .resource_key
+                        .split_once(':')
+                        .map_or("", |(_, address)| address);
+                    let _ = write!(body, "<g data-print-note-addr=\"{address}\">");
+                }
                 // Dynamics are drawn as engraved letter shapes when every letter has one.
                 let drawn = (class == "acorde-dynamic")
                     .then(|| crate::glyphs::dynamic_mark(class, &text, x, placement.y_mm, space))
@@ -345,12 +353,42 @@ pub(crate) fn render_measure_semantic_annotations(
                         lyric_font_size_u,
                     ),
                 }
+                if crate::render::measured_print_active() {
+                    body.push_str("</g>");
+                }
             }
             SemanticAnnotation::Articulation {
                 articulation,
                 x,
                 direction,
-            } => render_articulation(body, articulation, x, placement.y_mm, direction, space),
+            } => {
+                if crate::render::measured_print_active() {
+                    let radius = if articulation_at_notehead(articulation) {
+                        0.5
+                    } else {
+                        1.2
+                    } * space;
+                    let address = placement
+                        .resource_key
+                        .split(':')
+                        .skip(1)
+                        .take(5)
+                        .collect::<Vec<_>>()
+                        .join(":");
+                    let _ = write!(
+                        body,
+                        "<g data-print-articulation=\"true\" data-print-note-addr=\"{address}\" data-part=\"{part}\" data-staff=\"{staff}\" data-measure=\"{measure_idx}\" data-print-left=\"{}\" data-print-right=\"{}\" data-print-top=\"{}\" data-print-bottom=\"{}\">",
+                        x - radius,
+                        x + radius,
+                        placement.y_mm - radius,
+                        placement.y_mm + radius
+                    );
+                }
+                render_articulation(body, articulation, x, placement.y_mm, direction, space);
+                if crate::render::measured_print_active() {
+                    body.push_str("</g>");
+                }
+            }
         }
     }
     Ok(placements)

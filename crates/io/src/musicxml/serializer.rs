@@ -1105,22 +1105,52 @@ fn serialize_note(
             xml.push_str(&format!(" placement=\"{}\"", escape_xml(placement)));
         }
         xml.push_str(">\n");
-        xml.push_str("        <root>\n");
-        xml.push_str(&format!(
-            "          <root-step>{}</root-step>\n",
-            escape_xml(root_step)
-        ));
-        if root_alter != 0 {
-            xml.push_str(&format!(
-                "          <root-alter>{}</root-alter>\n",
-                root_alter
-            ));
+        let written = cs.written.as_ref();
+        if let Some(numeral) = written.and_then(|w| w.numeral.as_ref()) {
+            xml.push_str("        <numeral>\n          <numeral-root");
+            if let Some(text) = &numeral.text {
+                xml.push_str(&format!(" text=\"{}\"", escape_xml(text)));
+            }
+            xml.push_str(&format!(">{}</numeral-root>\n", numeral.root));
+            if numeral.alter != 0.0 {
+                xml.push_str(&format!(
+                    "          <numeral-alter>{}</numeral-alter>\n",
+                    numeral.alter
+                ));
+            }
+            if let Some(key) = &numeral.key {
+                xml.push_str(&format!("          <numeral-key><numeral-fifths>{}</numeral-fifths><numeral-mode>{}</numeral-mode></numeral-key>\n", key.fifths, escape_xml(&key.mode)));
+            }
+            xml.push_str("        </numeral>\n");
+        } else {
+            xml.push_str("        <root>\n          <root-step");
+            if let Some(text) = written.and_then(|w| w.root_text.as_ref()) {
+                xml.push_str(&format!(" text=\"{}\"", escape_xml(text)));
+            }
+            xml.push_str(&format!(">{}</root-step>\n", escape_xml(root_step)));
+            if root_alter != 0 {
+                xml.push_str(&format!(
+                    "          <root-alter>{}</root-alter>\n",
+                    root_alter
+                ));
+            }
+            xml.push_str("        </root>\n");
         }
-        xml.push_str("        </root>\n");
+        xml.push_str("        <kind");
+        if let Some(text) = written.and_then(|w| w.kind_text.as_ref()) {
+            xml.push_str(&format!(" text=\"{}\"", escape_xml(text)));
+        }
         xml.push_str(&format!(
-            "        <kind>{}</kind>\n",
+            ">{}</kind>\n",
             escape_xml(&musicxml_harmony_kind(&cs.kind))
         ));
+        if let Some(inversion) = written.and_then(|w| w.inversion) {
+            xml.push_str("        <inversion");
+            if let Some(text) = written.and_then(|w| w.inversion_text.as_ref()) {
+                xml.push_str(&format!(" text=\"{}\"", escape_xml(text)));
+            }
+            xml.push_str(&format!(">{inversion}</inversion>\n"));
+        }
         if let Some(function) = &cs.harmony_function {
             xml.push_str(&format!(
                 "        <function>{}</function>\n",
@@ -1943,7 +1973,31 @@ fn serialize_notations(
         xml.push_str("          <tied type=\"start\"/>\n");
     }
     if tuplet_marks.0 {
-        xml.push_str("          <tuplet type=\"start\" bracket=\"yes\"/>\n");
+        xml.push_str("          <tuplet type=\"start\"");
+        if let Some(display) = &note.tuplet_display {
+            if let Some(bracket) = display.bracket {
+                xml.push_str(if bracket {
+                    " bracket=\"yes\""
+                } else {
+                    " bracket=\"no\""
+                });
+            }
+            xml.push_str(match display.number {
+                acorde_core::TupletNumberDisplay::Actual => " show-number=\"actual\"",
+                acorde_core::TupletNumberDisplay::Both => " show-number=\"both\"",
+                acorde_core::TupletNumberDisplay::None => " show-number=\"none\"",
+            });
+            if let Some(above) = display.above {
+                xml.push_str(if above {
+                    " placement=\"above\""
+                } else {
+                    " placement=\"below\""
+                });
+            }
+        } else {
+            xml.push_str(" bracket=\"yes\"");
+        }
+        xml.push_str("/>\n");
     }
     if tuplet_marks.1 {
         xml.push_str("          <tuplet type=\"stop\"/>\n");

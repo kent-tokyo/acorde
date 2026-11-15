@@ -22,6 +22,13 @@ impl PrintTextScope {
         font: &TextFont<'_>,
     ) -> Result<Self, FontMetricsError> {
         let mut metrics = HashMap::new();
+        for text in [
+            &score.metadata.title,
+            &score.metadata.movement_title,
+            &score.metadata.composer,
+        ] {
+            metrics.insert(text.clone(), font.measure(text, 1.0)?);
+        }
         for text in score.parts.iter().flat_map(|p| [&p.name, &p.short_name]) {
             for run in text
                 .lines()
@@ -164,6 +171,7 @@ impl TextRunMetrics {
 /// native and WASM hosts. Font fallback is explicit: missing glyphs return an error.
 pub struct TextFont<'a> {
     face: Face<'a>,
+    music_face: Option<Face<'static>>,
 }
 
 impl<'a> TextFont<'a> {
@@ -174,7 +182,51 @@ impl<'a> TextFont<'a> {
         let face = Face::from_slice(bytes, face_index)
             .filter(|face| face.units_per_em() > 0)
             .ok_or(FontMetricsError::InvalidFont { face_index })?;
-        Ok(Self { face })
+        Ok(Self {
+            face,
+            music_face: None,
+        })
+    }
+
+    /// The print renderer treats SMuFL and Unicode music symbols as notation,
+    /// using pinned Bravura Text outlines. Ordinary text keeps the caller's face.
+    pub(crate) fn for_print(bytes: &'a [u8]) -> Result<Self, FontMetricsError> {
+        let mut font = Self::new(bytes, 0)?;
+        font.music_face = Some(
+            Face::from_slice(include_bytes!("../fonts/bravura-text/BravuraText.otf"), 0)
+                .ok_or(FontMetricsError::InvalidFont { face_index: 0 })?,
+        );
+        Ok(font)
+    }
+
+    fn print_runs<'t>(&self, text: &'t str) -> Vec<(usize, &'t str, bool)> {
+        let music =
+            |c: char| matches!(c as u32, 0xe000..=0xf8ff | 0x1d100..=0x1d1ff | 0x266d..=0x266f);
+        let mut runs = Vec::new();
+        let mut start = 0;
+        let mut previous = None;
+        for (offset, c) in text.char_indices() {
+            let kind = music(c);
+            if previous.is_some_and(|old| old != kind) {
+                runs.push((start, &text[start..offset], !kind));
+                start = offset;
+            }
+            previous = Some(kind);
+        }
+        runs.push((start, &text[start..], previous.unwrap_or(false)));
+        runs
+    }
+
+    fn run_font(&self, music: bool) -> Self {
+        Self {
+            face: if music {
+                self.music_face.as_ref().unwrap_or(&self.face)
+            } else {
+                &self.face
+            }
+            .clone(),
+            music_face: None,
+        }
     }
 
     /// Shape one directional text run, using the font's default OpenType features.
@@ -189,6 +241,51 @@ impl<'a> TextFont<'a> {
         }
         if text.len() > MAX_TEXT_BYTES {
             return Err(FontMetricsError::TextTooLarge { bytes: text.len() });
+        }
+        if self.music_face.is_some() {
+            let mut output = TextRunMetrics {
+                advance_mm: 0.0,
+                left_mm: 0.0,
+                top_mm: 0.0,
+                right_mm: 0.0,
+                bottom_mm: 0.0,
+                has_ink: false,
+                glyph_count: 0,
+                cluster_count: 0,
+            };
+            for (offset, run, music) in self.print_runs(text) {
+                let next = self
+                    .run_font(music)
+                    .measure(run, font_size_mm)
+                    .map_err(|error| match error {
+                        FontMetricsError::MissingGlyph { byte_offset } => {
+                            FontMetricsError::MissingGlyph {
+                                byte_offset: byte_offset + offset as u32,
+                            }
+                        }
+                        other => other,
+                    })?;
+                if next.has_ink {
+                    let left = output.advance_mm + next.left_mm;
+                    let right = output.advance_mm + next.right_mm;
+                    if output.has_ink {
+                        output.left_mm = output.left_mm.min(left);
+                        output.right_mm = output.right_mm.max(right);
+                        output.top_mm = output.top_mm.min(next.top_mm);
+                        output.bottom_mm = output.bottom_mm.max(next.bottom_mm);
+                    } else {
+                        output.left_mm = left;
+                        output.right_mm = right;
+                        output.top_mm = next.top_mm;
+                        output.bottom_mm = next.bottom_mm;
+                    }
+                    output.has_ink = true;
+                }
+                output.advance_mm += next.advance_mm;
+                output.glyph_count += next.glyph_count;
+                output.cluster_count += next.cluster_count;
+            }
+            return Ok(output);
         }
         let mut buffer = UnicodeBuffer::new();
         buffer.push_str(text);
@@ -262,6 +359,37 @@ impl<'a> TextFont<'a> {
         font_size_mm: f32,
         tracking_mm: f32,
     ) -> Result<String, FontMetricsError> {
+        if self.music_face.is_some() {
+            if !tracking_mm.is_finite() {
+                return Err(FontMetricsError::NonFiniteGeometry);
+            }
+            self.measure(text, font_size_mm)?;
+            let mut output = String::new();
+            let mut x = 0.0;
+            let mut commands = 0;
+            for (_, run, music) in self.print_runs(text) {
+                let face = self.run_font(music);
+                let metrics = face.measure(run, font_size_mm)?;
+                let path = face.outline_run_at(run, font_size_mm, tracking_mm, x)?;
+                commands += path.bytes().filter(u8::is_ascii_alphabetic).count();
+                if commands > 200_000 {
+                    return Err(FontMetricsError::OutlineTooLarge);
+                }
+                output.push_str(&path);
+                x += metrics.advance_mm + tracking_mm * metrics.cluster_count as f32;
+            }
+            return Ok(output);
+        }
+        self.outline_run_at(text, font_size_mm, tracking_mm, 0.0)
+    }
+
+    fn outline_run_at(
+        &self,
+        text: &str,
+        font_size_mm: f32,
+        tracking_mm: f32,
+        offset_mm: f32,
+    ) -> Result<String, FontMetricsError> {
         if !tracking_mm.is_finite() {
             return Err(FontMetricsError::NonFiniteGeometry);
         }
@@ -277,7 +405,7 @@ impl<'a> TextFont<'a> {
             scale: f64::from(font_size_mm) / f64::from(self.face.units_per_em()),
             commands: 0,
         };
-        let (mut x, mut y) = (0.0_f64, 0.0_f64);
+        let (mut x, mut y) = (f64::from(offset_mm) / path.scale, 0.0_f64);
         let mut previous_cluster = None;
         let mut tracking = 0.0_f64;
         for (info, position) in shaped.glyph_infos().iter().zip(shaped.glyph_positions()) {
@@ -356,6 +484,49 @@ mod tests {
     use super::*;
 
     const FONT: &[u8] = include_bytes!("../tests/fixtures/Tuffy.ttf");
+
+    #[test]
+    fn print_music_runs_keep_text_shaping_and_resolve_notation_explicitly() {
+        let strict = TextFont::new(FONT, 0).unwrap();
+        let print = TextFont::for_print(FONT).unwrap();
+        for text in ["office", "ä", "a\u{308}", "rit. molto", "   "] {
+            assert_eq!(strict.measure(text, 4.05), print.measure(text, 4.05));
+            assert_eq!(strict.outline(text, 4.05), print.outline(text, 4.05));
+        }
+        for symbol in ["\u{e047}", "\u{e522}", "♮", "♯", "♭"] {
+            let run = format!("al {symbol} fine");
+            let measured = print.measure(&run, 4.05).unwrap();
+            assert!(measured.has_ink && measured.advance_mm > 0.0);
+            let outline = print.outline(&run, 4.05).unwrap();
+            assert!(!outline.is_empty());
+            assert!(!outline.contains("NaN") && !outline.contains("inf"));
+            let runs = print.print_runs(&run);
+            assert_eq!(runs.len(), 3);
+            let expected_advance: f32 = runs
+                .iter()
+                .map(|(_, text, music)| {
+                    print
+                        .run_font(*music)
+                        .measure(text, 4.05)
+                        .unwrap()
+                        .advance_mm
+                })
+                .sum();
+            assert_eq!(measured.advance_mm, expected_advance);
+            assert_ne!(
+                outline,
+                print.outline_with_tracking(&run, 4.05, 0.2).unwrap()
+            );
+        }
+        assert!(matches!(
+            strict.measure("\u{e047}", 4.05),
+            Err(FontMetricsError::MissingGlyph { .. })
+        ));
+        assert_eq!(
+            print.measure("abc\u{f8ff}", 4.05),
+            Err(FontMetricsError::MissingGlyph { byte_offset: 3 })
+        );
+    }
 
     #[test]
     fn equal_character_counts_have_different_real_widths() {

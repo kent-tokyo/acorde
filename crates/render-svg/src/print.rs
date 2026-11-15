@@ -436,7 +436,16 @@ pub(crate) fn render_print_page_svgs_with_geometry(
         // content hidden outside its viewBox.
         let (page_top, page_bottom) = (offset * PX_PER_MM, (offset + page.height_mm) * PX_PER_MM);
         for (fragment, extent) in &fragments {
-            if extent.is_none_or(|(top, bottom)| bottom >= page_top && top <= page_bottom) {
+            let owned_row = fragment
+                .split('>')
+                .next()
+                .and_then(|tag| tag.split_once(" data-row=\""))
+                .and_then(|(_, tail)| tail.split('"').next())
+                .and_then(|v| v.parse::<usize>().ok());
+            if owned_row.map_or_else(
+                || extent.is_none_or(|(top, bottom)| bottom >= page_top && top <= page_bottom),
+                |row| page.systems.iter().any(|system| system.system_index == row),
+            ) {
                 svg.push_str(fragment);
             }
         }
@@ -552,8 +561,34 @@ fn write_publication(
         // Keep the title inside the top print margin. The former 7.5 mm
         // baseline on a default A4 page placed most of its capitals only
         // 2.5 mm from the paper edge in the pinned Verovio comparison.
-        let title_y = (system.top_mm - if has_movement_title { 6.5 } else { 5.0 }) * scale;
-        let credit_y = (system.top_mm - if has_movement_title { 0.5 } else { 5.0 }) * scale;
+        #[allow(unused_mut)] // Mutated by the optional measured-font path below.
+        let mut title_y = (system.top_mm - if has_movement_title { 6.5 } else { 5.0 }) * scale;
+        #[allow(unused_mut)]
+        let mut credit_y = (system.top_mm - if has_movement_title { 0.5 } else { 5.0 }) * scale;
+        #[allow(unused_mut)]
+        let mut movement_y = credit_y;
+        #[cfg(feature = "font-metrics")]
+        if render::measured_print_active() {
+            let center_text = if has_movement_title {
+                &page.publication.movement_title
+            } else {
+                &page.publication.title
+            };
+            let center_size = if has_movement_title { 4.0 } else { 5.5 };
+            if let (Some(center_width), Some(composer_width)) = (
+                crate::font_metrics::print_text_width(center_text, center_size),
+                crate::font_metrics::print_text_width(&page.publication.composer, 4.0),
+            ) && !page.publication.composer.is_empty()
+                && page.width_mm / 2.0 + center_width / 2.0 + 2.0
+                    > page.content_left_mm + page.content_width_mm - composer_width
+            {
+                credit_y = (system.top_mm - 0.5) * scale;
+                if has_movement_title {
+                    movement_y = (system.top_mm - 5.5) * scale;
+                    title_y = (system.top_mm - 11.5) * scale;
+                }
+            }
+        }
         if !page.publication.title.is_empty() {
             let _ = write!(
                 svg,
@@ -566,7 +601,7 @@ fn write_publication(
         if has_movement_title {
             let _ = write!(
                 svg,
-                "<text class=\"acorde-print-movement-title\" x=\"{:.3}\" y=\"{credit_y:.3}\" text-anchor=\"middle\" font-family=\"serif\" font-size=\"{:.3}\">{}</text>",
+                "<text class=\"acorde-print-movement-title\" x=\"{:.3}\" y=\"{movement_y:.3}\" text-anchor=\"middle\" font-family=\"serif\" font-size=\"{:.3}\">{}</text>",
                 page.width_mm * scale / 2.0,
                 4.0 * scale,
                 escape_xml(&page.publication.movement_title)

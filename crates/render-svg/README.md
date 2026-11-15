@@ -16,6 +16,13 @@ provided face. Pass the returned layout and pages to `acorde_pdf::export_print_l
 for matching PDF geometry. See [the qualification protocol](../../docs/engraving-parity.md)
 for evidence and remaining limits; this feature does not yet carry an overall parity claim.
 
+Inline SMuFL and Unicode music symbols in measured print text use the bundled,
+unmodified Bravura Text 1.482 face. Ordinary text uses the caller's face; missing
+glyphs still return a typed error. The font is outlined into SVG/PDF and requires
+no installed fonts. Its 3.06 MB source, pinned hash and SIL Open Font License are
+in [`fonts/bravura-text`](fonts/bravura-text). The public `TextFont::new` API stays
+strictly bound to its caller-supplied face.
+
 The legacy APIs emit notation as font-independent geometry. Text, lyrics, chord symbols, and host annotation
 marks remain SVG text, so callers own font choice, font metrics, embedding, and publication
 typography. The renderer validates non-finite geometry, invalid XML characters, unsupported glyph
@@ -33,8 +40,8 @@ let svg = render_svg(&Score::default(), &SvgRenderOptions::default())?;
 ## SMuFL music fonts (opt-in)
 
 `SvgRenderConfig::new(options).with_smufl_font("Bravura")` draws music symbols as SMuFL code
-points in `<text font-family="Bravura" font-size="…">` elements instead of vector paths. No font
-is bundled: the host loads the family (for example with CSS `@font-face`). Without the setting the
+points in `<text font-family="Bravura" font-size="…">` elements instead of vector paths. This API
+requires the host to load the family (for example with CSS `@font-face`). Without the setting the
 output is byte-identical to the vector renderer.
 
 - Mapped: G/F/C/percussion clefs; black, half, whole and breve noteheads plus X, plus, diamond,

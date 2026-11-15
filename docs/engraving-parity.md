@@ -11,7 +11,8 @@ as a single assistant's review, never as independent human or statistical eviden
 
 - Development: the ten licensed inputs in
   [the existing comparison](archive/print-corpus-verovio-6-4-1.md).
-- Reserved: [24 selected inputs](../benchmarks/print/parity-holdout-selection-v1.json),
+- First reserved cohort, now retired to development after a failed frozen run:
+  [24 selected inputs](../benchmarks/print/parity-holdout-selection-v1.json),
   six each for keyboard, vocal, chamber, and extracted-part output. The selection
   pins upstream revisions and Git blobs before opening source scores or renderings.
   The source contents and SHA-256 hashes must be frozen before algorithm changes.
@@ -92,6 +93,56 @@ why candidate counts cannot substitute for visual inspection.
 
 Current gate status: **1 pending, 2 pending, 3 pending, 4 pending**.
 
+The frozen v20 run opened all 24 inputs. Fourteen produced Acorde PDFs and ten failed;
+Verovio rendered all 24. The independent shared-MusicXML pitched-event audit matched
+all 24, but this did not establish correctness of hidden objects, tuplets, text, or PDF
+visibility. The complete cohort is now development data, before any fixes informed by
+its outputs. See the [freeze](archive/print-parity-freeze-v20.json),
+[results](archive/print-parity-holdout-v20.json), and
+[retirement receipt](archive/print-parity-holdout-v20-status.json).
+The next final gate requires a separately selected disjoint cohort.
+
+Subsequent development exposed valid empty outline paths rejected by PDF, missing
+inline music glyphs, lost Roman-numeral/custom harmony spelling, hidden rests printed
+by the PDF backend, and lost tuplet display instructions. Cross-staff stems and beam
+digits were incorrectly treated as independent staff-gap requirements, causing
+unbounded reflow. These repairs remain under qualification. The reflow bound is now
+16 passes. Cross-staff slur/hairpin crossings remain visible for review; they are not
+silently excluded from the visual gate. Crowded directions may move outside the
+grand staff while retaining their source part and temporal ownership.
+
+## Retired-cohort development rerun (candidate v41)
+
+The [v41 rerun](archive/print-parity-development-v41.json) produced all 24 Acorde
+PDFs, versus 14 in v20. All 41,610 pitched events matched the shared MusicXML
+inventory. Page-edge, text/notehead, text/text and lyric/dynamic staff-line screens
+were zero, but 47 text/curve candidates remained (including articulations, ties,
+beams and ornaments). These are unresolved screening candidates, not 47 confirmed
+engraving defects. The assistant confirmed collisions in the C. P. E. Bach and
+Schumann piano pages. Brahms used 16 Acorde pages versus 8 Verovio pages, with
+excessive spacing still under investigation. This candidate does not pass the gates.
+
+The [development repair receipt](archive/print-parity-development-repairs-v41.json)
+records 1,166 tests in 45 suites before the later geometry repairs and 13 measured
+print integration tests after them. The latter include shared filled unison heads,
+visible tuplet counts, and sampled slur clearance on the full Brahms fixture.
+Final native/WASM, cross-platform, default/Letter, performance, and complete visual
+qualification remain pending. Frozen v41 binaries were retained with a separate
+hash-checked copy receipt; v20 intermediate PDFs/HTML/native JSON were losslessly
+compressed after checking they were not open, with original and archive hashes.
+
+The [v43 four-input diagnostic](archive/print-parity-diagnostic-v43.json) clears
+those four inputs' automatic screens after adding articulation/beam/tie obstacles
+and per-staff spacing for interleaved rhythms. All 7,457 pitched events match.
+C. P. E. Bach shrank from two pages to one; Brahms from sixteen to twelve versus
+Verovio's eight. Two first pages were inspected; complete visual review and the
+remaining corpus rerun are still pending. The v44 source only factors a type alias
+and collapses an equivalent conditional after this diagnostic. Its first Clippy
+attempt failed from disk exhaustion, so that attempt is not a successful check.
+After losslessly archiving completed older-candidate files, the identical v44 retry
+passed all-feature, all-target release Clippy for core, io, layout, render-svg, PDF
+and WASM with warnings denied. The final cross-platform check is separate.
+
 ## Development progress (2026-11-15, candidate v18)
 
 The opt-in `font-metrics` renderer and `measured-print` PDF/WASM feature accept
@@ -169,7 +220,8 @@ JSON and outlines text. These observations do not establish strict performance
 superiority or memory parity. The saved benchmark is the pre-repeat-fix v18
 candidate and must be distinguished from the final frozen candidate.
 
-The reserved 24-input cohort is fetched and hashed. Its score contents and renderings
-have **not** been inspected. Candidate freeze, independent source preparation,
-reserved-group evaluation, final-candidate performance/memory, Linux/Windows execution and
-final artifact integration are still required. Current overall gates remain pending.
+The v18 status above is historical. The entire first 24-input reserved cohort was
+opened under the v20 freeze and retired after that run failed, as recorded above.
+Corrections informed by those inputs require fresh qualification, a disjoint final
+reserved cohort, final-candidate performance/memory and cross-platform execution,
+and final artifact integration. Current overall gates remain pending.

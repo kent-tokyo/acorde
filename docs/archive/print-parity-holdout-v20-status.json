@@ -1,0 +1,36 @@
+{
+  "classification": "failed reserved evaluation; entire cohort retired to development before fixes",
+  "candidate_commit": "a1051f2f59ccd1ab46d9eebab51ece99448322ee",
+  "retired_at_utc": "2026-11-15T03:17:26.612845+00:00",
+  "reason": "10/24 Acorde outputs fail, plus clipping and collision candidates; no overall or per-group parity pass",
+  "groups": {
+    "piano": {
+      "inputs": 6,
+      "rendered": 6,
+      "gate": "fail or pending detailed review"
+    },
+    "vocal": {
+      "inputs": 6,
+      "rendered": 5,
+      "gate": "fail or pending detailed review"
+    },
+    "chamber": {
+      "inputs": 6,
+      "rendered": 1,
+      "gate": "fail or pending detailed review"
+    },
+    "part": {
+      "inputs": 6,
+      "rendered": 2,
+      "gate": "fail or pending detailed review"
+    }
+  },
+  "rendered": 14,
+  "pitched_event_audit": "24/24 exact against independently prepared shared MusicXML; not a whole-notation or original-MSCX proof",
+  "preparation_notes": [
+    "13 MuseScore invocations produced validated output then exited with known mutex teardown crash; no clean export claim",
+    "all six MSCX MIDI-pitch inventories match, without establishing full notation fidelity",
+    "part-sq24409123 preserves pitches/onsets/durations but MuseScore renumbers two events from source voice 4 to voice 3"
+  ],
+  "next_gate": "disjoint 24-input cohort required after repairs"
+}

@@ -1440,6 +1440,7 @@ mod tests {
             harmony_function: None,
             harmony_type: None,
             chord_ref: None,
+            written: None,
             range_end: Some(NoteAddr {
                 part: 0,
                 staff: 0,

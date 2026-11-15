@@ -93,10 +93,14 @@ for (const svg of document.querySelectorAll('body > div > svg')) {
   for (const k of ['noteheads','rests','slurs','ties','lyrics','dynamics','hairpins','articulations'])
     counts[k] = svg.querySelectorAll(SEL[k]).length;
   let pastEdge = 0, pastMargin = 0;
+  const edgeCandidates = [];
   for (const el of svg.querySelectorAll('path, use, line, polyline, polygon, rect, ellipse, circle, text')) {
     if (el.closest('defs, symbol')) continue;
     const b = box(el); if (!real(b)) continue;
-    if (b.x0 < -0.1 || b.y0 < -0.1 || b.x1 > W + 0.1 || b.y1 > H + 0.1) pastEdge++;
+    if (b.x0 < -0.1 || b.y0 < -0.1 || b.x1 > W + 0.1 || b.y1 > H + 0.1) {
+      pastEdge++;
+      edgeCandidates.push({box:b, className:el.getAttribute('class') || el.parentElement?.getAttribute('class'), text:el.closest('[data-text]')?.getAttribute('data-text') || el.textContent});
+    }
     else if (b.x0 < 14 - 0.5 || b.x1 > W - 14 + 0.5 || b.y0 < 16 - 0.5 || b.y1 > H - 16 + 0.5) pastMargin++;
   }
   const texts = [...svg.querySelectorAll('text, [data-acorde-outlined-text]')].filter(t => t.textContent.trim() && !t.closest('defs'))
@@ -113,6 +117,7 @@ for (const svg of document.querySelectorAll('body > div > svg')) {
                          Math.max(0, Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0));
   let textMark = 0, textText = 0;
   const textMarkCandidates = [];
+  const textTextCandidates = [];
   const staffLines = [...svg.querySelectorAll(SEL.staff)].flatMap(staff =>
     [...staff.querySelectorAll(SEL.staff_lines)]).map(box).filter(b => b.x1 - b.x0 > 5);
   const lyricStaffCandidates = [];
@@ -124,6 +129,8 @@ for (const svg of document.querySelectorAll('body > div > svg')) {
   for (let i = 0; i < texts.length; i++) {
     const t = texts[i];
     for (const curve of curves) {
+      // An outlined text ornament owns its own paths; those are not collisions.
+      if (t.el.contains(curve.el)) continue;
       const b = t.b, c = curve.b;
       if (Math.min(b.x1,c.x1) < Math.max(b.x0,c.x0) || Math.min(b.y1,c.y1) < Math.max(b.y0,c.y0)) continue;
       const length = curve.el.getTotalLength(), matrix = curve.el.getScreenCTM();
@@ -145,7 +152,10 @@ for (const svg of document.querySelectorAll('body > div > svg')) {
       textMarkCandidates.push({text: texts[i].label, textClass: texts[i].className,
         markClass: m.className, overlap_mm2: area(texts[i].b, m.b), textBox: texts[i].b, markBox: m.b});
     }
-    for (let j = i + 1; j < texts.length; j++) if (area(texts[i].b, texts[j].b) > 0.5) textText++;
+    for (let j = i + 1; j < texts.length; j++) if (area(texts[i].b, texts[j].b) > 0.5) {
+      textText++;
+      textTextCandidates.push({first:t.label, second:texts[j].label, firstBox:t.b, secondBox:texts[j].b});
+    }
     if (texts[i].lyric) for (const line of staffLines) {
       const y = (line.y0 + line.y1) / 2, b = texts[i].b;
       if (b.y0 + 0.05 < y && y < b.y1 - 0.05 && Math.min(b.x1,line.x1)-Math.max(b.x0,line.x0) > 0.2)
@@ -165,6 +175,7 @@ for (const svg of document.querySelectorAll('body > div > svg')) {
   }
   const med = a => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
   out.pages.push({counts, past_page_edge: pastEdge, past_margins: pastMargin,
+    edge_candidates: edgeCandidates, text_text_candidates: textTextCandidates,
     text_over_notation: textMark, text_over_text: textText,
     text_notation_candidates: textMarkCandidates,
     lyric_staff_candidates: lyricStaffCandidates,
@@ -237,6 +248,12 @@ def measure(svgs, selectors, html_path, page_width_mm=210, page_height_mm=297):
         "elements_past_margins": summed("past_margins"),
         "text_over_notation": summed("text_over_notation"),
         "text_over_text": summed("text_over_text"),
+        "edge_candidates": [dict(page=index + 1, **candidate)
+                            for index, page in enumerate(pages)
+                            for candidate in page["edge_candidates"]],
+        "text_text_candidates": [dict(page=index + 1, **candidate)
+                                 for index, page in enumerate(pages)
+                                 for candidate in page["text_text_candidates"]],
         "lyric_staff_candidates": [dict(page=index + 1, **candidate)
                                      for index, page in enumerate(pages)
                                      for candidate in page["lyric_staff_candidates"]],

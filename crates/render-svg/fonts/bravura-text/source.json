@@ -1,0 +1,21 @@
+{
+  "upstream": "steinbergmedia/bravura",
+  "version": "1.482",
+  "commit": "37b194378b710cc40e406ab6c4b07608bb9548ae",
+  "license": "OFL-1.1",
+  "modified": false,
+  "files": [
+    {
+      "file": "BravuraText.otf",
+      "url": "https://raw.githubusercontent.com/steinbergmedia/bravura/37b194378b710cc40e406ab6c4b07608bb9548ae/redist/otf/BravuraText.otf",
+      "sha256": "e515b9534ee4acce6d64e086b26c872d67507b85586af18b4f77402b695bf6bf",
+      "bytes": 3056000
+    },
+    {
+      "file": "LICENSE.txt",
+      "url": "https://raw.githubusercontent.com/steinbergmedia/bravura/37b194378b710cc40e406ab6c4b07608bb9548ae/LICENSE.txt",
+      "sha256": "bdca252186865f3b2c0e76da4a4e335c14ba1d37f80194fca254ddfa88e84fbf",
+      "bytes": 4420
+    }
+  ]
+}

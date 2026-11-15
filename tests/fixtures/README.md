@@ -83,6 +83,15 @@ an import-only MuseScore 3.6.1 smoke corpus; MSCX export is not claimed.
 pinned revision in `manifest.json`. Its physical 3/4+1/4 and 7/8+1/8 split measures are used for
 an import-only playback onset regression; MusicXML export is not claimed.
 
+`openscore_lieder_brahms_gestillte_sehnsucht.mxl` is the full CC0 OpenScore Lieder
+MusicXML score of Brahms's *Gestillte Sehnsucht*, Op. 91 No. 1. Its upstream revision,
+path and checksum are pinned in `manifest.json`. After a failed frozen print evaluation,
+it became development data for cross-staff beams, hidden timing rests and authored
+tuplet visibility. It is no longer an unseen evaluation input.
+
+`harmony_written.musicxml` is a self-authored fixture for Roman numerals, local keys,
+inversions, and authored root/kind text including an explicitly empty root label.
+
 `freilachs_no_17.mscz` and `freilachs_no_17_accordion.mscz` are public-domain
 score archives from the pinned fisarmonica.org revision in `manifest.json`.
 Their two independent repeat/alternate-ending groups are tested through direct

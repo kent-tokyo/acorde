@@ -607,3 +607,117 @@ fn cross_staff_notes_do_not_push_a_direction_below_the_neighboring_staff() {
         }
     }
 }
+
+#[test]
+fn authored_cross_staff_tuplets_do_not_inflate_staff_spacing_or_reappear_when_hidden() {
+    let score = acorde_io::parse_mxl(include_bytes!(
+        "../../../tests/fixtures/openscore_lieder_brahms_gestillte_sehnsucht.mxl"
+    ))
+    .unwrap();
+    let output = engrave_print_pages(
+        &score,
+        &PrintConfig {
+            measures_per_system: 8,
+            ..Default::default()
+        },
+        FONT,
+    )
+    .unwrap();
+    assert_eq!(output.staff_space_mm, 1.8);
+    assert!(
+        output
+            .layout
+            .pages
+            .iter()
+            .flat_map(|p| &p.systems)
+            .all(|s| s.height_mm < 180.0)
+    );
+    let visible_starts = score
+        .parts
+        .iter()
+        .flat_map(|p| &p.staves)
+        .flat_map(|s| &s.measures)
+        .flat_map(|m| &m.voices)
+        .flatten()
+        .filter(|n| {
+            n.tuplet_display
+                .as_ref()
+                .is_some_and(|d| d.number != acorde_core::TupletNumberDisplay::None)
+        })
+        .count();
+    let printed = output
+        .pages
+        .iter()
+        .map(|p| {
+            roxmltree::Document::parse(p)
+                .unwrap()
+                .descendants()
+                .filter(|n| n.attribute("class") == Some("acorde-tuplet-number"))
+                .count()
+        })
+        .sum::<usize>();
+    assert_eq!(printed, visible_starts);
+    let first = roxmltree::Document::parse(&output.pages[0]).unwrap();
+    let head_x = |address| {
+        first
+            .descendants()
+            .find(|n| n.attribute("data-note-addr") == Some(address))
+            .unwrap()
+            .descendants()
+            .find(|n| n.attribute("class") == Some("acorde-notehead"))
+            .unwrap()
+            .attribute("cx")
+            .unwrap()
+            .parse::<f32>()
+            .unwrap()
+    };
+    assert_eq!(
+        head_x("2:0:1:0:1"),
+        head_x("2:0:1:1:1"),
+        "opposite stems on a shared filled unison must share the head"
+    );
+    for page in &output.pages {
+        let doc = roxmltree::Document::parse(page).unwrap();
+        for tuplet in doc
+            .descendants()
+            .filter(|n| n.attribute("data-print-tuplet") == Some("true"))
+        {
+            let number = |name| tuplet.attribute(name).unwrap().parse::<f32>().unwrap();
+            let shift: f32 = tuplet
+                .ancestors()
+                .filter_map(|n| n.attribute("data-print-tuplet-shift"))
+                .map(|v| v.parse::<f32>().unwrap())
+                .sum();
+            let (left, right, top, bottom) = (
+                number("data-print-left"),
+                number("data-print-right"),
+                number("data-print-top") + shift,
+                number("data-print-bottom") + shift,
+            );
+            for slur in doc
+                .descendants()
+                .filter(|n| n.attribute("class") == Some("acorde-slur"))
+            {
+                let p = slur
+                    .attribute("d")
+                    .unwrap()
+                    .split(|c: char| c == ',' || c.is_whitespace())
+                    .filter_map(|v| v.parse::<f32>().ok())
+                    .collect::<Vec<_>>();
+                if p.len() != 10 {
+                    continue;
+                }
+                for step in 0..=200 {
+                    let t = step as f32 / 200.0;
+                    let x = (1.0 - t).powi(2) * p[0] + 2.0 * (1.0 - t) * t * p[2] + t * t * p[4];
+                    let y = (1.0 - t).powi(2) * p[1] + 2.0 * (1.0 - t) * t * p[3] + t * t * p[5];
+                    assert!(
+                        !(left < x && x < right && top < y && y < bottom),
+                        "slur crosses visible tuplet at measure {:?}",
+                        tuplet.attribute("data-measure")
+                    );
+                }
+            }
+        }
+    }
+}

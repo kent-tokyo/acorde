@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+- Preserve MusicXML harmony root/kind spellings, Roman or Nashville numerals,
+  alterations, local numeral keys and inversions in optional `ChordSymbol::written`
+  JSON. Empty authored root text stays empty. `SetChordSymbol` edits and undo/redo
+  retain this data. The added public struct field requires release-version review.
+- Measured print uses pinned OFL-licensed Bravura Text 1.482 outlines for inline
+  music symbols; ordinary text retains the caller's font. Empty SVG paths are
+  accepted as nonpainting PDF geometry.
+- Retain authored tuplet bracket, number visibility/ratio, and side in the optional
+  serde-defaulted `Note::tuplet_display` field with `SetTupletDisplay` editing and
+  MusicXML round trips. Hidden source notes and rests remain invisible in PDF.
+- Keep authored beams together when they begin on the lower staff and cross upward;
+  synthetic fractional timing rests do not acquire visible tuplet marks on export.
+- Measured print clears tuplets, text, articulations, beams and ties using final
+  geometry, shares compatible filled unison heads, and measures interleaved rhythmic
+  columns per physical staff. Qualification against the retired corpus remains ongoing.
+
 - Add opt-in located `analyze_voice_leading_quartets` in Rust and WASM plus
   CLI `analyze-voice-leading`. It compares all pairs of monophonic written
   voices across parts and bar lines, retaining four note addresses, pitches,

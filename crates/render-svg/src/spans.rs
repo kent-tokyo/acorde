@@ -179,6 +179,19 @@ pub(crate) fn hairpin_baseline(
     fallback_y: f32,
     space: f32,
 ) -> (f32, bool) {
+    let physical_staff = if crate::render::measured_print_active() {
+        score
+            .parts
+            .get(start.part)
+            .and_then(|p| p.staves.get(start.staff))
+            .and_then(|s| s.measures.get(start.measure))
+            .and_then(|m| m.voices.get(start.voice))
+            .and_then(|v| v.get(start.note))
+            .and_then(|n| n.cross_staff.as_ref())
+            .map_or(start.staff, |c| c.target_staff)
+    } else {
+        start.staff
+    };
     let above = score
         .parts
         .get(start.part)
@@ -192,7 +205,7 @@ pub(crate) fn hairpin_baseline(
     let mut beam_extreme: Option<f32> = None;
     for (&key @ (part, staff, measure, voice, note_index), &(x, y, stem_up, point_row)) in points {
         if part != start.part
-            || staff != start.staff
+            || (!crate::render::measured_print_active() && staff != start.staff)
             || point_row != row
             || x < x_range.0.min(x_range.1) - 0.5 * space
             || x > x_range.0.max(x_range.1) + 0.5 * space
@@ -200,6 +213,12 @@ pub(crate) fn hairpin_baseline(
             continue;
         }
         let note = &score.parts[part].staves[staff].measures[measure].voices[voice][note_index];
+        if crate::render::measured_print_active()
+            && (note.is_rest
+                || note.cross_staff.as_ref().map_or(staff, |c| c.target_staff) != physical_staff)
+        {
+            continue;
+        }
         let positions: Vec<_> = note
             .pitches
             .iter()
@@ -237,7 +256,7 @@ pub(crate) fn hairpin_baseline(
         }
     }
     let staff_floor = staff_bottoms
-        .get(&(start.part, start.staff, row))
+        .get(&(start.part, physical_staff, row))
         .copied()
         .unwrap_or(fallback_y);
     if above {

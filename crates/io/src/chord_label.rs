@@ -68,6 +68,7 @@ pub(crate) fn parse_chord_label(value: &str) -> Option<ChordSymbol> {
         harmony_function: None,
         harmony_type: None,
         chord_ref: None,
+        written: None,
         range_end: None,
         degrees,
     })

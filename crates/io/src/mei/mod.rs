@@ -3087,6 +3087,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                                         harmony_function: harm_function.clone(),
                                         harmony_type: harm_type.clone(),
                                         chord_ref: harm_chord_ref.clone(),
+                                        written: None,
                                         ..chord
                                     },
                                     label: text.to_string(),
@@ -6339,6 +6340,7 @@ mod tests {
                 harmony_function: Some("D".to_string()),
                 harmony_type: Some("roman".to_string()),
                 chord_ref: Some("#harmonychordA".to_string()),
+                written: None,
                 range_end: None,
                 degrees: vec![
                     ChordDegree {

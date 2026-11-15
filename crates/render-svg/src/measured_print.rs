@@ -25,7 +25,7 @@ pub enum MeasuredEngravingError {
     InvalidPart,
     #[error("generated print geometry is inconsistent")]
     InvalidGeneratedGeometry,
-    #[error("print collision reflow did not converge within 6 passes")]
+    #[error("print collision reflow did not converge within 16 passes")]
     CollisionReflowLimit,
     #[error("a direction is wider than the available system width")]
     DirectionTooWide,
@@ -63,7 +63,7 @@ pub fn engrave_print_pages(
             &selected
         }
     };
-    let font = TextFont::new(font_bytes, 0)?;
+    let font = TextFont::for_print(font_bytes)?;
     let _text = crate::font_metrics::PrintTextScope::new(render_score, &font)?;
     let logical = compute_layout(render_score, &LayoutConfig::default());
     let (measures, headers_mm) = crate::render::measured_print_widths(render_score, &logical, 1.8)?;
@@ -104,7 +104,7 @@ pub fn engrave_print_pages(
         .iter()
         .map(|row| crate::render::measured_row_geometry(render_score, row))
         .collect::<Result<Vec<_>, _>>()?;
-    for _ in 0..6 {
+    for _ in 0..16 {
         let heights = geometry
             .iter()
             .map(|g| (g.top_u + g.system_u + g.bottom_u) * 1.8 + 0.001)

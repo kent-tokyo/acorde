@@ -142,8 +142,117 @@ pub(crate) fn resolve(
     let mut stems = Vec::new();
     let mut note_bounds = Vec::new();
     let mut rolls = Vec::new();
+    let mut ink_obstacles = Vec::new();
     for svg in pages.iter() {
         let doc = roxmltree::Document::parse(svg).map_err(|_| Error::InvalidGeneratedGeometry)?;
+        for mark in doc
+            .descendants()
+            .filter(|n| n.attribute("data-print-articulation") == Some("true"))
+        {
+            // Text ornaments are moved by the text pass; do not make their own
+            // original boxes into obstacles against that same text.
+            if mark.descendants().any(|n| n.has_tag_name("text")) {
+                continue;
+            }
+            let row = *row_for_measure
+                .get(&index(mark, "data-measure")?)
+                .ok_or(Error::InvalidGeneratedGeometry)?;
+            let number = |name: &str| {
+                mark.attribute(name)
+                    .and_then(|s| s.parse::<f32>().ok())
+                    .filter(|v| v.is_finite())
+                    .ok_or(Error::InvalidGeneratedGeometry)
+            };
+            ink_obstacles.push((
+                row,
+                number("data-print-left")?,
+                number("data-print-right")?,
+                number("data-print-top")?,
+                number("data-print-bottom")?,
+            ));
+        }
+        for beam in doc
+            .descendants()
+            .filter(|n| n.attribute("class") == Some("acorde-beam"))
+        {
+            let Some(owner) = beam
+                .ancestors()
+                .find(|n| n.attribute("data-acorde-kind") == Some("measure"))
+            else {
+                continue;
+            };
+            let row = *row_for_measure
+                .get(&index(owner, "data-measure")?)
+                .ok_or(Error::InvalidGeneratedGeometry)?;
+            let numbers: Vec<f32> = beam
+                .attribute("points")
+                .unwrap_or("")
+                .split(|c: char| c == ',' || c.is_whitespace())
+                .filter_map(|s| s.parse().ok())
+                .collect();
+            if numbers.len() != 8 || numbers.iter().any(|v| !v.is_finite()) {
+                return Err(Error::InvalidGeneratedGeometry);
+            }
+            let x = numbers.chunks_exact(2).map(|p| p[0]);
+            let y = numbers.chunks_exact(2).map(|p| p[1]);
+            ink_obstacles.push((
+                row,
+                x.clone().fold(f32::INFINITY, f32::min),
+                x.fold(f32::NEG_INFINITY, f32::max),
+                y.clone().fold(f32::INFINITY, f32::min),
+                y.fold(f32::NEG_INFINITY, f32::max),
+            ));
+        }
+        for tie in doc
+            .descendants()
+            .filter(|n| n.attribute("class") == Some("acorde-tie"))
+        {
+            let p: Vec<f32> = tie
+                .attribute("d")
+                .unwrap_or("")
+                .split(|c: char| c == ',' || c.is_whitespace())
+                .filter_map(|s| s.parse().ok())
+                .collect();
+            if p.len() != 14 || p.iter().any(|v| !v.is_finite()) {
+                return Err(Error::InvalidGeneratedGeometry);
+            }
+            let Some(row) = tops
+                .iter()
+                .enumerate()
+                .min_by(|(_, a), (_, b)| {
+                    let distance = |staves: &Vec<f32>| {
+                        staves
+                            .iter()
+                            .map(|y| (y + 2.0 * SPACE - (p[1] + p[7]) / 2.0).abs())
+                            .fold(f32::INFINITY, f32::min)
+                    };
+                    distance(a).total_cmp(&distance(b))
+                })
+                .map(|(i, _)| i)
+            else {
+                continue;
+            };
+            let point = |t: f32| {
+                let c = |offset| {
+                    (1.0 - t).powi(3) * p[offset]
+                        + 3.0 * (1.0 - t).powi(2) * t * p[offset + 2]
+                        + 3.0 * (1.0 - t) * t * t * p[offset + 4]
+                        + t.powi(3) * p[offset + 6]
+                };
+                (c(0), c(1))
+            };
+            for segment in 0..32 {
+                let (x, y) = point(segment as f32 / 32.0);
+                let (a, b) = point((segment + 1) as f32 / 32.0);
+                ink_obstacles.push((
+                    row,
+                    x.min(a) - 0.15 * SPACE,
+                    x.max(a) + 0.15 * SPACE,
+                    y.min(b) - 0.15 * SPACE,
+                    y.max(b) + 0.15 * SPACE,
+                ));
+            }
+        }
         for line in doc.descendants().filter(|n| {
             matches!(
                 n.attribute("class"),
@@ -160,42 +269,6 @@ pub(crate) fn resolve(
             let verse = u8::try_from(index(line, "data-verse")?)
                 .map_err(|_| Error::InvalidGeneratedGeometry)?;
             lyric_verses[row][staff] = lyric_verses[row][staff].max(verse);
-        }
-        for mark in doc
-            .descendants()
-            .filter(|n| n.attribute("data-print-tuplet") == Some("true"))
-        {
-            let part = index(mark, "data-part")?;
-            let source_staff = index(mark, "data-staff")?;
-            let staff = refs
-                .iter()
-                .position(|r| *r == (part, source_staff))
-                .ok_or(Error::InvalidGeneratedGeometry)?;
-            let row = *row_for_measure
-                .get(&index(mark, "data-measure")?)
-                .ok_or(Error::InvalidGeneratedGeometry)?;
-            let number = |name: &str| {
-                mark.attribute(name)
-                    .and_then(|v| v.parse::<f32>().ok())
-                    .filter(|v| v.is_finite())
-                    .ok_or(Error::InvalidGeneratedGeometry)
-            };
-            let (l, r, t, b) = (
-                number("data-print-left")?,
-                number("data-print-right")?,
-                number("data-print-top")?,
-                number("data-print-bottom")?,
-            );
-            note_bounds.push((row, staff, l, r, t, b));
-            above[row][staff] = above[row][staff].max((tops[row][staff] - t) / SPACE);
-            below[row][staff] = below[row][staff].max((b - bottoms[row][staff]) / SPACE);
-            if lyric_verses[row][staff] > 0 {
-                geometry[row].lyric_baselines_u[staff] = geometry[row].lyric_baselines_u[staff]
-                    .max(
-                        (b - bottoms[row][staff] + CLEARANCE) / SPACE
-                            + crate::render::print_lyric_font_size_u(),
-                    );
-            }
         }
         for roll in doc
             .descendants()
@@ -314,14 +387,21 @@ pub(crate) fn resolve(
             let x = value("x1")?;
             let y1 = value("y1")?;
             let y2 = value("y2")?;
-            stems.push((row, staff, x, y1.min(y2), y1.max(y2)));
+            // A cross-staff stem may intersect an annotation attached to either
+            // staff of the part. Its actual vertical extent decides the collision.
+            stems.extend(
+                refs.iter()
+                    .enumerate()
+                    .filter(|(_, (p, _))| *p == part)
+                    .map(|(physical, _)| (row, physical, x, y1.min(y2), y1.max(y2))),
+            );
             let cross_staff = stem
                 .ancestors()
                 .find(|n| n.attribute("data-acorde-kind") == Some("note"))
                 .and_then(|note| {
                     let voice = index(note, "data-voice").ok()?;
                     let i = index(note, "data-note").ok()?;
-                    score
+                    let notes = score
                         .parts
                         .get(part)?
                         .staves
@@ -329,12 +409,36 @@ pub(crate) fn resolve(
                         .measures
                         .get(measure)?
                         .voices
-                        .get(voice)?
-                        .get(i)?
-                        .cross_staff
-                        .as_ref()
+                        .get(voice)?;
+                    let note = notes.get(i)?;
+                    let mut first = i;
+                    let mut last = i;
+                    if matches!(
+                        note.beam,
+                        acorde_core::BeamState::Begin
+                            | acorde_core::BeamState::Continue
+                            | acorde_core::BeamState::End
+                    ) {
+                        while first > 0
+                            && matches!(
+                                notes[first].beam,
+                                acorde_core::BeamState::Continue | acorde_core::BeamState::End
+                            )
+                        {
+                            first -= 1;
+                        }
+                        while last + 1 < notes.len()
+                            && matches!(
+                                notes[last].beam,
+                                acorde_core::BeamState::Begin | acorde_core::BeamState::Continue
+                            )
+                        {
+                            last += 1;
+                        }
+                    }
+                    Some(notes[first..=last].iter().any(|n| n.cross_staff.is_some()))
                 })
-                .is_some();
+                .unwrap_or(false);
             if !cross_staff {
                 reserve_ink(
                     &mut upper_ink,
@@ -460,6 +564,85 @@ pub(crate) fn resolve(
         let doc = roxmltree::Document::parse(svg).map_err(|_| Error::InvalidGeneratedGeometry)?;
         let mut replacements = Vec::new();
         let mut placed: Vec<(usize, usize, f32, f32, f32, f32)> = Vec::new();
+        // Tuplet digits and brackets must clear the final slur curves, including
+        // curves connecting the two staves of a keyboard part. Place these before
+        // directions/hairpins so subsequent marks see their final ink bounds.
+        for mark in doc
+            .descendants()
+            .filter(|n| n.attribute("data-print-tuplet") == Some("true"))
+        {
+            let part = index(mark, "data-part")?;
+            let under = mark.attribute("data-print-above") == Some("false");
+            let source_staff = index(
+                mark,
+                if under {
+                    "data-last-staff"
+                } else {
+                    "data-first-staff"
+                },
+            )?;
+            let staff = refs
+                .iter()
+                .position(|r| *r == (part, source_staff))
+                .ok_or(Error::InvalidGeneratedGeometry)?;
+            let row = *row_for_measure
+                .get(&index(mark, "data-measure")?)
+                .ok_or(Error::InvalidGeneratedGeometry)?;
+            let number = |name: &str| {
+                mark.attribute(name)
+                    .and_then(|v| v.parse::<f32>().ok())
+                    .filter(|v| v.is_finite())
+                    .ok_or(Error::InvalidGeneratedGeometry)
+            };
+            let (left, right, top, bottom) = (
+                number("data-print-left")?,
+                number("data-print-right")?,
+                number("data-print-top")?,
+                number("data-print-bottom")?,
+            );
+            let mut shift = if under {
+                (bottoms[row][staff] + CLEARANCE - top).max(0.0)
+            } else {
+                (tops[row][staff] - CLEARANCE - bottom).min(0.0)
+            };
+            for _ in 0..=curves.len().min(256) {
+                let previous = shift;
+                for curve in curves
+                    .iter()
+                    .filter(|c| c.row == row && c.first_staff <= staff && staff <= c.last_staff)
+                {
+                    if let Some((t, b)) = curve.range(left - CLEARANCE, right + CLEARANCE)
+                        && top + shift - CLEARANCE < b
+                        && bottom + shift + CLEARANCE > t
+                    {
+                        shift = if under {
+                            b + CLEARANCE - top
+                        } else {
+                            t - CLEARANCE - bottom
+                        };
+                    }
+                }
+                if (shift - previous).abs() < 0.001 {
+                    break;
+                }
+            }
+            let ink = (row, staff, left, right, top + shift, bottom + shift);
+            // Reserve a cross-staff tuplet against the exterior staff on its
+            // authored side, rather than increasing the interior beam gap.
+            above[row][staff] = above[row][staff].max((tops[row][staff] - ink.4) / SPACE);
+            below[row][staff] = below[row][staff].max((ink.5 - bottoms[row][staff]) / SPACE);
+            if lyric_verses[row][staff] > 0 {
+                geometry[row].lyric_baselines_u[staff] = geometry[row].lyric_baselines_u[staff]
+                    .max(
+                        (ink.5 - bottoms[row][staff] + CLEARANCE) / SPACE
+                            + crate::render::print_lyric_font_size_u(),
+                    );
+            }
+            placed.push(ink);
+            if shift.abs() > 0.001 {
+                replacements.push((mark.range(), format!("<g data-print-tuplet-shift=\"{shift}\" transform=\"translate(0 {shift})\">{}</g>", &svg[mark.range()])));
+            }
+        }
         for hairpin in doc
             .descendants()
             .filter(|n| n.attribute("class") == Some("acorde-hairpin"))
@@ -530,7 +713,10 @@ pub(crate) fn resolve(
                 let previous = shift;
                 for curve in curves
                     .iter()
-                    .filter(|c| c.row == row && c.first_staff <= staff && staff <= c.last_staff)
+                    // Cross-staff slurs connect opposite sides of this gap. Pushing
+                    // a horizontal wedge beyond both endpoints makes staff spacing
+                    // diverge. Keep its authored lane; crossings remain reviewable.
+                    .filter(|c| c.row == row && c.first_staff == staff && c.last_staff == staff)
                 {
                     if let Some((t, b)) = curve.range(left - CLEARANCE, right + CLEARANCE)
                         && top + shift - CLEARANCE < b
@@ -590,12 +776,21 @@ pub(crate) fn resolve(
         }
         for text in doc.descendants().filter(|n| {
             (n.has_tag_name("text") || n.attribute("class") == Some("acorde-dynamic"))
-                && n.attribute("class")
-                    .is_some_and(|c| c.starts_with("acorde-measure-text") || c == "acorde-dynamic")
+                && n.attribute("class").is_some_and(|c| {
+                    c.starts_with("acorde-measure-text")
+                        || c.starts_with("acorde-articulation")
+                        || matches!(
+                            c,
+                            "acorde-dynamic" | "acorde-chord-symbol" | "acorde-measure-number"
+                        )
+                })
         }) {
-            let Some(owner) = text
-                .ancestors()
-                .find(|n| n.attribute("data-acorde-kind") == Some("measure"))
+            let Some(owner) = (text.attribute("class") == Some("acorde-measure-number"))
+                .then_some(text)
+                .or_else(|| {
+                    text.ancestors()
+                        .find(|n| n.attribute("data-acorde-kind") == Some("measure"))
+                })
             else {
                 continue;
             };
@@ -606,6 +801,32 @@ pub(crate) fn resolve(
                 .iter()
                 .position(|r| *r == (p, s))
                 .ok_or(Error::InvalidGeneratedGeometry)?;
+            if let Some(address) = text
+                .ancestors()
+                .find_map(|n| n.attribute("data-print-note-addr"))
+            {
+                let address = address
+                    .split(':')
+                    .map(str::parse::<usize>)
+                    .collect::<Result<Vec<_>, _>>()
+                    .map_err(|_| Error::InvalidGeneratedGeometry)?;
+                if let [part, source_staff, measure, voice, note] = address.as_slice()
+                    && let Some(target) = score
+                        .parts
+                        .get(*part)
+                        .and_then(|p| p.staves.get(*source_staff))
+                        .and_then(|s| s.measures.get(*measure))
+                        .and_then(|m| m.voices.get(*voice))
+                        .and_then(|v| v.get(*note))
+                        .and_then(|n| n.cross_staff.as_ref())
+                        .map(|c| c.target_staff)
+                {
+                    staff = refs
+                        .iter()
+                        .position(|r| *r == (*part, target))
+                        .ok_or(Error::InvalidGeneratedGeometry)?;
+                }
+            }
             let row = *row_for_measure
                 .get(&m)
                 .ok_or(Error::InvalidGeneratedGeometry)?;
@@ -690,7 +911,7 @@ pub(crate) fn resolve(
             for _ in 0..=(curves.len() + placed.len() + note_bounds.len() + rolls.len()).min(256) {
                 let previous = y;
                 let width = right - left;
-                let blocked = rolls
+                let mut blocked: Vec<_> = rolls
                     .iter()
                     .filter(|&&(r, _, _, t, b)| {
                         r == row
@@ -699,6 +920,24 @@ pub(crate) fn resolve(
                     })
                     .map(|&(_, l, r, _, _)| (l - width - CLEARANCE, r + CLEARANCE))
                     .collect();
+                for curve in curves.iter().filter(|c| {
+                    c.row == row
+                        && c.first_staff != c.last_staff
+                        && c.first_staff <= staff
+                        && staff <= c.last_staff
+                }) {
+                    for segment in 0..32 {
+                        let a = curve.p[0] + (curve.p[4] - curve.p[0]) * segment as f32 / 32.0;
+                        let b =
+                            curve.p[0] + (curve.p[4] - curve.p[0]) * (segment + 1) as f32 / 32.0;
+                        if let Some((top, bottom)) = curve.range(a.min(b), a.max(b))
+                            && y + metrics.bottom_mm + CLEARANCE > top
+                            && y + metrics.top_mm - CLEARANCE < bottom
+                        {
+                            blocked.push((a.min(b) - width - CLEARANCE, a.max(b) + CLEARANCE));
+                        }
+                    }
+                }
                 if let Some(next) = crate::render::nearest_text_gap(
                     left,
                     0.25 * SPACE,
@@ -713,7 +952,7 @@ pub(crate) fn resolve(
                 }
                 for curve in curves
                     .iter()
-                    .filter(|c| c.row == row && c.first_staff <= staff && staff <= c.last_staff)
+                    .filter(|c| c.row == row && c.first_staff == staff && c.last_staff == staff)
                 {
                     if let Some((low, high)) = curve.range(left - CLEARANCE, right + CLEARANCE)
                         && y + metrics.bottom_mm + CLEARANCE > low
@@ -741,6 +980,20 @@ pub(crate) fn resolve(
                         };
                     }
                 }
+                for &(r, l, h, top, bottom) in &ink_obstacles {
+                    if r == row
+                        && left < h + CLEARANCE
+                        && right > l - CLEARANCE
+                        && y + metrics.bottom_mm + CLEARANCE > top
+                        && y + metrics.top_mm - CLEARANCE < bottom
+                    {
+                        y = if under {
+                            bottom + CLEARANCE - metrics.top_mm
+                        } else {
+                            top - CLEARANCE - metrics.bottom_mm
+                        };
+                    }
+                }
                 for &(r, s, x, top, bottom) in &stems {
                     if r == row
                         && s == staff
@@ -755,6 +1008,24 @@ pub(crate) fn resolve(
                             top - CLEARANCE - metrics.bottom_mm
                         };
                     }
+                }
+                // A part-level direction that cannot fit in an interior grand-staff
+                // lane moves beyond the neighboring staff of that same part. Reserving
+                // it against the old staff would make every gap expansion repeat.
+                if under
+                    && staff + 1 < refs.len()
+                    && refs[staff + 1].0 == p
+                    && y + metrics.bottom_mm + CLEARANCE > tops[row][staff + 1]
+                {
+                    staff += 1;
+                    y = y.max(bottoms[row][staff] + CLEARANCE - metrics.top_mm);
+                } else if !under
+                    && staff > 0
+                    && refs[staff - 1].0 == p
+                    && y + metrics.top_mm - CLEARANCE < bottoms[row][staff - 1]
+                {
+                    staff -= 1;
+                    y = y.min(tops[row][staff] - CLEARANCE - metrics.bottom_mm);
                 }
                 if (y - previous).abs() < 0.001 {
                     break;
