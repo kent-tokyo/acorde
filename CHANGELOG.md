@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Import text-bearing MusicXML breath and caesura marks as visible articulations;
+  paired tags now follow the same path as self-closing tags.
 - Preserve concurrent numbered MusicXML wedges as typed crescendo/decrescendo
   spanners, including starts on notes beamed across staves. MusicXML round trips
   retain their numbers and placements; measured collision reflow follows each

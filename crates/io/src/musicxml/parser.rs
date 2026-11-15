@@ -784,6 +784,15 @@ pub(crate) fn parse_musicxml_collecting(
                     }
                     // Paired and self-closing fermata elements have the same XML meaning.
                     "fermata" if in_notations => pending_articulations.push(Articulation::Fermata),
+                    // MusicXML breath marks commonly carry a glyph name such as `comma`.
+                    // The text does not change our articulation kind, but the paired element
+                    // must be imported just like `<breath-mark/>`.
+                    "breath-mark" if in_artic_block => {
+                        pending_articulations.push(Articulation::BreathMark)
+                    }
+                    "caesura" if in_artic_block => {
+                        pending_articulations.push(Articulation::Caesura)
+                    }
                     // `<tap>T</tap>`: tapping with its displayed text.
                     "tap" if in_technical_block => pending_articulations.push(
                         if attr_str(e, b"hand").as_deref() == Some("left") {
@@ -5300,20 +5309,24 @@ mod tests {
 
     #[test]
     fn breath_mark_parsed_from_notations() {
-        let xml = xml_with_notations("<breath-mark/>");
-        let score = parse_musicxml(&xml).unwrap();
-        let notes = &score.parts[0].staves[0].measures[0].voices[0];
-        let note = notes.iter().find(|n| !n.is_rest).unwrap();
-        assert!(note.articulations.contains(&Articulation::BreathMark));
+        for element in ["<breath-mark/>", "<breath-mark>comma</breath-mark>"] {
+            let xml = xml_with_notations(&format!("<articulations>{element}</articulations>"));
+            let score = parse_musicxml(&xml).unwrap();
+            let notes = &score.parts[0].staves[0].measures[0].voices[0];
+            let note = notes.iter().find(|n| !n.is_rest).unwrap();
+            assert!(note.articulations.contains(&Articulation::BreathMark));
+        }
     }
 
     #[test]
     fn caesura_parsed_from_notations() {
-        let xml = xml_with_notations("<caesura/>");
-        let score = parse_musicxml(&xml).unwrap();
-        let notes = &score.parts[0].staves[0].measures[0].voices[0];
-        let note = notes.iter().find(|n| !n.is_rest).unwrap();
-        assert!(note.articulations.contains(&Articulation::Caesura));
+        for element in ["<caesura/>", "<caesura>normal</caesura>"] {
+            let xml = xml_with_notations(&format!("<articulations>{element}</articulations>"));
+            let score = parse_musicxml(&xml).unwrap();
+            let notes = &score.parts[0].staves[0].measures[0].voices[0];
+            let note = notes.iter().find(|n| !n.is_rest).unwrap();
+            assert!(note.articulations.contains(&Articulation::Caesura));
+        }
     }
 
     #[test]
