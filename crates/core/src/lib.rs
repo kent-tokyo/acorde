@@ -112,9 +112,9 @@ pub use model::countermelody_development::{
     replay_countermelody_development,
 };
 pub use model::developed_form_proposals::{
-    DEVELOPED_FORM_PROPOSAL_CONTRACT_VERSION, DevelopedFormProposalCandidate,
-    DevelopedFormProposalError, DevelopedFormProposalResult, DevelopedFormRejection,
-    ResolvedDevelopedFormProposal, replay_developed_form_proposal,
+    DEVELOPED_FORM_PROPOSAL_CONTRACT_VERSION, DevelopedFormAxisDistance,
+    DevelopedFormProposalCandidate, DevelopedFormProposalError, DevelopedFormProposalResult,
+    DevelopedFormRejection, ResolvedDevelopedFormProposal, replay_developed_form_proposal,
     suggest_developed_form_proposals,
 };
 pub use model::duration::Duration;

@@ -43,6 +43,15 @@ fn selected_developed_forms_match_native_json_and_replay() {
     for (expected, actual) in native.candidates.iter().zip(&browser.candidates) {
         assert_eq!(expected.id, actual.id);
         assert_eq!(
+            expected.axis_distance_from_first,
+            actual.axis_distance_from_first
+        );
+        assert_eq!(
+            expected.nearest_selected_distance,
+            actual.nearest_selected_distance
+        );
+        assert_eq!(expected.difference_codes, actual.difference_codes);
+        assert_eq!(
             fixture::events(&expected.score),
             fixture::events(&actual.score)
         );

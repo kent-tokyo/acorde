@@ -231,6 +231,17 @@ intent-directed edits. The full native workspace suite and warning-free
 workspace Clippy and complete full/viewer Chrome WASM suites pass. Hosted CI,
 optimized size and listening gates remain.
 
+The developed-form selector now measures six distances between generated
+candidates: harmony pitch classes per bar, event rhythm, exact bass events,
+register bands, sounding role activity and section treatment. It retains a
+new countermelody treatment when one is available, then chooses the candidate
+farthest from its nearest selected neighbor on those measured axes. The result
+reports each axis's distance from the first proposal and the nearest selected
+distance. All six axes show a difference somewhere in the ten compatible
+development works, and their three selected treatments remain distinct.
+These distances compare proposals under one supplied chord plan; cross-plan
+harmony ranking, local intent mapping and listener acceptance remain open.
+
 An opt-in phrase-entry constraint now carries the last sounding
 countermelody pitch across an authored phrase end and selects the next chord
 tone within a caller-supplied 0–24-semitone leap. A silent role section resets
@@ -332,7 +343,7 @@ redistribution, simplified versions and performer acceptance remain open.
 | 3. Rhythm and bass | Composable pulse/rest/accent/duration rules, anticipation, syncopation, walking/ostinato bass and phrase-ending fills; coherent transitions. | Form can switch the existing three bass patterns by section. Authored bass rhythm sections now express the named techniques and keep exact bar lengths and chord transitions in focused tests. The full native workspace and full/viewer Chrome WASM suites pass; matched-instrument listening and broader playability checks remain. |
 | 4. Countermelody and voice leading | Capture motif rhythm as well as contour; inversion, augmentation/diminution, imitation, question/answer and independent inner voices across phrases. | An opt-in source-rhythm API extracts note/rest durations and generates imitation, inversion, augmentation, diminution and delayed answer treatments. Ten long-form development works produce five valid distinct standalone event sequences each. Form development coordinates this role with section activity, harmony, bass, dynamics and collision checks. The selector chooses three distinct rhythmic treatments in each of the ten countermelody-capable works. A new opt-in bound selects the next phrase's chord tone near the prior ending pitch and rejects impossible joins; all ten works have at least one form accepting four semitones. An independent two-voice API adds separate rhythm grids, bounded cross-phrase motion, fixed voice ordering and melody clearance. A form-level option replaces the chordal pad with those lines and checks section activity, dynamics, cross-role order and total density. The sectioned form now also chooses inner pitches in playback order, checks every repeat visit's spacing and density, and bounds the return's inner-voice leaps. Texture choice within a form, instrument playability and listening acceptance remain. |
 | 5. Instruments and difficulty | Piano hand allocation, accordion buttons, wind breathing, string sustain; solo/duet/small ensemble and simplified versions. | An opt-in instrument plan assigns names and MIDI programs to selected parts, then screens sounding range, one-hand keyboard chords and wind breath runs across repeats. Existing accordion button infrastructure remains separate. Two-hand allocation, accordion integration, string sustain, role redistribution, simplified versions and performer review remain. |
-| 6. Proposal selection and editing | Three to five musically distinct complete proposals measured across harmony/rhythm/bass/register/roles/form; intent-directed local changes respecting locks. | Twelve long-form works produce three replayable complete proposals and five distinct sectional forms with pinned piano-reference WAV identities. A new selector combines the five form profiles with five rhythmic countermelody treatments, yielding three different selected treatments in all ten countermelody-capable works. It reports rejected combinations and replays the chosen forms. Harmony-plan search remains separate; a full cross-axis ranking, intent-to-constraint mapping, final-set review and listening acceptance remain. |
+| 6. Proposal selection and editing | Three to five musically distinct complete proposals measured across harmony/rhythm/bass/register/roles/form; intent-directed local changes respecting locks. | Twelve long-form works produce three replayable complete proposals and five distinct sectional forms with pinned piano-reference WAV identities. The developed-form selector combines five form profiles with five rhythmic countermelody treatments, reports rejected combinations and ranks distinct playback using six observed axes; three treatments remain represented in all ten countermelody-capable works. Harmony-plan search remains separate; cross-plan ranking, intent-to-constraint mapping, final-set review and listening acceptance remain. |
 
 ## Execution order and completion gates
 

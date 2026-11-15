@@ -1,10 +1,12 @@
 //! Select complete sectional forms with distinct rhythmic countermelody treatments.
 
+use std::collections::{BTreeMap, BTreeSet};
+
 use serde::{Deserialize, Serialize};
 
 use super::chord_proposals::fingerprint;
 use super::countermelody_development::CountermelodyDevelopmentKind;
-use super::ensemble_form::{EnsembleFormDiagnostic, EnsembleFormMeasure};
+use super::ensemble_form::{EnsembleFormDiagnostic, EnsembleFormMeasure, EnsembleFormSection};
 use super::ensemble_form_development::{
     EnsembleFormDevelopmentError, EnsembleFormDevelopmentRequest, ResolvedEnsembleFormDevelopment,
     arrange_ensemble_form_development, replay_ensemble_form_development,
@@ -13,6 +15,8 @@ use super::ensemble_form_proposals::{
     EnsembleFormProposalRequest, FormProposalError, ResolvedFormProposal,
     replay_ensemble_form_proposal, signature, suggest_ensemble_form_proposals,
 };
+use super::ensemble_roles::{EnsembleRole, EnsembleRolePart};
+use super::playback::{PlaybackOptions, to_playback_events};
 use super::score::Score;
 
 pub const DEVELOPED_FORM_PROPOSAL_CONTRACT_VERSION: u16 = 1;
@@ -40,6 +44,158 @@ pub struct DevelopedFormProposalCandidate {
     pub resolved: ResolvedDevelopedFormProposal,
     pub measures: Vec<EnsembleFormMeasure>,
     pub difference_codes: Vec<String>,
+    /// Difference from the first selected form, on six observed axes. Each
+    /// axis is a Jaccard distance in 0..=1000 (0 means identical).
+    #[serde(default)]
+    pub axis_distance_from_first: DevelopedFormAxisDistance,
+    /// Sum of the six axis distances to the closest previously selected form.
+    #[serde(default)]
+    pub nearest_selected_distance: u32,
+}
+
+/// Observed distance on six independent summaries of generated playback.
+/// `harmony` compares pitch classes per written bar, `rhythm` attack times and
+/// lengths, `bass` exact bass events, `register` four-semitone pitch bands,
+/// `roles` sounding role activity by bar, and `form` each section's role,
+/// pattern and dynamic. These are selection proxies, not listening scores.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DevelopedFormAxisDistance {
+    pub harmony: u16,
+    pub rhythm: u16,
+    pub bass: u16,
+    pub register: u16,
+    pub roles: u16,
+    pub form: u16,
+}
+
+impl DevelopedFormAxisDistance {
+    pub fn total(self) -> u32 {
+        u32::from(self.harmony)
+            + u32::from(self.rhythm)
+            + u32::from(self.bass)
+            + u32::from(self.register)
+            + u32::from(self.roles)
+            + u32::from(self.form)
+    }
+}
+
+#[derive(Default)]
+struct ObservedAxes {
+    harmony: BTreeSet<(usize, i32)>,
+    rhythm: BTreeSet<(EnsembleRole, u64, u64)>,
+    bass: BTreeSet<(u64, u64, i32)>,
+    register: BTreeSet<(EnsembleRole, i32)>,
+    roles: BTreeSet<(usize, EnsembleRole)>,
+    form: BTreeSet<(usize, EnsembleRole, u8, u8)>,
+}
+
+fn ticks(beats: f64) -> u64 {
+    (beats * 480.0).round().max(0.0) as u64
+}
+
+impl ObservedAxes {
+    fn collect(
+        score: &Score,
+        role_parts: &[EnsembleRolePart],
+        measures: &[EnsembleFormMeasure],
+        sections: &[EnsembleFormSection],
+    ) -> Self {
+        let mut axes = Self::default();
+        let by_part: BTreeMap<_, _> = role_parts
+            .iter()
+            .map(|part| (part.part_index, part.role))
+            .collect();
+        for event in to_playback_events(score, &PlaybackOptions::default()) {
+            let Some(role) = by_part.get(&event.part_index).copied() else {
+                continue;
+            };
+            let onset = ticks(event.time_beats);
+            let duration = ticks(event.duration_beats);
+            axes.rhythm.insert((role, onset, duration));
+            axes.register
+                .insert((role, event.pitch_midi_cents.div_euclid(400)));
+            match role {
+                EnsembleRole::Harmony => {
+                    if let Some(source) = event.source {
+                        axes.harmony
+                            .insert((source.measure, event.pitch_midi_cents.rem_euclid(1200)));
+                    }
+                }
+                EnsembleRole::Bass => {
+                    axes.bass.insert((onset, duration, event.pitch_midi_cents));
+                }
+                EnsembleRole::Countermelody => {}
+            }
+        }
+        for (measure, report) in measures.iter().enumerate() {
+            for (role, attacks) in [
+                (EnsembleRole::Harmony, report.harmony_attacks),
+                (EnsembleRole::Bass, report.bass_attacks),
+                (EnsembleRole::Countermelody, report.countermelody_attacks),
+            ] {
+                if attacks > 0 {
+                    axes.roles.insert((measure, role));
+                }
+            }
+        }
+        for (index, section) in sections.iter().enumerate() {
+            if let Some(harmony) = &section.harmony {
+                axes.form.insert((
+                    index,
+                    EnsembleRole::Harmony,
+                    harmony.pattern as u8,
+                    harmony.dynamic.to_velocity(),
+                ));
+            }
+            if let Some(bass) = &section.bass {
+                axes.form.insert((
+                    index,
+                    EnsembleRole::Bass,
+                    bass.pattern as u8,
+                    bass.dynamic.to_velocity(),
+                ));
+            }
+            if let Some(level) = section.countermelody {
+                axes.form
+                    .insert((index, EnsembleRole::Countermelody, 0, level.to_velocity()));
+            }
+        }
+        axes
+    }
+
+    fn distance(&self, other: &Self) -> DevelopedFormAxisDistance {
+        DevelopedFormAxisDistance {
+            harmony: jaccard(&self.harmony, &other.harmony),
+            rhythm: jaccard(&self.rhythm, &other.rhythm),
+            bass: jaccard(&self.bass, &other.bass),
+            register: jaccard(&self.register, &other.register),
+            roles: jaccard(&self.roles, &other.roles),
+            form: jaccard(&self.form, &other.form),
+        }
+    }
+}
+
+fn jaccard<T: Ord>(left: &BTreeSet<T>, right: &BTreeSet<T>) -> u16 {
+    let union = left.union(right).count();
+    if union == 0 {
+        return 0;
+    }
+    let common = left.intersection(right).count();
+    (((union - common) * 1000 + union / 2) / union) as u16
+}
+
+fn observed_difference_codes(distance: DevelopedFormAxisDistance) -> Vec<String> {
+    [
+        (distance.harmony, "harmony-pitch-classes-changed"),
+        (distance.rhythm, "generated-rhythm-changed"),
+        (distance.bass, "bass-events-changed"),
+        (distance.register, "generated-register-changed"),
+        (distance.roles, "role-activity-changed"),
+        (distance.form, "section-form-changed"),
+    ]
+    .into_iter()
+    .filter_map(|(value, code)| (value > 0).then_some(code.into()))
+    .collect()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -82,9 +238,11 @@ pub enum DevelopedFormProposalError {
 }
 
 /// Evaluate at most 25 form/treatment combinations, then choose three to five
-/// distinct playback sequences. Selection prefers a new form profile and a
-/// new rhythm treatment when both are available. Failed realizations are
-/// skipped; an insufficient set returns no partial proposal collection.
+/// distinct playback sequences. After retaining the first form as a stable
+/// reference, selection keeps a new countermelody treatment when available,
+/// then maximizes the minimum observed six-axis distance to chosen forms.
+/// A new form profile breaks remaining distance ties.
+/// Failed realizations are skipped; an insufficient set returns no partial set.
 pub fn suggest_developed_form_proposals(
     source: &Score,
     request: &EnsembleFormProposalRequest,
@@ -176,18 +334,29 @@ pub fn suggest_developed_form_proposals(
                 continue;
             }
             signatures.push(event_signature);
-            pool.push(DevelopedFormProposalCandidate {
-                id: format!("{}-{}", form.id, kind_name(kind)),
-                score: developed.score,
-                resolved: ResolvedDevelopedFormProposal {
-                    contract_version: DEVELOPED_FORM_PROPOSAL_CONTRACT_VERSION,
-                    source_fingerprint: source_fingerprint.clone(),
-                    form_proposal: form.resolved.clone(),
-                    development: developed.resolved,
+            let axes = ObservedAxes::collect(
+                &developed.score,
+                &developed.role_parts,
+                &developed.measures,
+                &form.resolved.form.request.sections,
+            );
+            pool.push((
+                DevelopedFormProposalCandidate {
+                    id: format!("{}-{}", form.id, kind_name(kind)),
+                    score: developed.score,
+                    resolved: ResolvedDevelopedFormProposal {
+                        contract_version: DEVELOPED_FORM_PROPOSAL_CONTRACT_VERSION,
+                        source_fingerprint: source_fingerprint.clone(),
+                        form_proposal: form.resolved.clone(),
+                        development: developed.resolved,
+                    },
+                    measures: developed.measures,
+                    difference_codes: Vec::new(),
+                    axis_distance_from_first: DevelopedFormAxisDistance::default(),
+                    nearest_selected_distance: 0,
                 },
-                measures: developed.measures,
-                difference_codes: Vec::new(),
-            });
+                axes,
+            ));
         }
     }
     let wanted = usize::from(request.count);
@@ -197,52 +366,69 @@ pub fn suggest_developed_form_proposals(
             rejections,
         });
     }
-    let mut candidates: Vec<DevelopedFormProposalCandidate> = Vec::with_capacity(wanted);
-    while candidates.len() < wanted {
+    let mut selected = Vec::with_capacity(wanted);
+    let (mut reference, reference_axes) = pool.remove(0);
+    reference.difference_codes.push("reference-form".into());
+    selected.push((reference, reference_axes));
+    while selected.len() < wanted {
         let index = pool
             .iter()
             .enumerate()
-            .max_by_key(|(index, candidate)| {
-                let new_form = !candidates.iter().any(|chosen| {
+            .max_by_key(|(index, (candidate, axes))| {
+                let nearest = selected
+                    .iter()
+                    .map(|(_, chosen)| axes.distance(chosen).total())
+                    .min()
+                    .unwrap_or_default();
+                let new_form = !selected.iter().any(|(chosen, _)| {
                     chosen.resolved.form_proposal.profile_id
                         == candidate.resolved.form_proposal.profile_id
                 });
-                let new_kind = !candidates.iter().any(|chosen| {
+                let new_kind = !selected.iter().any(|(chosen, _)| {
                     chosen.resolved.development.countermelody_kind
                         == candidate.resolved.development.countermelody_kind
                 });
                 (
-                    u8::from(new_form) + u8::from(new_kind),
+                    u8::from(new_kind),
+                    nearest,
                     u8::from(new_form),
                     std::cmp::Reverse(*index),
                 )
             })
             .map(|(index, _)| index)
             .ok_or_else(|| DevelopedFormProposalError::InsufficientDistinct {
-                found: candidates.len(),
+                found: selected.len(),
                 rejections: rejections.clone(),
             })?;
-        let mut candidate = pool.remove(index);
-        if let Some(reference) = candidates.first() {
-            if reference.resolved.form_proposal.profile_id
-                != candidate.resolved.form_proposal.profile_id
-            {
-                candidate
-                    .difference_codes
-                    .push("form-profile-changed".into());
-            }
-            if reference.resolved.development.countermelody_kind
-                != candidate.resolved.development.countermelody_kind
-            {
-                candidate
-                    .difference_codes
-                    .push("countermelody-treatment-changed".into());
-            }
-        } else {
-            candidate.difference_codes.push("reference-form".into());
+        let (mut candidate, axes) = pool.remove(index);
+        let distance = axes.distance(&selected[0].1);
+        candidate.axis_distance_from_first = distance;
+        candidate.nearest_selected_distance = selected
+            .iter()
+            .map(|(_, chosen)| axes.distance(chosen).total())
+            .min()
+            .unwrap_or_default();
+        candidate.difference_codes = observed_difference_codes(distance);
+        if selected[0].0.resolved.form_proposal.profile_id
+            != candidate.resolved.form_proposal.profile_id
+        {
+            candidate
+                .difference_codes
+                .push("form-profile-changed".into());
         }
-        candidates.push(candidate);
+        if selected[0].0.resolved.development.countermelody_kind
+            != candidate.resolved.development.countermelody_kind
+        {
+            candidate
+                .difference_codes
+                .push("countermelody-treatment-changed".into());
+        }
+        selected.push((candidate, axes));
     }
+    let candidates = selected
+        .into_iter()
+        .map(|(candidate, _)| candidate)
+        .collect();
     Ok(DevelopedFormProposalResult {
         contract_version: DEVELOPED_FORM_PROPOSAL_CONTRACT_VERSION,
         source_fingerprint,

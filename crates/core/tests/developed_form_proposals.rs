@@ -59,6 +59,7 @@ fn events(score: &acorde_core::Score, from_part: usize) -> Vec<(usize, u64, u64,
 fn three_developed_forms_cover_countermelody_capable_works() {
     let corpus: development_v2::Corpus = serde_json::from_str(development_v2::FIXTURE).unwrap();
     let mut covered = 0;
+    let mut observed_axes = [false; 6];
     for case in &corpus.cases {
         let source = development_v2::score(case);
         let Some(request) = request(case, &source) else {
@@ -92,6 +93,33 @@ fn three_developed_forms_cover_countermelody_capable_works() {
                 "{} replay",
                 case.id
             );
+            if candidate.id != result.candidates[0].id {
+                assert!(
+                    candidate.axis_distance_from_first.total() > 0,
+                    "{} measured difference",
+                    case.id
+                );
+                assert!(
+                    candidate.nearest_selected_distance > 0,
+                    "{} nearest distance",
+                    case.id
+                );
+                let distance = candidate.axis_distance_from_first;
+                for (seen, (changed, code)) in observed_axes.iter_mut().zip([
+                    (distance.harmony > 0, "harmony-pitch-classes-changed"),
+                    (distance.rhythm > 0, "generated-rhythm-changed"),
+                    (distance.bass > 0, "bass-events-changed"),
+                    (distance.register > 0, "generated-register-changed"),
+                    (distance.roles > 0, "role-activity-changed"),
+                    (distance.form > 0, "section-form-changed"),
+                ]) {
+                    assert_eq!(
+                        candidate.difference_codes.iter().any(|item| item == code),
+                        changed
+                    );
+                    *seen |= changed;
+                }
+            }
         }
         for rejected in &result.rejections {
             if let Some(problem) = &rejected.diagnostic {
@@ -109,6 +137,7 @@ fn three_developed_forms_cover_countermelody_capable_works() {
         covered += 1;
     }
     assert_eq!(covered, 10);
+    assert!(observed_axes.into_iter().all(|observed| observed));
 }
 
 #[test]
