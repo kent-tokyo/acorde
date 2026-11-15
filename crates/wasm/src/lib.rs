@@ -1939,6 +1939,30 @@ pub fn replay_ensemble_form(score_json: &str, resolved_json: &str) -> Result<Str
         .map_err(|error| js_err(format!("ensemble form serialization failed: {error}")))
 }
 
+/// Replace the chordal pad with two sectioned inner voices.
+#[wasm_bindgen]
+pub fn arrange_form_inner_voices(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::FormInnerVoicesRequest =
+        parse_json(request_json, "inner-voice form request", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::arrange_form_inner_voices(&score, &request)
+        .map_err(|error| js_err(format!("inner-voice form failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("inner-voice form serialization failed: {error}")))
+}
+
+/// Replay a sectioned inner-voice form against its saved source.
+#[wasm_bindgen]
+pub fn replay_form_inner_voices(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedFormInnerVoices =
+        parse_json(resolved_json, "resolved inner-voice form", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::replay_form_inner_voices(&score, &resolved)
+        .map_err(|error| js_err(format!("inner-voice form replay failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("inner-voice form replay serialization failed: {error}")))
+}
+
 /// Coordinate a source-rhythm countermelody with every written form section.
 #[wasm_bindgen]
 pub fn arrange_ensemble_form_development(score_json: &str, request_json: &str) -> Result<String, JsValue> {

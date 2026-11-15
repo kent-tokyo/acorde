@@ -1,9 +1,36 @@
 //! Original 16-bar development melody. Deliberately shared by native, I/O and
 //! browser tests; this is not an untouched evaluation case.
 use acorde_core::{
-    Duration, EnsembleFormRequest, InnerVoiceLine, InnerVoicePattern, InnerVoicesRequest, Note,
-    Pitch, Score,
+    CountermelodyDevelopmentKind, Duration, Dynamic, EnsembleFormDevelopmentRequest,
+    EnsembleFormRequest, FormInnerVoicesRequest, InnerVoiceLine, InnerVoicePattern,
+    InnerVoicesRequest, Note, Pitch, Score,
 };
+
+#[allow(dead_code)]
+pub fn form_inner_voice_request() -> FormInnerVoicesRequest {
+    let mut form = request();
+    form.ensemble.harmony = None;
+    for section in &mut form.sections {
+        section.harmony = None;
+    }
+    let mut inner = inner_voice_request();
+    inner.upper.pattern = InnerVoicePattern::SecondHalf;
+    inner.phrase_end_measures.clear();
+    FormInnerVoicesRequest {
+        form: EnsembleFormDevelopmentRequest {
+            form,
+            countermelody_kind: CountermelodyDevelopmentKind::Imitation,
+        },
+        inner,
+        section_levels: vec![
+            Some(Dynamic::P),
+            Some(Dynamic::Mp),
+            Some(Dynamic::Mf),
+            Some(Dynamic::Mp),
+            None,
+        ],
+    }
+}
 
 #[allow(dead_code)]
 pub fn inner_voice_request() -> InnerVoicesRequest {

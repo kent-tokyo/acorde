@@ -19,6 +19,7 @@ pub mod duration;
 pub mod engine;
 pub mod ensemble_form;
 pub mod ensemble_form_development;
+pub mod ensemble_form_inner_voices;
 pub mod ensemble_form_proposals;
 pub mod ensemble_form_visits;
 pub mod ensemble_melody;

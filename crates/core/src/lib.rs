@@ -130,6 +130,11 @@ pub use model::ensemble_form_development::{
     arrange_ensemble_form_development, arrange_ensemble_form_development_with_phrase_joins,
     replay_ensemble_form_development,
 };
+pub use model::ensemble_form_inner_voices::{
+    FORM_INNER_VOICES_CONTRACT_VERSION, FORM_INNER_VOICES_ENGINE_VERSION, FormInnerVoicesError,
+    FormInnerVoicesRequest, FormInnerVoicesResult, ResolvedFormInnerVoices,
+    arrange_form_inner_voices, replay_form_inner_voices,
+};
 pub use model::ensemble_form_proposals::{
     EnsembleFormProposalCandidate, EnsembleFormProposalRequest, EnsembleFormProposalResult,
     FORM_PROPOSAL_CONTRACT_VERSION, FormProposalBoundary, FormProposalError, ResolvedFormProposal,
