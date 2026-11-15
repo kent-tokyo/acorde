@@ -208,7 +208,7 @@ test("browser contract renders and exposes selectable notes", async ({ page }) =
   await expect(page.locator("#transport-status")).toHaveText("Paused");
   await page.getByRole("button", { name: "Analyze" }).click();
   await expect(page.locator("#analysis")).not.toHaveText("");
-  await expect(page.locator("#analysis")).toContainText('"schema_version": 13');
+  await expect(page.locator("#analysis")).toContainText('"schema_version": 14');
   await expect(page.locator("#analysis")).toContainText('"key_estimates"');
   await expect(page.locator("#analysis")).toContainText('"weighted_covered_beats"');
   await expect(page.locator("#metadata")).toContainText('"tablature_staves"');

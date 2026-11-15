@@ -4153,11 +4153,11 @@ mod tests {
     fn local_key_windows_keep_physical_measure_addresses() {
         assert!(estimate_local_keys_with_aarden_essen_profile(&Score::default(), 4).is_empty());
         let mut score = Score::new("local keys", 120, 4, 4, 0, 3);
-        for index in 0..3 {
+        for measure in &mut score.parts[0].staves[0].measures {
             let mut chord = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
             chord.pitches.push(Pitch::new(Step::E, 4));
             chord.pitches.push(Pitch::new(Step::G, 4));
-            score.parts[0].staves[0].measures[index].voices[0] = vec![chord];
+            measure.voices[0] = vec![chord];
         }
         let keys = estimate_local_keys_with_aarden_essen_profile(&score, 1);
         assert_eq!(keys.len(), 3);
@@ -4319,9 +4319,8 @@ mod tests {
         score.parts[1].staves[0].measures[0].voices[0] =
             vec![Note::new(Pitch::new(Step::E, 4), Duration::Breve)];
 
-        for measure_index in 0..2 {
-            score.parts[2].staves[0].measures[measure_index].voices[0] =
-                vec![Note::new(Pitch::new(Step::G, 4), Duration::Whole)];
+        for measure in &mut score.parts[2].staves[0].measures {
+            measure.voices[0] = vec![Note::new(Pitch::new(Step::G, 4), Duration::Whole)];
         }
 
         let key = KeySignature {
@@ -4655,15 +4654,19 @@ mod tests {
         score.parts[0].instrument = Some(clarinet);
         score.parts[0].staves[0].measures[1].instrument_change =
             Some(acorde_core::InstrumentDefinition::new("piano", "Piano"));
-        for measure_index in 0..2 {
-            for (part_index, step) in [Step::D, Step::E, Step::G].into_iter().enumerate() {
+        for (part_index, (part, step)) in score
+            .parts
+            .iter_mut()
+            .zip([Step::D, Step::E, Step::G])
+            .enumerate()
+        {
+            for (measure_index, measure) in part.staves[0].measures.iter_mut().enumerate() {
                 let written = if measure_index == 1 && part_index == 0 {
                     Step::C
                 } else {
-                    step
+                    step.clone()
                 };
-                score.parts[part_index].staves[0].measures[measure_index].voices[0] =
-                    vec![Note::new(Pitch::new(written, 4), Duration::Quarter)];
+                measure.voices[0] = vec![Note::new(Pitch::new(written, 4), Duration::Quarter)];
             }
         }
         let key = KeySignature {
