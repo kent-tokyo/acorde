@@ -30,6 +30,7 @@ fn phrase_harmony_json_matches_native_and_rejects_invalid_schedule() {
         proposal: Default::default(),
         locked_chord_entries: vec![],
         source_reanchor: None,
+        local_keys: vec![],
     };
     let native =
         acorde_core::suggest_phrase_harmony(&serde_json::from_str(&score_json).unwrap(), &request);
@@ -101,6 +102,7 @@ fn source_reanchor_keeps_locked_chord_and_provenance_in_wasm() {
         proposal,
         locked_chord_entries: vec![1],
         source_reanchor: Some(vec![0, 0, 1, 1]),
+        local_keys: vec![],
     };
     let native =
         acorde_core::suggest_phrase_harmony(&serde_json::from_str(&score_json).unwrap(), &request);
@@ -134,4 +136,55 @@ fn source_reanchor_keeps_locked_chord_and_provenance_in_wasm() {
                 && entry.sources == source_plan.entries[1].sources
         })
     }));
+}
+
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
+#[cfg_attr(not(target_arch = "wasm32"), test)]
+fn local_key_schedule_matches_native_without_changing_source_identity() {
+    let score_json = acorde_wasm::parse_abc(
+        "X:1\nM:4/4\nL:1/4\nK:C\nC E G B | C E G B | ^F A c ^F | ^F A c ^F |\n",
+    )
+    .unwrap();
+    let mut request = acorde_core::PhraseHarmonyRequest {
+        phrases: vec![acorde_core::PhraseHarmonySection {
+            start_measure: 0,
+            end_measure_exclusive: 4,
+            pace: acorde_core::PhraseHarmonicPace::EveryBar,
+            meter_groups: vec![],
+        }],
+        proposal: Default::default(),
+        locked_chord_entries: vec![],
+        source_reanchor: None,
+        local_keys: vec![],
+    };
+    let source: acorde_core::Score = serde_json::from_str(&score_json).unwrap();
+    let baseline = acorde_core::suggest_phrase_harmony(&source, &request);
+    request.local_keys = vec![acorde_core::ChordKeyRegion {
+        start_measure: 2,
+        end_measure_exclusive: 4,
+        key: acorde_core::KeySignature {
+            fifths: 1,
+            mode: "major".into(),
+        },
+    }];
+    let native = acorde_core::suggest_phrase_harmony(&source, &request);
+    let wasm: acorde_core::PhraseHarmonyResult = serde_json::from_str(
+        &acorde_wasm::suggest_phrase_harmony(
+            &score_json,
+            &serde_json::to_string(&request).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        serde_json::to_value(&native).unwrap(),
+        serde_json::to_value(&wasm).unwrap()
+    );
+    assert!(wasm.diagnostics.is_empty(), "{:?}", wasm.diagnostics);
+    assert_eq!(wasm.applied_local_keys, request.local_keys);
+    assert_eq!(
+        wasm.proposals.input_fingerprint,
+        baseline.proposals.input_fingerprint
+    );
+    assert!(!wasm.proposals.candidates.is_empty());
 }

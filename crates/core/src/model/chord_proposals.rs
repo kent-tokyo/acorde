@@ -25,6 +25,7 @@ struct ProgressionSettings<'a> {
     bass_mode: AccordionBassMode,
     max_changed_spans: Option<u8>,
     contextual_nonchord_tones: bool,
+    local_keys: &'a [ChordKeyRegion],
 }
 
 pub const CHORD_PROPOSAL_CONTRACT_VERSION: u16 = 1;
@@ -52,6 +53,16 @@ pub struct ChordProposalRequest {
     /// suspensions that resolve by step after a harmonic boundary.
     #[serde(skip_serializing_if = "is_false")]
     pub contextual_nonchord_tones: bool,
+}
+
+/// An explicit key for a written-measure range during chord search. It does
+/// not change the source score's written key signatures.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ChordKeyRegion {
+    pub start_measure: usize,
+    pub end_measure_exclusive: usize,
+    pub key: KeySignature,
 }
 
 impl Default for ChordProposalRequest {
@@ -366,7 +377,17 @@ fn tones(symbol: &ChordSymbol) -> Option<Vec<u8>> {
     super::arrange::preset_chord_pitch_classes(symbol)
 }
 
-fn key_at(score: &Score, measure: usize) -> &KeySignature {
+fn key_at<'a>(
+    score: &'a Score,
+    measure: usize,
+    local_keys: &'a [ChordKeyRegion],
+) -> &'a KeySignature {
+    if let Some(region) = local_keys
+        .iter()
+        .find(|region| region.start_measure <= measure && measure < region.end_measure_exclusive)
+    {
+        return &region.key;
+    }
     score.parts[0].staves[0].measures[..=measure]
         .iter()
         .rev()
@@ -621,7 +642,7 @@ fn add_candidate(
 
 /// Return at most four selectable chord plans. Swing is selected independently by a preset.
 pub fn suggest_chord_plans(score: &Score, request: &ChordProposalRequest) -> ChordProposalResult {
-    suggest_chord_plans_impl(score, request, &[], None)
+    suggest_chord_plans_impl(score, request, &[], None, &[])
 }
 
 /// Generate harmony at caller-selected physical score positions. A source plan
@@ -630,6 +651,15 @@ pub fn suggest_chord_plans_at_positions(
     score: &Score,
     request: &ChordProposalRequest,
     positions: &[ChordPlanPosition],
+) -> ChordProposalResult {
+    suggest_chord_plans_at_positions_with_keys(score, request, positions, &[])
+}
+
+pub(super) fn suggest_chord_plans_at_positions_with_keys(
+    score: &Score,
+    request: &ChordProposalRequest,
+    positions: &[ChordPlanPosition],
+    local_keys: &[ChordKeyRegion],
 ) -> ChordProposalResult {
     let mut rejected = ChordProposalResult {
         contract_version: CHORD_PROPOSAL_CONTRACT_VERSION,
@@ -679,7 +709,7 @@ pub fn suggest_chord_plans_at_positions(
             .push(diagnostic("invalid-harmonic-positions", None));
         return rejected;
     }
-    let mut result = suggest_chord_plans_impl(score, request, &[], Some(positions));
+    let mut result = suggest_chord_plans_impl(score, request, &[], Some(positions), local_keys);
     for candidate in &mut result.candidates {
         candidate
             .reason_codes
@@ -697,7 +727,16 @@ pub fn suggest_chord_plans_with_locks(
     request: &ChordProposalRequest,
     locked_entries: &[usize],
 ) -> ChordProposalResult {
-    let mut result = suggest_chord_plans_impl(score, request, locked_entries, None);
+    suggest_chord_plans_with_locks_and_keys(score, request, locked_entries, &[])
+}
+
+pub(super) fn suggest_chord_plans_with_locks_and_keys(
+    score: &Score,
+    request: &ChordProposalRequest,
+    locked_entries: &[usize],
+    local_keys: &[ChordKeyRegion],
+) -> ChordProposalResult {
+    let mut result = suggest_chord_plans_impl(score, request, locked_entries, None, local_keys);
     if !locked_entries.is_empty() {
         for candidate in &mut result.candidates {
             candidate.reason_codes.push("locked-source-harmony".into());
@@ -711,6 +750,7 @@ fn suggest_chord_plans_impl(
     request: &ChordProposalRequest,
     locked_entries: &[usize],
     positions_override: Option<&[ChordPlanPosition]>,
+    local_keys: &[ChordKeyRegion],
 ) -> ChordProposalResult {
     let mut result = ChordProposalResult {
         contract_version: CHORD_PROPOSAL_CONTRACT_VERSION,
@@ -754,7 +794,7 @@ fn suggest_chord_plans_impl(
         }
     };
     for measure in 0..score.parts[0].staves[0].measures.len() {
-        if tonic(key_at(score, measure)).is_none() {
+        if tonic(key_at(score, measure, local_keys)).is_none() {
             result
                 .diagnostics
                 .push(diagnostic("unsupported-key", Some(measure)));
@@ -869,6 +909,7 @@ fn suggest_chord_plans_impl(
             bass_mode: request.bass_mode,
             max_changed_spans: request.max_changed_spans,
             contextual_nonchord_tones: request.contextual_nonchord_tones,
+            local_keys,
         },
         &locked,
         positions_override,
@@ -904,6 +945,7 @@ fn suggest_chord_plans_impl(
             bass_mode: request.bass_mode,
             max_changed_spans: request.max_changed_spans,
             contextual_nonchord_tones: request.contextual_nonchord_tones,
+            local_keys,
         },
         &locked,
         positions_override,
@@ -941,6 +983,7 @@ fn suggest_chord_plans_impl(
                     bass_mode: request.bass_mode,
                     max_changed_spans: request.max_changed_spans,
                     contextual_nonchord_tones: request.contextual_nonchord_tones,
+                    local_keys,
                 },
                 &locked,
                 positions_override,

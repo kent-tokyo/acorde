@@ -7,8 +7,9 @@ use super::chord_plan::{
     chord_plan_to_preset_selection,
 };
 use super::chord_proposals::{
-    ChordProposalDiagnostic, ChordProposalRequest, ChordProposalResult, changed_spans,
-    suggest_chord_plans_at_positions, suggest_chord_plans_with_locks,
+    ChordKeyRegion, ChordProposalDiagnostic, ChordProposalRequest, ChordProposalResult,
+    changed_spans, suggest_chord_plans_at_positions_with_keys,
+    suggest_chord_plans_with_locks_and_keys,
 };
 use super::chordal_pad::default_meter_groups;
 use super::score::Score;
@@ -49,6 +50,10 @@ pub struct PhraseHarmonyRequest {
     /// explicitly authorizes moving or duplicating an unlocked source chord.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source_reanchor: Option<Vec<usize>>,
+    /// Optional key overrides used only during chord search, beginning and
+    /// ending at generated bar-start chord boundaries.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub local_keys: Vec<ChordKeyRegion>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -63,6 +68,8 @@ pub struct PhraseHarmonyResult {
     /// Explicitly omitted source entries when a slower pace merges regions.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub omitted_source_entries: Vec<usize>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub applied_local_keys: Vec<ChordKeyRegion>,
 }
 
 fn failure(code: &str, measure: Option<usize>) -> PhraseHarmonyResult {
@@ -81,6 +88,7 @@ fn failure(code: &str, measure: Option<usize>) -> PhraseHarmonyResult {
         contract_version: 1,
         reanchored_source_plan: None,
         omitted_source_entries: Vec::new(),
+        applied_local_keys: Vec::new(),
     }
 }
 
@@ -265,8 +273,9 @@ fn reanchor_source(
 }
 
 /// Choose chord-change locations from a complete written phrase schedule,
-/// then run the existing deterministic progression search. The caller's
-/// supplied harmony and locks are accepted only at identical boundaries.
+/// then run the existing deterministic progression search. Source harmony
+/// uses identical boundaries or an explicit reanchoring map; locked regions
+/// retain their original boundaries.
 pub fn suggest_phrase_harmony(
     score: &Score,
     request: &PhraseHarmonyRequest,
@@ -341,6 +350,28 @@ pub fn suggest_phrase_harmony(
     if cursor != count {
         return failure("incomplete-harmonic-phrases", Some(cursor));
     }
+    if request.local_keys.len() > MAX_PHRASES {
+        return failure("local-key-limit", None);
+    }
+    let mut prior_key_end = 0;
+    for region in &request.local_keys {
+        let bar_boundary = |measure| {
+            positions.iter().any(|position| {
+                position.measure_index == measure && position.offset == BeatFraction::ZERO
+            })
+        };
+        if region.start_measure < prior_key_end
+            || region.start_measure >= region.end_measure_exclusive
+            || region.end_measure_exclusive > count
+            || !bar_boundary(region.start_measure)
+            || (region.end_measure_exclusive < count && !bar_boundary(region.end_measure_exclusive))
+            || !(-7..=7).contains(&region.key.fifths)
+            || !matches!(region.key.mode.as_str(), "major" | "minor")
+        {
+            return failure("invalid-local-key-region", Some(region.start_measure));
+        }
+        prior_key_end = region.end_measure_exclusive;
+    }
     let mut reanchored_source_plan = None;
     let mut omitted_source_entries = Vec::new();
     let proposal = if let Some(mapping) = &request.source_reanchor {
@@ -360,8 +391,12 @@ pub fn suggest_phrase_harmony(
         };
         let mut proposal_request = request.proposal.clone();
         proposal_request.source_plan = Some(reanchored.plan.clone());
-        let mut generated =
-            suggest_chord_plans_with_locks(score, &proposal_request, &reanchored.locked_targets);
+        let mut generated = suggest_chord_plans_with_locks_and_keys(
+            score,
+            &proposal_request,
+            &reanchored.locked_targets,
+            &request.local_keys,
+        );
         let before_budget = generated.candidates.len();
         for candidate in &mut generated.candidates {
             candidate.changed_spans = changed_spans(score, &candidate.plan, Some(source));
@@ -399,13 +434,31 @@ pub fn suggest_phrase_harmony(
         if !aligned {
             return failure("source-harmonic-positions-mismatch", None);
         }
-        suggest_chord_plans_with_locks(score, &request.proposal, &request.locked_chord_entries)
+        suggest_chord_plans_with_locks_and_keys(
+            score,
+            &request.proposal,
+            &request.locked_chord_entries,
+            &request.local_keys,
+        )
     } else {
         if !request.locked_chord_entries.is_empty() {
             return failure("chord-lock-requires-source-plan", None);
         }
-        suggest_chord_plans_at_positions(score, &request.proposal, &positions)
+        suggest_chord_plans_at_positions_with_keys(
+            score,
+            &request.proposal,
+            &positions,
+            &request.local_keys,
+        )
     };
+    let mut proposal = proposal;
+    if !request.local_keys.is_empty() {
+        for candidate in &mut proposal.candidates {
+            candidate
+                .reason_codes
+                .push("caller-supplied-local-key".into());
+        }
+    }
     PhraseHarmonyResult {
         positions,
         diagnostics: proposal.diagnostics.clone(),
@@ -413,5 +466,6 @@ pub fn suggest_phrase_harmony(
         contract_version: 1,
         reanchored_source_plan,
         omitted_source_entries,
+        applied_local_keys: request.local_keys.clone(),
     }
 }

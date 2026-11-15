@@ -64,7 +64,7 @@ pub use model::chord_plan::{
     chord_plan_to_preset_selection, extract_chord_plan,
 };
 pub use model::chord_proposals::{
-    CHORD_PROPOSAL_CONTRACT_VERSION, CHORD_PROPOSAL_MAX_MEASURES, ChordChangedSpan,
+    CHORD_PROPOSAL_CONTRACT_VERSION, CHORD_PROPOSAL_MAX_MEASURES, ChordChangedSpan, ChordKeyRegion,
     ChordPresetAssessment, ChordPresetAssessmentResult, ChordProposalArrangementResult,
     ChordProposalCandidate, ChordProposalDiagnostic, ChordProposalRequest, ChordProposalResult,
     ResolvedChordProposal, SourceRangeViolation, arrange_from_chord_proposal, assess_chord_presets,

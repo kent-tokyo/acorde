@@ -38,6 +38,7 @@ let request = PhraseHarmonyRequest {
     proposal: ChordProposalRequest::default(),
     locked_chord_entries: vec![],
     source_reanchor: None,
+    local_keys: vec![],
 };
 ```
 
@@ -76,9 +77,21 @@ once, even if the new plan splits it into several regions. Returned
 meet its budget returns no candidate and
 `change-budget-exceeded-after-reanchor`.
 
+`local_keys` supplies key regions for chord search without editing the source
+score. For example, `ChordKeyRegion { start_measure: 2,
+end_measure_exclusive: 4, key: KeySignature { fifths: 1,
+mode: "major".into() } }` treats bars 2–3 as G major. Gaps use the score's
+written key signature, including written local changes. Regions must be in
+order, nonoverlapping and begin and end at bar-start chord boundaries (the
+score end is also allowed). Major and minor keys with −7 to +7 fifths are
+supported. Invalid regions return no positions or candidates. The result
+records `applied_local_keys`; candidate reason codes mark the supplied key.
+Selected chord plans remain bound to the original score fingerprint and replay
+against the unmodified score.
+
 The phrase schedule must cover every written measure once, in order. Invalid
 gaps, overlaps, groupings and limits return no positions or candidates. The
 limits are 64 phrases and 512 change positions. Candidate results retain the
 source fingerprint and resolved-plan replay contract of the underlying chord
-proposal API. The next harmony work adds supplied local keys, borrowed and
-passing chords, and cadence constraints.
+proposal API. The next harmony work adds borrowed and passing chords, and
+explicit cadence constraints.

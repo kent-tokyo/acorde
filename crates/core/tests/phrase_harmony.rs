@@ -1,7 +1,8 @@
 use acorde_core::{
-    BeatFraction, ChordPlan, ChordPlanEntry, ChordPlanOrigin, ChordPlanPosition, ChordPlanSource,
-    ChordProposalRequest, ChordSymbol, Duration, Note, PhraseHarmonicPace, PhraseHarmonyRequest,
-    PhraseHarmonySection, Pitch, Score, arrange_from_chord_proposal, suggest_phrase_harmony,
+    BeatFraction, ChordKeyRegion, ChordPlan, ChordPlanEntry, ChordPlanOrigin, ChordPlanPosition,
+    ChordPlanSource, ChordProposalRequest, ChordSymbol, Duration, KeySignature, Note,
+    PhraseHarmonicPace, PhraseHarmonyRequest, PhraseHarmonySection, Pitch, Score,
+    arrange_from_chord_proposal, suggest_phrase_harmony,
 };
 
 fn score(numerator: u8, denominator: u8, bars: usize) -> Score {
@@ -42,6 +43,7 @@ fn request(bars: usize, pace: PhraseHarmonicPace) -> PhraseHarmonyRequest {
         proposal: ChordProposalRequest::default(),
         locked_chord_entries: vec![],
         source_reanchor: None,
+        local_keys: vec![],
     }
 }
 
@@ -175,6 +177,14 @@ fn explicit_reanchor_splits_and_merges_regions_with_traced_provenance() {
     split.proposal.source_plan = Some(original.clone());
     split.source_reanchor = Some(vec![0, 0, 1, 1, 2, 2, 3, 3]);
     split.locked_chord_entries = vec![1];
+    split.local_keys = vec![ChordKeyRegion {
+        start_measure: 2,
+        end_measure_exclusive: 4,
+        key: KeySignature {
+            fifths: 1,
+            mode: "major".into(),
+        },
+    }];
     let split_result = suggest_phrase_harmony(&source, &split);
     assert!(
         split_result.diagnostics.is_empty(),
@@ -274,6 +284,106 @@ fn reanchor_rejects_implicit_or_moved_locked_regions_atomically() {
         missing_source.diagnostics[0].code,
         "reanchor-requires-source-plan"
     );
+}
+
+#[test]
+fn supplied_local_key_changes_harmony_without_rewriting_the_score() {
+    let mut source = score(4, 4, 4);
+    for measure in &mut source.parts[0].staves[0].measures[2..] {
+        measure.voices[0] = [66, 69, 72, 66]
+            .into_iter()
+            .map(|midi| Note::new(Pitch::from_midi(midi, false), Duration::Quarter))
+            .collect();
+    }
+    let before = serde_json::to_value(&source).unwrap();
+    let mut input = request(4, PhraseHarmonicPace::EveryBar);
+    let baseline = suggest_phrase_harmony(&source, &input);
+    input.local_keys = vec![ChordKeyRegion {
+        start_measure: 2,
+        end_measure_exclusive: 4,
+        key: KeySignature {
+            fifths: 1,
+            mode: "major".into(),
+        },
+    }];
+    let changed = suggest_phrase_harmony(&source, &input);
+    assert!(changed.diagnostics.is_empty(), "{:?}", changed.diagnostics);
+    assert_eq!(changed.applied_local_keys, input.local_keys);
+    let baseline_plan = &baseline
+        .proposals
+        .candidates
+        .iter()
+        .find(|candidate| candidate.id == "conservative-v2")
+        .unwrap()
+        .plan;
+    let local_plan = &changed
+        .proposals
+        .candidates
+        .iter()
+        .find(|candidate| candidate.id == "conservative-v2")
+        .unwrap()
+        .plan;
+    assert!(local_plan.entries[2..].iter().any(|entry| {
+        !baseline_plan.entries[2..]
+            .iter()
+            .any(|old| old.position == entry.position && old.chord == entry.chord)
+    }));
+    assert_eq!(serde_json::to_value(&source).unwrap(), before);
+    assert_eq!(
+        changed.proposals.input_fingerprint,
+        baseline.proposals.input_fingerprint
+    );
+    let chosen = &changed.proposals.candidates[0];
+    let replay = arrange_from_chord_proposal(&source, &chosen.resolved, "held-chord");
+    assert!(replay.diagnostics.is_empty(), "{:?}", replay.diagnostics);
+    assert!(replay.arrangement.unwrap().score.is_some());
+}
+
+#[test]
+fn local_key_regions_must_use_harmonic_bar_boundaries_and_valid_keys() {
+    let source = score(4, 4, 4);
+    let mut input = request(4, PhraseHarmonicPace::EverySecondBar);
+    input.local_keys = vec![ChordKeyRegion {
+        start_measure: 1,
+        end_measure_exclusive: 4,
+        key: KeySignature::default(),
+    }];
+    for case in 0..4 {
+        match case {
+            0 => {}
+            1 => {
+                input.local_keys[0].start_measure = 0;
+                input.local_keys[0].end_measure_exclusive = 3;
+            }
+            2 => {
+                input.local_keys[0].end_measure_exclusive = 4;
+                input.local_keys[0].key.fifths = 8;
+            }
+            3 => {
+                input.local_keys[0].key.fifths = 0;
+                input.local_keys[0].key.mode = "dorian".into();
+            }
+            _ => unreachable!(),
+        }
+        let rejected = suggest_phrase_harmony(&source, &input);
+        assert_eq!(rejected.diagnostics[0].code, "invalid-local-key-region");
+        assert!(rejected.positions.is_empty());
+        assert!(rejected.proposals.candidates.is_empty());
+    }
+    input.local_keys = vec![
+        ChordKeyRegion {
+            start_measure: 0,
+            end_measure_exclusive: 4,
+            key: KeySignature::default(),
+        },
+        ChordKeyRegion {
+            start_measure: 2,
+            end_measure_exclusive: 4,
+            key: KeySignature::default(),
+        },
+    ];
+    let overlap = suggest_phrase_harmony(&source, &input);
+    assert_eq!(overlap.diagnostics[0].code, "invalid-local-key-region");
 }
 
 #[test]

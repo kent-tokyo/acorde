@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+- Add explicit `local_keys` to phrase-harmony requests. Bounded major/minor key
+  regions override written keys only during chord search; the original score
+  and candidate replay fingerprint remain unchanged. Regions must start and
+  end on harmonic bar boundaries and are returned with the result.
+
 - Extend opt-in `suggest_phrase_harmony` with explicit source-entry reanchoring.
   New chord positions can split or merge old regions while preserving mapped
   spelling, bass and source references. Locked original regions retain their

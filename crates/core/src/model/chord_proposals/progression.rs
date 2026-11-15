@@ -333,7 +333,7 @@ pub(super) fn choose_progression(
             .cloned()
             .unwrap_or_else(|| end_position(score));
         let notes = events_in_region(events, position, &end);
-        let key = key_at(score, position.measure_index);
+        let key = key_at(score, position.measure_index, settings.local_keys);
         let mut available = match locked.get(index) {
             Some(Some(entry)) => vec![choice(entry.chord.clone(), None, 0)?],
             _ => choices(key, &notes, settings.style, settings.bass_mode),
