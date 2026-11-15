@@ -1,5 +1,6 @@
 pub mod arrange;
 pub mod arrange_presets;
+pub mod arrangement_plan;
 pub mod authored_chords;
 pub mod change_hint;
 pub mod chord_plan;
