@@ -222,7 +222,7 @@ pub(crate) fn resolve(
                 f32::INFINITY,
                 f32::NEG_INFINITY,
             );
-            for point in values.chunks_exact(2) {
+            for point in values.as_chunks::<2>().0 {
                 l = l.min(point[0]);
                 r = r.max(point[0]);
                 t = t.min(point[1]);
