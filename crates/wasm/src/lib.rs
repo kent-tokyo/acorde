@@ -1825,6 +1825,36 @@ pub fn arrange_with_layers(score_json: &str, options_json: &str) -> Result<Strin
         .map_err(|error| js_err(format!("layered arrangement serialization failed: {error}")))
 }
 
+/// Apply explicit accompaniment and melodic layers to ranges of written measures.
+#[wasm_bindgen]
+pub fn arrange_accordion_plan(score_json: &str, options_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let options: acorde_core::AccordionPlanOptions =
+        parse_json(options_json, "arrangement plan", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::arrange_accordion_plan(&score, options))
+        .map_err(|error| js_err(format!("arrangement plan serialization failed: {error}")))
+}
+
+/// Replay a versioned measure-range plan against its matching source score.
+#[wasm_bindgen]
+pub fn arrange_from_resolved_plan(score_json: &str, config_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let config: acorde_core::AccordionPlanConfig =
+        parse_json(config_json, "resolved arrangement plan", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::arrange_from_resolved_plan(&score, config))
+        .map_err(|error| js_err(format!("arrangement plan serialization failed: {error}")))
+}
+
+/// Select one realizable explicit measure-range plan from bounded section choices.
+#[wasm_bindgen]
+pub fn shuffle_accordion_plan(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::AccordionPlanShuffleRequest =
+        parse_json(request_json, "arrangement plan shuffle", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::shuffle_accordion_plan(&score, request))
+        .map_err(|error| js_err(format!("arrangement plan shuffle serialization failed: {error}")))
+}
+
 /// Sustain an explicitly selected bass note, with optional chord-based melodic layers.
 #[wasm_bindgen]
 pub fn arrange_with_drone(score_json: &str, options_json: &str) -> Result<String, JsValue> {

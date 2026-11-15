@@ -1,0 +1,13 @@
+{
+  "chords": [
+    {"measure_index": 0, "offset_beats": 0, "chord": {"root": "C", "kind": "major", "bass": null}},
+    {"measure_index": 4, "offset_beats": 2, "chord": {"root": "A", "kind": "minor", "bass": null}},
+    {"measure_index": 7, "offset_beats": 0, "chord": {"root": "C", "kind": "major", "bass": null}}
+  ],
+  "bass_mode": "standard-bass",
+  "sections": [
+    {"start_measure": 0, "end_measure": 4, "accompaniment": "bass-chord-pulse", "melodic_voice": "unchanged"},
+    {"start_measure": 4, "end_measure": 7, "accompaniment": "driving-bass-chord", "melodic_voice": "third-below"},
+    {"start_measure": 7, "end_measure": 8, "accompaniment": "held-bass-chord", "melodic_voice": "unchanged"}
+  ]
+}

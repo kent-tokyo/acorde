@@ -22,6 +22,19 @@ pub use model::arrange_presets::{
     arrange_accordion_preset, arrange_from_resolved_layers, arrange_from_resolved_preset,
     shuffle_accordion_layers, shuffle_accordion_preset,
 };
+pub use model::arrangement_plan::{
+    ACCORDION_PLAN_CONTRACT_VERSION, ACCORDION_PLAN_ENGINE_VERSION, ACCORDION_PLAN_MAX_CHORDS,
+    ACCORDION_PLAN_MAX_MEASURES, ACCORDION_PLAN_MAX_SECTIONS, ACCORDION_PLAN_MAX_SOURCE_NOTES,
+    AccordionPlanConfig, AccordionPlanDiagnostic, AccordionPlanGeneratedNote, AccordionPlanOptions,
+    AccordionPlanOrigin, AccordionPlanResult, AccordionPlanSection, arrange_accordion_plan,
+    arrange_from_resolved_plan,
+};
+pub use model::arrangement_plan_shuffle::{
+    ACCORDION_PLAN_SHUFFLE_CONTRACT_VERSION, ACCORDION_PLAN_SHUFFLE_MAX_ATTEMPTS,
+    ACCORDION_PLAN_SHUFFLE_MAX_CHOICES, ACCORDION_PLAN_SHUFFLE_MAX_POOL,
+    ACCORDION_PLAN_SHUFFLE_MAX_SECTIONS, AccordionPlanSectionChoices, AccordionPlanShuffleRequest,
+    AccordionPlanShuffleResult, shuffle_accordion_plan,
+};
 pub use model::authored_chords::{
     AuthoredChordAnnotation, AuthoredChordDiagnostic, AuthoredChordOptions, AuthoredChordResult,
     annotate_from_authored_chords,
