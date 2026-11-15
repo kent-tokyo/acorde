@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## 1.3.13 - 2026-11-15
+
+- **Migration:** Analysis result schema and cache keys advance from 13 to 14;
+  `analyze-vertical` JSON advances to schema 3. Regenerate saved analysis
+  expectations and inspect `timeline_issues` before interpreting missing
+  sonorities. Preset and free-layer arrangement markers include 1.3.13, so
+  reselect saved inputs before replay. Rust 1.89 remains the minimum. See the
+  [migration notes](docs/migrations.md).
+- Add a [Simplified Chinese README](README_zh.md) with links from the English
+  and Japanese introductions.
+
 - Add bounded `shuffle_accordion_plan` in Rust and full/viewer WASM. Explicit
   section choice sets, a seed and attempt budget select a realizable plan with
   source-checked replay and distinct unsupported, no-candidate and search-limit

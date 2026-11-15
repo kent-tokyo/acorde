@@ -7,7 +7,7 @@ This roadmap tracks work still needing evidence or implementation. The
 
 ## Current baseline
 
-Version 1.3.12 includes a Rust score model with undoable commands, bounded notation I/O,
+Version 1.3.13 includes a Rust score model with undoable commands, bounded notation I/O,
 SVG and print-page rendering, playback scheduling, analysis primitives, WASM bindings,
 and the file-based CLI. MusicXML/MXL is the broadest interchange path; Humdrum `**kern` and
 Plaine & Easie import are opt-in subsets. Import and export reports identify known losses,
@@ -15,10 +15,10 @@ but broad real-score round-trip compatibility remains an evidence question.
 An opt-in standard-bass arrangement API labels simultaneous attacks with
 caller-supplied button IDs; it does not infer fingering or physical reach.
 
-Unreleased: [explicit arrangement plans](docs/arrangement-plans.md) select existing
+[Explicit arrangement plans](docs/arrangement-plans.md) select existing
 accompaniment and melodic layers by written-measure range (#433), with source-checked
 replay and section provenance. Bounded seeded selection from allowed section
-combinations (#435) is available. Performance-order variants remain future work.
+combinations (#435) is included. Performance-order variants remain future work.
 
 The CLI also provides `acorde mcp --root <dir>` over local stdio. Its inspection and
 validation tools are read-only by default. Reviewed editing uses sessions, a validated

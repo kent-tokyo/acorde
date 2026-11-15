@@ -11,7 +11,14 @@ struct literals must still update for added variants and fields.
 > longer compile in 1.2.19 or 1.2.20, despite the patch version. Pin `=1.2.18` or migrate the
 > literal before updating; do not assume a later 1.2 patch restores the old literal form.
 
-## Unreleased: analysis event alignment
+## v1.3.13: analysis event alignment and arrangement plans
+
+The minimum supported Rust version remains 1.89. Preset and free-layer engine
+markers now use `1.3.13+arrangement-presets.2` and
+`1.3.13+arrangement-layers.1`. Reselect saved inputs before replaying an older
+configuration. New explicit arrangement plans use
+`1.3.13+arrangement-plan.1` and validate the source fingerprint and engine
+version when replayed. The plan and seeded-selection APIs are opt-in.
 
 `AnalysisResult` schema version and analysis cache keys advance from 13 to 14.
 Voice-leading and SATB diagnostics use simultaneous written onsets in each
