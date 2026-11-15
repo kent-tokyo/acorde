@@ -127,7 +127,8 @@ pub use model::ensemble_form::{
 pub use model::ensemble_form_development::{
     ENSEMBLE_FORM_DEVELOPMENT_CONTRACT_VERSION, EnsembleFormDevelopmentError,
     EnsembleFormDevelopmentRequest, EnsembleFormDevelopmentResult, ResolvedEnsembleFormDevelopment,
-    arrange_ensemble_form_development, replay_ensemble_form_development,
+    arrange_ensemble_form_development, arrange_ensemble_form_development_with_phrase_joins,
+    replay_ensemble_form_development,
 };
 pub use model::ensemble_form_proposals::{
     EnsembleFormProposalCandidate, EnsembleFormProposalRequest, EnsembleFormProposalResult,

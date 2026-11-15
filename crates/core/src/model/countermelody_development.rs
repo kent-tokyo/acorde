@@ -71,6 +71,10 @@ pub enum CountermelodyDevelopmentError {
     UnsupportedMotifRhythm,
     #[error("developed countermelody is unplayable at measure {0}")]
     Unplayable(usize),
+    #[error("no chord tone satisfies the phrase-entry leap at measure {0}")]
+    PhraseJoinUnavailable(usize),
+    #[error("phrase-entry leap limit must be at most 24 semitones")]
+    InvalidPhraseJoinLimit,
     #[error("developed countermelody exceeds the generated-note limit")]
     GeneratedNoteLimit,
     #[error("invalid developed score")]
@@ -156,6 +160,7 @@ fn choose_pitch(
     previous: Option<u8>,
     interval: i8,
     ceiling: Option<i16>,
+    phrase_entry_max_leap: Option<u8>,
 ) -> Option<u8> {
     let target = previous.map_or(i16::from(options.center_midi), |pitch| {
         i16::from(pitch) + i16::from(interval)
@@ -163,6 +168,10 @@ fn choose_pitch(
     (options.low_midi..=options.high_midi)
         .filter(|pitch| tones.contains(&(pitch % 12)))
         .filter(|pitch| ceiling.is_none_or(|limit| i16::from(*pitch) <= limit))
+        .filter(|pitch| {
+            phrase_entry_max_leap
+                .is_none_or(|limit| previous.is_none_or(|prior| pitch.abs_diff(prior) <= limit))
+        })
         .min_by_key(|pitch| {
             (
                 (i16::from(*pitch) - target).abs(),
@@ -179,22 +188,32 @@ pub fn arrange_countermelody_development(
     source: &Score,
     request: &CountermelodyDevelopmentRequest,
 ) -> Result<CountermelodyDevelopmentResult, CountermelodyDevelopmentError> {
-    arrange_countermelody_development_internal(source, request, None)
+    arrange_countermelody_development_internal(source, request, None, None)
 }
 
 pub(crate) fn arrange_countermelody_development_with_activity(
     source: &Score,
     request: &CountermelodyDevelopmentRequest,
     activity: &[bool],
+    phrase_entry_max_leap: Option<u8>,
 ) -> Result<CountermelodyDevelopmentResult, CountermelodyDevelopmentError> {
-    arrange_countermelody_development_internal(source, request, Some(activity))
+    arrange_countermelody_development_internal(
+        source,
+        request,
+        Some(activity),
+        phrase_entry_max_leap,
+    )
 }
 
 fn arrange_countermelody_development_internal(
     source: &Score,
     request: &CountermelodyDevelopmentRequest,
     activity: Option<&[bool]>,
+    phrase_entry_max_leap: Option<u8>,
 ) -> Result<CountermelodyDevelopmentResult, CountermelodyDevelopmentError> {
+    if phrase_entry_max_leap.is_some_and(|limit| limit > 24) {
+        return Err(CountermelodyDevelopmentError::InvalidPhraseJoinLimit);
+    }
     let source_fingerprint =
         fingerprint(source).ok_or(CountermelodyDevelopmentError::InvalidSource)?;
     let baseline = arrange_countermelody_with_activity(source, request.base.clone(), activity);
@@ -311,8 +330,24 @@ fn arrange_countermelody_development_internal(
                             _ => value,
                         }
                     };
-                    let pitch = choose_pitch(&tones, &options, previous_pitch, interval, ceiling)
-                        .ok_or(CountermelodyDevelopmentError::Unplayable(measure))?;
+                    let entry_limit = (phrase_attack == 0)
+                        .then_some(phrase_entry_max_leap)
+                        .flatten();
+                    let pitch = choose_pitch(
+                        &tones,
+                        &options,
+                        previous_pitch,
+                        interval,
+                        ceiling,
+                        entry_limit,
+                    )
+                    .ok_or_else(|| {
+                        if entry_limit.is_some() && previous_pitch.is_some() {
+                            CountermelodyDevelopmentError::PhraseJoinUnavailable(measure)
+                        } else {
+                            CountermelodyDevelopmentError::Unplayable(measure)
+                        }
+                    })?;
                     if !emit_span(&[pitch], to - from, &mut voice) {
                         return Err(CountermelodyDevelopmentError::UnsupportedMotifRhythm);
                     }
@@ -342,7 +377,9 @@ fn arrange_countermelody_development_internal(
         }
         staff.measures[measure].voices[0] = voice;
         if ending {
-            previous_pitch = None;
+            if phrase_entry_max_leap.is_none() {
+                previous_pitch = None;
+            }
             phrase_attack = 0;
         }
     }

@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+- Add opt-in phrase-entry leap bounds to rhythmic ensemble-form development
+  in Rust and full/viewer WASM. Adjacent active countermelody phrases retain
+  their prior ending pitch for the next chord-tone choice; impossible joins
+  fail atomically with a measure diagnostic. Saved contracts replay the bound,
+  while the original call and its JSON contract keep their prior behavior.
+
 - Add opt-in `suggest_developed_form_proposals` and replay in Rust and
   full/viewer WASM. Select three to five source-bound sectional scores from
   form profiles and source-rhythm countermelody treatments, deduplicate their

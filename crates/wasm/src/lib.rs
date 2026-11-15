@@ -1927,6 +1927,26 @@ pub fn arrange_ensemble_form_development(score_json: &str, request_json: &str) -
         .map_err(|error| js_err(format!("ensemble form development serialization failed: {error}")))
 }
 
+/// Develop the form while bounding each adjacent countermelody phrase entry.
+#[wasm_bindgen]
+pub fn arrange_ensemble_form_development_with_phrase_joins(
+    score_json: &str,
+    request_json: &str,
+    max_leap_semitones: u8,
+) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::EnsembleFormDevelopmentRequest =
+        parse_json(request_json, "ensemble form development", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::arrange_ensemble_form_development_with_phrase_joins(
+        &score,
+        &request,
+        max_leap_semitones,
+    )
+    .map_err(|error| js_err(format!("ensemble form phrase join failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("ensemble form phrase join serialization failed: {error}")))
+}
+
 /// Replay a form with rhythmic countermelody from its source-bound contract.
 #[wasm_bindgen]
 pub fn replay_ensemble_form_development(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {

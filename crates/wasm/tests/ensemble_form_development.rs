@@ -41,4 +41,37 @@ fn developed_form_matches_native_json_and_replays() {
     )
     .unwrap();
     assert_eq!(fixture::events(&replay), fixture::events(&browser.score));
+
+    let native_led =
+        acorde_core::arrange_ensemble_form_development_with_phrase_joins(&source, &request, 0)
+            .unwrap();
+    let browser_led: acorde_core::EnsembleFormDevelopmentResult = serde_json::from_str(
+        &acorde_wasm::arrange_ensemble_form_development_with_phrase_joins(
+            &source_json,
+            &serde_json::to_string(&request).unwrap(),
+            0,
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        browser_led.resolved.phrase_entry_max_leap_semitones,
+        Some(0)
+    );
+    assert_eq!(
+        fixture::events(&native_led.score),
+        fixture::events(&browser_led.score)
+    );
+    let led_replay: acorde_core::Score = serde_json::from_str(
+        &acorde_wasm::replay_ensemble_form_development(
+            &source_json,
+            &serde_json::to_string(&browser_led.resolved).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        fixture::events(&led_replay),
+        fixture::events(&browser_led.score)
+    );
 }

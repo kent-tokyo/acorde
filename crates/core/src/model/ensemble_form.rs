@@ -321,14 +321,15 @@ pub(crate) fn arrange_ensemble_form_with_development(
     score: &Score,
     request: &EnsembleFormRequest,
     kind: CountermelodyDevelopmentKind,
+    phrase_entry_max_leap: Option<u8>,
 ) -> EnsembleFormResult {
-    arrange_ensemble_form_internal(score, request, Some(kind))
+    arrange_ensemble_form_internal(score, request, Some((kind, phrase_entry_max_leap)))
 }
 
 fn arrange_ensemble_form_internal(
     score: &Score,
     request: &EnsembleFormRequest,
-    development: Option<CountermelodyDevelopmentKind>,
+    development: Option<(CountermelodyDevelopmentKind, Option<u8>)>,
 ) -> EnsembleFormResult {
     let count = match check_source(score) {
         Ok(count) => count,
@@ -341,12 +342,13 @@ fn arrange_ensemble_form_internal(
     let Some(source_fingerprint) = fingerprint(score) else {
         return failure(diagnostic("invalid-form-source", None, None));
     };
-    let arranged = if let Some(kind) = development {
+    let arranged = if let Some((kind, phrase_entry_max_leap)) = development {
         arrange_ensemble_roles_with_development(
             score,
             compiled.ensemble,
             Some(&compiled.bass_patterns),
             kind,
+            phrase_entry_max_leap,
         )
     } else {
         arrange_ensemble_roles_with_bass_patterns(

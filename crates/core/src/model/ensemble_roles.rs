@@ -187,15 +187,21 @@ pub(crate) fn arrange_ensemble_roles_with_development(
     options: EnsembleRoleOptions,
     bass_patterns: Option<&[BassLinePattern]>,
     kind: CountermelodyDevelopmentKind,
+    phrase_entry_max_leap: Option<u8>,
 ) -> EnsembleRoleResult {
-    arrange_ensemble_roles_internal(score, options, bass_patterns, Some(kind))
+    arrange_ensemble_roles_internal(
+        score,
+        options,
+        bass_patterns,
+        Some((kind, phrase_entry_max_leap)),
+    )
 }
 
 fn arrange_ensemble_roles_internal(
     score: &Score,
     mut options: EnsembleRoleOptions,
     bass_patterns: Option<&[BassLinePattern]>,
-    development: Option<CountermelodyDevelopmentKind>,
+    development: Option<(CountermelodyDevelopmentKind, Option<u8>)>,
 ) -> EnsembleRoleResult {
     options.sections.sort_by_key(|section| {
         (
@@ -345,7 +351,7 @@ fn arrange_ensemble_roles_internal(
             .iter()
             .map(|state| state.countermelody)
             .collect::<Vec<_>>();
-        let next = if let Some(kind) = development {
+        let next = if let Some((kind, phrase_entry_max_leap)) = development {
             let request = CountermelodyDevelopmentRequest {
                 base: countermelody,
                 kind,
@@ -354,6 +360,7 @@ fn arrange_ensemble_roles_internal(
                 &output,
                 &request,
                 &counter_activity,
+                phrase_entry_max_leap,
             ) {
                 Ok(arranged) => arranged.score,
                 Err(error) => {
@@ -363,6 +370,12 @@ fn arrange_ensemble_roles_internal(
                         }
                         CountermelodyDevelopmentError::Unplayable(measure) => {
                             ("unplayable-counter-register", Some(*measure))
+                        }
+                        CountermelodyDevelopmentError::PhraseJoinUnavailable(measure) => {
+                            ("phrase-join-unavailable", Some(*measure))
+                        }
+                        CountermelodyDevelopmentError::InvalidPhraseJoinLimit => {
+                            ("invalid-phrase-join-limit", None)
                         }
                         CountermelodyDevelopmentError::UnsupportedMotifRhythm => {
                             ("unsupported-motif-rhythm", None)

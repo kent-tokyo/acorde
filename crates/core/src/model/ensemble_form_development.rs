@@ -28,6 +28,9 @@ pub struct ResolvedEnsembleFormDevelopment {
     pub source_fingerprint: String,
     pub form: ResolvedEnsembleForm,
     pub countermelody_kind: CountermelodyDevelopmentKind,
+    /// Optional phrase-entry leap constraint. Absent in the original contract.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub phrase_entry_max_leap_semitones: Option<u8>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -41,6 +44,8 @@ pub struct EnsembleFormDevelopmentResult {
 
 #[derive(Debug, thiserror::Error)]
 pub enum EnsembleFormDevelopmentError {
+    #[error("phrase-entry leap limit must be at most 24 semitones")]
+    InvalidPhraseJoinLimit,
     #[error("form must contain an active countermelody section")]
     MissingCountermelody,
     #[error("form realization failed: {0:?}")]
@@ -59,6 +64,28 @@ pub fn arrange_ensemble_form_development(
     source: &Score,
     request: &EnsembleFormDevelopmentRequest,
 ) -> Result<EnsembleFormDevelopmentResult, EnsembleFormDevelopmentError> {
+    arrange_ensemble_form_development_internal(source, request, None)
+}
+
+/// Keep each countermelody phrase entry within the requested semitone distance
+/// of the previous phrase's final sounding note. A silent role section resets
+/// this link; an impossible entry fails atomically.
+pub fn arrange_ensemble_form_development_with_phrase_joins(
+    source: &Score,
+    request: &EnsembleFormDevelopmentRequest,
+    max_leap_semitones: u8,
+) -> Result<EnsembleFormDevelopmentResult, EnsembleFormDevelopmentError> {
+    arrange_ensemble_form_development_internal(source, request, Some(max_leap_semitones))
+}
+
+fn arrange_ensemble_form_development_internal(
+    source: &Score,
+    request: &EnsembleFormDevelopmentRequest,
+    phrase_entry_max_leap_semitones: Option<u8>,
+) -> Result<EnsembleFormDevelopmentResult, EnsembleFormDevelopmentError> {
+    if phrase_entry_max_leap_semitones.is_some_and(|limit| limit > 24) {
+        return Err(EnsembleFormDevelopmentError::InvalidPhraseJoinLimit);
+    }
     if request.form.ensemble.countermelody.is_none()
         || !request
             .form
@@ -68,8 +95,12 @@ pub fn arrange_ensemble_form_development(
     {
         return Err(EnsembleFormDevelopmentError::MissingCountermelody);
     }
-    let result =
-        arrange_ensemble_form_with_development(source, &request.form, request.countermelody_kind);
+    let result = arrange_ensemble_form_with_development(
+        source,
+        &request.form,
+        request.countermelody_kind,
+        phrase_entry_max_leap_semitones,
+    );
     if let Some(problem) = result.diagnostics.first() {
         return Err(EnsembleFormDevelopmentError::Form(problem.clone()));
     }
@@ -87,6 +118,7 @@ pub fn arrange_ensemble_form_development(
             source_fingerprint: form.source_fingerprint.clone(),
             form,
             countermelody_kind: request.countermelody_kind,
+            phrase_entry_max_leap_semitones,
         },
         role_parts: result.role_parts,
         measures: result.measures,
@@ -109,12 +141,13 @@ pub fn replay_ensemble_form_development(
     if fingerprint(source).as_deref() != Some(resolved.source_fingerprint.as_str()) {
         return Err(EnsembleFormDevelopmentError::SourceMismatch);
     }
-    Ok(arrange_ensemble_form_development(
+    Ok(arrange_ensemble_form_development_internal(
         source,
         &EnsembleFormDevelopmentRequest {
             form: resolved.form.request.clone(),
             countermelody_kind: resolved.countermelody_kind,
         },
+        resolved.phrase_entry_max_leap_semitones,
     )?
     .score)
 }
