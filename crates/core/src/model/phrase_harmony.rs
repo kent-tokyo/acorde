@@ -2,9 +2,12 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::chord_plan::{BeatFraction, ChordPlanPosition};
+use super::chord_plan::{
+    BeatFraction, CHORD_PLAN_CONTRACT_VERSION, ChordPlan, ChordPlanOrigin, ChordPlanPosition,
+    chord_plan_to_preset_selection,
+};
 use super::chord_proposals::{
-    ChordProposalDiagnostic, ChordProposalRequest, ChordProposalResult,
+    ChordProposalDiagnostic, ChordProposalRequest, ChordProposalResult, changed_spans,
     suggest_chord_plans_at_positions, suggest_chord_plans_with_locks,
 };
 use super::chordal_pad::default_meter_groups;
@@ -42,6 +45,10 @@ pub struct PhraseHarmonyRequest {
     /// exact when the phrase-generated boundaries match the source plan.
     #[serde(default)]
     pub locked_chord_entries: Vec<usize>,
+    /// Optional source-plan index for each generated position, in order. This
+    /// explicitly authorizes moving or duplicating an unlocked source chord.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_reanchor: Option<Vec<usize>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -50,6 +57,12 @@ pub struct PhraseHarmonyResult {
     pub proposals: ChordProposalResult,
     pub diagnostics: Vec<ChordProposalDiagnostic>,
     pub contract_version: u16,
+    /// The exact provisional plan used for source-aware progression search.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reanchored_source_plan: Option<ChordPlan>,
+    /// Explicitly omitted source entries when a slower pace merges regions.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub omitted_source_entries: Vec<usize>,
 }
 
 fn failure(code: &str, measure: Option<usize>) -> PhraseHarmonyResult {
@@ -66,6 +79,8 @@ fn failure(code: &str, measure: Option<usize>) -> PhraseHarmonyResult {
             measure_index: measure,
         }],
         contract_version: 1,
+        reanchored_source_plan: None,
+        omitted_source_entries: Vec::new(),
     }
 }
 
@@ -82,6 +97,171 @@ fn pushed(
         offset,
     });
     true
+}
+
+fn same_position(left: &ChordPlanPosition, right: &ChordPlanPosition) -> bool {
+    left.measure_index == right.measure_index
+        && u128::from(left.offset.numerator) * u128::from(right.offset.denominator)
+            == u128::from(right.offset.numerator) * u128::from(left.offset.denominator)
+}
+
+fn before(left: &ChordPlanPosition, right: &ChordPlanPosition) -> bool {
+    left.measure_index < right.measure_index
+        || left.measure_index == right.measure_index
+            && u128::from(left.offset.numerator) * u128::from(right.offset.denominator)
+                < u128::from(right.offset.numerator) * u128::from(left.offset.denominator)
+}
+
+fn changed_original_regions(
+    source: &ChordPlan,
+    changed: &[super::chord_proposals::ChordChangedSpan],
+    measure_count: usize,
+) -> usize {
+    source
+        .entries
+        .iter()
+        .enumerate()
+        .filter(|(index, entry)| {
+            let end = source.entries.get(index + 1).map_or_else(
+                || ChordPlanPosition {
+                    measure_index: measure_count,
+                    offset: BeatFraction::ZERO,
+                },
+                |next| next.position.clone(),
+            );
+            changed
+                .iter()
+                .any(|span| before(&entry.position, &span.end) && before(&span.start, &end))
+        })
+        .count()
+}
+
+struct ReanchoredSource {
+    plan: ChordPlan,
+    locked_targets: Vec<usize>,
+    omitted: Vec<usize>,
+}
+
+type ReanchorError = (&'static str, Option<usize>);
+
+fn reanchor_source(
+    score: &Score,
+    source: &ChordPlan,
+    positions: &[ChordPlanPosition],
+    mapping: &[usize],
+    locks: &[usize],
+    bass_mode: super::arrange::AccordionBassMode,
+) -> Result<ReanchoredSource, ReanchorError> {
+    if source.contract_version != CHORD_PLAN_CONTRACT_VERSION
+        || source.entries.is_empty()
+        || source.entries.len() > MAX_POSITIONS
+        || !same_position(&source.entries[0].position, &positions[0])
+        || source
+            .entries
+            .windows(2)
+            .any(|pair| !before(&pair[0].position, &pair[1].position))
+        || source.entries.iter().fold(0usize, |total, entry| {
+            total.saturating_add(entry.sources.len())
+        }) > 4096
+        || source.entries.iter().any(|entry| {
+            entry.position.measure_index >= score.parts[0].staves[0].measures.len()
+                || !entry.position.offset.on_preset_grid()
+                || entry.position.offset.beats()
+                    >= score.playback_measure_beats(entry.position.measure_index)
+                || entry.chord.root.len() > 32
+                || entry.chord.kind.len() > 64
+                || entry
+                    .chord
+                    .bass
+                    .as_ref()
+                    .is_some_and(|bass| bass.len() > 32)
+                || entry.chord.degrees.len() > 64
+                || entry.sources.iter().any(|source| {
+                    source
+                        .reference
+                        .as_ref()
+                        .is_some_and(|reference| reference.len() > 2048)
+                })
+        })
+        || chord_plan_to_preset_selection(source, bass_mode)
+            .selection
+            .is_none()
+    {
+        return Err(("invalid-reanchor-source-plan", None));
+    }
+    if mapping.len() != positions.len()
+        || mapping.first() != Some(&0)
+        || mapping.iter().any(|&index| index >= source.entries.len())
+        || mapping.windows(2).any(|pair| pair[0] > pair[1])
+    {
+        return Err(("invalid-source-reanchor", None));
+    }
+    let mut locked_targets = Vec::new();
+    for &index in locks {
+        let Some(entry) = source.entries.get(index) else {
+            return Err(("invalid-chord-lock", None));
+        };
+        let targets = mapping
+            .iter()
+            .enumerate()
+            .filter(|(_, mapped)| **mapped == index)
+            .map(|(target, _)| target)
+            .collect::<Vec<_>>();
+        let Some(&first) = targets.first() else {
+            return Err((
+                "locked-source-region-moved",
+                Some(entry.position.measure_index),
+            ));
+        };
+        if !same_position(&positions[first], &entry.position)
+            || targets.iter().any(|&target| {
+                before(&positions[target], &entry.position)
+                    || source
+                        .entries
+                        .get(index + 1)
+                        .is_some_and(|next| !before(&positions[target], &next.position))
+            })
+            || source.entries.get(index + 1).is_some_and(|next| {
+                mapping
+                    .iter()
+                    .enumerate()
+                    .find(|(_, mapped)| **mapped > index)
+                    .is_none_or(|(target, _)| !same_position(&positions[target], &next.position))
+            })
+        {
+            return Err((
+                "locked-source-region-moved",
+                Some(entry.position.measure_index),
+            ));
+        }
+        locked_targets.extend(targets);
+    }
+    locked_targets.sort_unstable();
+    locked_targets.dedup();
+    let omitted = (0..source.entries.len())
+        .filter(|index| !mapping.contains(index))
+        .collect::<Vec<_>>();
+    let entries = positions
+        .iter()
+        .zip(mapping)
+        .map(|(position, &index)| {
+            let mut entry = source.entries[index].clone();
+            if !same_position(position, &entry.position) {
+                entry.origin = ChordPlanOrigin::GeneratedReharmonization;
+            }
+            entry.position = position.clone();
+            entry.offset_beats = position.offset.beats();
+            entry
+        })
+        .collect();
+    Ok(ReanchoredSource {
+        plan: ChordPlan {
+            contract_version: CHORD_PLAN_CONTRACT_VERSION,
+            entries,
+        },
+        locked_targets,
+        omitted,
+    })
 }
 
 /// Choose chord-change locations from a complete written phrase schedule,
@@ -161,7 +341,52 @@ pub fn suggest_phrase_harmony(
     if cursor != count {
         return failure("incomplete-harmonic-phrases", Some(cursor));
     }
-    let proposal = if let Some(source) = &request.proposal.source_plan {
+    let mut reanchored_source_plan = None;
+    let mut omitted_source_entries = Vec::new();
+    let proposal = if let Some(mapping) = &request.source_reanchor {
+        let Some(source) = &request.proposal.source_plan else {
+            return failure("reanchor-requires-source-plan", None);
+        };
+        let reanchored = match reanchor_source(
+            score,
+            source,
+            &positions,
+            mapping,
+            &request.locked_chord_entries,
+            request.proposal.bass_mode,
+        ) {
+            Ok(mapped) => mapped,
+            Err((code, measure)) => return failure(code, measure),
+        };
+        let mut proposal_request = request.proposal.clone();
+        proposal_request.source_plan = Some(reanchored.plan.clone());
+        let mut generated =
+            suggest_chord_plans_with_locks(score, &proposal_request, &reanchored.locked_targets);
+        let before_budget = generated.candidates.len();
+        for candidate in &mut generated.candidates {
+            candidate.changed_spans = changed_spans(score, &candidate.plan, Some(source));
+        }
+        if let Some(limit) = request.proposal.max_changed_spans {
+            generated.candidates.retain(|candidate| {
+                changed_original_regions(source, &candidate.changed_spans, count)
+                    <= usize::from(limit)
+            });
+            if before_budget > 0 && generated.candidates.is_empty() {
+                generated.diagnostics.push(ChordProposalDiagnostic {
+                    code: "change-budget-exceeded-after-reanchor".into(),
+                    measure_index: None,
+                });
+            }
+        }
+        for candidate in &mut generated.candidates {
+            candidate
+                .reason_codes
+                .push("explicit-source-reanchor".into());
+        }
+        reanchored_source_plan = Some(reanchored.plan);
+        omitted_source_entries = reanchored.omitted;
+        generated
+    } else if let Some(source) = &request.proposal.source_plan {
         let aligned = source.entries.len() == positions.len()
             && source
                 .entries
@@ -186,5 +411,7 @@ pub fn suggest_phrase_harmony(
         diagnostics: proposal.diagnostics.clone(),
         proposals: proposal,
         contract_version: 1,
+        reanchored_source_plan,
+        omitted_source_entries,
     }
 }

@@ -1,7 +1,7 @@
 use acorde_core::{
-    BeatFraction, ChordPlan, ChordPlanEntry, ChordPlanOrigin, ChordPlanPosition,
+    BeatFraction, ChordPlan, ChordPlanEntry, ChordPlanOrigin, ChordPlanPosition, ChordPlanSource,
     ChordProposalRequest, ChordSymbol, Duration, Note, PhraseHarmonicPace, PhraseHarmonyRequest,
-    PhraseHarmonySection, Pitch, Score, suggest_phrase_harmony,
+    PhraseHarmonySection, Pitch, Score, arrange_from_chord_proposal, suggest_phrase_harmony,
 };
 
 fn score(numerator: u8, denominator: u8, bars: usize) -> Score {
@@ -41,6 +41,30 @@ fn request(bars: usize, pace: PhraseHarmonicPace) -> PhraseHarmonyRequest {
         }],
         proposal: ChordProposalRequest::default(),
         locked_chord_entries: vec![],
+        source_reanchor: None,
+    }
+}
+
+fn authored_plan(bars: usize) -> ChordPlan {
+    let chord: ChordSymbol =
+        serde_json::from_value(serde_json::json!({"root":"C","kind":"major"})).unwrap();
+    ChordPlan {
+        contract_version: 1,
+        entries: (0..bars)
+            .map(|measure| ChordPlanEntry {
+                position: ChordPlanPosition {
+                    measure_index: measure,
+                    offset: BeatFraction::ZERO,
+                },
+                offset_beats: 0.0,
+                chord: chord.clone(),
+                origin: ChordPlanOrigin::HostAuthored,
+                sources: vec![ChordPlanSource {
+                    note: None,
+                    reference: Some(format!("host:bar-{measure}")),
+                }],
+            })
+            .collect(),
     }
 }
 
@@ -118,20 +142,7 @@ fn compound_and_irregular_groups_place_changes_on_real_group_boundaries() {
 fn original_chord_and_lock_survive_aligned_phrase_boundaries() {
     let source = score(4, 4, 4);
     let mut input = request(4, PhraseHarmonicPace::EveryBar);
-    let chord: ChordSymbol =
-        serde_json::from_value(serde_json::json!({"root":"C","kind":"major"})).unwrap();
-    let entries = (0..4)
-        .map(|measure| ChordPlanEntry {
-            position: ChordPlanPosition {
-                measure_index: measure,
-                offset: BeatFraction::ZERO,
-            },
-            offset_beats: 0.0,
-            chord: chord.clone(),
-            origin: ChordPlanOrigin::HostAuthored,
-            sources: vec![],
-        })
-        .collect::<Vec<_>>();
+    let entries = authored_plan(4).entries;
     input.proposal.source_plan = Some(ChordPlan {
         contract_version: 1,
         entries: entries.clone(),
@@ -154,6 +165,115 @@ fn original_chord_and_lock_survive_aligned_phrase_boundaries() {
         "source-harmonic-positions-mismatch"
     );
     assert!(rejected.proposals.candidates.is_empty());
+}
+
+#[test]
+fn explicit_reanchor_splits_and_merges_regions_with_traced_provenance() {
+    let source = score(4, 4, 4);
+    let original = authored_plan(4);
+    let mut split = request(4, PhraseHarmonicPace::TwoGroupsPerBar);
+    split.proposal.source_plan = Some(original.clone());
+    split.source_reanchor = Some(vec![0, 0, 1, 1, 2, 2, 3, 3]);
+    split.locked_chord_entries = vec![1];
+    let split_result = suggest_phrase_harmony(&source, &split);
+    assert!(
+        split_result.diagnostics.is_empty(),
+        "{:?}",
+        split_result.diagnostics
+    );
+    let reanchored = split_result.reanchored_source_plan.as_ref().unwrap();
+    assert_eq!(reanchored.entries.len(), 8);
+    assert_eq!(reanchored.entries[3].position.offset.beats(), 2.0);
+    assert_eq!(
+        reanchored.entries[3].origin,
+        ChordPlanOrigin::GeneratedReharmonization
+    );
+    assert_eq!(reanchored.entries[3].sources, original.entries[1].sources);
+    assert!(split_result.proposals.candidates.iter().all(|candidate| {
+        [2, 3].into_iter().all(|target| {
+            candidate.plan.entries.iter().any(|entry| {
+                entry.position == split_result.positions[target]
+                    && entry.chord == original.entries[1].chord
+                    && entry.sources == reanchored.entries[target].sources
+            })
+        })
+    }));
+    assert!(split_result.proposals.candidates.iter().all(|candidate| {
+        candidate
+            .reason_codes
+            .contains(&"explicit-source-reanchor".into())
+    }));
+    let chosen = &split_result.proposals.candidates[0];
+    let replay = arrange_from_chord_proposal(&source, &chosen.resolved, "held-chord");
+    assert!(replay.diagnostics.is_empty(), "{:?}", replay.diagnostics);
+    assert!(replay.arrangement.unwrap().score.is_some());
+
+    let mut merge = request(4, PhraseHarmonicPace::EverySecondBar);
+    merge.proposal.source_plan = Some(original.clone());
+    merge.source_reanchor = Some(vec![0, 2]);
+    let merged = suggest_phrase_harmony(&source, &merge);
+    assert!(merged.diagnostics.is_empty(), "{:?}", merged.diagnostics);
+    assert_eq!(merged.positions.len(), 2);
+    assert_eq!(merged.omitted_source_entries, vec![1, 3]);
+    assert_eq!(
+        merged.reanchored_source_plan.unwrap().entries[1].sources,
+        original.entries[2].sources
+    );
+
+    let mut contrasting = original;
+    contrasting.entries[1].chord =
+        serde_json::from_value(serde_json::json!({"root":"G","kind":"major"})).unwrap();
+    merge.proposal.source_plan = Some(contrasting);
+    merge.proposal.max_changed_spans = Some(0);
+    let over_budget = suggest_phrase_harmony(&source, &merge);
+    assert!(over_budget.proposals.candidates.is_empty());
+    assert!(
+        over_budget
+            .diagnostics
+            .iter()
+            .any(|issue| issue.code == "change-budget-exceeded-after-reanchor")
+    );
+    merge.proposal.max_changed_spans = Some(1);
+    let within_budget = suggest_phrase_harmony(&source, &merge);
+    assert!(!within_budget.proposals.candidates.is_empty());
+    assert!(within_budget.proposals.candidates.iter().all(|candidate| {
+        candidate
+            .changed_spans
+            .iter()
+            .any(|span| span.start.measure_index == 1)
+    }));
+}
+
+#[test]
+fn reanchor_rejects_implicit_or_moved_locked_regions_atomically() {
+    let source = score(4, 4, 4);
+    let mut input = request(4, PhraseHarmonicPace::EverySecondBar);
+    input.proposal.source_plan = Some(authored_plan(4));
+    input.source_reanchor = Some(vec![0, 2]);
+    input.locked_chord_entries = vec![1];
+    let omitted_lock = suggest_phrase_harmony(&source, &input);
+    assert_eq!(
+        omitted_lock.diagnostics[0].code,
+        "locked-source-region-moved"
+    );
+    assert!(omitted_lock.proposals.candidates.is_empty());
+    assert!(omitted_lock.reanchored_source_plan.is_none());
+
+    input.locked_chord_entries = vec![2];
+    let moved_end = suggest_phrase_harmony(&source, &input);
+    assert_eq!(moved_end.diagnostics[0].code, "locked-source-region-moved");
+
+    input.locked_chord_entries.clear();
+    input.source_reanchor = Some(vec![2, 0]);
+    let invalid_order = suggest_phrase_harmony(&source, &input);
+    assert_eq!(invalid_order.diagnostics[0].code, "invalid-source-reanchor");
+
+    input.proposal.source_plan = None;
+    let missing_source = suggest_phrase_harmony(&source, &input);
+    assert_eq!(
+        missing_source.diagnostics[0].code,
+        "reanchor-requires-source-plan"
+    );
 }
 
 #[test]

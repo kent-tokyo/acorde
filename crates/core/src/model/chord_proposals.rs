@@ -516,7 +516,7 @@ fn generate_plan(
     })
 }
 
-fn changed_spans(
+pub(super) fn changed_spans(
     score: &Score,
     plan: &ChordPlan,
     source: Option<&ChordPlan>,

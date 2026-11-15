@@ -37,6 +37,7 @@ let request = PhraseHarmonyRequest {
     ],
     proposal: ChordProposalRequest::default(),
     locked_chord_entries: vec![],
+    source_reanchor: None,
 };
 ```
 
@@ -46,17 +47,38 @@ to each affected bar's meter numerator. The default midpoint is beat 2 in
 4/4, beat 1.5 in 6/8 and 5/8, and beat 2 in 7/8. The chosen midpoint must fit
 the existing chord-position grid. Meter changes are checked bar by bar.
 
-If `proposal.source_plan` is supplied, its change positions must match every
-generated position. The returned candidates can then preserve source chords
-and `locked_chord_entries` through the existing progression search. A mismatch
-returns `source-harmonic-positions-mismatch` with no candidates. With no source
-plan, locks are invalid. This first API does not move existing chords to a new
-rhythm; that requires an explicit reanchoring rule so chord spelling, bass,
-provenance and locks cannot silently shift.
+If `proposal.source_plan` is supplied with no `source_reanchor`, its change
+positions must match every generated position. The returned candidates can
+then preserve source chords and `locked_chord_entries` through the existing
+progression search. A mismatch returns `source-harmonic-positions-mismatch`
+with no candidates. With no source plan, locks and reanchoring are invalid.
+
+To change an existing plan's harmonic rhythm, set `source_reanchor` to one
+source-entry index per generated position. For four source chords at bar starts,
+`[0, 0, 1, 1, 2, 2, 3, 3]` splits each bar into two chord regions. A slower
+two-bar pace can use `[0, 2]`; the result reports source entries 1 and 3 in
+`omitted_source_entries`. Indices must be in source order, and the first must
+be zero. The result includes the provisional `reanchored_source_plan` so a
+caller can inspect every moved boundary before choosing a proposal.
+
+The original chord spelling, slash bass and source references are copied to
+each mapped entry. An entry moved to another boundary is marked
+`generated-reharmonization`; an unchanged boundary keeps its original origin.
+For each locked original entry, its starting boundary and the next original
+boundary remain fixed. Inserted boundaries inside that interval inherit the
+locked chord and source reference. A mapping that drops or moves a locked
+region fails atomically with `locked-source-region-moved`.
+
+`max_changed_spans` is checked against the **original** source plan after
+reanchoring. Every original harmonic region whose sounding chord changes counts
+once, even if the new plan splits it into several regions. Returned
+`changed_spans` also compare with the original plan. A request that cannot
+meet its budget returns no candidate and
+`change-budget-exceeded-after-reanchor`.
 
 The phrase schedule must cover every written measure once, in order. Invalid
 gaps, overlaps, groupings and limits return no positions or candidates. The
 limits are 64 phrases and 512 change positions. Candidate results retain the
 source fingerprint and resolved-plan replay contract of the underlying chord
-proposal API. The next harmony work adds reanchoring, supplied local keys,
-borrowed and passing chords, and cadence constraints.
+proposal API. The next harmony work adds supplied local keys, borrowed and
+passing chords, and cadence constraints.

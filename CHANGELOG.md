@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+- Extend opt-in `suggest_phrase_harmony` with explicit source-entry reanchoring.
+  New chord positions can split or merge old regions while preserving mapped
+  spelling, bass and source references. Locked original regions retain their
+  exact boundaries and chord. Omitted source entries are reported, and the
+  changed-region budget is checked against the original plan after reanchoring.
+
 - Add opt-in `suggest_phrase_harmony` to Rust and full/viewer WASM. Callers
   choose chord-change pace by complete phrase ranges, including two changes at
   compound or irregular meter-group boundaries. Existing source-plan chords

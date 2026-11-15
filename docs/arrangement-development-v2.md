@@ -51,7 +51,15 @@ suites. The WASM JSON test confirms native parity and atomic rejection of an
 overlapping phrase schedule. Its logs are `/private/tmp/acorde-phrase-native.log`,
 `/private/tmp/acorde-phrase-full-wasm.log` and
 `/private/tmp/acorde-phrase-viewer-wasm.log`. Source-plan positions must match
-the generated positions exactly; reanchoring is not yet implemented.
+the generated positions exactly unless the caller supplies an explicit mapping.
+The mapping extension passes six focused core tests, including source-bound
+replay, the full native workspace suite, warning-free Clippy and full/viewer
+Chrome WASM. The latter exercises locked chord and provenance preservation.
+Its logs are `/private/tmp/acorde-reanchor-native.log`,
+`/private/tmp/acorde-reanchor-full-wasm.log` and
+`/private/tmp/acorde-reanchor-viewer-wasm.log`. The original source-plan change
+budget is enforced after reanchoring; supplied local keys, borrowed/passing
+chords and cadence constraints still require implementation and listening.
 
 ## Required outcomes and evidence
 
@@ -59,7 +67,7 @@ the generated positions exactly; reanchoring is not yet implemented.
 | --- | --- | --- |
 | 0. Comparison baseline | Integrate prior arrangement and analysis work; preserve reproducible old outputs and fix comparison conditions. | Integration, native corpus and full/viewer Chrome suites pass. Freeze reviewed baseline audio identities, complete hosted CI/size gates, and establish the new evaluation corpus. |
 | 1. Whole-piece development | Coordinate phrases, A/B sections, entrances, pauses, density and ending shape over 16–32 bars; vary a repeated passage on a later visit. | `arrange_ensemble_form` compiles an explicit written form, coordinates phrase endings, varies bass patterns without resetting bass pitch continuity, and restores dynamics at every sounding bar. A second API selects a different generated event sequence on a later repeat visit; its written score still displays the base form. Source-bound replay and the 16-bar development fixture pass native, MusicXML/MSCZ and full/viewer browser checks. Full performance-score export for visit changes, longer examples and listening acceptance remain. |
-| 2. Harmony | Choose harmonic rhythm by phrase; add borrowed/passing harmony and supplied local-key movement, bounded change amount and cadence intent while preserving melody/locks. | `suggest_phrase_harmony` now selects two-bar, one-bar or two-group pace by complete phrase ranges and delegates to existing bounded chord search. Native and full/viewer Chrome checks pass. Current source-plan locks require exactly aligned change positions; reanchoring an existing plan, expanded harmonic language and cadence constraints remain. Use explicit source/key/phrase input before relying on uncertain analysis. |
+| 2. Harmony | Choose harmonic rhythm by phrase; add borrowed/passing harmony and supplied local-key movement, bounded change amount and cadence intent while preserving melody/locks. | `suggest_phrase_harmony` selects two-bar, one-bar or two-group pace. Its new explicit mapping can split or merge an existing source plan while preserving locks and comparing change budgets with the original regions; focused tests pass, full gates pending. Supplied local keys, borrowed/passing language and cadence constraints remain. Use explicit source/key/phrase input before relying on uncertain analysis. |
 | 3. Rhythm and bass | Composable pulse/rest/accent/duration rules, anticipation, syncopation, walking/ostinato bass and phrase-ending fills; coherent transitions. | Form can switch the existing three bass patterns by section. New rhythmic grammar and the named techniques remain. |
 | 4. Countermelody and voice leading | Capture motif rhythm as well as contour; inversion, augmentation/diminution, imitation, question/answer and independent inner voices across phrases. | Existing contour-based countermelody and section activity are integrated. Rhythmic development and new transformations remain. Apply style-specific voice-leading rules; analysis flags are not a general musical-quality verdict. |
 | 5. Instruments and difficulty | Piano hand allocation, accordion buttons, wind breathing, string sustain; solo/duet/small ensemble and simplified versions. | Existing register/button infrastructure is available. Joint playability constraints, role redistribution and instrument-specific performance evaluation remain. |
