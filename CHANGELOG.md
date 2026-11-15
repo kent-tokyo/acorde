@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+- Add opt-in `arrange_ensemble_form_development` and source-bound replay in
+  Rust and full/viewer WASM. Source-rhythm countermelody transformations now
+  follow written section activity and dynamics alongside harmony and bass;
+  density and vertical collision checks can reject a developed form atomically.
+
 - Add opt-in source-rhythm countermelody development and replay in Rust and
   full/viewer WASM. Imitation, inversion, augmentation, diminution and answer
   treatments retain motif note/rest durations, stay within chord and melody

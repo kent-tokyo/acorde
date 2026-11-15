@@ -13,9 +13,10 @@ use super::chord_proposals::fingerprint;
 use super::chordal_pad::{
     ChordalPadPattern, ChordalPadPatternSection, MAX_MEASURES, MAX_SOURCE_NOTES,
 };
+use super::countermelody_development::CountermelodyDevelopmentKind;
 use super::ensemble_roles::{
     EnsembleRole, EnsembleRoleOptions, EnsembleRolePart, EnsembleRoleSection,
-    arrange_ensemble_roles_with_bass_patterns,
+    arrange_ensemble_roles_with_bass_patterns, arrange_ensemble_roles_with_development,
 };
 use super::notation::Dynamic;
 use super::score::{NoteAddr, Score};
@@ -313,6 +314,22 @@ fn compile(
 /// Input parts are preserved exactly. Invalid input returns no partial score,
 /// replay contract, dynamic mark or measure report.
 pub fn arrange_ensemble_form(score: &Score, request: &EnsembleFormRequest) -> EnsembleFormResult {
+    arrange_ensemble_form_internal(score, request, None)
+}
+
+pub(crate) fn arrange_ensemble_form_with_development(
+    score: &Score,
+    request: &EnsembleFormRequest,
+    kind: CountermelodyDevelopmentKind,
+) -> EnsembleFormResult {
+    arrange_ensemble_form_internal(score, request, Some(kind))
+}
+
+fn arrange_ensemble_form_internal(
+    score: &Score,
+    request: &EnsembleFormRequest,
+    development: Option<CountermelodyDevelopmentKind>,
+) -> EnsembleFormResult {
     let count = match check_source(score) {
         Ok(count) => count,
         Err(issue) => return failure(issue),
@@ -324,11 +341,20 @@ pub fn arrange_ensemble_form(score: &Score, request: &EnsembleFormRequest) -> En
     let Some(source_fingerprint) = fingerprint(score) else {
         return failure(diagnostic("invalid-form-source", None, None));
     };
-    let arranged = arrange_ensemble_roles_with_bass_patterns(
-        score,
-        compiled.ensemble,
-        Some(&compiled.bass_patterns),
-    );
+    let arranged = if let Some(kind) = development {
+        arrange_ensemble_roles_with_development(
+            score,
+            compiled.ensemble,
+            Some(&compiled.bass_patterns),
+            kind,
+        )
+    } else {
+        arrange_ensemble_roles_with_bass_patterns(
+            score,
+            compiled.ensemble,
+            Some(&compiled.bass_patterns),
+        )
+    };
     let Some(mut output) = arranged.score else {
         let issue = arranged.diagnostics.first();
         let measure = issue.and_then(|issue| issue.measure_index);

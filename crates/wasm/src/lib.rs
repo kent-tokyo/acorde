@@ -1915,6 +1915,30 @@ pub fn replay_ensemble_form(score_json: &str, resolved_json: &str) -> Result<Str
         .map_err(|error| js_err(format!("ensemble form serialization failed: {error}")))
 }
 
+/// Coordinate a source-rhythm countermelody with every written form section.
+#[wasm_bindgen]
+pub fn arrange_ensemble_form_development(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::EnsembleFormDevelopmentRequest =
+        parse_json(request_json, "ensemble form development", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::arrange_ensemble_form_development(&score, &request)
+        .map_err(|error| js_err(format!("ensemble form development failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("ensemble form development serialization failed: {error}")))
+}
+
+/// Replay a form with rhythmic countermelody from its source-bound contract.
+#[wasm_bindgen]
+pub fn replay_ensemble_form_development(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedEnsembleFormDevelopment =
+        parse_json(resolved_json, "resolved ensemble form development", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::replay_ensemble_form_development(&score, &resolved)
+        .map_err(|error| js_err(format!("ensemble form development replay failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("ensemble form development replay serialization failed: {error}")))
+}
+
 /// Suggest distinct whole-piece treatments with section-specific entrances and textures.
 #[wasm_bindgen]
 pub fn suggest_ensemble_form_proposals(score_json: &str, request_json: &str) -> Result<String, JsValue> {

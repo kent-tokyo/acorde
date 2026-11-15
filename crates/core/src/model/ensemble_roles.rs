@@ -6,6 +6,10 @@ use super::accordion_dynamics::supported_level;
 use super::bass_line::{BassLineOptions, BassLinePattern, arrange_bass_line_with_patterns};
 use super::chordal_pad::{ChordalPadOptions, arrange_chordal_pad, emit_rest, tick};
 use super::countermelody::{CountermelodyOptions, arrange_countermelody_with_activity};
+use super::countermelody_development::{
+    CountermelodyDevelopmentError, CountermelodyDevelopmentKind, CountermelodyDevelopmentRequest,
+    arrange_countermelody_development_with_activity,
+};
 use super::notation::Dynamic;
 use super::score::{NoteAddr, Score};
 
@@ -172,8 +176,26 @@ pub fn arrange_ensemble_roles(score: &Score, options: EnsembleRoleOptions) -> En
 
 pub(crate) fn arrange_ensemble_roles_with_bass_patterns(
     score: &Score,
+    options: EnsembleRoleOptions,
+    bass_patterns: Option<&[BassLinePattern]>,
+) -> EnsembleRoleResult {
+    arrange_ensemble_roles_internal(score, options, bass_patterns, None)
+}
+
+pub(crate) fn arrange_ensemble_roles_with_development(
+    score: &Score,
+    options: EnsembleRoleOptions,
+    bass_patterns: Option<&[BassLinePattern]>,
+    kind: CountermelodyDevelopmentKind,
+) -> EnsembleRoleResult {
+    arrange_ensemble_roles_internal(score, options, bass_patterns, Some(kind))
+}
+
+fn arrange_ensemble_roles_internal(
+    score: &Score,
     mut options: EnsembleRoleOptions,
     bass_patterns: Option<&[BassLinePattern]>,
+    development: Option<CountermelodyDevelopmentKind>,
 ) -> EnsembleRoleResult {
     options.sections.sort_by_key(|section| {
         (
@@ -323,22 +345,55 @@ pub(crate) fn arrange_ensemble_roles_with_bass_patterns(
             .iter()
             .map(|state| state.countermelody)
             .collect::<Vec<_>>();
-        let arranged = arrange_countermelody_with_activity(
-            &output,
-            countermelody,
-            result
-                .resolved_options
-                .restart_countermelody_at_section_entry
-                .then_some(counter_activity.as_slice()),
-        );
-        let Some(next) = arranged.score else {
-            let issue = arranged.diagnostics.first();
-            return fail(
-                result,
-                issue.map_or("countermelody-failed", |issue| issue.code.as_str()),
-                Some(EnsembleRole::Countermelody),
-                issue.and_then(|issue| issue.measure_index),
+        let next = if let Some(kind) = development {
+            let request = CountermelodyDevelopmentRequest {
+                base: countermelody,
+                kind,
+            };
+            match arrange_countermelody_development_with_activity(
+                &output,
+                &request,
+                &counter_activity,
+            ) {
+                Ok(arranged) => arranged.score,
+                Err(error) => {
+                    let (code, measure) = match &error {
+                        CountermelodyDevelopmentError::Base(issue) => {
+                            (issue.code.as_str(), issue.measure_index)
+                        }
+                        CountermelodyDevelopmentError::Unplayable(measure) => {
+                            ("unplayable-counter-register", Some(*measure))
+                        }
+                        CountermelodyDevelopmentError::UnsupportedMotifRhythm => {
+                            ("unsupported-motif-rhythm", None)
+                        }
+                        CountermelodyDevelopmentError::GeneratedNoteLimit => {
+                            ("generated-note-limit", None)
+                        }
+                        _ => ("countermelody-development-failed", None),
+                    };
+                    return fail(result, code, Some(EnsembleRole::Countermelody), measure);
+                }
+            }
+        } else {
+            let arranged = arrange_countermelody_with_activity(
+                &output,
+                countermelody,
+                result
+                    .resolved_options
+                    .restart_countermelody_at_section_entry
+                    .then_some(counter_activity.as_slice()),
             );
+            let Some(next) = arranged.score else {
+                let issue = arranged.diagnostics.first();
+                return fail(
+                    result,
+                    issue.map_or("countermelody-failed", |issue| issue.code.as_str()),
+                    Some(EnsembleRole::Countermelody),
+                    issue.and_then(|issue| issue.measure_index),
+                );
+            };
+            next
         };
         result.role_parts.push(EnsembleRolePart {
             role: EnsembleRole::Countermelody,

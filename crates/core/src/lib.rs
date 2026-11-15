@@ -118,6 +118,11 @@ pub use model::ensemble_form::{
     EnsembleFormMeasure, EnsembleFormRequest, EnsembleFormResult, EnsembleFormSection, FormBass,
     FormHarmony, ResolvedEnsembleForm, arrange_ensemble_form, replay_ensemble_form,
 };
+pub use model::ensemble_form_development::{
+    ENSEMBLE_FORM_DEVELOPMENT_CONTRACT_VERSION, EnsembleFormDevelopmentError,
+    EnsembleFormDevelopmentRequest, EnsembleFormDevelopmentResult, ResolvedEnsembleFormDevelopment,
+    arrange_ensemble_form_development, replay_ensemble_form_development,
+};
 pub use model::ensemble_form_proposals::{
     EnsembleFormProposalCandidate, EnsembleFormProposalRequest, EnsembleFormProposalResult,
     FORM_PROPOSAL_CONTRACT_VERSION, FormProposalBoundary, FormProposalError, ResolvedFormProposal,

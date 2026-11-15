@@ -5,7 +5,9 @@ use serde::{Deserialize, Serialize};
 use super::arrange::{chord_at_note, preset_chord_pitch_classes};
 use super::chord_proposals::fingerprint;
 use super::chordal_pad::{MAX_GENERATED_NOTES, emit_rest, emit_span, melody_spans, tick};
-use super::countermelody::{CountermelodyDiagnostic, CountermelodyOptions, arrange_countermelody};
+use super::countermelody::{
+    CountermelodyDiagnostic, CountermelodyOptions, arrange_countermelody_with_activity,
+};
 use super::score::{NoteAddr, Score};
 
 pub const COUNTERMELODY_DEVELOPMENT_CONTRACT_VERSION: u16 = 1;
@@ -177,9 +179,25 @@ pub fn arrange_countermelody_development(
     source: &Score,
     request: &CountermelodyDevelopmentRequest,
 ) -> Result<CountermelodyDevelopmentResult, CountermelodyDevelopmentError> {
+    arrange_countermelody_development_internal(source, request, None)
+}
+
+pub(crate) fn arrange_countermelody_development_with_activity(
+    source: &Score,
+    request: &CountermelodyDevelopmentRequest,
+    activity: &[bool],
+) -> Result<CountermelodyDevelopmentResult, CountermelodyDevelopmentError> {
+    arrange_countermelody_development_internal(source, request, Some(activity))
+}
+
+fn arrange_countermelody_development_internal(
+    source: &Score,
+    request: &CountermelodyDevelopmentRequest,
+    activity: Option<&[bool]>,
+) -> Result<CountermelodyDevelopmentResult, CountermelodyDevelopmentError> {
     let source_fingerprint =
         fingerprint(source).ok_or(CountermelodyDevelopmentError::InvalidSource)?;
-    let baseline = arrange_countermelody(source, request.base.clone());
+    let baseline = arrange_countermelody_with_activity(source, request.base.clone(), activity);
     if let Some(problem) = baseline.diagnostics.first() {
         return Err(CountermelodyDevelopmentError::Base(problem.clone()));
     }
@@ -219,6 +237,20 @@ pub fn arrange_countermelody_development(
     let mut phrase_attack = 0usize;
     for measure in 0..count {
         let bar_ticks = bar_starts[measure + 1] - bar_starts[measure];
+        if activity.is_some_and(|measures| !measures[measure]) {
+            let mut rests = Vec::new();
+            if !emit_rest(bar_ticks, &mut rests) {
+                return Err(CountermelodyDevelopmentError::UnsupportedMotifRhythm);
+            }
+            generated_events = generated_events.saturating_add(rests.len());
+            if generated_events > MAX_GENERATED_NOTES {
+                return Err(CountermelodyDevelopmentError::GeneratedNoteLimit);
+            }
+            staff.measures[measure].voices[0] = rests;
+            previous_pitch = None;
+            phrase_attack = 0;
+            continue;
+        }
         let meter = source.parts[0].staves[0].meter_at(measure, &source.settings.time_signature);
         let unit = tick(4.0 / f64::from(meter.denominator))
             .ok_or(CountermelodyDevelopmentError::UnsupportedMotifRhythm)?;
