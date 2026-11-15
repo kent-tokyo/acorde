@@ -109,9 +109,26 @@ The result records `applied_cadences`, and each accepted candidate carries a
 after cadence filtering so a one-candidate request still searches past an
 incompatible supplied source plan. Cadence requests do not rewrite the melody.
 
+`colors` selects a zero-based harmonic position and either
+`borrowed-from-parallel` or `chromatic-passing`. For a major key, borrowing
+considers ♭III major, iv minor, ♭VI major and ♭VII major; for a minor key it
+considers I major, ii minor, IV major and vi minor from the parallel major key.
+Local key regions determine the tonic for this choice. A chromatic passing
+target selects a diminished chord whose root lies one semitone between the
+roots before and after it, moving in the same direction. It needs a preceding
+and following position, a region of at most two quarter-note beats, and free
+bass realization. These are caller-selected color positions, not automatic
+claims that the phrase needs chromatic harmony. Unsupported or conflicting
+targets return no candidate. Source locks and the original change budget still
+apply; supplied source plans must satisfy the same target. The result records
+`applied_colors`, and candidates carry `caller-supplied-color`. Their resolved
+chord plans remain replayable against the unchanged source. Listening and
+instrument review are still needed to judge whether a chosen color sounds
+appropriate.
+
 The phrase schedule must cover every written measure once, in order. Invalid
 gaps, overlaps, groupings and limits return no positions or candidates. The
 limits are 64 phrases and 512 change positions. Candidate results retain the
 source fingerprint and resolved-plan replay contract of the underlying chord
-proposal API. The next harmony work adds borrowed and passing chords, then
-musical listening checks for the resulting phrases.
+proposal API. The next harmony work evaluates these choices on longer major,
+minor and local-key pieces with listening notes and stricter cadence checks.

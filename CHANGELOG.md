@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+- Add explicit parallel-mode borrowed and short chromatic passing chord targets
+  to phrase-harmony search. Passing diminished chords require free bass and
+  connect neighboring roots by semitone in one direction. Both targets respect
+  locks, change budgets and source-bound resolved chord plans; unsupported or
+  conflicting targets return no candidate.
+
 - Add opt-in `arrange_ensemble_form_visits_score` and replay in Rust and
   full/viewer WASM. Repeat visits are unfolded into a separate exportable
   performance score with the selected generated variation. The function

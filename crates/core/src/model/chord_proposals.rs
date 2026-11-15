@@ -27,6 +27,7 @@ struct ProgressionSettings<'a> {
     contextual_nonchord_tones: bool,
     local_keys: &'a [ChordKeyRegion],
     cadences: &'a [ChordCadenceTarget],
+    colors: &'a [ChordColorTarget],
 }
 
 pub const CHORD_PROPOSAL_CONTRACT_VERSION: u16 = 1;
@@ -81,6 +82,21 @@ pub enum ChordCadenceKind {
 pub struct ChordCadenceTarget {
     pub arrival_position_index: usize,
     pub kind: ChordCadenceKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ChordColorKind {
+    BorrowedFromParallel,
+    ChromaticPassing,
+}
+
+/// A caller-selected harmonic position that must use a named color language.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ChordColorTarget {
+    pub position_index: usize,
+    pub kind: ChordColorKind,
 }
 
 impl Default for ChordProposalRequest {
@@ -660,7 +676,7 @@ fn add_candidate(
 
 /// Return at most four selectable chord plans. Swing is selected independently by a preset.
 pub fn suggest_chord_plans(score: &Score, request: &ChordProposalRequest) -> ChordProposalResult {
-    suggest_chord_plans_impl(score, request, &[], None, &[], &[])
+    suggest_chord_plans_impl(score, request, &[], None, &[], &[], &[])
 }
 
 /// Generate harmony at caller-selected physical score positions. A source plan
@@ -670,7 +686,7 @@ pub fn suggest_chord_plans_at_positions(
     request: &ChordProposalRequest,
     positions: &[ChordPlanPosition],
 ) -> ChordProposalResult {
-    suggest_chord_plans_at_positions_with_context(score, request, positions, &[], &[])
+    suggest_chord_plans_at_positions_with_context(score, request, positions, &[], &[], &[])
 }
 
 pub(super) fn suggest_chord_plans_at_positions_with_context(
@@ -679,6 +695,7 @@ pub(super) fn suggest_chord_plans_at_positions_with_context(
     positions: &[ChordPlanPosition],
     local_keys: &[ChordKeyRegion],
     cadences: &[ChordCadenceTarget],
+    colors: &[ChordColorTarget],
 ) -> ChordProposalResult {
     let mut rejected = ChordProposalResult {
         contract_version: CHORD_PROPOSAL_CONTRACT_VERSION,
@@ -728,8 +745,15 @@ pub(super) fn suggest_chord_plans_at_positions_with_context(
             .push(diagnostic("invalid-harmonic-positions", None));
         return rejected;
     }
-    let mut result =
-        suggest_chord_plans_impl(score, request, &[], Some(positions), local_keys, cadences);
+    let mut result = suggest_chord_plans_impl(
+        score,
+        request,
+        &[],
+        Some(positions),
+        local_keys,
+        cadences,
+        colors,
+    );
     for candidate in &mut result.candidates {
         candidate
             .reason_codes
@@ -747,7 +771,7 @@ pub fn suggest_chord_plans_with_locks(
     request: &ChordProposalRequest,
     locked_entries: &[usize],
 ) -> ChordProposalResult {
-    suggest_chord_plans_with_locks_and_context(score, request, locked_entries, &[], &[])
+    suggest_chord_plans_with_locks_and_context(score, request, locked_entries, &[], &[], &[])
 }
 
 pub(super) fn suggest_chord_plans_with_locks_and_context(
@@ -756,9 +780,17 @@ pub(super) fn suggest_chord_plans_with_locks_and_context(
     locked_entries: &[usize],
     local_keys: &[ChordKeyRegion],
     cadences: &[ChordCadenceTarget],
+    colors: &[ChordColorTarget],
 ) -> ChordProposalResult {
-    let mut result =
-        suggest_chord_plans_impl(score, request, locked_entries, None, local_keys, cadences);
+    let mut result = suggest_chord_plans_impl(
+        score,
+        request,
+        locked_entries,
+        None,
+        local_keys,
+        cadences,
+        colors,
+    );
     if !locked_entries.is_empty() {
         for candidate in &mut result.candidates {
             candidate.reason_codes.push("locked-source-harmony".into());
@@ -774,6 +806,7 @@ fn suggest_chord_plans_impl(
     positions_override: Option<&[ChordPlanPosition]>,
     local_keys: &[ChordKeyRegion],
     cadences: &[ChordCadenceTarget],
+    colors: &[ChordColorTarget],
 ) -> ChordProposalResult {
     let mut result = ChordProposalResult {
         contract_version: CHORD_PROPOSAL_CONTRACT_VERSION,
@@ -934,6 +967,7 @@ fn suggest_chord_plans_impl(
             contextual_nonchord_tones: request.contextual_nonchord_tones,
             local_keys,
             cadences,
+            colors,
         },
         &locked,
         positions_override,
@@ -971,6 +1005,7 @@ fn suggest_chord_plans_impl(
             contextual_nonchord_tones: request.contextual_nonchord_tones,
             local_keys,
             cadences,
+            colors,
         },
         &locked,
         positions_override,
@@ -1010,6 +1045,7 @@ fn suggest_chord_plans_impl(
                     contextual_nonchord_tones: request.contextual_nonchord_tones,
                     local_keys,
                     cadences,
+                    colors,
                 },
                 &locked,
                 positions_override,

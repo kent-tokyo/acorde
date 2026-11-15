@@ -32,6 +32,7 @@ fn phrase_harmony_json_matches_native_and_rejects_invalid_schedule() {
         source_reanchor: None,
         local_keys: vec![],
         cadences: vec![],
+        colors: vec![],
     };
     let native =
         acorde_core::suggest_phrase_harmony(&serde_json::from_str(&score_json).unwrap(), &request);
@@ -105,6 +106,7 @@ fn source_reanchor_keeps_locked_chord_and_provenance_in_wasm() {
         source_reanchor: Some(vec![0, 0, 1, 1]),
         local_keys: vec![],
         cadences: vec![],
+        colors: vec![],
     };
     let native =
         acorde_core::suggest_phrase_harmony(&serde_json::from_str(&score_json).unwrap(), &request);
@@ -159,6 +161,7 @@ fn local_key_schedule_matches_native_without_changing_source_identity() {
         source_reanchor: None,
         local_keys: vec![],
         cadences: vec![],
+        colors: vec![],
     };
     let source: acorde_core::Score = serde_json::from_str(&score_json).unwrap();
     let baseline = acorde_core::suggest_phrase_harmony(&source, &request);
@@ -207,4 +210,63 @@ fn local_key_schedule_matches_native_without_changing_source_identity() {
                 .iter()
                 .any(|entry| entry.position == wasm.positions[3] && entry.chord.root == "G")
     }));
+}
+
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
+#[cfg_attr(not(target_arch = "wasm32"), test)]
+fn borrowed_and_passing_targets_match_native_in_browser_json() {
+    let mut source = acorde_core::Score::new("color search", 112, 4, 4, 0, 2);
+    for bar in &mut source.parts[0].staves[0].measures {
+        bar.voices[0] = [72, 74, 76, 79]
+            .into_iter()
+            .map(|midi| {
+                acorde_core::Note::new(
+                    acorde_core::Pitch::from_midi(midi, false),
+                    acorde_core::Duration::Quarter,
+                )
+            })
+            .collect();
+    }
+    let score_json = serde_json::to_string(&source).unwrap();
+    for kind in [
+        acorde_core::ChordColorKind::BorrowedFromParallel,
+        acorde_core::ChordColorKind::ChromaticPassing,
+    ] {
+        let request = acorde_core::PhraseHarmonyRequest {
+            phrases: vec![acorde_core::PhraseHarmonySection {
+                start_measure: 0,
+                end_measure_exclusive: 2,
+                pace: acorde_core::PhraseHarmonicPace::TwoGroupsPerBar,
+                meter_groups: vec![],
+            }],
+            proposal: acorde_core::ChordProposalRequest {
+                max_candidates: 1,
+                ..Default::default()
+            },
+            locked_chord_entries: vec![],
+            source_reanchor: None,
+            local_keys: vec![],
+            cadences: vec![],
+            colors: vec![acorde_core::ChordColorTarget {
+                position_index: 1,
+                kind,
+            }],
+        };
+        let native = acorde_core::suggest_phrase_harmony(&source, &request);
+        let browser: acorde_core::PhraseHarmonyResult = serde_json::from_str(
+            &acorde_wasm::suggest_phrase_harmony(
+                &score_json,
+                &serde_json::to_string(&request).unwrap(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            serde_json::to_value(&native).unwrap(),
+            serde_json::to_value(&browser).unwrap()
+        );
+        assert!(browser.diagnostics.is_empty(), "{:?}", browser.diagnostics);
+        assert_eq!(browser.applied_colors, request.colors);
+        assert_eq!(browser.proposals.candidates.len(), 1);
+    }
 }

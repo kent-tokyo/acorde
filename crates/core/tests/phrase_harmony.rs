@@ -1,8 +1,9 @@
 use acorde_core::{
-    BeatFraction, ChordCadenceKind, ChordCadenceTarget, ChordKeyRegion, ChordPlan, ChordPlanEntry,
-    ChordPlanOrigin, ChordPlanPosition, ChordPlanSource, ChordProposalRequest, ChordSymbol,
-    Duration, KeySignature, Note, PhraseHarmonicPace, PhraseHarmonyRequest, PhraseHarmonySection,
-    Pitch, Score, arrange_from_chord_proposal, suggest_phrase_harmony,
+    AccordionBassMode, BeatFraction, ChordCadenceKind, ChordCadenceTarget, ChordColorKind,
+    ChordColorTarget, ChordKeyRegion, ChordPlan, ChordPlanEntry, ChordPlanOrigin,
+    ChordPlanPosition, ChordPlanSource, ChordProposalRequest, ChordSymbol, Duration, KeySignature,
+    Note, PhraseHarmonicPace, PhraseHarmonyRequest, PhraseHarmonySection, Pitch, Score,
+    arrange_from_chord_proposal, suggest_phrase_harmony,
 };
 
 fn score(numerator: u8, denominator: u8, bars: usize) -> Score {
@@ -45,7 +46,229 @@ fn request(bars: usize, pace: PhraseHarmonicPace) -> PhraseHarmonyRequest {
         source_reanchor: None,
         local_keys: vec![],
         cadences: vec![],
+        colors: vec![],
     }
+}
+
+#[test]
+fn parallel_borrowing_is_an_explicit_replayable_harmony_choice() {
+    let source = score(4, 4, 4);
+    let before = serde_json::to_value(&source).unwrap();
+    let mut input = request(4, PhraseHarmonicPace::EveryBar);
+    input.proposal.max_candidates = 1;
+    input.colors = vec![ChordColorTarget {
+        position_index: 1,
+        kind: ChordColorKind::BorrowedFromParallel,
+    }];
+    let result = suggest_phrase_harmony(&source, &input);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert_eq!(result.applied_colors, input.colors);
+    assert_eq!(result.proposals.candidates.len(), 1);
+    let candidate = &result.proposals.candidates[0];
+    let borrowed = &candidate
+        .plan
+        .entries
+        .iter()
+        .find(|entry| entry.position == result.positions[1])
+        .unwrap()
+        .chord;
+    assert!(
+        matches!(
+            (borrowed.root.as_str(), borrowed.kind.as_str()),
+            ("Eb", "major")
+                | ("D#", "major")
+                | ("F", "minor")
+                | ("Ab", "major")
+                | ("G#", "major")
+                | ("Bb", "major")
+                | ("A#", "major")
+        ),
+        "{:?}",
+        borrowed
+    );
+    assert!(
+        candidate
+            .reason_codes
+            .contains(&"caller-supplied-color".into())
+    );
+    let replay = arrange_from_chord_proposal(&source, &candidate.resolved, "held-chord");
+    assert!(replay.diagnostics.is_empty(), "{:?}", replay.diagnostics);
+    assert!(replay.arrangement.unwrap().score.is_some());
+    assert_eq!(serde_json::to_value(&source).unwrap(), before);
+}
+
+#[test]
+fn borrowing_uses_the_parallel_major_vocabulary_in_a_minor_key() {
+    let mut source = score(4, 4, 4);
+    source.settings.key_signature.mode = "minor".into();
+    let mut input = request(4, PhraseHarmonicPace::EveryBar);
+    input.colors = vec![ChordColorTarget {
+        position_index: 1,
+        kind: ChordColorKind::BorrowedFromParallel,
+    }];
+    let result = suggest_phrase_harmony(&source, &input);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(!result.proposals.candidates.is_empty());
+    for candidate in &result.proposals.candidates {
+        let chord = &candidate
+            .plan
+            .entries
+            .iter()
+            .find(|entry| entry.position == result.positions[1])
+            .unwrap()
+            .chord;
+        assert!(
+            matches!(
+                (chord.root.as_str(), chord.kind.as_str()),
+                ("A", "major") | ("B", "minor") | ("D", "major") | ("F#", "minor")
+            ),
+            "{:?}",
+            chord
+        );
+    }
+}
+
+#[test]
+fn local_key_controls_the_parallel_mode_used_for_borrowing() {
+    let source = score(4, 4, 4);
+    let mut input = request(4, PhraseHarmonicPace::EveryBar);
+    input.local_keys = vec![ChordKeyRegion {
+        start_measure: 2,
+        end_measure_exclusive: 4,
+        key: KeySignature {
+            fifths: 1,
+            mode: "major".into(),
+        },
+    }];
+    input.colors = vec![ChordColorTarget {
+        position_index: 2,
+        kind: ChordColorKind::BorrowedFromParallel,
+    }];
+    let result = suggest_phrase_harmony(&source, &input);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(!result.proposals.candidates.is_empty());
+    for candidate in &result.proposals.candidates {
+        let chord = &candidate
+            .plan
+            .entries
+            .iter()
+            .find(|entry| entry.position == result.positions[2])
+            .unwrap()
+            .chord;
+        assert!(
+            matches!(
+                (chord.root.as_str(), chord.kind.as_str()),
+                ("Bb", "major")
+                    | ("A#", "major")
+                    | ("C", "minor")
+                    | ("Eb", "major")
+                    | ("D#", "major")
+                    | ("F", "major")
+            ),
+            "{:?}",
+            chord
+        );
+    }
+}
+
+#[test]
+fn short_chromatic_passing_chord_connects_roots_in_one_direction() {
+    let source = score(4, 4, 2);
+    let mut input = request(2, PhraseHarmonicPace::TwoGroupsPerBar);
+    input.proposal.max_candidates = 1;
+    input.colors = vec![ChordColorTarget {
+        position_index: 1,
+        kind: ChordColorKind::ChromaticPassing,
+    }];
+    let result = suggest_phrase_harmony(&source, &input);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert_eq!(result.proposals.candidates.len(), 1);
+    let entries = &result.proposals.candidates[0].plan.entries;
+    let selected = result.positions[..3]
+        .iter()
+        .map(|position| {
+            entries
+                .iter()
+                .find(|entry| entry.position == *position)
+                .unwrap()
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(selected[1].chord.kind, "diminished");
+    let roots = selected
+        .iter()
+        .map(|entry| {
+            Some(match entry.chord.root.as_str() {
+                "C" => 0,
+                "C#" | "Db" => 1,
+                "D" => 2,
+                "D#" | "Eb" => 3,
+                "E" => 4,
+                "F" => 5,
+                "F#" | "Gb" => 6,
+                "G" => 7,
+                "G#" | "Ab" => 8,
+                "A" => 9,
+                "A#" | "Bb" => 10,
+                "B" => 11,
+                _ => return None,
+            })
+        })
+        .collect::<Option<Vec<_>>>()
+        .unwrap();
+    let first = (roots[1] + 12 - roots[0]) % 12;
+    let second = (roots[2] + 12 - roots[1]) % 12;
+    assert!(first == 1 || first == 11);
+    assert_eq!(first, second);
+    let replay = arrange_from_chord_proposal(
+        &source,
+        &result.proposals.candidates[0].resolved,
+        "held-chord",
+    );
+    assert!(replay.diagnostics.is_empty(), "{:?}", replay.diagnostics);
+    assert!(replay.arrangement.unwrap().score.is_some());
+}
+
+#[test]
+fn color_targets_reject_invalid_positions_and_conflicting_locks_atomically() {
+    let source = score(4, 4, 4);
+    let mut input = request(4, PhraseHarmonicPace::EveryBar);
+    input.colors = vec![ChordColorTarget {
+        position_index: 4,
+        kind: ChordColorKind::BorrowedFromParallel,
+    }];
+    let invalid = suggest_phrase_harmony(&source, &input);
+    assert!(invalid.proposals.candidates.is_empty());
+    assert!(invalid.positions.is_empty());
+    assert_eq!(invalid.diagnostics[0].code, "invalid-color-target");
+    assert_eq!(invalid.diagnostics[0].measure_index, None);
+
+    input.colors[0].position_index = 1;
+    input.colors[0].kind = ChordColorKind::ChromaticPassing;
+    let too_long = suggest_phrase_harmony(&source, &input);
+    assert_eq!(too_long.diagnostics[0].code, "invalid-color-target");
+
+    input.proposal.bass_mode = AccordionBassMode::StandardBass;
+    input.phrases[0].pace = PhraseHarmonicPace::TwoGroupsPerBar;
+    let unsupported = suggest_phrase_harmony(&source, &input);
+    assert_eq!(unsupported.diagnostics[0].code, "invalid-color-target");
+
+    input.colors[0].kind = ChordColorKind::BorrowedFromParallel;
+    input.phrases[0].pace = PhraseHarmonicPace::EveryBar;
+    input.proposal.source_plan = Some(authored_plan(4));
+    input.locked_chord_entries = vec![1];
+    let conflicting = suggest_phrase_harmony(&source, &input);
+    assert!(conflicting.proposals.candidates.is_empty());
+    assert!(
+        conflicting
+            .diagnostics
+            .iter()
+            .any(|item| item.code == "color-incompatible")
+    );
+
+    input.locked_chord_entries.clear();
+    input.proposal.max_changed_spans = Some(0);
+    let over_budget = suggest_phrase_harmony(&source, &input);
+    assert!(over_budget.proposals.candidates.is_empty());
 }
 
 fn authored_plan(bars: usize) -> ChordPlan {

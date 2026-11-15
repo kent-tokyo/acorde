@@ -7,8 +7,8 @@ use super::chord_plan::{
     chord_plan_to_preset_selection,
 };
 use super::chord_proposals::{
-    ChordCadenceKind, ChordCadenceTarget, ChordKeyRegion, ChordProposalDiagnostic,
-    ChordProposalRequest, ChordProposalResult, changed_spans, key_at,
+    ChordCadenceKind, ChordCadenceTarget, ChordColorKind, ChordColorTarget, ChordKeyRegion,
+    ChordProposalDiagnostic, ChordProposalRequest, ChordProposalResult, changed_spans, key_at,
     suggest_chord_plans_at_positions_with_context, suggest_chord_plans_with_locks_and_context,
     tonic,
 };
@@ -58,6 +58,10 @@ pub struct PhraseHarmonyRequest {
     /// Root-motion targets at generated harmonic positions.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub cadences: Vec<ChordCadenceTarget>,
+    /// Required parallel-mode borrowing or chromatic passing at selected
+    /// phrase-generated harmonic positions.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub colors: Vec<ChordColorTarget>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -76,6 +80,8 @@ pub struct PhraseHarmonyResult {
     pub applied_local_keys: Vec<ChordKeyRegion>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub applied_cadences: Vec<ChordCadenceTarget>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub applied_colors: Vec<ChordColorTarget>,
 }
 
 fn failure(code: &str, measure: Option<usize>) -> PhraseHarmonyResult {
@@ -96,6 +102,7 @@ fn failure(code: &str, measure: Option<usize>) -> PhraseHarmonyResult {
         omitted_source_entries: Vec::new(),
         applied_local_keys: Vec::new(),
         applied_cadences: Vec::new(),
+        applied_colors: Vec::new(),
     }
 }
 
@@ -181,6 +188,62 @@ fn matches_cadences(
                 arrival_root == Some(home)
                     && root_at(&positions[target.arrival_position_index - 1])
                         == Some((home + 5) % 12)
+            }
+        }
+    })
+}
+
+fn matches_colors(
+    score: &Score,
+    plan: &ChordPlan,
+    positions: &[ChordPlanPosition],
+    colors: &[ChordColorTarget],
+    local_keys: &[ChordKeyRegion],
+) -> bool {
+    let root_at = |index: usize| {
+        plan.entries
+            .iter()
+            .find(|entry| same_position(&entry.position, &positions[index]))
+            .and_then(|entry| super::arrange::accordion_pitch_class(&entry.chord.root))
+    };
+    colors.iter().all(|target| {
+        let index = target.position_index;
+        let Some(entry) = plan
+            .entries
+            .iter()
+            .find(|entry| same_position(&entry.position, &positions[index]))
+        else {
+            return false;
+        };
+        match target.kind {
+            ChordColorKind::BorrowedFromParallel => {
+                let key = key_at(score, positions[index].measure_index, local_keys);
+                let Some(home) = tonic(key) else { return false };
+                let Some(root) = root_at(index) else {
+                    return false;
+                };
+                let degree = (root + 12 - home) % 12;
+                if key.mode == "minor" {
+                    matches!(
+                        (degree, entry.chord.kind.as_str()),
+                        (0, "major") | (2, "minor") | (5, "major") | (9, "minor")
+                    )
+                } else {
+                    matches!(
+                        (degree, entry.chord.kind.as_str()),
+                        (3, "major") | (5, "minor") | (8, "major") | (10, "major")
+                    )
+                }
+            }
+            ChordColorKind::ChromaticPassing => {
+                let (Some(before), Some(here), Some(after)) =
+                    (root_at(index - 1), root_at(index), root_at(index + 1))
+                else {
+                    return false;
+                };
+                entry.chord.kind == "diminished"
+                    && matches!((here + 12 - before) % 12, 1 | 11)
+                    && (here + 12 - before) % 12 == (after + 12 - here) % 12
             }
         }
     })
@@ -427,8 +490,41 @@ pub fn suggest_phrase_harmony(
         }
         prior_arrival = Some(target.arrival_position_index);
     }
+    if request.colors.len() > MAX_PHRASES {
+        return failure("color-target-limit", None);
+    }
+    let mut prior_color = None;
+    for target in &request.colors {
+        let index = target.position_index;
+        if index >= positions.len()
+            || prior_color.is_some_and(|prior| index <= prior)
+            || (target.kind == ChordColorKind::ChromaticPassing
+                && (index == 0
+                    || index + 1 >= positions.len()
+                    || request.proposal.bass_mode != super::arrange::AccordionBassMode::FreeBass
+                    || (positions
+                        .get(index + 1)
+                        .map(|end| {
+                            (positions[index].measure_index..end.measure_index)
+                                .map(|measure| score.playback_measure_beats(measure))
+                                .sum::<f64>()
+                                + end.offset.beats()
+                                - positions[index].offset.beats()
+                        })
+                        .unwrap_or(f64::INFINITY))
+                        > 2.0 + 1e-9))
+        {
+            return failure(
+                "invalid-color-target",
+                positions.get(index).map(|position| position.measure_index),
+            );
+        }
+        prior_color = Some(index);
+    }
     let mut search_request = request.proposal.clone();
-    if !request.cadences.is_empty() && (1..=4).contains(&search_request.max_candidates) {
+    if (!request.cadences.is_empty() || !request.colors.is_empty())
+        && (1..=4).contains(&search_request.max_candidates)
+    {
         search_request.max_candidates = 4;
     }
     let mut reanchored_source_plan = None;
@@ -456,6 +552,7 @@ pub fn suggest_phrase_harmony(
             &reanchored.locked_targets,
             &request.local_keys,
             &request.cadences,
+            &request.colors,
         );
         let before_budget = generated.candidates.len();
         for candidate in &mut generated.candidates {
@@ -500,6 +597,7 @@ pub fn suggest_phrase_harmony(
             &request.locked_chord_entries,
             &request.local_keys,
             &request.cadences,
+            &request.colors,
         )
     } else {
         if !request.locked_chord_entries.is_empty() {
@@ -511,6 +609,7 @@ pub fn suggest_phrase_harmony(
             &positions,
             &request.local_keys,
             &request.cadences,
+            &request.colors,
         )
     };
     let mut proposal = proposal;
@@ -537,6 +636,33 @@ pub fn suggest_phrase_harmony(
                 .push("caller-supplied-cadence".into());
             candidate.resolved.max_candidates = request.proposal.max_candidates;
         }
+        if request.colors.is_empty() {
+            proposal
+                .candidates
+                .truncate(usize::from(request.proposal.max_candidates));
+        }
+    }
+    if !request.colors.is_empty() {
+        let had_candidates = !proposal.candidates.is_empty();
+        proposal.candidates.retain(|candidate| {
+            matches_colors(
+                score,
+                &candidate.plan,
+                &positions,
+                &request.colors,
+                &request.local_keys,
+            )
+        });
+        if had_candidates && proposal.candidates.is_empty() {
+            proposal.diagnostics.push(ChordProposalDiagnostic {
+                code: "color-incompatible".into(),
+                measure_index: None,
+            });
+        }
+        for candidate in &mut proposal.candidates {
+            candidate.reason_codes.push("caller-supplied-color".into());
+            candidate.resolved.max_candidates = request.proposal.max_candidates;
+        }
         proposal
             .candidates
             .truncate(usize::from(request.proposal.max_candidates));
@@ -557,5 +683,6 @@ pub fn suggest_phrase_harmony(
         omitted_source_entries,
         applied_local_keys: request.local_keys.clone(),
         applied_cadences: request.cadences.clone(),
+        applied_colors: request.colors.clone(),
     }
 }

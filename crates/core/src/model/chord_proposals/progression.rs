@@ -10,6 +10,7 @@ struct Choice {
     /// Applied dominants must resolve to this root in the next written region.
     target: Option<u8>,
     penalty: i64,
+    passing: bool,
 }
 
 struct Region {
@@ -27,14 +28,37 @@ struct BackLink {
 
 type BacktrackRow = Vec<Vec<Option<BackLink>>>;
 
-fn choice(chord: ChordSymbol, target: Option<u8>, penalty: i64) -> Option<Choice> {
+fn choice(chord: ChordSymbol, target: Option<u8>, penalty: i64, passing: bool) -> Option<Choice> {
     Some(Choice {
         root: root_pc(&chord.root)?,
         tones: tones(&chord)?,
         chord,
         target,
         penalty,
+        passing,
     })
+}
+
+fn borrowed_symbols(key: &KeySignature) -> Vec<ChordSymbol> {
+    let home = tonic(key).unwrap_or(0);
+    let degrees: &[(u8, &str)] = if key.mode == "minor" {
+        &[(0, "major"), (2, "minor"), (5, "major"), (9, "minor")]
+    } else {
+        &[(3, "major"), (5, "minor"), (8, "major"), (10, "major")]
+    };
+    degrees
+        .iter()
+        .map(|(degree, kind)| chord((home + degree) % 12, kind, key.fifths < 0))
+        .collect()
+}
+
+fn color_matches(chord: &ChordSymbol, key: &KeySignature, kind: ChordColorKind) -> bool {
+    match kind {
+        ChordColorKind::BorrowedFromParallel => borrowed_symbols(key)
+            .iter()
+            .any(|item| root_pc(&item.root) == root_pc(&chord.root) && item.kind == chord.kind),
+        ChordColorKind::ChromaticPassing => chord.kind == "diminished",
+    }
 }
 
 fn choices(
@@ -42,7 +66,23 @@ fn choices(
     notes: &[MelodyEvent],
     style: &str,
     bass_mode: AccordionBassMode,
+    color: Option<ChordColorKind>,
 ) -> Vec<Choice> {
+    if let Some(color) = color {
+        let symbols = match color {
+            ChordColorKind::BorrowedFromParallel => borrowed_symbols(key),
+            ChordColorKind::ChromaticPassing => (0..12)
+                .map(|root| chord(root, "diminished", key.fifths < 0))
+                .collect(),
+        };
+        return symbols
+            .into_iter()
+            .filter(|symbol| super::super::arrange::preset_chord_supported(symbol, bass_mode))
+            .filter_map(|symbol| {
+                choice(symbol, None, 48, color == ChordColorKind::ChromaticPassing)
+            })
+            .collect();
+    }
     let home = tonic(key).unwrap_or(0);
     let diatonic = candidates_for_key(key, notes);
     let mut result = Vec::new();
@@ -58,8 +98,12 @@ fn choices(
             .to_string();
         }
         if super::super::arrange::preset_chord_supported(&symbol, bass_mode)
-            && let Some(candidate) =
-                choice(symbol, None, if index < 7 { index as i64 * 2 } else { 64 })
+            && let Some(candidate) = choice(
+                symbol,
+                None,
+                if index < 7 { index as i64 * 2 } else { 64 },
+                false,
+            )
         {
             result.push(candidate);
         }
@@ -75,7 +119,7 @@ fn choices(
             };
             let symbol = chord((target + 7) % 12, "dominant", key.fifths < 0);
             if !result.iter().any(|candidate| candidate.chord == symbol)
-                && let Some(candidate) = choice(symbol, Some(target), 48)
+                && let Some(candidate) = choice(symbol, Some(target), 48, false)
             {
                 result.push(candidate);
             }
@@ -289,6 +333,15 @@ fn melody_score(region: &Region, choice: &Choice, first: bool, last: bool) -> i6
 }
 
 fn transition(prior: &Choice, next: &Choice, same_key: bool, home: u8, style: &str) -> Option<i64> {
+    if (prior.passing || next.passing) && !same_key {
+        return None;
+    }
+    if next.passing && chromatic_step(prior.root, next.root).is_none() {
+        return None;
+    }
+    if prior.passing && chromatic_step(prior.root, next.root).is_none() {
+        return None;
+    }
     if prior
         .target
         .is_some_and(|target| !same_key || next.root != target)
@@ -318,6 +371,14 @@ fn transition(prior: &Choice, next: &Choice, same_key: bool, home: u8, style: &s
     Some(score)
 }
 
+fn chromatic_step(from: u8, to: u8) -> Option<u8> {
+    match (to + 12 - from) % 12 {
+        1 => Some(1),
+        11 => Some(11),
+        _ => None,
+    }
+}
+
 pub(super) fn choose_progression(
     score: &Score,
     events: &[MelodyEvent],
@@ -334,16 +395,37 @@ pub(super) fn choose_progression(
             .unwrap_or_else(|| end_position(score));
         let notes = events_in_region(events, position, &end);
         let key = key_at(score, position.measure_index, settings.local_keys);
+        let color = settings
+            .colors
+            .iter()
+            .find(|target| target.position_index == index)
+            .map(|target| target.kind);
         let mut available = match locked.get(index) {
-            Some(Some(entry)) => vec![choice(entry.chord.clone(), None, 0)?],
-            _ => choices(key, &notes, settings.style, settings.bass_mode),
+            Some(Some(entry)) => {
+                if color.is_some_and(|kind| !color_matches(&entry.chord, key, kind)) {
+                    return None;
+                }
+                vec![choice(
+                    entry.chord.clone(),
+                    None,
+                    0,
+                    color == Some(ChordColorKind::ChromaticPassing),
+                )?]
+            }
+            _ => choices(key, &notes, settings.style, settings.bass_mode, color),
         };
         if settings.max_changed_spans.is_some()
             && locked.get(index).is_none_or(Option::is_none)
             && let Some(entry) = source?.entries.get(index)
             && !available.iter().any(|item| item.chord == entry.chord)
+            && color.is_none_or(|kind| color_matches(&entry.chord, key, kind))
         {
-            available.push(choice(entry.chord.clone(), None, 64)?);
+            available.push(choice(
+                entry.chord.clone(),
+                None,
+                64,
+                color == Some(ChordColorKind::ChromaticPassing),
+            )?);
         }
         let required_root = if let Some(target) = settings
             .cadences
@@ -428,6 +510,20 @@ pub(super) fn choose_progression(
                 };
                 for (used, cost) in costs[k].iter().enumerate() {
                     let Some(cost) = cost else { continue };
+                    if prior.passing {
+                        let Some(before) = index
+                            .checked_sub(1)
+                            .and_then(|row| backtracks[row][k][used])
+                        else {
+                            continue;
+                        };
+                        let before_root = regions[index - 2].choices[before.choice].root;
+                        if chromatic_step(before_root, prior.root)
+                            != chromatic_step(prior.root, current.root)
+                        {
+                            continue;
+                        }
+                    }
                     let next_used = used + change;
                     if next_used > budget {
                         continue;
