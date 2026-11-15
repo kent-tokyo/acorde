@@ -1885,6 +1885,30 @@ pub fn arrange_bass_line(score_json: &str, options_json: &str) -> Result<String,
         .map_err(|error| js_err(format!("bass line serialization failed: {error}")))
 }
 
+/// Unfold visits and choose inner-voice pitches in playback order.
+#[wasm_bindgen]
+pub fn arrange_inner_voices_performance(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::InnerVoicesRequest =
+        parse_json(request_json, "inner-voice performance request", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::arrange_inner_voices_performance(&score, request)
+        .map_err(|error| js_err(format!("inner-voice performance failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("inner-voice performance serialization failed: {error}")))
+}
+
+/// Rebuild visit-specific inner voices against the saved written source.
+#[wasm_bindgen]
+pub fn replay_inner_voices_performance(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedInnerVoicesPerformance =
+        parse_json(resolved_json, "resolved inner-voice performance", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::replay_inner_voices_performance(&score, &resolved)
+        .map_err(|error| js_err(format!("inner-voice performance replay failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("inner-voice performance replay serialization failed: {error}")))
+}
+
 /// Add two independently timed, chord-grounded inner voices.
 #[wasm_bindgen]
 pub fn arrange_inner_voices(score_json: &str, request_json: &str) -> Result<String, JsValue> {

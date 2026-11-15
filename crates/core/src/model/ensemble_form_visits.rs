@@ -73,7 +73,7 @@ fn score_fail(code: &str, visit: Option<usize>) -> EnsembleFormPerformanceScoreR
     }
 }
 
-fn same_sounding_event(left: &PlaybackEvent, right: &PlaybackEvent) -> bool {
+pub(super) fn same_sounding_event(left: &PlaybackEvent, right: &PlaybackEvent) -> bool {
     let close = |a: f64, b: f64| a.is_finite() && b.is_finite() && (a - b).abs() < 1e-8;
     if !close(left.time_beats, right.time_beats)
         || !close(left.time_secs, right.time_secs)
@@ -95,7 +95,7 @@ fn same_sounding_event(left: &PlaybackEvent, right: &PlaybackEvent) -> bool {
     left == right
 }
 
-fn unfolded_measure(
+pub(super) fn unfolded_measure(
     written_score: &Score,
     written_staff: &super::score::Staff,
     written: &super::score::Measure,

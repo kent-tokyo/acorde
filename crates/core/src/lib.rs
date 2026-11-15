@@ -171,6 +171,12 @@ pub use model::inner_voices::{
     InnerVoicesRequest, InnerVoicesResult, ResolvedInnerVoices, arrange_inner_voices,
     replay_inner_voices,
 };
+pub use model::inner_voices_performance::{
+    INNER_VOICES_PERFORMANCE_CONTRACT_VERSION, INNER_VOICES_PERFORMANCE_ENGINE_VERSION,
+    InnerVoiceRepeatJoin, InnerVoicesPerformanceError, InnerVoicesPerformanceResult,
+    ResolvedInnerVoicesPerformance, arrange_inner_voices_performance,
+    replay_inner_voices_performance,
+};
 pub use model::interval::{Interval, IntervalQuality};
 pub use model::melodic_insert::{
     MelodicInsertion, MelodicInsertionCandidate, MelodicInsertionContext,
