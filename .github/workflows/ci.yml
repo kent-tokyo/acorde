@@ -166,6 +166,7 @@ jobs:
             --out-dir ../../target/wasm-profiles/playback-only \
             --no-default-features --features playback-only
           node scripts/check-wasm-playback-profile.mjs > target/wasm-playback-profile-report.json
+          node scripts/check-wasm-arrangement-plan.mjs
           node -e 'const d=require("./target/wasm-playback-profile-report.json"); console.log(JSON.stringify({sizes:Object.fromEntries(Object.entries(d.profiles).map(([name, profile])=>[name, profile.size])), parity:d.parity}))'
 
       - name: Check opt-in OMR bindings for wasm32

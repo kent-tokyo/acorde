@@ -358,7 +358,7 @@ fn content_fingerprint(score: &Score) -> Result<String, serde_json::Error> {
     hash_score(&canonical)
 }
 
-fn input_fingerprint(score: &Score) -> Result<String, serde_json::Error> {
+pub(super) fn input_fingerprint(score: &Score) -> Result<String, serde_json::Error> {
     content_fingerprint(score).map(|hash| format!("{CONTENT_FINGERPRINT_PREFIX}{hash}"))
 }
 

@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+- Add `arrange_accordion_plan` and `arrange_from_resolved_plan` in Rust and
+  full/viewer WASM. Explicit written-measure sections select existing accompaniment
+  and added melodic voices in one score, with versioned source-checked replay,
+  section/note provenance, bounded input and located diagnostics for invalid
+  ranges and unsafe tie/tuplet cuts. See [arrangement plans](docs/arrangement-plans.md).
+  Seeded section selection remains a later stage.
 - Add opt-in located `analyze_voice_leading_quartets` in Rust and WASM plus
   CLI `analyze-voice-leading`. It compares all pairs of monophonic written
   voices across parts and bar lines, retaining four note addresses, pitches,
