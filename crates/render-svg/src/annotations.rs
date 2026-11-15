@@ -46,6 +46,7 @@ enum SemanticAnnotation<'a> {
 pub(crate) struct StaffBand {
     pub(crate) top_y: f32,
     pub(crate) bottom_y: f32,
+    pub(crate) lyric_baseline_y: Option<f32>,
 }
 
 /// Where an articulation belongs, following engraving practice: staccato, staccatissimo,
@@ -147,10 +148,7 @@ pub(crate) fn render_measure_semantic_annotations(
                         x,
                         italic: true,
                     });
-                    let width = text.chars().count() as f32
-                        * crate::render::ANNOTATION_CHAR_WIDTH_U
-                        * space
-                        + 0.6 * space;
+                    let width = crate::render::annotation_text_width_u(&text) * space + 0.6 * space;
                     owner.push(
                         GlyphPlacement {
                             resource_key: format!(
@@ -159,9 +157,9 @@ pub(crate) fn render_measure_semantic_annotations(
                             metrics: GlyphMetrics {
                                 advance_mm: 0.0,
                                 left_mm: -width / 2.0,
-                                top_mm: -crate::render::ANNOTATION_FONT_SIZE_U * space,
+                                top_mm: -crate::render::annotation_font_size_u() * space,
                                 width_mm: width,
-                                height_mm: 1.25 * crate::render::ANNOTATION_FONT_SIZE_U * space,
+                                height_mm: 1.25 * crate::render::annotation_font_size_u() * space,
                             },
                             x_mm: x,
                             y_mm: y,
@@ -180,8 +178,10 @@ pub(crate) fn render_measure_semantic_annotations(
             // reaches below it), with dynamics under a lyric line moved above the staff.
             // The baseline leaves 1.8 spaces under the staff and 0.6 under the lowest note above
             // the lyric's cap height.
-            let lyric_baseline = (band.bottom_y + (1.8 + lyric_font_size_u) * space)
-                .max(note_bottom + (0.6 + lyric_font_size_u) * space);
+            let lyric_baseline = band.lyric_baseline_y.unwrap_or_else(|| {
+                (band.bottom_y + (1.8 + lyric_font_size_u) * space)
+                    .max(note_bottom + (0.6 + lyric_font_size_u) * space)
+            });
             if kinds.lyrics
                 && let Some(lyric) = &note.lyric
             {
@@ -232,7 +232,7 @@ pub(crate) fn render_measure_semantic_annotations(
                         lyric_char_width_u,
                     ) * space;
                     let verse_offset =
-                        crate::render::LYRIC_VERSE_SPACING * f32::from(entry.verse - 1);
+                        crate::render::lyric_verse_spacing_u() * f32::from(entry.verse - 1);
                     owner.push(
                         GlyphPlacement {
                             resource_key: format!(

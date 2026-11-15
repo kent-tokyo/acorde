@@ -1,0 +1,68 @@
+{
+  "status": "pass",
+  "tolerance": 0.0001,
+  "maximum_delta": 0.00000634765623885869,
+  "font_sha256": "b97cd5005278b24aabb69b8b6ead98860955599558f6e8119483b575a5fdce98",
+  "cases": [
+    {
+      "path": "/private/tmp/acorde-print-parity-measured-v2/aloha-native.json",
+      "sha256": "99891b97fe6545e16dd5f75118c172d67d26724d1a2b494eafcb342a4467c9e3",
+      "pages": 3,
+      "elapsed_ms": 701.76025
+    },
+    {
+      "path": "/private/tmp/acorde-print-parity-measured-v2/just-for-today-native.json",
+      "sha256": "f4735b7ea6736acc2e3f762cfabe6dfece6e80dc084a7eceb25720529ee12f63",
+      "pages": 3,
+      "elapsed_ms": 372.84904099999994
+    },
+    {
+      "path": "/private/tmp/acorde-print-parity-measured-v2/quilter-native.json",
+      "sha256": "39a487341487e439c72acdae9dab3848314d8f104b81153ac2d003ca9e4f7a8f",
+      "pages": 1,
+      "elapsed_ms": 64.89374999999995
+    },
+    {
+      "path": "/private/tmp/acorde-print-parity-measured-v2/webern-native.json",
+      "sha256": "ec053db4adaf3022e5747476d2afd10f26adce2ace736504682501ab9b191424",
+      "pages": 2,
+      "elapsed_ms": 134.21633299999985
+    },
+    {
+      "path": "/private/tmp/acorde-print-parity-measured-v2/omr-1003-native.json",
+      "sha256": "35d2dde14f3cda59595d1d9c77304a65f698c37074fe11d3a642ce4de6d8643a",
+      "pages": 1,
+      "elapsed_ms": 35.282875000000104
+    },
+    {
+      "path": "/private/tmp/acorde-print-parity-measured-v2/omr-1016-native.json",
+      "sha256": "d04ed5cacf653328ad8cff2e19b126b500fb0083607ba878cbed48358ca20524",
+      "pages": 1,
+      "elapsed_ms": 42.76104099999998
+    },
+    {
+      "path": "/private/tmp/acorde-print-parity-measured-v2/omr-1033-native.json",
+      "sha256": "a16ef73fff4cf2e920d0a02b2cb3d823af3032882d700226b8ebd7dc2b45c34e",
+      "pages": 1,
+      "elapsed_ms": 31.76474999999982
+    },
+    {
+      "path": "/private/tmp/acorde-print-parity-measured-v2/omr-1035-native.json",
+      "sha256": "1894a6921750f91823d9da00508fd3c71ed08698ffe1191e7de649b95711209d",
+      "pages": 1,
+      "elapsed_ms": 38.449916999999914
+    },
+    {
+      "path": "/private/tmp/acorde-print-parity-measured-v2/omr-1036-native.json",
+      "sha256": "765fbc41648b7d6309d309602b54649d5ddff183886d7ab106e08a83bbc93129",
+      "pages": 2,
+      "elapsed_ms": 80.9084170000001
+    },
+    {
+      "path": "/private/tmp/acorde-print-parity-measured-v2/freilachs-native.json",
+      "sha256": "150ee9a2a1fd1c85f0ae7d03edb67ba6515b54faa5e5835b00f52e2ae5b1d59d",
+      "pages": 1,
+      "elapsed_ms": 75.75766599999997
+    }
+  ]
+}

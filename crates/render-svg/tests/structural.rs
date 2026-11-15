@@ -6545,6 +6545,7 @@ fn metronome_beat_units_draw_their_stems_flags_and_dots() {
             beat_unit_dots: 1,
             per_minute: 72,
             parentheses: true,
+            written: None,
         });
         let svg = render_svg(&score, &opts()).expect("metronome renders");
         let group = svg

@@ -479,6 +479,7 @@ pub(crate) fn parse_musicxml_collecting(
     let mut pending_tremolo = false;
     let mut pending_tremolo_pair: Option<String> = None;
     let mut note_arpeggiate: Option<bool> = None;
+    let mut note_arpeggio_number: Option<u16> = None;
     let mut pending_note_head: Option<NoteHead> = None;
     let mut in_pitch = false;
     let mut note_step = Step::C;
@@ -618,7 +619,8 @@ pub(crate) fn parse_musicxml_collecting(
     let mut in_metronome = false;
     let mut metronome_beat_unit: Option<Duration> = None;
     let mut metronome_dots = 0u8;
-    let mut metronome_per_minute: Option<u16> = None;
+    let mut metronome_per_minute: Option<String> = None;
+    let mut metronome_words_before = String::new();
     let mut metronome_parentheses = false;
     let mut pending_metronome: Option<MetronomeMark> = None;
     let mut pending_direction_placement: Option<String> = None;
@@ -898,6 +900,8 @@ pub(crate) fn parse_musicxml_collecting(
                         metronome_beat_unit = None;
                         metronome_dots = 0;
                         metronome_per_minute = None;
+                        metronome_words_before =
+                            pending_expression_text.clone().unwrap_or_default();
                         metronome_parentheses = attr_is_yes(e, b"parentheses");
                     }
                     "beat-unit-dot" if in_metronome => {
@@ -1080,6 +1084,7 @@ pub(crate) fn parse_musicxml_collecting(
                         pending_tremolo = false;
                         pending_tremolo_pair = None;
                         note_arpeggiate = None;
+                        note_arpeggio_number = None;
                         pending_fingerings.clear();
                         pending_string_number = None;
                         pending_fret = None;
@@ -1206,6 +1211,9 @@ pub(crate) fn parse_musicxml_collecting(
                     }
                 }
                 match tag.as_str() {
+                    "per-minute" if in_metronome => {
+                        metronome_per_minute = Some(String::new());
+                    }
                     "extend" if in_figured_figure => {
                         figured_extend_type = Some(attr_str(e, b"type").unwrap_or_default());
                         figured_figure_extender = matches!(
@@ -1359,6 +1367,9 @@ pub(crate) fn parse_musicxml_collecting(
                     "arpeggiate" if in_notations => {
                         let dir = attr_str(e, b"direction");
                         note_arpeggiate = Some(!matches!(dir.as_deref(), Some("down")));
+                        note_arpeggio_number = attr_str(e, b"number")
+                            .and_then(|n| n.parse().ok())
+                            .filter(|n| *n > 0);
                     }
                     "grace" if in_note => {
                         note_is_grace = true;
@@ -2147,22 +2158,27 @@ pub(crate) fn parse_musicxml_collecting(
                         };
                     }
                     "per-minute" if in_metronome => {
-                        metronome_per_minute = current_text
-                            .trim()
-                            .parse::<u16>()
-                            .ok()
-                            .filter(|bpm| *bpm > 0);
+                        metronome_per_minute = Some(current_text.trim().to_owned());
                     }
                     "metronome" if in_metronome => {
                         in_metronome = false;
                         if let (Some(beat_unit), Some(per_minute)) =
                             (metronome_beat_unit.take(), metronome_per_minute.take())
                         {
+                            let numeric = per_minute.parse::<u16>().ok().filter(|bpm| *bpm > 0);
+                            let written = (numeric.map(|n| n.to_string()).as_deref()
+                                != Some(per_minute.as_str()))
+                            .then(|| acorde_core::MetronomeText {
+                                per_minute,
+                                before: metronome_words_before.clone(),
+                                after: String::new(),
+                            });
                             pending_metronome = Some(MetronomeMark {
                                 beat_unit,
                                 beat_unit_dots: metronome_dots,
-                                per_minute,
+                                per_minute: numeric.unwrap_or(0),
                                 parentheses: metronome_parentheses,
+                                written,
                             });
                         } else {
                             tolerated.push(crate::Diagnostic::warning(
@@ -2186,7 +2202,7 @@ pub(crate) fn parse_musicxml_collecting(
                                 if m.navigation.is_none() {
                                     m.navigation = Some(nav);
                                 }
-                            } else if pending_sound_tempo.is_some() {
+                            } else if pending_sound_tempo.is_some() || pending_metronome.is_some() {
                                 if let Some(text) = pending_tempo_text.take() {
                                     if m.tempo_text.is_none() {
                                         m.tempo_text = Some(text.clone());
@@ -2376,6 +2392,19 @@ pub(crate) fn parse_musicxml_collecting(
                             if let Some(nav) = words_to_navigation(&text) {
                                 pending_navigation = Some(nav);
                             } else {
+                                if let Some(mark) = pending_metronome.as_mut() {
+                                    let written = mark.written.get_or_insert_with(|| {
+                                        acorde_core::MetronomeText {
+                                            per_minute: mark.per_minute.to_string(),
+                                            before: metronome_words_before.clone(),
+                                            after: String::new(),
+                                        }
+                                    });
+                                    if !written.after.is_empty() {
+                                        written.after.push(' ');
+                                    }
+                                    written.after.push_str(&text);
+                                }
                                 // Several <words> in one direction (often split around a
                                 // <metronome>) form one text, not last-wins.
                                 let text = match pending_expression_text.take() {
@@ -3352,6 +3381,10 @@ pub(crate) fn parse_musicxml_collecting(
                                     if pending_tremolo_pair.is_some() {
                                         last.tremolo_pair = pending_tremolo_pair.take();
                                     }
+                                    if let Some(direction) = note_arpeggiate.take() {
+                                        last.arpeggiate = Some(direction);
+                                        last.arpeggio_number = note_arpeggio_number.take();
+                                    }
                                     merge_musicxml_chord_note(
                                         last,
                                         &note,
@@ -3439,6 +3472,7 @@ pub(crate) fn parse_musicxml_collecting(
                                     note.glissando_end = note_glissando_end;
                                     if let Some(arp) = note_arpeggiate.take() {
                                         note.arpeggiate = Some(arp);
+                                        note.arpeggio_number = note_arpeggio_number.take();
                                     }
                                     if !pending_fingerings.is_empty() {
                                         note.fingerings = std::mem::take(&mut pending_fingerings);

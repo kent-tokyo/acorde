@@ -18,6 +18,8 @@ default = ["full"]
 # `--no-default-features --features viewer`.
 full = ["musicxml", "midi", "gp", "mei", "soundfont"]
 viewer = []
+# Font bytes are supplied by the caller; no browser or installed-font measurement.
+measured-print = ["acorde-render-svg/font-metrics"]
 # Minimal opt-in binding for original-image pages that only parse MSCZ and
 # compute playback events. Build with --no-default-features --features playback-only.
 playback-only = []

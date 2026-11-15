@@ -9,6 +9,20 @@
   flags. A pinned six-quartet development comparison agrees with music21
   10.5.2 on five flags; independent multi-style accuracy is not established.
   The headless browser WASM test remains unverified locally.
+- Add opt-in measured print engraving with caller-supplied text fonts, physical
+  minimum spacing, per-system collision reflow, outlined SVG text and shared PDF
+  geometry. Existing rendering defaults are unchanged. See the engraving parity
+  protocol for development evidence and still-pending qualification gates.
+- Preserve compound outline counters in PDF fills, additional-verse lyric
+  hyphens/extenders, and the placement of numbered slurs sharing endpoints.
+- Add serde-defaulted `Note::arpeggio_number` and its editing command, preserving
+  MusicXML groups that join simultaneous rolled chords across voices or staves.
+- Extend `MetronomeMark` JSON with optional, serde-defaulted `written` text
+  (`per_minute`, `before`, `after`) to preserve empty, qualified and ranged
+  MusicXML metronome values and the order of surrounding words. Playback tempo
+  remains independent. Adding the public Rust struct field requires callers
+  constructing a literal to specify `written: None`; release versioning must
+  account for this API change.
 - Add opt-in `analyze-local-keys --radius` and a Rust centered-window
   Aarden-Essen local-key estimate for each physical measure. It reports the
   source window and correlation, with the written key signature used only to

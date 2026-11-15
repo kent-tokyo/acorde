@@ -15,6 +15,7 @@ use crate::render::{NoteKey, NotePoint};
 /// Conventional single-voice slurs sit opposite stems. For a lower voice,
 /// keep the slur below the staff to distinguish it from the upper voice;
 /// a single-voice phrase with mixed stem directions uses the upper side.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn slur_above(
     score: &Score,
     layout: &LayoutResult,
@@ -23,15 +24,27 @@ pub(crate) fn slur_above(
     end: &NoteAddr,
     up1: bool,
     up2: bool,
+    span_index: usize,
 ) -> bool {
+    // Different numbered slurs may share both endpoints but have opposite sides.
+    // resolve_spans appends typed slurs in their source order; retain that occurrence.
+    let occurrence = layout
+        .spans
+        .iter()
+        .take(span_index)
+        .filter(
+            |span| matches!(span, SpanMark::Slur { start: a, end: b } if a == start && b == end),
+        )
+        .count();
     if let Some(placement) = layout
         .typed_spanners
         .iter()
-        .find(|span| {
+        .filter(|span| {
             span.kind == acorde_core::NotationSpannerKind::Slur
                 && span.start == *start
                 && span.end == *end
         })
+        .nth(occurrence)
         .and_then(|span| span.placement.as_deref())
     {
         match placement {
@@ -283,7 +296,7 @@ pub(crate) fn resolve_lane_offsets(
             continue;
         };
         let slur_side = matches!(span, SpanMark::Slur { .. })
-            .then(|| slur_above(score, layout, points, start, end, up1, up2));
+            .then(|| slur_above(score, layout, points, start, end, up1, up2, span_index));
         let mut add_segment = |row: usize, left: f32, right: f32, anchor_y: f32, stem_up: bool| {
             let (baseline, above) = if matches!(span, SpanMark::Hairpin { .. }) {
                 hairpin_baseline(

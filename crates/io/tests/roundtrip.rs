@@ -338,6 +338,81 @@ fn quilter_written_metronome_mark_survives_musicxml_roundtrip() {
 }
 
 #[test]
+fn quilter_cross_staff_arpeggio_numbers_survive_musicxml_roundtrip() {
+    let score = acorde_io::parse_mxl(OPENSCORE_LIEDER_QUILTER_MXL).unwrap();
+    let groups = |score: &acorde_core::Score| {
+        score
+            .parts
+            .iter()
+            .flat_map(|p| &p.staves)
+            .flat_map(|s| &s.measures)
+            .flat_map(|m| &m.voices)
+            .flatten()
+            .filter(|n| n.arpeggiate.is_some())
+            .map(|n| (n.arpeggiate, n.arpeggio_number))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(groups(&score), vec![(Some(true), Some(1)); 4]);
+    let restored = parse_musicxml(&serialize_musicxml(&score).unwrap()).unwrap();
+    assert_eq!(groups(&restored), groups(&score));
+}
+
+#[test]
+fn textual_and_empty_metronomes_preserve_order_without_inventing_playback() {
+    for value in ["", "ca 108", "132–144", "072", "72"] {
+        let xml = SIMPLE_XML.replace(
+            "<direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>120</per-minute></metronome></direction-type>",
+            &format!("<direction-type><words>Allegro (</words></direction-type><direction-type><metronome><beat-unit>eighth</beat-unit><per-minute>{value}</per-minute></metronome></direction-type><direction-type><words>molto)</words></direction-type>"),
+        ).replace("        <sound tempo=\"120\"/>\n", "");
+        let score = parse_musicxml(&xml).unwrap();
+        let bar = &score.parts[0].staves[0].measures[0];
+        assert_eq!(bar.tempo, None);
+        let mark = bar.metronome_mark.as_ref().unwrap();
+        assert_eq!(mark.beat_unit, Duration::Eighth);
+        let written = mark.written.as_ref().unwrap();
+        assert_eq!(written.per_minute, value);
+        assert_eq!(written.before, "Allegro (");
+        assert_eq!(written.after, "molto)");
+        let exported = serialize_musicxml(&score).unwrap();
+        let before = exported.find("Allegro (").unwrap();
+        let unit = exported.find("<beat-unit>eighth</beat-unit>").unwrap();
+        let after = exported.find("molto)").unwrap();
+        assert!(before < unit && unit < after);
+        let restored = parse_musicxml(&exported).unwrap();
+        let restored = &restored.parts[0].staves[0].measures[0];
+        assert_eq!(restored.metronome_mark, bar.metronome_mark);
+        assert_eq!(restored.tempo_text, bar.tempo_text);
+        assert_eq!(restored.tempo, None);
+    }
+}
+
+#[test]
+fn webern_unit_only_metronomes_survive_musicxml_roundtrip() {
+    let score = acorde_io::parse_mxl(OPENSCORE_LIEDER_WEBERN_MXL).unwrap();
+    let marks = |score: &acorde_core::Score| {
+        score
+            .parts
+            .iter()
+            .flat_map(|p| &p.staves)
+            .flat_map(|s| &s.measures)
+            .filter_map(|m| m.metronome_mark.clone().map(|mark| (m.tempo, mark)))
+            .collect::<Vec<_>>()
+    };
+    let original = marks(&score);
+    assert_eq!(original.len(), 2);
+    assert_eq!(
+        original.iter().map(|(tempo, _)| *tempo).collect::<Vec<_>>(),
+        vec![Some(56), Some(36)]
+    );
+    for (_, mark) in &original {
+        assert_eq!(mark.beat_unit, Duration::Eighth);
+        assert_eq!(mark.written.as_ref().unwrap().per_minute, "");
+    }
+    let restored = parse_musicxml(&serialize_musicxml(&score).unwrap()).unwrap();
+    assert_eq!(marks(&restored), original);
+}
+
+#[test]
 fn written_metronome_without_sound_keeps_notation_without_inventing_playback_tempo() {
     let xml = SIMPLE_XML
         .replace(

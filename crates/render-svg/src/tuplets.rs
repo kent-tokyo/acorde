@@ -16,6 +16,7 @@ const NUMBER_HEIGHT_U: f32 = 1.1;
 
 pub(crate) struct TupletPlan {
     pub svg: String,
+    pub bounds: [f32; 4],
 }
 
 /// `xs`/`ref_ys` are parallel arrays, one per note in the group (already sliced to just this
@@ -83,7 +84,30 @@ pub(crate) fn plan_tuplet(
     };
     svg.push_str(&glyphs::tuplet_number(actual_notes, x_mid, number_y, space));
 
-    TupletPlan { svg }
+    // digit() has a 2-space control-point box and a 0.34-space stroke.
+    let digit_space = 0.65 * space;
+    let half_width =
+        f32::from(actual_notes.max(1).ilog10() as u8 + 1) * glyphs::DIGIT_WIDTH_U * digit_space
+            / 2.0;
+    let number_top = number_y - 0.92 * digit_space;
+    let number_bottom = number_y + 1.42 * digit_space;
+    let hook_y = bracket_y - dir * HOOK_LEN_U * space;
+    let bounds = if beamed_fully {
+        [
+            x_mid - half_width,
+            x_mid + half_width,
+            number_top,
+            number_bottom,
+        ]
+    } else {
+        [
+            x_first.min(x_mid - half_width),
+            x_last.max(x_mid + half_width),
+            number_top.min(bracket_y.min(hook_y) - 0.05 * space),
+            number_bottom.max(bracket_y.max(hook_y) + 0.05 * space),
+        ]
+    };
+    TupletPlan { svg, bounds }
 }
 
 #[cfg(test)]

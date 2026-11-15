@@ -1,0 +1,609 @@
+#![cfg(feature = "font-metrics")]
+
+use acorde_core::{Clef, Duration, Lyric, Measure, Note, Part, Pitch, Score, Staff, Step};
+use acorde_layout::PrintConfig;
+use acorde_render_svg::{
+    MeasuredEngravingError, TextFont, engrave_print_pages, render_print_page_svgs,
+};
+
+const FONT: &[u8] = include_bytes!("fixtures/Tuffy.ttf");
+
+#[test]
+fn extracted_part_keeps_its_label_and_canonical_layout_identity_on_letter() {
+    let mut score = vocal_score("word", 4);
+    score.parts[0].name = "Voice".into();
+    let mut second = score.parts[0].clone();
+    second.name = "Viola".into();
+    second.short_name = "Vla.".into();
+    score.parts.push(second);
+    let output = engrave_print_pages(
+        &score,
+        &PrintConfig {
+            paper_size: acorde_layout::PaperSize::Letter,
+            part_layout: acorde_layout::PartLayoutPolicy::ExtractedPart { part_index: 1 },
+            ..Default::default()
+        },
+        FONT,
+    )
+    .unwrap();
+    assert_eq!(output.layout.pages[0].width_mm, 215.9);
+    assert_eq!(output.layout.pages[0].height_mm, 279.4);
+    assert_eq!(
+        output.layout.pages[0].publication.part_labels[0].part_index,
+        1
+    );
+    assert!(output.pages[0].contains("data-text=\"Viola\""));
+    assert!(!output.pages[0].contains("data-text=\"Voice\""));
+    assert_eq!(output.staff_space_mm, 1.8);
+}
+
+#[test]
+fn numbered_slurs_keep_their_sides_without_bowing_over_a_distant_voice() {
+    let score = acorde_io::parse_mxl(include_bytes!(
+        "../../../tests/fixtures/openscore_lieder_just_for_today.mxl"
+    ))
+    .unwrap();
+    let output = engrave_print_pages(
+        &score,
+        &PrintConfig {
+            measures_per_system: 8,
+            ..Default::default()
+        },
+        FONT,
+    )
+    .unwrap();
+    let mut treble_sides = Vec::new();
+    let mut bass_count = 0;
+    for page in &output.pages {
+        let doc = roxmltree::Document::parse(page).unwrap();
+        for owner in doc
+            .descendants()
+            .filter(|n| n.attribute("data-print-slur") == Some("true"))
+        {
+            let address = owner.attribute("data-start-note-addr").unwrap();
+            if address != "1:0:38:1:1" && address != "1:1:38:1:2" {
+                continue;
+            }
+            let curve = owner
+                .children()
+                .find(|n| n.attribute("class") == Some("acorde-slur"))
+                .unwrap();
+            let values: Vec<f32> = curve
+                .attribute("d")
+                .unwrap()
+                .split(|c: char| c == ',' || c.is_whitespace())
+                .filter_map(|s| s.parse().ok())
+                .collect();
+            let chord = (values[1] + values[5]) / 2.0;
+            if address == "1:0:38:1:1" {
+                treble_sides.push(values[3] < chord);
+            } else {
+                bass_count += 1;
+                assert!(values[3] < chord);
+                assert!(
+                    chord - values[3] < 4.0 * 7.2,
+                    "slur makes an excessive bow: {values:?}"
+                );
+            }
+        }
+    }
+    assert_eq!(treble_sides.len(), 2);
+    assert!(treble_sides.contains(&true) && treble_sides.contains(&false));
+    assert_eq!(bass_count, 1);
+}
+
+#[test]
+fn lyrics_clear_the_final_below_staff_tuplet_brackets_and_digits() {
+    let score = acorde_io::parse_mxl(include_bytes!(
+        "../../../tests/fixtures/openscore_lieder_webern_so_ich_traurig_bin.mxl"
+    ))
+    .unwrap();
+    let output = engrave_print_pages(
+        &score,
+        &PrintConfig {
+            measures_per_system: 8,
+            ..Default::default()
+        },
+        FONT,
+    )
+    .unwrap();
+    let font = TextFont::new(FONT, 0).unwrap();
+    let mut checked = 0;
+    for page in &output.pages {
+        let doc = roxmltree::Document::parse(page).unwrap();
+        for (word, measure) in [("dir", "7"), ("singt", "14")] {
+            let Some(text) = doc
+                .descendants()
+                .find(|n| n.attribute("data-text") == Some(word))
+            else {
+                continue;
+            };
+            let path = text.children().find(|n| n.has_tag_name("path")).unwrap();
+            let baseline: f32 = path
+                .attribute("transform")
+                .unwrap()
+                .split_whitespace()
+                .last()
+                .unwrap()
+                .trim_end_matches(')')
+                .parse()
+                .unwrap();
+            let size: f32 = text.attribute("data-font-size").unwrap().parse().unwrap();
+            let ink_top = baseline + font.measure(word, size).unwrap().top_mm;
+            let brackets: Vec<_> = doc
+                .descendants()
+                .filter(|n| {
+                    n.attribute("data-print-tuplet") == Some("true")
+                        && n.attribute("data-part") == Some("0")
+                        && n.attribute("data-measure") == Some(measure)
+                })
+                .collect();
+            assert!(!brackets.is_empty());
+            for bracket in brackets {
+                let bottom: f32 = bracket
+                    .attribute("data-print-bottom")
+                    .unwrap()
+                    .parse()
+                    .unwrap();
+                assert!(ink_top > bottom + 0.2 * 7.2);
+                checked += 1;
+            }
+        }
+    }
+    assert!(checked >= 2);
+}
+
+#[test]
+fn second_verse_hyphens_and_extenders_use_their_own_lane_across_rows() {
+    let mut score = vocal_score("la", 2);
+    let make = |text: &str, syllabic: &str, extend| {
+        serde_json::from_value(serde_json::json!({
+            "verse":2,"lyric":{"text":text,"syllabic":syllabic,"extend":extend}
+        }))
+        .unwrap()
+    };
+    let bars = &mut score.parts[0].staves[0].measures;
+    bars[0].voices[0][0]
+        .additional_lyrics
+        .push(make("sea", "begin", false));
+    bars[0].voices[0][1]
+        .additional_lyrics
+        .push(make("son", "end", false));
+    bars[0].voices[0][2]
+        .additional_lyrics
+        .push(make("hold", "single", true));
+    bars[1].voices[0][1]
+        .additional_lyrics
+        .push(make("release", "single", false));
+    let output = engrave_print_pages(
+        &score,
+        &PrintConfig {
+            measures_per_system: 1,
+            ..Default::default()
+        },
+        FONT,
+    )
+    .unwrap();
+    let svg = output.pages.concat();
+    let doc = roxmltree::Document::parse(&svg).unwrap();
+    let hyphens: Vec<_> = doc
+        .descendants()
+        .filter(|n| n.attribute("class") == Some("acorde-lyric-hyphen"))
+        .collect();
+    assert!(!hyphens.is_empty());
+    assert!(hyphens.iter().all(|n| {
+        n.attribute("data-verse") == Some("2")
+            && n.attribute("data-start-note-addr") == Some("0:0:0:0:0")
+            && n.attribute("data-end-note-addr") == Some("0:0:0:0:1")
+    }));
+    let lines: Vec<_> = doc
+        .descendants()
+        .filter(|n| n.attribute("class") == Some("acorde-lyric-extender"))
+        .collect();
+    assert_eq!(lines.len(), 2);
+    assert_eq!(lines[0].attribute("data-row"), Some("0"));
+    assert_eq!(lines[1].attribute("data-row"), Some("1"));
+    assert!(lines.iter().all(|n| n.attribute("data-verse") == Some("2")));
+    let baseline = |label| {
+        let text = doc
+            .descendants()
+            .find(|n| n.attribute("data-text") == Some(label))
+            .unwrap();
+        let path = text.children().find(|n| n.has_tag_name("path")).unwrap();
+        path.attribute("transform")
+            .unwrap()
+            .split_whitespace()
+            .last()
+            .unwrap()
+            .trim_end_matches(')')
+            .parse::<f32>()
+            .unwrap()
+    };
+    let y: f32 = lines[0].attribute("y1").unwrap().parse().unwrap();
+    assert!((y - baseline("hold")).abs() < 0.02);
+    let y: f32 = lines[1].attribute("y1").unwrap().parse().unwrap();
+    assert!((y - baseline("release")).abs() < 0.02);
+}
+
+#[test]
+fn arpeggio_numbers_join_matching_staves_and_keep_separate_rolls_separate() {
+    let mut score = vocal_score("", 1);
+    score.parts[0].name = "Piano".into();
+    let mut bass = Staff::new(Clef::Bass);
+    let mut lower = Measure::empty(4, 4);
+    lower.voices[0] = vec![Note::new(Pitch::new(Step::C, 3), Duration::Whole)];
+    bass.measures.push(lower);
+    score.parts[0].staves.push(bass);
+    for staff in &mut score.parts[0].staves {
+        let note = &mut staff.measures[0].voices[0][0];
+        note.lyric = None;
+        note.arpeggiate = Some(true);
+        note.arpeggio_number = Some(2);
+    }
+    let joined = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    let doc = roxmltree::Document::parse(&joined.pages[0]).unwrap();
+    let rolls: Vec<_> = doc
+        .descendants()
+        .filter(|n| n.attribute("class") == Some("acorde-arpeggio"))
+        .collect();
+    assert_eq!(rolls.len(), 1);
+    let numbers: Vec<f32> = rolls[0]
+        .attribute("d")
+        .unwrap()
+        .split_whitespace()
+        .filter_map(|s| s.parse().ok())
+        .collect();
+    let top = numbers[1];
+    let bottom = *numbers.last().unwrap();
+    let heads: Vec<f32> = doc
+        .descendants()
+        .filter(|n| n.attribute("class") == Some("acorde-notehead"))
+        .filter_map(|n| n.attribute("cy"))
+        .map(|s| s.parse().unwrap())
+        .collect();
+    assert!(top < *heads.first().unwrap() && bottom > *heads.last().unwrap());
+    score.parts[0].staves[1].measures[0].voices[0][0].arpeggio_number = Some(3);
+    let separate = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    assert_eq!(
+        separate.pages[0]
+            .matches("class=\"acorde-arpeggio\"")
+            .count(),
+        2
+    );
+}
+
+#[test]
+fn opening_tempo_spans_bars_without_widening_the_opening_measure() {
+    let mut score = vocal_score("la", 4);
+    let plain = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    score.parts[0].staves[0].measures[0].tempo_text = Some("Sehr fliessend und zart".into());
+    let caption = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    assert_eq!(caption.measurements.measures, plain.measurements.measures);
+    assert!(caption.pages[0].contains("data-text=\"Sehr fliessend und zart\""));
+    score.parts[0].staves[0].measures[0].tempo_text = Some("Very long direction ".repeat(40));
+    assert!(matches!(
+        engrave_print_pages(&score, &PrintConfig::default(), FONT),
+        Err(MeasuredEngravingError::DirectionTooWide)
+    ));
+}
+
+#[test]
+fn unit_only_metronome_keeps_words_on_either_side_of_its_note() {
+    let mut score = vocal_score("la", 1);
+    let bar = &mut score.parts[0].staves[0].measures[0];
+    bar.tempo_text = Some("Sehr zart ( ca 112)".into());
+    bar.metronome_mark = Some(acorde_core::MetronomeMark {
+        beat_unit: Duration::Eighth,
+        beat_unit_dots: 0,
+        per_minute: 0,
+        parentheses: false,
+        written: Some(acorde_core::MetronomeText {
+            per_minute: String::new(),
+            before: "Sehr zart (".into(),
+            after: "ca 112)".into(),
+        }),
+    });
+    let output = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    let doc = roxmltree::Document::parse(&output.pages[0]).unwrap();
+    let prefix = doc
+        .descendants()
+        .find(|n| n.attribute("data-text") == Some("Sehr zart ("))
+        .unwrap();
+    let mark = doc
+        .descendants()
+        .find(|n| n.attribute("class") == Some("acorde-metronome"))
+        .unwrap();
+    let suffix = mark
+        .descendants()
+        .find(|n| n.attribute("data-text") == Some("ca 112)"))
+        .unwrap();
+    assert!(prefix.range().start < mark.range().start && mark.range().start < suffix.range().start);
+    assert_eq!(mark.attribute("data-beat-unit"), Some("eighth"));
+    assert_eq!(
+        mark.descendants()
+            .filter(|n| n.has_tag_name("ellipse"))
+            .count(),
+        1
+    );
+    assert!(!mark.descendants().any(|n| {
+        n.attribute("data-text")
+            .is_some_and(|s| s.contains('=') || s.contains("=0"))
+    }));
+}
+
+fn vocal_score(text: &str, measures: usize) -> Score {
+    let mut score = Score::default();
+    let mut staff = Staff::new(Clef::Treble);
+    for index in 0..measures {
+        let mut bar = Measure::empty(4, 4);
+        bar.number = (index + 1) as u32;
+        bar.voices[0] = [Step::C, Step::E, Step::G, Step::C]
+            .into_iter()
+            .map(|step| {
+                let mut note = Note::new(Pitch::new(step, 4), Duration::Quarter);
+                note.stem_up = Some(true);
+                note.lyric = Some(Lyric {
+                    text: text.into(),
+                    syllabic: "single".into(),
+                    extend: false,
+                });
+                note
+            })
+            .collect();
+        staff.measures.push(bar);
+    }
+    let mut part = Part::new("Voice", "V.");
+    part.staves = vec![staff];
+    score.parts = vec![part];
+    score
+}
+
+#[test]
+fn measured_text_reflows_by_real_font_width_and_keeps_physical_size() {
+    let config = PrintConfig {
+        measures_per_system: 8,
+        ..PrintConfig::default()
+    };
+    let thin = engrave_print_pages(&vocal_score("iii", 8), &config, FONT).unwrap();
+    let wide = engrave_print_pages(&vocal_score("WWW", 8), &config, FONT).unwrap();
+    assert!(wide.measurements.measures[0].minimum_mm > thin.measurements.measures[0].minimum_mm);
+    assert!(
+        wide.layout
+            .pages
+            .iter()
+            .map(|p| p.systems.len())
+            .sum::<usize>()
+            > thin
+                .layout
+                .pages
+                .iter()
+                .map(|p| p.systems.len())
+                .sum::<usize>()
+    );
+    assert_eq!(wide.staff_space_mm, 1.8);
+    let mut count = 0;
+    for svg in &wide.pages {
+        let document = roxmltree::Document::parse(svg).unwrap();
+        assert!(!document.descendants().any(|n| n.has_tag_name("text")));
+        for lyric in document
+            .descendants()
+            .filter(|n| n.attribute("class") == Some("acorde-lyric"))
+        {
+            count += 1;
+            let size: f32 = lyric.attribute("data-font-size").unwrap().parse().unwrap();
+            assert!((size / 4.0 - 4.05).abs() < 0.001);
+            assert!(lyric.children().any(|n| n.has_tag_name("path")));
+        }
+    }
+    assert_eq!(count, 32);
+    wide.layout.validate().unwrap();
+}
+
+#[test]
+fn lyrics_share_a_baseline_and_legacy_render_scope_is_restored() {
+    let score = vocal_score("word", 2);
+    let original = serde_json::to_string(&score).unwrap();
+    let config = PrintConfig::default();
+    let legacy_layout = acorde_layout::compute_print_layout(&score, &config).unwrap();
+    let before = render_print_page_svgs(&score, &legacy_layout).unwrap();
+    let measured = engrave_print_pages(&score, &config, FONT).unwrap();
+    let document = roxmltree::Document::parse(&measured.pages[0]).unwrap();
+    let baselines = document
+        .descendants()
+        .filter(|n| n.attribute("class") == Some("acorde-lyric"))
+        .map(|n| {
+            n.children()
+                .find(|child| child.has_tag_name("path"))
+                .unwrap()
+                .attribute("transform")
+                .unwrap()
+                .split_whitespace()
+                .last()
+                .unwrap()
+                .trim_end_matches(')')
+                .parse::<f32>()
+                .unwrap()
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(baselines.len(), 8);
+    assert!(baselines.iter().all(|y| (*y - baselines[0]).abs() < 0.001));
+    assert_eq!(
+        before,
+        render_print_page_svgs(&score, &legacy_layout).unwrap()
+    );
+    assert_eq!(original, serde_json::to_string(&score).unwrap());
+    assert!(matches!(
+        engrave_print_pages(&vocal_score("\u{10ffff}", 1), &config, FONT),
+        Err(MeasuredEngravingError::Font(_))
+    ));
+    assert_eq!(
+        before,
+        render_print_page_svgs(&score, &legacy_layout).unwrap()
+    );
+}
+
+#[test]
+fn shaped_outlines_preserve_combining_marks_and_reject_missing_glyphs() {
+    let font = TextFont::new(FONT, 0).unwrap();
+    assert_eq!(
+        font.outline("ä", 4.05).unwrap(),
+        font.outline("a\u{308}", 4.05).unwrap()
+    );
+    assert!(font.outline("O", 4.05).unwrap().contains('Q'));
+    assert_eq!(font.outline("  ", 4.05).unwrap(), "");
+    assert!(font.outline("\u{10ffff}", 4.05).is_err());
+}
+
+#[test]
+fn final_slur_geometry_clears_lyrics_on_the_previous_staff() {
+    let mut score = vocal_score("word", 3);
+    let mut piano = score.parts[0].clone();
+    piano.name = "Piano".into();
+    for bar in &mut piano.staves[0].measures {
+        for note in &mut bar.voices[0] {
+            note.lyric = None;
+            note.pitches = vec![Pitch::new(Step::C, 5)];
+            note.stem_up = Some(true);
+        }
+    }
+    piano.staves[0].measures[0].voices[0][0].slur_start = true;
+    piano.staves[0].measures[2].voices[0][3].slur_end = true;
+    score.parts.push(piano);
+    let output = engrave_print_pages(
+        &score,
+        &PrintConfig {
+            measures_per_system: 8,
+            ..Default::default()
+        },
+        FONT,
+    )
+    .unwrap();
+    assert_eq!(output.layout.pages[0].systems.len(), 1);
+    let doc = roxmltree::Document::parse(&output.pages[0]).unwrap();
+    let font = TextFont::new(FONT, 0).unwrap();
+    let lowest_lyric = doc
+        .descendants()
+        .filter(|n| n.attribute("class") == Some("acorde-lyric"))
+        .map(|n| {
+            let path = n.children().find(|c| c.has_tag_name("path")).unwrap();
+            let baseline: f32 = path
+                .attribute("transform")
+                .unwrap()
+                .split_whitespace()
+                .last()
+                .unwrap()
+                .trim_end_matches(')')
+                .parse()
+                .unwrap();
+            baseline
+                + font
+                    .measure(
+                        n.attribute("data-text").unwrap(),
+                        n.attribute("data-font-size").unwrap().parse().unwrap(),
+                    )
+                    .unwrap()
+                    .bottom_mm
+        })
+        .fold(f32::NEG_INFINITY, f32::max);
+    let slur = doc
+        .descendants()
+        .find(|n| n.attribute("class") == Some("acorde-slur"))
+        .unwrap();
+    let v: Vec<f32> = slur
+        .attribute("d")
+        .unwrap()
+        .split(|c: char| c == ',' || c.is_whitespace())
+        .filter_map(|v| v.parse().ok())
+        .collect();
+    for step in 0..=100 {
+        let t = step as f32 / 100.0;
+        let y = (1.0 - t).powi(2) * v[1] + 2.0 * t * (1.0 - t) * v[3] + t * t * v[5];
+        assert!(
+            y > lowest_lyric + 2.0,
+            "slur {y} crosses lyric ink ending at {lowest_lyric}"
+        );
+    }
+}
+
+#[test]
+fn cross_staff_notes_do_not_push_a_direction_below_the_neighboring_staff() {
+    let mut score = vocal_score("word", 3);
+    score.parts[0].name = "Piano".into();
+    let mut bass = Staff::new(Clef::Bass);
+    for bar in &mut score.parts[0].staves[0].measures {
+        for note in &mut bar.voices[0] {
+            note.lyric = None;
+        }
+        let mut lower = Measure::empty(4, 4);
+        lower.voices[0] = vec![Note::new(Pitch::new(Step::C, 3), Duration::Whole)];
+        bass.measures.push(lower);
+    }
+    score.parts[0].staves.push(bass);
+    let bar = &mut score.parts[0].staves[0].measures[0];
+    bar.texts.push(
+        serde_json::from_value(
+            serde_json::json!({"style":"Expression","text":"rall.","placement":"below"}),
+        )
+        .unwrap(),
+    );
+    let note = &mut bar.voices[0][0];
+    note.cross_staff = Some(acorde_core::CrossStaff {
+        target_staff: 1,
+        target_voice: None,
+    });
+    note.pitches = vec![Pitch::new(Step::F, 3)];
+    note.dynamic = Some(acorde_core::Dynamic::Mp);
+    note.slur_start = true;
+    score.parts[0].staves[0].measures[2].voices[0][3].slur_end = true;
+    let output = engrave_print_pages(
+        &score,
+        &PrintConfig {
+            measures_per_system: 8,
+            ..Default::default()
+        },
+        FONT,
+    )
+    .unwrap();
+    assert_eq!(output.pages.len(), 1);
+    assert!(output.layout.pages[0].systems[0].height_mm < 150.0);
+    assert!(output.pages[0].contains("data-print-slur=\"true\""));
+    assert!(output.pages[0].contains("data-text=\"rall.\""));
+    let doc = roxmltree::Document::parse(&output.pages[0]).unwrap();
+    let dynamic = doc
+        .descendants()
+        .find(|n| n.attribute("class") == Some("acorde-dynamic"))
+        .unwrap();
+    let translate: f32 = dynamic
+        .ancestors()
+        .filter_map(|n| n.attribute("transform"))
+        .filter_map(|s| {
+            s.strip_prefix("translate(0 ")
+                .and_then(|s| s.strip_suffix(')'))
+        })
+        .map(|s| s.parse::<f32>().unwrap())
+        .sum();
+    let top = dynamic
+        .attribute("data-print-top")
+        .unwrap()
+        .parse::<f32>()
+        .unwrap()
+        + translate;
+    let bottom = dynamic
+        .attribute("data-print-bottom")
+        .unwrap()
+        .parse::<f32>()
+        .unwrap()
+        + translate;
+    for staff in doc
+        .descendants()
+        .filter(|n| n.attribute("class") == Some("acorde-staff"))
+    {
+        for line in staff.children().filter(|n| n.has_tag_name("line")) {
+            let y = line.attribute("y1").unwrap().parse::<f32>().unwrap();
+            assert!(
+                y < top || y > bottom,
+                "dynamic crosses staff line at {y}: {top}..{bottom}"
+            );
+        }
+    }
+}

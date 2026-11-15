@@ -171,6 +171,9 @@ jobs:
       - name: Check opt-in OMR bindings for wasm32
         run: cargo check -p acorde-wasm --target wasm32-unknown-unknown --all-features --locked
 
+      - name: Test measured print in Chrome
+        run: wasm-pack test --headless --chrome crates/wasm --features measured-print
+
       - name: Check WASM artifact budget
         shell: bash
         run: |

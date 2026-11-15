@@ -119,6 +119,15 @@ pub fn render_print_page_svgs_with_glyphs(
     layout: &PrintLayoutResult,
     glyphs: &SvgGlyphSource,
 ) -> Result<Vec<String>, PrintRenderError> {
+    render_print_page_svgs_with_geometry(score, layout, glyphs, None)
+}
+
+pub(crate) fn render_print_page_svgs_with_geometry(
+    score: &Score,
+    layout: &PrintLayoutResult,
+    glyphs: &SvgGlyphSource,
+    supplied_geometry: Option<&[render::MeasuredRowGeometry]>,
+) -> Result<Vec<String>, PrintRenderError> {
     layout.validate()?;
     // Match the staff-aware layout's extra page reservation for an additional
     // lyric lane. A fixed-height layout may instead fail the legibility preflight.
@@ -262,28 +271,66 @@ pub fn render_print_page_svgs_with_glyphs(
         });
     }
     let mut score_layout = compute_layout(score, &LayoutConfig::default());
+    let mut physical_indices = score_layout.vis_slots.clone();
+    physical_indices.dedup();
     if rows
         .iter()
         .flat_map(|row| row.measure_indices.iter())
         .copied()
         .collect::<Vec<_>>()
-        != score_layout.vis_slots
+        != physical_indices
     {
         return Err(PrintRenderError::InvalidSystemMeasures);
     }
     score_layout.rows = rows;
+    let measured_geometry = if let Some(geometry) = supplied_geometry {
+        if geometry.len() != score_layout.rows.len() {
+            return Err(PrintRenderError::InvalidSystemMeasures);
+        }
+        Some(geometry.to_vec())
+    } else if render::measured_print_active() {
+        Some(
+            score_layout
+                .rows
+                .iter()
+                .map(|row| render::measured_row_geometry(score, row))
+                .collect::<Result<Vec<_>, _>>()?,
+        )
+    } else {
+        None
+    };
     let staff_gap = render::required_hairpin_staff_gap(score, &score_layout, staff_gap);
     let staff_gaps = render::required_lyric_staff_gaps(score, staff_gap);
     let (top_u, system_u, bottom_u) = render::print_row_metrics(score, &score_layout, &staff_gaps)?;
     let required_u = top_u + system_u + bottom_u;
-    let minimum_mm = required_u * MIN_STAFF_SPACE_MM;
-    if min_system_height_mm < minimum_mm {
+    let minimum_mm = required_u
+        * if render::measured_print_active() {
+            PREFERRED_STAFF_SPACE_MM
+        } else {
+            MIN_STAFF_SPACE_MM
+        };
+    if measured_geometry.is_none() && min_system_height_mm < minimum_mm {
         return Err(PrintRenderError::SystemTooShort {
             height_mm: min_system_height_mm,
             minimum_mm,
         });
     }
-    let space_mm = (min_system_height_mm / required_u).min(PREFERRED_STAFF_SPACE_MM);
+    if let Some(geometry) = &measured_geometry {
+        for (system, row) in layout.pages.iter().flat_map(|p| &p.systems).zip(geometry) {
+            let minimum_mm = (row.top_u + row.system_u + row.bottom_u) * PREFERRED_STAFF_SPACE_MM;
+            if system.height_mm + 0.001 < minimum_mm {
+                return Err(PrintRenderError::SystemTooShort {
+                    height_mm: system.height_mm,
+                    minimum_mm,
+                });
+            }
+        }
+    }
+    let space_mm = if measured_geometry.is_some() {
+        PREFERRED_STAFF_SPACE_MM
+    } else {
+        (min_system_height_mm / required_u).min(PREFERRED_STAFF_SPACE_MM)
+    };
     let space_px = space_mm * PX_PER_MM;
     let options = SvgRenderOptions {
         width: first.content_width_mm * PX_PER_MM,
@@ -305,14 +352,31 @@ pub fn render_print_page_svgs_with_glyphs(
         .with_glyph_source(glyphs.clone());
     let row_tops_px = row_tops_mm
         .iter()
-        .map(|top| top * PX_PER_MM + top_u * space_px)
+        .enumerate()
+        .map(|(index, top)| {
+            top * PX_PER_MM
+                + measured_geometry
+                    .as_ref()
+                    .map_or(top_u, |rows| rows[index].top_u)
+                    * space_px
+        })
         .collect::<Vec<_>>();
     let row_width_factors =
-        print_row_width_factors(score, &score_layout.rows, first.content_width_mm, space_mm);
+        print_row_width_factors(score, &score_layout.rows, first.content_width_mm, space_mm)?;
+    let row_staff_gaps = measured_geometry
+        .as_ref()
+        .map(|rows| rows.iter().map(|r| r.gaps_u.clone()).collect::<Vec<_>>());
+    let row_lyric_baselines = measured_geometry.as_ref().map(|rows| {
+        rows.iter()
+            .map(|r| r.lyric_baselines_u.clone())
+            .collect::<Vec<_>>()
+    });
     let placement = PrintRowPlacement {
         row_tops_px: &row_tops_px,
         row_width_factors: &row_width_factors,
         canvas_height_px: offset_mm * PX_PER_MM,
+        row_staff_gaps_u: row_staff_gaps.as_deref(),
+        row_lyric_baselines_u: row_lyric_baselines.as_deref(),
     };
     let (full_svg, _) =
         render::build_svg_with_metadata_placement(score, &score_layout, &config, Some(&placement))?;
@@ -377,6 +441,14 @@ pub fn render_print_page_svgs_with_glyphs(
             }
         }
         svg.push_str("</g>");
+        let measured_staff_offsets = measured_geometry
+            .as_ref()
+            .and_then(|rows| {
+                page.systems
+                    .first()
+                    .and_then(|system| rows.get(system.system_index))
+            })
+            .map(|row| render::print_staff_offsets(score, &row.gaps_u));
         write_publication(
             &mut svg,
             page,
@@ -384,7 +456,7 @@ pub fn render_print_page_svgs_with_glyphs(
             offset * PX_PER_MM,
             &row_tops_px,
             space_px,
-            &staff_offsets,
+            measured_staff_offsets.as_ref().unwrap_or(&staff_offsets),
         );
         svg.push_str("</svg>");
         pages.push(svg);
@@ -401,7 +473,26 @@ fn print_row_width_factors(
     rows: &[RowLayout],
     content_width_mm: f32,
     space_mm: f32,
-) -> Vec<f32> {
+) -> Result<Vec<f32>, RenderError> {
+    #[cfg(feature = "font-metrics")]
+    if render::measured_print_active() {
+        let logical = compute_layout(score, &LayoutConfig::default());
+        let (measures, headers) = render::measured_print_widths(score, &logical, space_mm)?;
+        let mut factors = vec![1.0; rows.len()];
+        if let Some(last) = rows.last()
+            && let Some(&first) = last.measure_indices.first()
+            && let Some(factor) = factors.last_mut()
+        {
+            let natural = headers[first]
+                + last
+                    .measure_indices
+                    .iter()
+                    .map(|&m| measures[m].preferred_mm)
+                    .sum::<f32>();
+            *factor = (natural / content_width_mm).min(1.0);
+        }
+        return Ok(factors);
+    }
     let full_row_columns = rows
         .iter()
         .map(|row| row.measure_indices.len())
@@ -419,7 +510,8 @@ fn print_row_width_factors(
         .map(row_demand)
         .fold(0.0_f32, f32::max);
     let available_spaces = content_width_mm / space_mm;
-    rows.iter()
+    Ok(rows
+        .iter()
         .enumerate()
         .map(|(index, row)| {
             if index + 1 != rows.len()
@@ -439,7 +531,7 @@ fn print_row_width_factors(
             };
             natural.max(relative).clamp(0.08, 1.0)
         })
-        .collect()
+        .collect())
 }
 
 fn write_publication(
@@ -515,7 +607,13 @@ fn write_publication(
                 continue;
             }
             let part_middle = (*first_top + *last_top + *last_height) / 2.0;
-            let lines = part_label_lines(text);
+            let available_mm = page.content_left_mm - PART_LABEL_GAP_MM - PART_LABEL_PAPER_MM;
+            let measured_lines =
+                render::measured_print_active().then(|| measured_label_lines(text, available_mm));
+            let lines = measured_lines.as_ref().map_or_else(
+                || part_label_lines(text),
+                |lines| lines.iter().map(String::as_str).collect(),
+            );
             if lines.is_empty() {
                 continue;
             }
@@ -528,6 +626,16 @@ fn write_publication(
             let size_mm = ((page.content_left_mm - PART_LABEL_GAP_MM - PART_LABEL_PAPER_MM)
                 / (0.6 * longest.max(1) as f32))
                 .min(3.0);
+            let size_mm = if measured_lines.is_some() {
+                (available_mm
+                    / lines
+                        .iter()
+                        .map(|line| measured_label_width(line))
+                        .fold(0.01_f32, f32::max))
+                .min(3.0)
+            } else {
+                size_mm
+            };
             let available_width_px =
                 (page.content_left_mm - PART_LABEL_GAP_MM - PART_LABEL_PAPER_MM) * scale;
             let leading = size_mm * 1.15;
@@ -536,7 +644,8 @@ fn write_publication(
             for (index, line) in lines.iter().enumerate() {
                 // Non-ASCII glyphs can be much wider than the Latin average used for
                 // font sizing. Constrain those runs so they cannot cross the paper edge.
-                let width_limit = if !line.is_ascii()
+                let width_limit = if measured_lines.is_none()
+                    && !line.is_ascii()
                     && size_mm * line.chars().count() as f32 * scale > available_width_px
                 {
                     format!(" textLength=\"{available_width_px:.3}\" lengthAdjust=\"spacing\"")
@@ -613,6 +722,50 @@ fn part_label_lines(text: &str) -> Vec<&str> {
         .map_or(lines, |index| {
             vec![line[..index].trim_end(), line[index + 1..].trim_start()]
         })
+}
+
+fn measured_label_width(text: &str) -> f32 {
+    #[cfg(feature = "font-metrics")]
+    {
+        let words = text.split_whitespace().collect::<Vec<_>>();
+        let space = crate::font_metrics::print_text_width(" ", 1.0).unwrap_or(0.3);
+        words
+            .iter()
+            .map(|word| {
+                crate::font_metrics::print_text_width(word, 1.0)
+                    .unwrap_or(word.chars().count() as f32 * 0.6)
+            })
+            .sum::<f32>()
+            + space * words.len().saturating_sub(1) as f32
+    }
+    #[cfg(not(feature = "font-metrics"))]
+    {
+        text.chars().count() as f32 * 0.6
+    }
+}
+
+fn measured_label_lines(text: &str, available_mm: f32) -> Vec<String> {
+    let mut lines = Vec::new();
+    for paragraph in text.lines() {
+        let mut line = String::new();
+        for word in paragraph.split_whitespace() {
+            let candidate = if line.is_empty() {
+                word.to_owned()
+            } else {
+                format!("{line} {word}")
+            };
+            if !line.is_empty() && measured_label_width(&candidate) * 2.7 > available_mm {
+                lines.push(std::mem::take(&mut line));
+                line.push_str(word);
+            } else {
+                line = candidate;
+            }
+        }
+        if !line.is_empty() {
+            lines.push(line);
+        }
+    }
+    lines
 }
 
 /// Split rendered SVG markup into its top-level elements. `None` for unbalanced markup.

@@ -1,0 +1,161 @@
+# Engraving and print parity protocol
+
+This program targets conventional keyboard, vocal, chamber-score, and extracted-part
+engraving against **Verovio 6.4.1**. The starting source is Acorde
+`f48944024039cce2abb404af60d9ffc9dedc1502`, not a newly released artifact.
+The user requested on 2026-11-15 that the implementing assistant perform the
+visual assessment instead of waiting for human reviewers. Record that assessment
+as a single assistant's review, never as independent human or statistical evidence.
+
+## Fixed inputs and boundaries
+
+- Development: the ten licensed inputs in
+  [the existing comparison](archive/print-corpus-verovio-6-4-1.md).
+- Reserved: [24 selected inputs](../benchmarks/print/parity-holdout-selection-v1.json),
+  six each for keyboard, vocal, chamber, and extracted-part output. The selection
+  pins upstream revisions and Git blobs before opening source scores or renderings.
+  The source contents and SHA-256 hashes must be frozen before algorithm changes.
+- Retain full selected files. Some upstream files represent movements rather than
+  whole multi-movement works; do not describe 24 files as 24 complete compositions.
+  Keep related movements/cycle members in the same development or reserved cohort.
+- MXL supplies independent MusicXML. Export MSCX through a pinned MuseScore build,
+  preserving notation, text, lyrics, and credits. Do not use Acorde to prepare these
+  held-out shared inputs. Record any exporter error and compare with original source.
+- Preserve input loss and source ambiguity separately from layout defects. Do not
+  drop a difficult input, omit a mark, or silently reinterpret a source to pass a gate.
+- Source files remain in an external evaluation directory. Preserve upstream license,
+  authorship, revision, hash, and attribution; no corpus downloads occur during tests.
+
+## Physical comparison and success conditions
+
+Use A4 portrait, 14 mm horizontal and 16 mm vertical margins, plus a separate Letter
+check. Fix the same 1.8 mm staff space for the matched-size comparison. Also evaluate
+the public default configuration independently. Music glyphs may differ in design;
+the comparison must not require pixel identity with Verovio.
+
+Proposed print typography floors, fixed before implementation: 4.05 mm font size for
+lyrics, 3.24 mm for expression/tempo text and chord names, and 2.7 mm for measure and
+ending numbers. These are role-specific engineering targets; font size alone does not
+establish legibility. Record actual ink bounds and visual readability as well.
+
+1. **Notation correctness:** zero unexplained omitted/wrong essential marks, wrong
+   pitch/voice association, page-edge clipping, or confirmed reading-obstructing
+   collisions on all development and final reserved inputs. Count split span segments
+   by source ownership, not by raw SVG group counts. Review ambiguous source notation
+   against the original rather than accepting either renderer as a gold standard.
+2. **Legibility:** preserve requested staff space and typography floors without
+   hiding marks. Inspect every page at physical-scale equivalent with detailed crops
+   for dense regions. Count unintended text/staff-line intersections, stems, beams,
+   articulations, slurs and ties as well as the existing text/notehead screen.
+   Page count is secondary to correctness and readability; record utilization and
+   avoid unexplained near-empty final pages or excessive inter-system stretching.
+3. **Assistant review:** per score and page record source fidelity, spacing, typography,
+   collisions and page use; compare randomized A/B filenames where practicable, but
+   disclose prior familiarity and the single implementing reviewer's lack of independence.
+   Do not compute human-preference confidence intervals from one assistant's ratings.
+   Pass only if no unresolved material Acorde disadvantage remains in any category.
+4. **Generalization and reproducibility:** freeze candidate source/binary/font hashes
+   before opening final reserved renders. Require each of the four input groups to pass,
+   record every exclusion/failure, and make no overall claim from an aggregate alone.
+   After a reserved score informs a fix, mark the cohort as development and select a
+   disjoint cohort before another final gate. Require native/WASM placement agreement,
+   macOS/Linux/Windows tests, and same-host performance/memory measurements. Missing
+   platform evidence remains pending, not a pass.
+
+## Implementation sequence
+
+1. Measured text and glyph bounds shared with rendering, in staff-space/mm units.
+2. Minimum/ideal rhythmic-column and measure widths; deterministic measured system
+   breaks that preserve authored breaks, pickup, multirests and keep-together ranges.
+3. Per-system collision resolution and height measurement before pagination; fixed
+   staff space, bounded reflow, explicit diagnostics for infeasible constraints.
+4. Shared final placement for SVG/PDF, music-glyph outlines, text-font resources and
+   full-page output verification. Preserve the existing layout ownership contracts.
+5. Default and matched-size development runs, then frozen reserved evaluation.
+
+Core retains score semantics only. Layout owns neutral geometry and page planning;
+renderers provide glyph/font measurements without filesystem or OS dependencies.
+New layout behavior begins opt-in. Preserve existing defaults until the gates pass.
+
+## Baseline observations
+
+The [2026-11-15 rerun](archive/print-parity-baseline-v1.json) reproduces 18 pages / 54
+systems for Acorde and 16 / 40 for Verovio. Acorde lyrics remain 3.08–3.42 mm.
+The run uses debug binaries, Tuffy.ttf and the existing eight-measure density option;
+it is a geometry comparison, not a release-performance result.
+
+Assistant inspection of Aloha Oe page 1 found lyrics from the Voice staff extending
+into the following Women staff in the second system. The old bounding-box screen
+reports zero text/notation candidates because staff lines are not included in its
+notation selector. This is an unresolved baseline readability defect, and demonstrates
+why candidate counts cannot substitute for visual inspection.
+
+Current gate status: **1 pending, 2 pending, 3 pending, 4 pending**.
+
+## Development progress (2026-11-15, candidate v18)
+
+The opt-in `font-metrics` renderer and `measured-print` PDF/WASM feature accept
+caller-supplied font bytes. Rustybuzz measures and outlines the same shaped text.
+The measured API chooses measured system breaks with the configured measure count
+as an upper bound and derives actual system heights. The legacy fixed-count/density
+selector and nominal system height do not select another algorithm inside this API.
+The existing public legacy rendering path remains separate.
+
+Measured rhythmic columns now reserve accidentals on their actual left side.
+Per-system reservations consider horizontal overlap before adding adjacent staff
+extents. A bounded final-placement pass reserves slurs, tuplets, lyric baselines,
+directions and hairpins before pagination. This covers selected generated geometry,
+not a proof against every possible collision.
+
+PDF review exposed Harumi 1.23.8 filling text contours independently. The adapter
+tessellates compound nonzero fills with pinned Lyon 1.0.22, preserving transparent
+counters without painting white over surrounding notation. Regression tests check
+painted area and absence of bridge strokes.
+
+Source investigations also fixed empty/ranged written metronome text and surrounding
+word order, numbered cross-staff arpeggios, additional-verse lyric connectors, and
+placement of numbered slurs sharing endpoints. Playback tempo remains independent
+of an empty written metronome value. The model additions have serde defaults;
+their public Rust struct-literal compatibility requires a release-version decision.
+
+The [v18 development screen](archive/print-parity-development-v18.json) contains
+ten successful outputs: **16 pages / 38 systems**, versus Verovio's 16 / 40.
+Staff space is 1.8 mm and lyrics are 4.05 mm. Page-edge, text/notehead, text/text,
+lyric/staff, dynamic/staff and sampled text/curve screens (including hairpins)
+report zero candidates for Acorde. These are screens, not correctness proofs.
+
+The [assistant review](archive/print-parity-review-v18.json) records all 16 Acorde
+PDF pages inspected at physical-scale equivalent. All 16 Verovio page image hashes
+match the reference pages inspected earlier. No unresolved reading-obstructing
+defect was observed on these development pages. The implementing assistant was
+unblinded and familiar with these inputs; this is not an independent preference study.
+Disclosed observations include lost second-verse italic styling in Aloha Oe,
+OMR-1035's 2.66 mm instrument label, source wedges with missing/duplicate endpoints,
+and authored-break policy differences. These were not silently removed from the corpus.
+
+The [independent shared-MusicXML audit](archive/print-parity-source-audit-v18.json)
+matches all **2,159 pitched events** in spelling, physical staff, source voice,
+onset, duration, grace/cue/hidden state and per-pitch ties. It does not audit every
+rest, text or visual mark. The MSCZ development inputs still use Acorde conversion
+to shared MusicXML, so this is not independent MSCZ import-fidelity evidence.
+
+The [native/WASM rerun](archive/print-parity-wasm-development-v18.json) matches all
+ten canonical scores, layouts and SVG tokens within 0.0001 renderer units;
+maximum numerical delta is 0.0000047461. Debug timings are not release benchmarks.
+Chrome 157 headless execution passed 67 WASM tests in 20 suites, including actual
+measured engraving with the supplied font. The current macOS all-feature workspace
+run passed 2,286 tests in 94 suites, with one ignored test. An earlier attempt ran
+out of disk during linking; its failure is retained separately from the successful
+rerun after removal of this task's unused build caches. Six-crate all-target Clippy
+passed. Linux and Windows execution remain pending.
+
+All ten inputs also rendered with default `PrintConfig` inside the measured API
+and with Letter paper; their automatic screens are zero. The four-measure default
+produces 20 pages and Letter/eight-measure mode 16 pages. These are distinct
+configurations, not claims about the unchanged legacy default renderer.
+The variant page-by-page visual review remains pending.
+
+The reserved 24-input cohort is fetched and hashed. Its score contents and renderings
+have **not** been inspected. Candidate freeze, independent source preparation,
+reserved-group evaluation, release performance/memory, Linux/Windows execution and
+final artifact integration are still required. Current overall gates remain pending.

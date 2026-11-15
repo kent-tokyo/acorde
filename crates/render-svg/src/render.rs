@@ -36,10 +36,52 @@ pub(crate) const LYRIC_VERSE_SPACING: f32 = 2.4;
 pub(crate) const LYRIC_FONT_SIZE_U: f32 = 1.6;
 /// Print-only lyric size, while screen SVGs retain the existing font size.
 pub(crate) const PRINT_LYRIC_FONT_SIZE_U: f32 = 1.9;
+pub(crate) fn measured_print_active() -> bool {
+    #[cfg(feature = "font-metrics")]
+    {
+        crate::font_metrics::print_active()
+    }
+    #[cfg(not(feature = "font-metrics"))]
+    {
+        false
+    }
+}
+
+pub(crate) fn print_lyric_font_size_u() -> f32 {
+    if measured_print_active() {
+        2.25
+    } else {
+        PRINT_LYRIC_FONT_SIZE_U
+    }
+}
+
+pub(crate) fn lyric_verse_spacing_u() -> f32 {
+    if measured_print_active() {
+        3.1
+    } else {
+        LYRIC_VERSE_SPACING
+    }
+}
 /// Font size of directions, chord symbols and other annotation text, in staff spaces.
 pub(crate) const ANNOTATION_FONT_SIZE_U: f32 = 1.0;
 /// Estimated advance of one annotation-text character, in staff spaces.
 pub(crate) const ANNOTATION_CHAR_WIDTH_U: f32 = 0.58;
+pub(crate) fn annotation_font_size_u() -> f32 {
+    if measured_print_active() {
+        1.8
+    } else {
+        ANNOTATION_FONT_SIZE_U
+    }
+}
+
+pub(crate) fn annotation_text_width_u(text: &str) -> f32 {
+    #[cfg(feature = "font-metrics")]
+    if let Some(width) = crate::font_metrics::print_text_width(text, annotation_font_size_u()) {
+        return width;
+    }
+    text.chars().count() as f32 * ANNOTATION_CHAR_WIDTH_U * annotation_font_size_u()
+        / ANNOTATION_FONT_SIZE_U
+}
 const LYRIC_CHAR_WIDTH_U: f32 = 0.91;
 pub(crate) const PRINT_LYRIC_CHAR_WIDTH_U: f32 = 1.08;
 const LYRIC_WIDTH_PADDING_U: f32 = 1.0;
@@ -90,6 +132,86 @@ pub(crate) struct PrintRowPlacement<'a> {
     pub row_tops_px: &'a [f32],
     pub row_width_factors: &'a [f32],
     pub canvas_height_px: f32,
+    pub row_staff_gaps_u: Option<&'a [Vec<f32>]>,
+    pub row_lyric_baselines_u: Option<&'a [Vec<f32>]>,
+}
+
+#[derive(Clone)]
+pub(crate) struct MeasuredRowGeometry {
+    pub top_u: f32,
+    pub system_u: f32,
+    pub bottom_u: f32,
+    pub gaps_u: Vec<f32>,
+    pub lyric_baselines_u: Vec<f32>,
+}
+
+pub(crate) fn measured_row_geometry(
+    score: &Score,
+    row: &acorde_layout::RowLayout,
+) -> Result<MeasuredRowGeometry, RenderError> {
+    let Some(&first) = row.measure_indices.first() else {
+        return Err(RenderError::EmptyScore);
+    };
+    let mut selected = score.with_legacy_spanner_flags().into_owned();
+    selected.spanners.clear();
+    for (p, part) in selected.parts.iter_mut().enumerate() {
+        for (s, staff) in part.staves.iter_mut().enumerate() {
+            let state = effective_state(score, p, s, first)?;
+            staff.clef = state.clef;
+            staff.measures = row
+                .measure_indices
+                .iter()
+                .filter_map(|&m| staff.measures.get(m).cloned())
+                .collect();
+        }
+    }
+    let logical = acorde_layout::compute_layout(&selected, &acorde_layout::LayoutConfig::default());
+    // Final per-staff ink reservations grow only the gap that needs room. A
+    // score-wide hairpin maximum would unnecessarily enlarge every other gap.
+    let gaps_u = required_lyric_staff_gaps(&selected, 6.0);
+    let refs = collect_staff_refs(&selected);
+    if refs.is_empty() {
+        return Err(RenderError::EmptyScore);
+    }
+    let top_u = content_margins(&selected, &logical, &refs[..1]).0;
+    let bottom_u = content_margins(&selected, &logical, &refs[refs.len() - 1..]).1;
+    let system_u = refs
+        .iter()
+        .map(|&(p, s)| staff_height_u(score, p, s))
+        .sum::<f32>()
+        + gaps_u.iter().sum::<f32>();
+    let lyric_baselines_u = refs
+        .iter()
+        .map(|&(p, s)| staff_lyric_baseline_u(&selected.parts[p].staves[s]).0)
+        .collect();
+    Ok(MeasuredRowGeometry {
+        top_u,
+        system_u,
+        bottom_u,
+        gaps_u,
+        lyric_baselines_u,
+    })
+}
+
+fn staff_lyric_baseline_u(staff: &acorde_core::Staff) -> (f32, u8) {
+    let mut baseline = 1.8 + print_lyric_font_size_u();
+    let mut verses = 0;
+    for index in 0..staff.measures.len() {
+        for (note, low, high) in measure_note_positions(staff, index) {
+            let last = note
+                .additional_lyrics
+                .iter()
+                .map(|v| v.verse)
+                .chain(note.lyric.as_ref().map(|_| 1))
+                .max()
+                .unwrap_or(0);
+            verses = verses.max(last);
+            let stem_down = !note.stem_up.unwrap_or(4 - low > high - 4);
+            let reach = if stem_down { 3.5 } else { 0.5 };
+            baseline = baseline.max(-(low as f32) * 0.5 + reach + 0.6 + print_lyric_font_size_u());
+        }
+    }
+    (baseline, verses)
 }
 
 /// Reserve inter-staff space for a hairpin and notes on the adjacent staff.
@@ -262,9 +384,29 @@ pub(crate) fn required_lyric_staff_gaps(score: &Score, base: f32) -> Vec<f32> {
             let mut required = base;
             let upper = &score.parts[pair[0].0].staves[pair[0].1];
             let lower = &score.parts[pair[1].0].staves[pair[1].1];
+            if measured_print_active() {
+                let (baseline, verses) = staff_lyric_baseline_u(upper);
+                if verses > 0 {
+                    let lower_top = (0..lower.measures.len())
+                        .flat_map(|index| measure_note_positions(lower, index))
+                        .map(|(note, low, high)| {
+                            let stem_up = note.stem_up.unwrap_or(4 - low > high - 4);
+                            high as f32 * 0.5 - 4.0 + if stem_up { 3.5 } else { 1.25 }
+                        })
+                        .fold(0.0_f32, f32::max);
+                    required = required.max(
+                        baseline
+                            + lyric_verse_spacing_u() * f32::from(verses - 1)
+                            + 0.25 * print_lyric_font_size_u()
+                            + 0.4
+                            + lower_top,
+                    );
+                }
+                return required;
+            }
             for index in 0..upper.measures.len().min(lower.measures.len()) {
                 let mut lyric_bottom: Option<f32> = None;
-                for (note, low, _) in measure_note_positions(upper, index) {
+                for (note, low, high) in measure_note_positions(upper, index) {
                     let verse = note
                         .additional_lyrics
                         .iter()
@@ -272,10 +414,17 @@ pub(crate) fn required_lyric_staff_gaps(score: &Score, base: f32) -> Vec<f32> {
                         .chain(note.lyric.as_ref().map(|_| 1))
                         .max();
                     let Some(verse) = verse else { continue };
+                    let stem_down = !note.stem_up.unwrap_or(4 - low > high - 4);
+                    let stem = if measured_print_active() && stem_down {
+                        3.5
+                    } else {
+                        0.5
+                    };
                     let baseline =
-                        (1.8_f32).max(-(low as f32) * 0.5 + 0.5 + 0.6) + PRINT_LYRIC_FONT_SIZE_U;
-                    let bottom =
-                        baseline + LYRIC_VERSE_SPACING * f32::from(verse.saturating_sub(1)) + 0.5;
+                        (1.8_f32).max(-(low as f32) * 0.5 + stem + 0.6) + print_lyric_font_size_u();
+                    let bottom = baseline
+                        + lyric_verse_spacing_u() * f32::from(verse.saturating_sub(1))
+                        + 0.25 * print_lyric_font_size_u();
                     lyric_bottom = Some(lyric_bottom.map_or(bottom, |value| value.max(bottom)));
                 }
                 let Some(lyric_bottom) = lyric_bottom else {
@@ -289,8 +438,13 @@ pub(crate) fn required_lyric_staff_gaps(score: &Score, base: f32) -> Vec<f32> {
                                 || note.accidental_display(i)
                                     != acorde_core::AccidentalDisplay::Auto
                         });
+                        let stem = if measured_print_active() && note.stem_up.unwrap_or(true) {
+                            3.5
+                        } else {
+                            0.5
+                        };
                         high as f32 * 0.5 - 4.0
-                            + 0.5
+                            + stem
                             + if accidental_clearance { 0.75 } else { 0.0 }
                     })
                     .fold(0.0_f32, f32::max);
@@ -493,12 +647,17 @@ pub(crate) fn build_svg_with_metadata_placement(
         })
         .collect();
     let (top_margin_u, bottom_margin_u) = content_margins(score, layout, &staff_refs);
+    let row_edges = RowEdges::from_layout(layout);
     let (left_margin_u, right_margin_u) = content_horizontal_margins(
         score,
         &staff_refs,
         &mandatory,
         &courtesy,
-        Some(&RowEdges::from_layout(layout)),
+        if measured_print_active() {
+            None
+        } else {
+            Some(&row_edges)
+        },
     );
 
     let staff_gaps = config.staff_gaps();
@@ -538,6 +697,20 @@ pub(crate) fn build_svg_with_metadata_placement(
     let total_height = if let Some(placement) = print_placement {
         if placement.row_tops_px.len() != layout.rows.len()
             || placement.row_width_factors.len() != layout.rows.len()
+            || placement.row_staff_gaps_u.is_some_and(|rows| {
+                rows.len() != layout.rows.len()
+                    || rows.iter().any(|gaps| {
+                        gaps.len() != staff_refs.len().saturating_sub(1)
+                            || gaps.iter().any(|gap| !gap.is_finite() || *gap <= 0.0)
+                    })
+            })
+            || placement.row_lyric_baselines_u.is_some_and(|rows| {
+                rows.len() != layout.rows.len()
+                    || rows.iter().any(|baselines| {
+                        baselines.len() != staff_refs.len()
+                            || baselines.iter().any(|value| !value.is_finite())
+                    })
+            })
             || !placement.canvas_height_px.is_finite()
             || placement.canvas_height_px <= 0.0
             || placement
@@ -565,6 +738,8 @@ pub(crate) fn build_svg_with_metadata_placement(
     let mut measure_lefts: HashMap<(usize, usize), f32> = HashMap::new();
     let ottava_shifts = ottava_display_shifts(score);
     let mut resolved_annotation_obstacles = Vec::new();
+    let mut row_extents = vec![(0.0, 0.0); layout.rows.len()];
+    let mut lyric_baselines = HashMap::new();
     // A volta (1st/2nd ending) still open at the end of a system, by ending number.
     let mut open_volta: Option<u8> = None;
 
@@ -807,6 +982,25 @@ pub(crate) fn build_svg_with_metadata_placement(
             }
             rhythmic_widths = next;
         }
+        if measured_print_active() {
+            let measured = row
+                .measure_indices
+                .iter()
+                .map(|&measure| {
+                    let spacing = measured_measure_spacing_u(score, measure, &mandatory, &courtesy);
+                    acorde_layout::MeasuredSpacing {
+                        minimum_mm: spacing.minimum_mm * space,
+                        preferred_mm: spacing.preferred_mm * space,
+                    }
+                })
+                .collect::<Vec<_>>();
+            rhythmic_widths =
+                acorde_layout::allocate_measured_widths(&measured, rhythmic_area_width).map_err(
+                    |error| RenderError::InvalidOptions {
+                        reason: error.to_string(),
+                    },
+                )?;
+        }
         let measure_widths: Vec<f32> = rhythmic_widths
             .iter()
             .zip(&inline_meter_widths_u)
@@ -832,7 +1026,11 @@ pub(crate) fn build_svg_with_metadata_placement(
             let mut y = row_top_y;
             for (index, &staff_height) in staff_heights_u.iter().enumerate() {
                 staff_y.push(y);
-                let gap = staff_gaps
+                let gap = print_placement
+                    .and_then(|p| p.row_staff_gaps_u)
+                    .and_then(|rows| rows.get(row_idx))
+                    .map(Vec::as_slice)
+                    .or(staff_gaps)
                     .and_then(|gaps| gaps.get(index))
                     .copied()
                     .unwrap_or(staff_gap);
@@ -844,9 +1042,20 @@ pub(crate) fn build_svg_with_metadata_placement(
                 (part, staff, row_idx),
                 staff_y[i] + staff_heights_u[i] * space,
             );
+            let relative = print_placement
+                .and_then(|p| p.row_lyric_baselines_u)
+                .and_then(|rows| rows.get(row_idx))
+                .and_then(|row| row.get(i))
+                .copied()
+                .unwrap_or_else(|| staff_lyric_baseline_u(&score.parts[part].staves[staff]).0);
+            lyric_baselines.insert(
+                (part, staff, row_idx),
+                staff_y[i] + (staff_heights_u[i] + relative) * space,
+            );
         }
         let system_top_y = row_top_y;
-        let system_bottom_y = row_top_y + system_height_u * space;
+        let system_bottom_y = staff_y.last().copied().unwrap_or(row_top_y)
+            + staff_heights_u.last().copied().unwrap_or(0.0) * space;
         // Repeat dots belong to each individual staff, whereas the barline itself spans the
         // complete visible system. Keeping those geometries separate prevents a piano-system
         // repeat from acquiring one erroneous pair of dots between the staves.
@@ -961,6 +1170,7 @@ pub(crate) fn build_svg_with_metadata_placement(
             .map(|state| state.clef.clone())
             .collect();
         let mut mx = left_margin_u * space + header_width_u * space;
+        row_extents[row_idx].0 = mx;
         // Where the current system's volta segment starts, with its number if it opens there,
         // and the finished segments (start, end, number, closing hook).
         let mut volta_start: Option<(f32, Option<u8>)> = None;
@@ -1067,7 +1277,7 @@ pub(crate) fn build_svg_with_metadata_placement(
                         &cross_frames,
                         space,
                         if print_placement.is_some() {
-                            PRINT_LYRIC_FONT_SIZE_U
+                            print_lyric_font_size_u()
                         } else {
                             LYRIC_FONT_SIZE_U
                         },
@@ -1076,6 +1286,11 @@ pub(crate) fn build_svg_with_metadata_placement(
                         } else {
                             LYRIC_CHAR_WIDTH_U
                         },
+                        print_placement
+                            .and_then(|p| p.row_lyric_baselines_u)
+                            .and_then(|rows| rows.get(row_idx))
+                            .and_then(|staffs| staffs.get(si_idx))
+                            .map(|offset| bottom_y + offset * space),
                         options.interactive,
                         &mandatory,
                         &courtesy,
@@ -1248,7 +1463,11 @@ pub(crate) fn build_svg_with_metadata_placement(
                     r#"<text class="acorde-measure-number" x="{}" y="{}" font-family="serif" font-style="italic" font-size="{}">{}</text>"#,
                     f(left_margin_u * space),
                     f(system_top_y - 1.2 * space),
-                    f(1.2 * space),
+                    f(if measured_print_active() {
+                        1.5 * space
+                    } else {
+                        1.2 * space
+                    }),
                     measure.number.max(1)
                 );
             }
@@ -1281,6 +1500,7 @@ pub(crate) fn build_svg_with_metadata_placement(
             }
             mx += mwidth;
         }
+        row_extents[row_idx].1 = mx;
         if let Some(&(top_part, top_staff)) = staff_refs.first() {
             for (start_x, end_x, label, closes) in volta_segments {
                 // Clear the top staff's notes under the bracket (their anchors plus a stem).
@@ -1317,32 +1537,53 @@ pub(crate) fn build_svg_with_metadata_placement(
                         r#"<text class="acorde-volta-number" x="{}" y="{}" font-family="serif" font-size="{}">{number}.</text>"#,
                         f(start_x + 0.3 * space),
                         f(y + 1.3 * space),
-                        f(1.3 * space)
+                        f(if measured_print_active() {
+                            1.5 * space
+                        } else {
+                            1.3 * space
+                        })
                     );
                 }
             }
         }
     }
 
-    render_cross_measure_lyric_hyphens(
-        &mut body,
-        score,
-        &note_points,
-        &resolved_annotation_obstacles,
-        space,
-    );
-    render_lyric_extenders(
-        &mut body,
-        score,
-        &note_points,
-        &resolved_annotation_obstacles,
-        space,
-        if print_placement.is_some() {
-            PRINT_LYRIC_CHAR_WIDTH_U
-        } else {
-            LYRIC_CHAR_WIDTH_U
-        },
-    );
+    if measured_print_active() {
+        render_grouped_arpeggios(&mut body, score, &note_points, space);
+    }
+    #[cfg(feature = "font-metrics")]
+    if measured_print_active() {
+        crate::lyric_connections::render(
+            &mut body,
+            score,
+            &note_points,
+            &resolved_annotation_obstacles,
+            &row_extents,
+            &lyric_baselines,
+            space,
+        );
+    }
+    if !measured_print_active() {
+        render_cross_measure_lyric_hyphens(
+            &mut body,
+            score,
+            &note_points,
+            &resolved_annotation_obstacles,
+            space,
+        );
+        render_lyric_extenders(
+            &mut body,
+            score,
+            &note_points,
+            &resolved_annotation_obstacles,
+            space,
+            if print_placement.is_some() {
+                PRINT_LYRIC_CHAR_WIDTH_U
+            } else {
+                LYRIC_CHAR_WIDTH_U
+            },
+        );
+    }
     render_cross_measure_tab_technique_connections(
         &mut body,
         score,
@@ -2500,8 +2741,16 @@ fn content_margins(
     layout: &LayoutResult,
     staff_refs: &[(usize, usize)],
 ) -> (f32, f32) {
-    let mut top = TOP_MARGIN_U;
-    let mut bottom = BOTTOM_MARGIN_U;
+    let mut top = if measured_print_active() {
+        2.5
+    } else {
+        TOP_MARGIN_U
+    };
+    let mut bottom = if measured_print_active() {
+        2.0
+    } else {
+        BOTTOM_MARGIN_U
+    };
     for &(part, staff) in staff_refs {
         let Ok(clef_bottom) = geometry::clef_bottom_line(&score.parts[part].staves[staff].clef)
         else {
@@ -2561,6 +2810,9 @@ fn content_margins(
         }
     }
     for group in &layout.beam_groups {
+        if measured_print_active() && !staff_refs.contains(&(group.part, group.staff)) {
+            continue;
+        }
         let Some(part) = score.parts.get(group.part) else {
             continue;
         };
@@ -2632,7 +2884,15 @@ fn content_margins(
             })
             .collect();
         let (beam_min, beam_max) = beams::vertical_extents(&durations, &xs, &attach_ys, stem_up);
-        top = top.max(-beam_min);
+        // Beam coordinates are relative to the bottom staff line. The measured
+        // reservation starts at the top line, four spaces above that origin.
+        let above_staff = -beam_min
+            - if measured_print_active() {
+                staff_height_u(score, group.part, group.staff)
+            } else {
+                0.0
+            };
+        top = top.max(above_staff);
         bottom = bottom.max(beam_max);
     }
     (top, bottom)
@@ -2642,8 +2902,16 @@ fn content_margins(
 fn note_annotation_margins(note: &Note, voice_stem_up: bool) -> (f32, f32) {
     // Note-attached annotations are emitted at fixed staff-space offsets; font ascent and line
     // wrapping remain a host responsibility.
-    let mut top = 5.5_f32;
-    let mut bottom = 4.5_f32;
+    let mut top = if measured_print_active() {
+        0.0_f32
+    } else {
+        5.5
+    };
+    let mut bottom = if measured_print_active() {
+        0.0_f32
+    } else {
+        4.5
+    };
     if note.chord_symbol.is_some() {
         top = top.max(6.4);
     }
@@ -2655,7 +2923,7 @@ fn note_annotation_margins(note: &Note, voice_stem_up: bool) -> (f32, f32) {
         bottom = bottom.max(6.7);
     }
     if let Some(last) = note.additional_lyrics.last() {
-        bottom = bottom.max(6.7 + LYRIC_VERSE_SPACING * f32::from(last.verse - 1));
+        bottom = bottom.max(6.7 + lyric_verse_spacing_u() * f32::from(last.verse - 1));
     }
     if note.technique_text.is_some()
         || note.guitar_technique.is_some()
@@ -2703,16 +2971,21 @@ fn note_vertical_margins(note: &Note, clef_bottom: i32, voice_stem_up: bool) -> 
         .collect();
     let max_position = positions.iter().copied().max().unwrap_or(0);
     let min_position = positions.iter().copied().min().unwrap_or(0);
+    // Page breathing room is reserved once by content_margins. A measured
+    // note contributes its ink reach, rather than another full page margin
+    // on top of each ledger-line excursion.
+    let head_top = if measured_print_active() { 0.65 } else { 5.5 };
+    let head_bottom = if measured_print_active() { 0.65 } else { 4.5 };
     let mut top = positions
         .iter()
         .copied()
-        .map(|position| 5.5 + ((position - 8).max(0) as f32 / 2.0))
-        .fold(5.5, f32::max);
+        .map(|position| head_top + ((position - 8).max(0) as f32 / 2.0))
+        .fold(head_top, f32::max);
     let mut bottom = positions
         .iter()
         .copied()
-        .map(|position| 4.5 + ((-position).max(0) as f32 / 2.0))
-        .fold(4.5, f32::max);
+        .map(|position| head_bottom + ((-position).max(0) as f32 / 2.0))
+        .fold(head_bottom, f32::max);
 
     let (mut annotation_top, mut annotation_bottom) = note_annotation_margins(note, voice_stem_up);
     if note.hairpin_start.is_some() || note.hairpin_end {
@@ -2920,7 +3193,9 @@ fn content_horizontal_margins(
     for &(part, staff) in staff_refs {
         let tablature = score.parts[part].staves[staff].tablature.as_ref();
         let short_name = score.parts[part].short_name.trim();
-        if !short_name.is_empty() {
+        if !short_name.is_empty()
+            && (!measured_print_active() || score.part_groups.iter().any(|g| g.first_part == part))
+        {
             // The renderer intentionally does not resolve a host font here. Reserve a
             // conservative, deterministic estimate for the first-system part label so the
             // label and connector cannot be placed outside the SVG viewBox.
@@ -2944,7 +3219,11 @@ fn content_horizontal_margins(
                     // closing event the right edge.
                     let at_left = row_first && note_index == 0;
                     let at_right = row_last && note_index + 1 == voice.len();
-                    let annotation_half_width = note_annotation_width_u(note) / 2.0;
+                    let annotation_half_width = if measured_print_active() {
+                        0.0
+                    } else {
+                        note_annotation_width_u(note) / 2.0
+                    };
                     let (offset_x, _) = note_placement_offsets_u(note);
                     let note_half_width = annotation_half_width.max(0.7);
                     if offset_x < 0.0 {
@@ -2984,6 +3263,9 @@ fn content_horizontal_margins(
                                 right = right.max(half_width);
                             }
                         }
+                    }
+                    if measured_print_active() && offset_x >= 0.0 {
+                        continue;
                     }
                     let has_accidentals: Vec<bool> = note
                         .pitches
@@ -3071,7 +3353,7 @@ fn content_horizontal_margins(
                         left = left.max(LEFT_MARGIN_U - offset_x);
                     }
                 }
-                if row_last {
+                if row_last && !measured_print_active() {
                     right = right.max(MEASURE_PAD_U + text_width + offset_x);
                     if offset_x >= 0.0 {
                         right = right.max(RIGHT_MARGIN_U + offset_x);
@@ -3087,6 +3369,10 @@ fn content_horizontal_margins(
 /// font metrics; the bound is capped so a very long entry remains a host wrapping concern
 /// instead of turning a bounded score into an unrenderable canvas.
 fn measure_text_width_u(text: &str) -> f32 {
+    #[cfg(feature = "font-metrics")]
+    if let Some(width) = crate::font_metrics::print_text_width(text, 0.78) {
+        return width + 0.7;
+    }
     (text.chars().count() as f32 * 0.42 + 0.7).min(64.0)
 }
 
@@ -4115,6 +4401,7 @@ fn render_measure(
     space: f32,
     lyric_font_size_u: f32,
     lyric_char_width_u: f32,
+    lyric_baseline_y: Option<f32>,
     interactive: bool,
     mandatory: &HashMap<AccKey, i8>,
     courtesy: &HashMap<AccKey, i8>,
@@ -4229,6 +4516,11 @@ fn render_measure(
         + repeat_lead_u
         + arpeggio_lead_u
         + partial_tie_lead_u;
+    let columns = measured_print_active()
+        .then(|| measured_columns(score, measure_idx, total_beats, mandatory, courtesy));
+    let lead_u = columns
+        .as_ref()
+        .map_or(lead_u, |plan| plan.lead_u + clef_lead_u);
     let content_x0 = x + lead_u * space;
     let content_w = (width - (lead_u + MEASURE_PAD_U) * space).max(space);
     let clef_bottom = geometry::clef_bottom_line(clef)?;
@@ -4248,7 +4540,9 @@ fn render_measure(
     }
     let clef_gaps = measure_clef_gap_offsets(score, measure_idx, total_beats);
     let clef_gap_px = (MID_CLEF_GAP_U * space).min(0.4 * content_w / clef_gaps.len().max(1) as f32);
-    let lyric_knots = if clef_gaps.is_empty() {
+    let lyric_knots = if let Some(plan) = &columns {
+        plan.knots(content_w / space, space)?
+    } else if clef_gaps.is_empty() {
         lyric_column_knots(score, measure_idx, total_beats, content_w, space)
     } else {
         Vec::new()
@@ -4273,7 +4567,7 @@ fn render_measure(
     let mut prior_voice_events = Vec::new();
 
     let mut opened = String::new();
-    if interactive {
+    if interactive || measured_print_active() {
         let _ = write!(
             opened,
             r#"<g class="acorde-measure" data-acorde-kind="measure" data-part="{part}" data-staff="{staff}" data-measure="{measure_idx}">"#
@@ -4403,6 +4697,7 @@ fn render_measure(
                         .saturating_sub(1),
                 ) * space,
             bottom_y,
+            lyric_baseline_y,
         },
     )?;
     resolved_annotation_obstacles.extend(semantic_placements.iter().cloned());
@@ -4566,7 +4861,7 @@ fn render_measure_semantic_annotations(
                 for entry in &note.additional_lyrics {
                     let text = entry.lyric.text.clone();
                     let width = lyric_width_u(&text) * space;
-                    let verse_offset = LYRIC_VERSE_SPACING * f32::from(entry.verse - 1);
+                    let verse_offset = lyric_verse_spacing_u() * f32::from(entry.verse - 1);
                     annotations.push(MeasureSemanticAnnotation::Text {
                         class: "acorde-lyric-verse",
                         text,
@@ -4774,16 +5069,18 @@ fn render_measure_voice<'a>(
         xs[0] = content_x0 + content_w / 2.0;
     }
     apply_note_horizontal_offsets(notes, &mut xs, space);
-    resolve_adjacent_event_spacing(notes, &mut xs, content_x0, content_w, space);
-    resolve_cross_voice_event_spacing(
-        notes,
-        &mut xs,
-        prior_voice_events,
-        content_x0,
-        content_w,
-        space,
-        allow_shared_alignment,
-    );
+    if !measured_print_active() {
+        resolve_adjacent_event_spacing(notes, &mut xs, content_x0, content_w, space);
+        resolve_cross_voice_event_spacing(
+            notes,
+            &mut xs,
+            prior_voice_events,
+            content_x0,
+            content_w,
+            space,
+            allow_shared_alignment,
+        );
+    }
     let mut onset = 0.0;
     prior_voice_events.extend(notes.iter().zip(xs.iter()).map(|(note, &x)| {
         let event = (x, note, onset);
@@ -5360,6 +5657,341 @@ fn lyric_column_knots(
         .collect()
 }
 
+/// One horizontal plan shared by every staff and voice in a measure. Geometry is
+/// expressed in staff spaces here and converted to mm at the layout boundary.
+struct MeasuredColumns {
+    onsets: Vec<f64>,
+    gaps: Vec<acorde_layout::MeasuredSpacing>,
+    lead_u: f32,
+}
+
+impl MeasuredColumns {
+    fn spacing(&self) -> acorde_layout::MeasuredSpacing {
+        acorde_layout::MeasuredSpacing {
+            minimum_mm: self.lead_u
+                + MEASURE_PAD_U
+                + self.gaps.iter().map(|g| g.minimum_mm).sum::<f32>(),
+            preferred_mm: self.lead_u
+                + MEASURE_PAD_U
+                + self.gaps.iter().map(|g| g.preferred_mm).sum::<f32>(),
+        }
+    }
+
+    fn knots(&self, available_u: f32, space: f32) -> Result<Vec<(f64, f32)>, RenderError> {
+        let widths =
+            acorde_layout::allocate_measured_widths(&self.gaps, available_u).map_err(|error| {
+                RenderError::InvalidOptions {
+                    reason: error.to_string(),
+                }
+            })?;
+        let mut x = 0.0;
+        Ok(self
+            .onsets
+            .iter()
+            .zip(widths)
+            .map(|(&beat, width)| {
+                let point = (beat, x * space);
+                x += width;
+                point
+            })
+            .collect())
+    }
+}
+
+fn measured_columns(
+    score: &Score,
+    measure_idx: usize,
+    total_beats: f64,
+    mandatory: &HashMap<AccKey, i8>,
+    courtesy: &HashMap<AccKey, i8>,
+) -> MeasuredColumns {
+    let bars = score
+        .parts
+        .iter()
+        .flat_map(|p| &p.staves)
+        .filter_map(|s| s.measures.get(measure_idx))
+        .collect::<Vec<_>>();
+    let mut events = Vec::new();
+    let mut lanes = Vec::new();
+    let mut text_lead = 0.0_f32;
+    for (part_index, part) in score.parts.iter().enumerate() {
+        for (staff_index, staff) in part.staves.iter().enumerate() {
+            let Some(bar) = staff.measures.get(measure_idx) else {
+                continue;
+            };
+            for (voice_index, voice) in bar.voices.iter().enumerate() {
+                let mut lane = Vec::new();
+                let mut beat = 0.0;
+                let mut grace_width = 0.0;
+                for (note_index, note) in voice.iter().enumerate() {
+                    if note.is_grace {
+                        grace_width += CONSECUTIVE_GRACE_CLEARANCE_U;
+                        continue;
+                    }
+                    if !note.hidden {
+                        let accidental = note
+                            .pitches
+                            .iter()
+                            .enumerate()
+                            .filter_map(|(pitch_index, _)| {
+                                let key = (
+                                    part_index,
+                                    staff_index,
+                                    measure_idx,
+                                    voice_index,
+                                    note_index,
+                                    pitch_index,
+                                );
+                                mandatory.get(&key).or_else(|| courtesy.get(&key))
+                            })
+                            .map(|&alter| glyphs::accidental_width_u(alter) + 0.4)
+                            .sum::<f32>();
+                        let notation =
+                            note_notation_footprint_u(note) - accidental_footprint_u(note);
+                        // Accidentals occupy the left side of the anchor. Adding
+                        // half their width to the right as well double-counted
+                        // that space between successive rhythmic columns.
+                        let left = notation / 2.0 + accidental + grace_width;
+                        let right = notation / 2.0;
+                        events.push((beat, left, right));
+                        lane.push((beat, note));
+                        if beat < 1e-9 {
+                            text_lead = text_lead.max(note_annotation_width_u(note) / 2.0);
+                        }
+                    }
+                    grace_width = 0.0;
+                    beat += note.beats();
+                }
+                lanes.push(lane);
+            }
+        }
+    }
+    let mut onsets = events.iter().map(|e| e.0).collect::<Vec<_>>();
+    onsets.push(0.0);
+    onsets.sort_by(f64::total_cmp);
+    onsets.dedup_by(|a, b| (*a - *b).abs() < 1e-9);
+    onsets.retain(|beat| *beat < total_beats - 1e-9);
+    let mut lefts = vec![0.7_f32; onsets.len()];
+    let mut rights = vec![0.7_f32; onsets.len()];
+    for (beat, left, right) in events {
+        if let Some(i) = onsets.iter().position(|onset| (*onset - beat).abs() < 1e-9) {
+            lefts[i] = lefts[i].max(left);
+            rights[i] = rights[i].max(right);
+        }
+    }
+    for change in bars.iter().flat_map(|bar| &bar.mid_clefs) {
+        if let Some(beat) = change.offset.beats()
+            && let Some(i) = onsets.iter().position(|onset| *onset >= beat - 1e-9)
+        {
+            lefts[i] += MID_CLEF_GAP_U;
+        }
+    }
+    let repeat_lead = if bars
+        .iter()
+        .any(|bar| matches!(bar.barline_left, Barline::RepeatStart | Barline::RepeatBoth))
+    {
+        0.8
+    } else {
+        0.0
+    };
+    let lead_u = lefts.first().copied().unwrap_or(0.7).max(text_lead) + 1.0 + repeat_lead;
+    let mut minimums = onsets
+        .iter()
+        .enumerate()
+        .map(|(i, _)| rights[i] + lefts.get(i + 1).copied().unwrap_or(0.0) + 0.5)
+        .collect::<Vec<_>>();
+    // Text in one lyric/annotation lane constrains the distance to the next event
+    // in that voice, not the intervening piano notes on another staff.
+    for lane in lanes {
+        for (position, &(beat, note)) in lane.iter().enumerate() {
+            let Some(from) = onsets.iter().position(|onset| (*onset - beat).abs() < 1e-9) else {
+                continue;
+            };
+            let (end, needed) = match lane.get(position + 1) {
+                Some(&(next_beat, next)) => (
+                    next_beat,
+                    [true, false]
+                        .into_iter()
+                        .map(|above| {
+                            (note_annotation_lane_width_u(note, above)
+                                + note_annotation_lane_width_u(next, above))
+                                / 2.0
+                                + 0.18
+                        })
+                        .fold(0.0_f32, f32::max),
+                ),
+                None => (total_beats, note_annotation_width_u(note) / 2.0 + 0.5),
+            };
+            if end <= beat {
+                continue;
+            }
+            for i in from..onsets.len() {
+                if onsets[i] >= end - 1e-9 {
+                    break;
+                }
+                let next = onsets.get(i + 1).copied().unwrap_or(total_beats).min(end);
+                minimums[i] = minimums[i].max(needed * ((next - onsets[i]) / (end - beat)) as f32);
+            }
+        }
+    }
+    let gaps = onsets
+        .iter()
+        .enumerate()
+        .map(|(i, &beat)| {
+            let next = onsets.get(i + 1).copied().unwrap_or(total_beats);
+            let minimum = minimums[i];
+            acorde_layout::MeasuredSpacing {
+                minimum_mm: minimum,
+                preferred_mm: minimum + 1.5 * ((next - beat).max(0.0) as f32).sqrt(),
+            }
+        })
+        .collect();
+    MeasuredColumns {
+        onsets,
+        gaps,
+        lead_u,
+    }
+}
+
+pub(crate) fn measured_measure_spacing_u(
+    score: &Score,
+    measure: usize,
+    mandatory: &HashMap<AccKey, i8>,
+    courtesy: &HashMap<AccKey, i8>,
+) -> acorde_layout::MeasuredSpacing {
+    let staff_refs = collect_staff_refs(score);
+    let beats = staff_refs
+        .iter()
+        .map(|s| measure_total_beats(score, s, measure))
+        .fold(0.0_f64, f64::max);
+    let mut spacing = measured_columns(score, measure, beats, mandatory, courtesy).spacing();
+    let clef = score
+        .parts
+        .iter()
+        .flat_map(|p| &p.staves)
+        .filter_map(|s| s.measures.get(measure))
+        .any(|m| m.clef.is_some());
+    if clef && measure > 0 {
+        spacing.minimum_mm += 3.0;
+        spacing.preferred_mm += 3.0;
+    }
+    // The opening tempo belongs above the system and may span several bars.
+    // Other directions still reserve their real width in their own bar.
+    let direction = score
+        .parts
+        .iter()
+        .flat_map(|p| &p.staves)
+        .filter_map(|s| s.measures.get(measure))
+        .flat_map(|bar| {
+            measure_text_entries(bar).into_iter().filter(move |text| {
+                !(measure == 0
+                    && text.style == TextStyle::Generic
+                    && bar.tempo_text.as_deref() == Some(text.text.as_str())
+                    && text.placement.as_deref() != Some("below"))
+            })
+        })
+        .map(|text| measure_text_width_u(&text.text) * 3.0 + 2.0 * MEASURE_PAD_U)
+        .fold(0.0_f32, f32::max);
+    spacing.minimum_mm = spacing.minimum_mm.max(direction);
+    spacing.preferred_mm = spacing.preferred_mm.max(direction);
+    spacing
+}
+
+#[cfg(feature = "font-metrics")]
+pub(crate) fn measured_print_widths(
+    score: &Score,
+    layout: &LayoutResult,
+    space_mm: f32,
+) -> Result<(Vec<acorde_layout::MeasuredSpacing>, Vec<f32>), RenderError> {
+    let staff_refs = collect_staff_refs(score);
+    validate_inputs(score, layout, &staff_refs)?;
+    let mandatory = layout
+        .accidentals
+        .iter()
+        .map(|a| {
+            (
+                (
+                    a.part,
+                    a.staff,
+                    a.measure,
+                    a.voice,
+                    a.note_index,
+                    a.pitch_index,
+                ),
+                a.alter,
+            )
+        })
+        .collect();
+    let courtesy = layout
+        .courtesy_accidentals
+        .iter()
+        .map(|a| {
+            (
+                (
+                    a.part,
+                    a.staff,
+                    a.measure,
+                    a.voice,
+                    a.note_index,
+                    a.pitch_index,
+                ),
+                a.alter,
+            )
+        })
+        .collect();
+    let (left, right) = content_horizontal_margins(score, &staff_refs, &mandatory, &courtesy, None);
+    let count = staff_refs
+        .first()
+        .map_or(0, |&(p, s)| score.parts[p].staves[s].measures.len());
+    let mut widths = Vec::with_capacity(count);
+    let mut headers = Vec::with_capacity(count);
+    for measure in 0..count {
+        let mut header = 0.0_f32;
+        let mut inline = 0.0_f32;
+        for &(p, s) in &staff_refs {
+            let state = effective_state(score, p, s, measure)?;
+            let previous = effective_state(score, p, s, measure.saturating_sub(1))?;
+            let draw_time = measure == 0
+                || staff_refs.iter().any(|&(pi, si)| {
+                    let bar = &score.parts[pi].staves[si].measures[measure];
+                    !bar.time_sig_hidden && (bar.time_sig.is_some() || bar.time_symbol.is_some())
+                });
+            let cancellation = cancellation_count(previous.key_fifths, state.key_fifths) as f32
+                * key_signature_step_u(0);
+            header = header.max(
+                header_width_u(
+                    &state.clef,
+                    state.key_fifths,
+                    draw_time.then_some(&state.time_sig),
+                    state.time_symbol,
+                ) + cancellation,
+            );
+            let bar = &score.parts[p].staves[s].measures[measure];
+            let key_width = if bar.key_sig.is_some() && previous.key_fifths != state.key_fifths {
+                cancellation
+                    + state.key_fifths.unsigned_abs().min(7) as f32
+                        * key_signature_step_u(state.key_fifths.signum())
+                    + 0.4
+            } else {
+                0.0
+            };
+            let meter_width = if measure > 0 && draw_time {
+                time_signature_width_u(&state.time_sig, state.time_symbol) + 0.4
+            } else {
+                0.0
+            };
+            inline = inline.max(key_width + meter_width);
+        }
+        let spacing = measured_measure_spacing_u(score, measure, &mandatory, &courtesy);
+        widths.push(acorde_layout::MeasuredSpacing {
+            minimum_mm: (spacing.minimum_mm + inline) * space_mm,
+            preferred_mm: (spacing.preferred_mm + inline) * space_mm,
+        });
+        headers.push((left + header + right) * space_mm);
+    }
+    Ok((widths, headers))
+}
+
 /// Room left in a bar for a small mid-bar clef (u).
 const MID_CLEF_GAP_U: f32 = 2.4;
 /// Size of a mid-bar clef relative to the system clef.
@@ -5502,7 +6134,24 @@ fn render_measure_voice_tuplets(body: &mut String, context: &TupletRenderContext
             beamed_fully,
             *space,
         );
+        if measured_print_active() {
+            let [left, right, top, bottom] = plan.bounds;
+            let shift = if group_stem_up {
+                (bottom_y - 4.4 * space - bottom).min(0.0)
+            } else {
+                (bottom_y + 0.4 * space - top).max(0.0)
+            };
+            let top = top + shift;
+            let bottom = bottom + shift;
+            let _ = write!(
+                body,
+                "<g data-print-tuplet=\"true\" data-part=\"{part}\" data-staff=\"{staff}\" data-measure=\"{measure_idx}\" data-print-left=\"{left}\" data-print-right=\"{right}\" data-print-top=\"{top}\" data-print-bottom=\"{bottom}\" transform=\"translate(0 {shift})\">"
+            );
+        }
         body.push_str(&plan.svg);
+        if measured_print_active() {
+            body.push_str("</g>");
+        }
     }
 }
 
@@ -5891,7 +6540,12 @@ type BeamLayout = (HashMap<usize, f32>, String, HashMap<usize, bool>);
 
 // Pick the nearest horizontal gap in the measure, without walking through another
 // obstacle after a shift. Return None when this lane has no room.
-fn nearest_text_gap(x: f32, min: f32, max: f32, mut blocked: Vec<(f32, f32)>) -> Option<f32> {
+pub(crate) fn nearest_text_gap(
+    x: f32,
+    min: f32,
+    max: f32,
+    mut blocked: Vec<(f32, f32)>,
+) -> Option<f32> {
     if min > max {
         return None;
     }
@@ -6121,15 +6775,25 @@ fn render_measure_text(
         };
         let offset_y = styled.offset_y.unwrap_or(0.0) + styled.relative_y.unwrap_or(0.0);
         let offset_x = styled.offset_x.unwrap_or(0.0) + styled.relative_x.unwrap_or(0.0);
-        let base_text_width = styled.text.chars().count() as f32 * 0.46 * space * text_scale;
         let has_tempo_mark = styled.style == TextStyle::Generic
             && measure.tempo_text.as_deref() == Some(styled.text.as_str())
             && measure.metronome_mark.is_some();
+        let prefix = if has_tempo_mark {
+            measure
+                .metronome_mark
+                .as_ref()
+                .and_then(|m| m.written.as_ref())
+                .map_or(styled.text.as_str(), |w| w.before.as_str())
+        } else {
+            styled.text.as_str()
+        };
+        let base_text_width = print_text_advance(prefix, 0.78 * space * text_scale);
         let text_width = base_text_width
             + if has_tempo_mark {
-                let mark = measure.metronome_mark.as_ref().expect("checked above");
-                metronome_mark_width(mark, 0.78 * space * text_scale)
-                    + 0.4 * 0.78 * space * text_scale
+                measure.metronome_mark.as_ref().map_or(0.0, |mark| {
+                    metronome_mark_width(mark, 0.78 * space * text_scale)
+                        + 0.4 * 0.78 * space * text_scale
+                })
             } else {
                 0.0
             };
@@ -6199,7 +6863,7 @@ fn render_measure_text(
             let mut note_heads = Vec::new();
             for (voice_index, voice) in measure.voices.iter().enumerate() {
                 for (note_index, note) in voice.iter().enumerate() {
-                    if note.is_rest {
+                    if note.is_rest || (measured_print_active() && note.cross_staff.is_some()) {
                         continue;
                     }
                     let Some(&(note_x, note_y, stem_up, _)) =
@@ -6430,6 +7094,13 @@ fn render_measure_text(
             String::new()
         };
         let style = if italic { " font-style=\"italic\"" } else { "" };
+        let mark = (styled.style == TextStyle::Generic
+            && measure.tempo_text.as_deref() == Some(styled.text.as_str()))
+        .then_some(measure.metronome_mark.as_ref())
+        .flatten();
+        let displayed = mark
+            .and_then(|m| m.written.as_ref())
+            .map_or(styled.text.as_str(), |w| w.before.as_str());
         let _ = write!(
             body,
             r#"<text class="{class}" x="{x}" y="{y}" text-anchor="start" font-family="serif" font-size="{size}"{style}{attributes}>{text}</text>"#,
@@ -6439,16 +7110,18 @@ fn render_measure_text(
             size = f(0.78 * space * text_scale),
             style = style,
             attributes = attributes,
-            text = escape_xml(&styled.text),
+            text = escape_xml(displayed),
         );
-        if styled.style == TextStyle::Generic
-            && measure.tempo_text.as_deref() == Some(styled.text.as_str())
-            && let Some(mark) = &measure.metronome_mark
-        {
+        if let Some(mark) = mark {
             let size = 0.78 * space * text_scale;
+            let text_width = print_text_advance(displayed, size);
             let mark_x = text_x
-                + styled.text.chars().count() as f32 * 0.46 * space * text_scale
-                + 0.4 * size;
+                + text_width
+                + if displayed.is_empty() {
+                    0.0
+                } else {
+                    0.4 * size
+                };
             render_metronome_mark(body, mark, mark_x, y, size);
         }
         let matching_figured_group = (styled.style == TextStyle::FiguredBass)
@@ -6514,23 +7187,58 @@ fn render_measure_text(
     if measure.tempo_text.is_none()
         && let Some(mark) = &measure.metronome_mark
     {
-        render_metronome_mark(
+        let size = 0.78 * space * text_scale;
+        let y = bottom_y - 8.0 * space;
+        let before = mark.written.as_ref().map_or("", |w| w.before.as_str());
+        let _ = write!(
             body,
-            mark,
-            content_x0,
-            bottom_y - 8.0 * space,
-            0.78 * space * text_scale,
+            r#"<text class="acorde-measure-text" x="{}" y="{}" font-family="serif" font-size="{}">{}</text>"#,
+            f(content_x0),
+            f(y),
+            f(size),
+            escape_xml(before)
         );
+        let mark_x = content_x0
+            + print_text_advance(before, size)
+            + if before.is_empty() { 0.0 } else { 0.4 * size };
+        render_metronome_mark(body, mark, mark_x, y, size);
     }
     Ok(text_clear)
 }
 
+fn print_text_advance(text: &str, size: f32) -> f32 {
+    if measured_print_active() {
+        (measure_text_width_u(text) - 0.7) * size / 0.78
+    } else {
+        text.chars().count() as f32 * (0.46 / 0.78) * size
+    }
+}
+
+pub(crate) fn metronome_equation(mark: &acorde_core::MetronomeMark) -> String {
+    let value = mark
+        .written
+        .as_ref()
+        .map_or_else(|| mark.per_minute.to_string(), |w| w.per_minute.clone());
+    let mut equation = if value.is_empty() {
+        String::new()
+    } else {
+        format!("={value}")
+    };
+    if mark.parentheses {
+        equation.push(')');
+    }
+    if let Some(written) = mark.written.as_ref().filter(|w| !w.after.is_empty()) {
+        if !equation.is_empty() {
+            equation.push(' ');
+        }
+        equation.push_str(&written.after);
+    }
+    equation
+}
+
 fn metronome_mark_width(mark: &acorde_core::MetronomeMark, size: f32) -> f32 {
-    let digits = mark.per_minute.to_string().len() as f32;
-    (1.7 + 0.55 * digits
-        + 0.25 * f32::from(mark.beat_unit_dots)
-        + if mark.parentheses { 0.55 } else { 0.0 })
-        * size
+    (1.12 + 0.25 * f32::from(mark.beat_unit_dots) + if mark.parentheses { 0.3 } else { 0.0 }) * size
+        + print_text_advance(&metronome_equation(mark), size)
 }
 
 fn render_metronome_mark(
@@ -6541,6 +7249,16 @@ fn render_metronome_mark(
     size: f32,
 ) {
     let parenthesis_width = if mark.parentheses { 0.3 * size } else { 0.0 };
+    let _ = write!(
+        body,
+        r#"<g class="acorde-metronome" data-beat-unit="{}" data-bpm="{}" data-print-left="{}" data-print-right="{}" data-print-top="{}" data-print-bottom="{}">"#,
+        mark.beat_unit.to_musicxml_type(),
+        mark.per_minute,
+        f(x),
+        f(x + metronome_mark_width(mark, size)),
+        f(y - 1.12 * size),
+        f(y + 0.3 * size)
+    );
     if mark.parentheses {
         let _ = write!(
             body,
@@ -6559,9 +7277,7 @@ fn render_metronome_mark(
     let fill = if open_head { "white" } else { "black" };
     let _ = write!(
         body,
-        r#"<g class="acorde-metronome" data-beat-unit="{}" data-bpm="{}"><ellipse cx="{}" cy="{}" rx="{}" ry="{}" transform="rotate(-20 {} {})" fill="{}" stroke="black" stroke-width="{}"/>"#,
-        mark.beat_unit.to_musicxml_type(),
-        mark.per_minute,
+        r#"<ellipse cx="{}" cy="{}" rx="{}" ry="{}" transform="rotate(-20 {} {})" fill="{}" stroke="black" stroke-width="{}"/>"#,
         f(head_x),
         f(head_y),
         f(0.24 * size),
@@ -6624,15 +7340,13 @@ fn render_metronome_mark(
         );
     }
     let equation_x = x + parenthesis_width + (1.12 + 0.25 * f32::from(mark.beat_unit_dots)) * size;
-    let closing = if mark.parentheses { ")" } else { "" };
     let _ = write!(
         body,
-        r#"<text x="{}" y="{}" font-family="serif" font-size="{}">={}{}</text></g>"#,
+        r#"<text x="{}" y="{}" font-family="serif" font-size="{}">{}</text></g>"#,
         f(equation_x),
         f(y),
         f(size),
-        mark.per_minute,
-        closing,
+        escape_xml(&metronome_equation(mark)),
     );
 }
 
@@ -6710,6 +7424,9 @@ fn measure_text_collision_y(context: &MeasureTextCollisionContext<'_>) -> f32 {
     };
     for (voice_idx, voice) in measure.voices.iter().enumerate() {
         for (note_idx, note) in voice.iter().enumerate() {
+            if measured_print_active() && note.cross_staff.is_some() {
+                continue;
+            }
             let Some(&(_, anchor_y, stem_up, _)) =
                 note_points.get(&(*part, *staff, *measure_idx, voice_idx, note_idx))
             else {
@@ -7058,14 +7775,14 @@ fn note_annotation_lane_width_u(note: &Note, above: bool) -> f32 {
         && above
         && let Some(chord) = &note.chord_symbol
     {
-        width = width.max(chord.display_text().chars().count() as f32 * ANNOTATION_CHAR_WIDTH_U);
+        width = width.max(annotation_text_width_u(&chord.display_text()));
     }
     if let Some(dynamic) = &note.dynamic {
         reserve_annotation_lane(
             &mut width,
             direction,
             above,
-            dynamic.to_musicxml_str().chars().count() as f32 * ANNOTATION_CHAR_WIDTH_U,
+            annotation_text_width_u(dynamic.to_musicxml_str()),
             true,
         );
     }
@@ -7074,7 +7791,7 @@ fn note_annotation_lane_width_u(note: &Note, above: bool) -> f32 {
             &mut width,
             direction,
             above,
-            text.chars().count() as f32 * ANNOTATION_CHAR_WIDTH_U,
+            annotation_text_width_u(text),
             true,
         );
     }
@@ -7085,11 +7802,11 @@ fn note_annotation_lane_width_u(note: &Note, above: bool) -> f32 {
                 &mut width,
                 direction,
                 above,
-                label.chars().count() as f32 * ANNOTATION_CHAR_WIDTH_U,
+                annotation_text_width_u(&label),
                 true,
             );
         } else if above {
-            width = width.max(label.chars().count() as f32 * ANNOTATION_CHAR_WIDTH_U);
+            width = width.max(annotation_text_width_u(&label));
         }
     }
     if note.fingering.is_some() || !note.fingerings.is_empty() {
@@ -7148,17 +7865,16 @@ fn note_annotation_width_u(note: &Note) -> f32 {
         width = width.max(lyric_width_u(&entry.lyric.text));
     }
     if let Some(chord) = &note.chord_symbol {
-        width = width.max(chord.display_text().chars().count() as f32 * ANNOTATION_CHAR_WIDTH_U);
+        width = width.max(annotation_text_width_u(&chord.display_text()));
     }
     if let Some(dynamic) = &note.dynamic {
-        width =
-            width.max(dynamic.to_musicxml_str().chars().count() as f32 * ANNOTATION_CHAR_WIDTH_U);
+        width = width.max(annotation_text_width_u(dynamic.to_musicxml_str()));
     }
     if let Some(text) = &note.technique_text {
-        width = width.max(text.chars().count() as f32 * ANNOTATION_CHAR_WIDTH_U);
+        width = width.max(annotation_text_width_u(text));
     }
     if let Some(label) = guitar_technique_label(note) {
-        width = width.max(label.chars().count() as f32 * ANNOTATION_CHAR_WIDTH_U);
+        width = width.max(annotation_text_width_u(&label));
     }
     if note.fingering.is_some() || !note.fingerings.is_empty() {
         width = width.max(0.42 * 3.0);
@@ -7319,7 +8035,7 @@ fn render_all_spans(
             SpanMark::Harmony { .. } => "harmony",
         };
         let slur_above = matches!(span, SpanMark::Slur { .. })
-            .then(|| spans::slur_above(score, layout, points, start, end, up1, up2));
+            .then(|| spans::slur_above(score, layout, points, start, end, up1, up2, span_index));
         if interactive {
             let _ = write!(
                 body,
@@ -7467,6 +8183,9 @@ fn render_all_spans(
                         },
                     );
                 }
+                if measured_print_active() {
+                    write_measured_slur_owner(body, score, start, end, row);
+                }
                 render_slur_ribbon(
                     body,
                     left,
@@ -7478,6 +8197,9 @@ fn render_all_spans(
                     above,
                     space,
                 );
+                if measured_print_active() {
+                    body.push_str("</g>");
+                }
             }
             if interactive {
                 body.push_str("</g>");
@@ -7566,6 +8288,10 @@ fn render_all_spans(
         let slur_anchors = slur_geometry.map(|geometry| geometry.0);
         let (slur_extreme, slur_clearance_control) =
             slur_geometry.map_or((None, None), |geometry| (geometry.1, geometry.2));
+        let measured_slur = measured_print_active() && matches!(span, SpanMark::Slur { .. });
+        if measured_slur {
+            write_measured_slur_owner(body, score, start, end, row1);
+        }
         render_same_row_span(
             body,
             span,
@@ -7581,6 +8307,9 @@ fn render_all_spans(
             slur_extreme,
             slur_clearance_control,
         );
+        if measured_slur {
+            body.push_str("</g>");
+        }
         if interactive {
             body.push_str("</g>");
         }
@@ -7788,6 +8517,7 @@ fn span_lane_baseline(span: &SpanMark, anchor_y: f32, stem_up: bool, space: f32)
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn write_hairpin_wedge(
     body: &mut String,
     x1: f32,
@@ -7796,6 +8526,7 @@ fn write_hairpin_wedge(
     halves: (f32, f32),
     space: f32,
     continuation: bool,
+    ownership: (&acorde_layout::NoteAddr, &acorde_layout::NoteAddr),
 ) {
     let (left_half, right_half) = halves;
     let continuation_attr = if continuation {
@@ -7803,9 +8534,27 @@ fn write_hairpin_wedge(
     } else {
         ""
     };
+    let owner_attr = if measured_print_active() {
+        let (a, b) = ownership;
+        format!(
+            " data-start-note-addr=\"{}:{}:{}:{}:{}\" data-end-note-addr=\"{}:{}:{}:{}:{}\"",
+            a.part,
+            a.staff,
+            a.measure,
+            a.voice,
+            a.note,
+            b.part,
+            b.staff,
+            b.measure,
+            b.voice,
+            b.note
+        )
+    } else {
+        String::new()
+    };
     let _ = write!(
         body,
-        r#"<path class="acorde-hairpin"{} d="M {},{} L {},{} M {},{} L {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
+        r#"<path class="acorde-hairpin"{}{owner_attr} d="M {},{} L {},{} M {},{} L {},{}" fill="none" stroke="black" stroke-width="{}"/>"#,
         continuation_attr,
         f(x1),
         f(y - left_half),
@@ -7821,6 +8570,43 @@ fn write_hairpin_wedge(
 
 /// A drawn slur as a quadratic: start, control and end points, and whether it bows upward.
 pub(crate) type SlurCurve = ((f32, f32), (f32, f32), (f32, f32), bool);
+
+fn write_measured_slur_owner(
+    body: &mut String,
+    score: &Score,
+    start: &acorde_layout::NoteAddr,
+    end: &acorde_layout::NoteAddr,
+    row: usize,
+) {
+    let physical_staff = |address: &acorde_layout::NoteAddr| {
+        score
+            .parts
+            .get(address.part)
+            .and_then(|p| p.staves.get(address.staff))
+            .and_then(|s| s.measures.get(address.measure))
+            .and_then(|m| m.voices.get(address.voice))
+            .and_then(|v| v.get(address.note))
+            .and_then(|n| n.cross_staff.as_ref())
+            .map_or(address.staff, |c| c.target_staff)
+    };
+    let _ = write!(
+        body,
+        "<g data-print-slur=\"true\" data-row=\"{row}\" data-part=\"{}\" data-staff=\"{}\" data-end-staff=\"{}\" data-start-note-addr=\"{}:{}:{}:{}:{}\" data-end-note-addr=\"{}:{}:{}:{}:{}\">",
+        start.part,
+        physical_staff(start),
+        physical_staff(end),
+        start.part,
+        start.staff,
+        start.measure,
+        start.voice,
+        start.note,
+        end.part,
+        end.staff,
+        end.measure,
+        end.voice,
+        end.note
+    );
+}
 
 /// Same-row slurs over `measure` whose end notes are already placed, and ties leaving the
 /// measure's notes, as quadratics, so measure text can keep clear of them. A tie whose next note
@@ -7895,7 +8681,7 @@ fn placed_slur_curves(
             }
         }
     }
-    for span in &layout.spans {
+    for (span_index, span) in layout.spans.iter().enumerate() {
         let SpanMark::Slur { start, end } = span else {
             continue;
         };
@@ -7911,7 +8697,7 @@ fn placed_slur_curves(
         if row1 != row2 || (x2 - x1).abs() < 0.6 * space {
             continue;
         }
-        let above = spans::slur_above(score, layout, points, start, end, up1, up2);
+        let above = spans::slur_above(score, layout, points, start, end, up1, up2, span_index);
         let (anchors, extreme, clearance) = same_row_slur_geometry(
             score,
             points,
@@ -8028,72 +8814,116 @@ fn same_row_slur_geometry(
         let (start_y, end_y) = slur_anchors;
         let mut extreme: Option<f32> = None;
         let mut control: Option<f32> = None;
-        for (key @ (part, staff, measure, voice, index), (x, y, stem_up, row)) in points {
-            if *part != start.part
-                || *staff < start.staff.min(end.staff)
-                || *staff > start.staff.max(end.staff)
-                || *row != row1
-            {
-                continue;
-            }
-            let Some(note) = score
-                .parts
-                .get(*part)
-                .and_then(|p| p.staves.get(*staff))
-                .and_then(|s| s.measures.get(*measure))
-                .and_then(|m| m.voices.get(*voice))
-                .and_then(|v| v.get(*index))
-            else {
-                continue;
-            };
-            if note.is_rest || note.hidden {
-                continue;
-            }
-            let select = |a: f32, b: f32| if above { a.min(b) } else { a.max(b) };
-            if *x >= x1.min(x2) && *x <= x1.max(x2) {
-                let note_y = *y + offset;
-                let value = if *stem_up == above {
-                    beam_tip_points
-                        .get(key)
-                        .map_or(note_y, |tip| select(note_y, tip + offset))
-                } else {
-                    note_y
+        for other_voice in [false, true] {
+            let own_control =
+                slur_control_y(above, (y1, y2), slur_anchors, extreme, control, space);
+            for (key @ (part, staff, measure, voice, index), (x, y, stem_up, row)) in points {
+                if *part != start.part
+                    || *staff < start.staff.min(end.staff)
+                    || *staff > start.staff.max(end.staff)
+                    || *row != row1
+                {
+                    continue;
+                }
+                if (*voice != start.voice && *voice != end.voice) != other_voice {
+                    continue;
+                }
+                let Some(note) = score
+                    .parts
+                    .get(*part)
+                    .and_then(|p| p.staves.get(*staff))
+                    .and_then(|s| s.measures.get(*measure))
+                    .and_then(|m| m.voices.get(*voice))
+                    .and_then(|v| v.get(*index))
+                else {
+                    continue;
                 };
-                extreme = Some(extreme.map_or(value, |a| select(a, value)));
-            }
-            if (right - left).abs() < f32::EPSILON {
-                continue;
-            }
-            // Beam tips sit at the stem, not at the notehead center.
-            let clearance_x = if *stem_up == above && beam_tip_points.contains_key(key) {
-                x + (if *stem_up { 1.0 } else { -1.0 })
-                    * glyphs::NOTEHEAD_RX_U
-                    * 0.92
-                    * if note.is_grace || note.is_cue {
-                        GRACE_SCALE
-                    } else {
-                        1.0
+                if note.is_rest || note.hidden {
+                    continue;
+                }
+                if other_voice && measured_print_active() {
+                    // A lower voice's authored upward slur may sit between voices.
+                    // A distant upper note must not force it over the entire staff.
+                    // Only an actual encounter with the provisional curve is an obstacle.
+                    let at = |px: f32| {
+                        let t = (px - left) / (right - left);
+                        (t > 0.0 && t < 1.0).then(|| {
+                            (1.0 - t).powi(2) * start_y
+                                + 2.0 * t * (1.0 - t) * own_control
+                                + t * t * end_y
+                        })
+                    };
+                    let offsets = pitch_offsets_from_anchor(
+                        note,
+                        score.parts[*part].staves[*staff].tablature.as_ref(),
+                        *stem_up,
+                        space,
+                    );
+                    let low = offsets.iter().copied().fold(*y, |a, dy| a.min(y + dy));
+                    let high = offsets.iter().copied().fold(*y, |a, dy| a.max(y + dy));
+                    let head_hit = at(*x).is_some_and(|curve_y| {
+                        curve_y >= low - 0.7 * space && curve_y <= high + 0.7 * space
+                    });
+                    let stem_x = x + if *stem_up { 1.0 } else { -1.0 }
+                        * glyphs::NOTEHEAD_RX_U
+                        * 0.92
+                        * space;
+                    let stem_hit = beam_tip_points.get(key).is_some_and(|tip| {
+                        at(stem_x).is_some_and(|curve_y| {
+                            curve_y >= low.min(*tip) - 0.2 * space
+                                && curve_y <= high.max(*tip) + 0.2 * space
+                        })
+                    });
+                    if !head_hit && !stem_hit {
+                        continue;
                     }
-                    * space
-            } else {
-                *x
-            };
-            let t = (clearance_x - left) / (right - left);
-            if !(t > 0.0 && t < 1.0) {
-                continue;
+                }
+                let select = |a: f32, b: f32| if above { a.min(b) } else { a.max(b) };
+                if *x >= x1.min(x2) && *x <= x1.max(x2) {
+                    let note_y = *y + offset;
+                    let value = if *stem_up == above {
+                        beam_tip_points
+                            .get(key)
+                            .map_or(note_y, |tip| select(note_y, tip + offset))
+                    } else {
+                        note_y
+                    };
+                    extreme = Some(extreme.map_or(value, |a| select(a, value)));
+                }
+                if (right - left).abs() < f32::EPSILON {
+                    continue;
+                }
+                // Beam tips sit at the stem, not at the notehead center.
+                let clearance_x = if *stem_up == above && beam_tip_points.contains_key(key) {
+                    x + (if *stem_up { 1.0 } else { -1.0 })
+                        * glyphs::NOTEHEAD_RX_U
+                        * 0.92
+                        * if note.is_grace || note.is_cue {
+                            GRACE_SCALE
+                        } else {
+                            1.0
+                        }
+                        * space
+                } else {
+                    *x
+                };
+                let t = (clearance_x - left) / (right - left);
+                if !(t > 0.0 && t < 1.0) {
+                    continue;
+                }
+                let remaining = 1.0 - t;
+                let desired_note = y + offset + side * 0.8 * space;
+                let desired = if *stem_up == above {
+                    beam_tip_points.get(key).map_or(desired_note, |tip| {
+                        select(desired_note, tip + offset + side * 0.6 * space)
+                    })
+                } else {
+                    desired_note
+                };
+                let value = (desired - remaining * remaining * start_y - t * t * end_y)
+                    / (2.0 * t * remaining);
+                control = Some(control.map_or(value, |a| select(a, value)));
             }
-            let remaining = 1.0 - t;
-            let desired_note = y + offset + side * 0.8 * space;
-            let desired = if *stem_up == above {
-                beam_tip_points.get(key).map_or(desired_note, |tip| {
-                    select(desired_note, tip + offset + side * 0.6 * space)
-                })
-            } else {
-                desired_note
-            };
-            let value =
-                (desired - remaining * remaining * start_y - t * t * end_y) / (2.0 * t * remaining);
-            control = Some(control.map_or(value, |a| select(a, value)));
         }
         (extreme, control)
     };
@@ -8118,12 +8948,21 @@ fn render_same_row_span(
 ) {
     let (left, right) = if x1 <= x2 { (x1, x2) } else { (x2, x1) };
     match span {
-        SpanMark::Hairpin { kind, .. } => {
+        SpanMark::Hairpin { kind, start, end } => {
             let y = y1;
             let crescendo = matches!(kind, acorde_core::HairpinKind::Crescendo);
             let left_half = if crescendo { 0.0 } else { 0.45 * space };
             let right_half = if crescendo { 0.45 * space } else { 0.0 };
-            write_hairpin_wedge(body, left, right, y, (left_half, right_half), space, false);
+            write_hairpin_wedge(
+                body,
+                left,
+                right,
+                y,
+                (left_half, right_half),
+                space,
+                false,
+                (start, end),
+            );
         }
         SpanMark::Slur { .. } => {
             if (x2 - x1).abs() < 0.6 * space {
@@ -8584,7 +9423,11 @@ fn render_span_segment(
     progress: (f32, f32),
 ) {
     match span {
-        SpanMark::Hairpin { kind, .. } => {
+        SpanMark::Hairpin {
+            kind,
+            start: start_addr,
+            end,
+        } => {
             let y = y1;
             let crescendo = matches!(kind, acorde_core::HairpinKind::Crescendo);
             let half_width = |t: f32| 0.45 * space * if crescendo { t } else { 1.0 - t };
@@ -8596,6 +9439,7 @@ fn render_span_segment(
                 (half_width(progress.0), half_width(progress.1)),
                 space,
                 true,
+                (start_addr, end),
             );
         }
         SpanMark::Slur { .. } => {
@@ -8857,7 +9701,7 @@ fn render_note(
         String::new()
     };
     let mut g = String::new();
-    if interactive {
+    if interactive || measured_print_active() {
         let _ = write!(
             g,
             r#"<g class="acorde-{kind}{special_class}" data-acorde-kind="{kind}" data-part="{part}" data-staff="{staff}" data-measure="{measure_idx}" data-voice="{voice_idx}" data-note="{note_idx}" data-note-addr="{addr}"{unpitched}{instrument_id}{percussion_head}{transform}{hidden}>"#,
@@ -8912,7 +9756,8 @@ fn render_note(
         tablature_rhythm_display,
         tablature_fret_mark_style,
     )?;
-    if tablature.is_none()
+    if !measured_print_active()
+        && tablature.is_none()
         && !note.is_rest
         && !note.is_unpitched
         && let Some(upward) = note.arpeggiate
@@ -8962,6 +9807,17 @@ fn write_arpeggio(
     };
     let (top, bottom) = (top - 0.6 * space, bottom + 0.6 * space);
     let line_x = x - (glyphs::NOTEHEAD_RX_U + 0.45 + accidental_footprint_u(note)) * space;
+    write_arpeggio_span(body, line_x, top, bottom, upward, space);
+}
+
+fn write_arpeggio_span(
+    body: &mut String,
+    line_x: f32,
+    top: f32,
+    bottom: f32,
+    upward: bool,
+    space: f32,
+) {
     let half_wave = 0.25 * space;
     let mut d = format!("M {} {}", f(line_x), f(top));
     let mut y = top;
@@ -8988,6 +9844,120 @@ fn write_arpeggio(
             f(line_x),
             f(bottom + 0.1 * space)
         );
+    }
+}
+
+/// MusicXML numbers join simultaneous rolled chords, including endpoints on
+/// different staves. Use final note geometry so clefs and cross-staff placement
+/// cannot shorten a group to the first chord member.
+fn render_grouped_arpeggios(
+    body: &mut String,
+    score: &Score,
+    points: &HashMap<NoteKey, NotePoint>,
+    space: f32,
+) {
+    struct Member {
+        left: f32,
+        top: f32,
+        bottom: f32,
+        group: Option<(u16, bool)>,
+    }
+    let mut onsets: std::collections::BTreeMap<(usize, usize, i64, i64), Vec<Member>> =
+        std::collections::BTreeMap::new();
+    for (p, part) in score.parts.iter().enumerate() {
+        for (s, staff) in part.staves.iter().enumerate() {
+            for (m, measure) in staff.measures.iter().enumerate() {
+                if staff.tablature_at(m).is_some() {
+                    continue;
+                }
+                for (v, voice) in measure.voices.iter().enumerate() {
+                    let mut beat = 0.0_f64;
+                    for (i, note) in voice.iter().enumerate() {
+                        let start = beat;
+                        beat += note.beats();
+                        if note.hidden || note.is_rest || note.is_unpitched {
+                            continue;
+                        }
+                        let Some(&(x, y, stem_up, _)) = points.get(&(p, s, m, v, i)) else {
+                            continue;
+                        };
+                        let positions: Vec<_> = note
+                            .pitches
+                            .iter()
+                            .map(|pitch| geometry::staff_position(&pitch.step, pitch.octave, 0))
+                            .collect();
+                        let Some(reference) = (if stem_up {
+                            positions.iter().min()
+                        } else {
+                            positions.iter().max()
+                        }) else {
+                            continue;
+                        };
+                        let mut top = f32::INFINITY;
+                        let mut bottom = f32::NEG_INFINITY;
+                        for position in positions.iter() {
+                            let py = y - (*position - *reference) as f32 * 0.5 * space;
+                            top = top.min(py);
+                            bottom = bottom.max(py);
+                        }
+                        let key = (
+                            p,
+                            m,
+                            (start * 1_000_000.0).round() as i64,
+                            if note.is_grace {
+                                (x * 100.0).round() as i64
+                            } else {
+                                0
+                            },
+                        );
+                        onsets.entry(key).or_default().push(Member {
+                            left: x
+                                - (glyphs::NOTEHEAD_RX_U + 0.45 + accidental_footprint_u(note))
+                                    * space,
+                            top,
+                            bottom,
+                            group: note
+                                .arpeggiate
+                                .map(|up| (note.arpeggio_number.unwrap_or(1), up)),
+                        });
+                    }
+                }
+            }
+        }
+    }
+    for ((part, measure, _, _), members) in onsets {
+        let mut groups = std::collections::BTreeMap::<(u16, bool), (f32, f32, f32)>::new();
+        for member in &members {
+            if let Some(group) = member.group {
+                let bounds =
+                    groups
+                        .entry(group)
+                        .or_insert((member.left, member.top, member.bottom));
+                bounds.0 = bounds.0.min(member.left);
+                bounds.1 = bounds.1.min(member.top);
+                bounds.2 = bounds.2.max(member.bottom);
+            }
+        }
+        for ((number, upward), (mut left, top, bottom)) in groups {
+            for member in &members {
+                if member.top <= bottom && member.bottom >= top {
+                    left = left.min(member.left);
+                }
+            }
+            let _ = write!(
+                body,
+                r#"<g data-arpeggio-number="{number}" data-part="{part}" data-measure="{measure}">"#
+            );
+            write_arpeggio_span(
+                body,
+                left,
+                top - 0.6 * space,
+                bottom + 0.6 * space,
+                upward,
+                space,
+            );
+            body.push_str("</g>");
+        }
     }
 }
 
@@ -10522,7 +11492,7 @@ pub(crate) fn write_annotation_text_with_lyric_size(
     let font_size = if class.starts_with("acorde-lyric") {
         lyric_font_size_u
     } else {
-        ANNOTATION_FONT_SIZE_U
+        annotation_font_size_u()
     };
     let _ = write!(
         body,
@@ -10568,12 +11538,20 @@ pub(crate) fn lyric_width_u(text: &str) -> f32 {
 }
 
 pub(crate) fn lyric_width_with_char_width_u(text: &str, char_width_u: f32) -> f32 {
+    #[cfg(feature = "font-metrics")]
+    if let Some(width) = crate::font_metrics::print_text_width(text, print_lyric_font_size_u()) {
+        return width + LYRIC_WIDTH_PADDING_U;
+    }
     text.chars().count() as f32 * char_width_u + LYRIC_WIDTH_PADDING_U
 }
 
 /// A lyric collision box: the glyphs plus a small gap. It is narrower than the
 /// spacing width so syllables spaced apart by the width estimate stay on one line.
 pub(crate) fn lyric_collision_width_with_char_width_u(text: &str, char_width_u: f32) -> f32 {
+    #[cfg(feature = "font-metrics")]
+    if let Some(width) = crate::font_metrics::print_text_width(text, print_lyric_font_size_u()) {
+        return width + 0.4;
+    }
     text.chars().count() as f32 * char_width_u + 0.4
 }
 
@@ -11289,6 +12267,23 @@ mod tests {
     };
     use acorde_layout::{LayoutConfig, SpanMark, compute_layout};
     use std::collections::HashMap;
+
+    #[test]
+    fn measured_accidentals_reserve_only_the_left_side_of_the_anchor() {
+        let mut score = Score::new("spacing", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] = vec![
+            Note::new(Pitch::new(Step::C, 4), Duration::Half),
+            Note::new(Pitch::new(Step::D, 4), Duration::Half),
+        ];
+        let empty = HashMap::new();
+        let plain = super::measured_columns(&score, 0, 4.0, &empty, &empty);
+        let accidental = HashMap::from([((0, 0, 0, 0, 0, 0), 1)]);
+        let marked = super::measured_columns(&score, 0, 4.0, &accidental, &empty);
+        // An accidental on the first note increases the opening clearance,
+        // while the distance to the following unaltered note stays identical.
+        assert!(marked.lead_u > plain.lead_u);
+        assert_eq!(marked.gaps, plain.gaps);
+    }
 
     #[test]
     fn figured_bass_standalone_accidental_uses_music_symbol() {

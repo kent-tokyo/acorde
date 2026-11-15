@@ -1,10 +1,22 @@
 # acorde-render-svg
 
 Pure Rust/WASM SVG rendering driven by `acorde-core` and `acorde-layout`. The renderer is
-deterministic, has no browser or DOM dependency, and never loads fonts. It exposes full-score,
+deterministic, has no browser or DOM dependency, and never reads font files. It exposes full-score,
 layout-aware, per-row, physical print-page, metadata, preflight, and annotation rendering APIs.
 
-Notation is emitted as font-independent geometry. Text, lyrics, chord symbols, and host annotation
+With the opt-in `font-metrics` feature, `engrave_print_pages(&score, &config, font_bytes)`
+measures text from a caller-supplied TrueType/OpenType face, chooses measured system
+breaks, resolves per-system height, and returns outlined page SVGs plus their exact
+`PrintLayoutResult`. It uses 1.8 mm staff space and 4.05 mm lyrics at scale 1.0;
+other scales return a typed error. `measures_per_system` is an upper bound (8 is the
+matched-size evaluation setting). Measured breaking/heights replace the legacy break
+selector and nominal system height within this explicit API. The legacy APIs keep
+their existing behavior. Bold and italic text use synthetic weight/slant of the
+provided face. Pass the returned layout and pages to `acorde_pdf::export_print_layout_pdf`
+for matching PDF geometry. See [the qualification protocol](../../docs/engraving-parity.md)
+for evidence and remaining limits; this feature does not yet carry an overall parity claim.
+
+The legacy APIs emit notation as font-independent geometry. Text, lyrics, chord symbols, and host annotation
 marks remain SVG text, so callers own font choice, font metrics, embedding, and publication
 typography. The renderer validates non-finite geometry, invalid XML characters, unsupported glyph
 requests, malformed TAB positions, and bounded annotation/text inputs before emitting SVG.

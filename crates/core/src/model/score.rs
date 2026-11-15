@@ -2345,9 +2345,26 @@ pub struct MetronomeMark {
     pub beat_unit: Duration,
     #[serde(default)]
     pub beat_unit_dots: u8,
+    /// Exact positive integer when available; zero when `written` contains a textual
+    /// or empty value. This is notation, never the playback tempo.
     pub per_minute: u16,
     #[serde(default)]
     pub parentheses: bool,
+    /// Source spelling and words surrounding the beat symbol. When present, these
+    /// runs replace the corresponding merged `Measure::tempo_text` on the page.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub written: Option<MetronomeText>,
+}
+
+/// Ordered text runs in a written metronome direction. An empty `per_minute`
+/// prints only the beat symbol; a range or qualified value stays textual.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MetronomeText {
+    pub per_minute: String,
+    #[serde(default)]
+    pub before: String,
+    #[serde(default)]
+    pub after: String,
 }
 
 /// A pedal direction at a score-time position within this staff's measure.
@@ -2730,6 +2747,9 @@ pub struct Note {
     /// Arpeggiate direction: `Some(true)` = up, `Some(false)` = down, `None` = none.
     #[serde(default)]
     pub arpeggiate: Option<bool>,
+    /// MusicXML group joining simultaneous arpeggiated chords across voices/staves.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub arpeggio_number: Option<u16>,
     /// Technique/style instruction attached to this note ("pizz.", "arco", "con sord.", etc.).
     #[serde(default)]
     pub technique_text: Option<String>,
@@ -2852,6 +2872,7 @@ impl Note {
             slur_start: false,
             slur_end: false,
             arpeggiate: None,
+            arpeggio_number: None,
             technique_text: None,
             glissando_start: false,
             glissando_end: false,
@@ -2917,6 +2938,7 @@ impl Note {
             slur_start: false,
             slur_end: false,
             arpeggiate: None,
+            arpeggio_number: None,
             technique_text: None,
             glissando_start: false,
             glissando_end: false,
@@ -5559,6 +5581,7 @@ fn note_content_eq(a: &Note, b: &Note) -> bool {
         && a.slur_start == b.slur_start
         && a.slur_end == b.slur_end
         && a.arpeggiate == b.arpeggiate
+        && a.arpeggio_number == b.arpeggio_number
         && a.tab_position == b.tab_position
         && a.tab_positions == b.tab_positions
         && a.guitar_technique == b.guitar_technique
@@ -7405,6 +7428,21 @@ mod tests {
     }
 
     #[test]
+    fn legacy_metronome_json_has_no_written_override() {
+        let original = MetronomeMark {
+            beat_unit: Duration::Quarter,
+            beat_unit_dots: 0,
+            per_minute: 120,
+            parentheses: false,
+            written: None,
+        };
+        let mut json = serde_json::to_value(&original).unwrap();
+        json.as_object_mut().unwrap().remove("written");
+        let restored: MetronomeMark = serde_json::from_value(json).unwrap();
+        assert_eq!(restored, original);
+    }
+
+    #[test]
     fn diff_and_patch_preserve_written_metronome_marks() {
         let a = Score::new("T", 120, 4, 4, 0, 1);
         let mut b = a.clone();
@@ -7413,6 +7451,11 @@ mod tests {
             beat_unit_dots: 0,
             per_minute: 69,
             parentheses: true,
+            written: Some(MetronomeText {
+                per_minute: "ca 69".into(),
+                before: "Moderato".into(),
+                after: String::new(),
+            }),
         });
         let changes = diff(&a, &b);
         assert!(changes.iter().any(|change| matches!(

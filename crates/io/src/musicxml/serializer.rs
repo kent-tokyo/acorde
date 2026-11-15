@@ -2102,8 +2102,11 @@ fn serialize_notations(
     }
     if let Some(dir) = note.arpeggiate {
         let dir_str = if dir { "up" } else { "down" };
+        let number = note
+            .arpeggio_number
+            .map_or_else(String::new, |n| format!(" number=\"{n}\""));
         xml.push_str(&format!(
-            "          <arpeggiate direction=\"{}\"/>\n",
+            "          <arpeggiate direction=\"{}\"{number}/>\n",
             dir_str
         ));
     }
@@ -2332,6 +2335,9 @@ fn push_tempo_direction(
     measure: Option<&acorde_core::Measure>,
 ) {
     let words = measure.and_then(|measure| measure.tempo_text.as_deref());
+    let written = measure
+        .and_then(|m| m.metronome_mark.as_ref())
+        .and_then(|m| m.written.as_ref());
     let attrs = words
         .and_then(|text| {
             measure.map(|measure| measure_text_direction_attrs(measure, TextStyle::Generic, text))
@@ -2341,16 +2347,33 @@ fn push_tempo_direction(
     if let Some((measure, text)) =
         measure.and_then(|measure| measure.tempo_text.as_deref().map(|text| (measure, text)))
     {
-        xml.push_str("        <direction-type>\n");
-        xml.push_str(&format!(
-            "          <words{}>{}</words>\n",
-            styled_text_position_attrs(measure_styled_text(measure, TextStyle::Generic, text)),
-            escape_xml(text)
-        ));
-        xml.push_str("        </direction-type>\n");
+        let before = written.map_or(text, |w| w.before.as_str());
+        if !before.is_empty() {
+            xml.push_str("        <direction-type>\n");
+            xml.push_str(&format!(
+                "          <words{}>{}</words>\n",
+                styled_text_position_attrs(measure_styled_text(measure, TextStyle::Generic, text)),
+                escape_xml(before)
+            ));
+            xml.push_str("        </direction-type>\n");
+        }
     }
     if let Some(mark) = measure.and_then(|measure| measure.metronome_mark.as_ref()) {
+        if words.is_none()
+            && let Some(written) = written.filter(|w| !w.before.is_empty())
+        {
+            xml.push_str(&format!(
+                "        <direction-type><words>{}</words></direction-type>\n",
+                escape_xml(&written.before)
+            ));
+        }
         push_metronome_type(xml, mark);
+        if let Some(written) = written.filter(|w| !w.after.is_empty()) {
+            xml.push_str(&format!(
+                "        <direction-type><words>{}</words></direction-type>\n",
+                escape_xml(&written.after)
+            ));
+        }
     } else if words.is_none()
         && let Some(bpm) = bpm
     {
@@ -2390,7 +2413,12 @@ fn push_metronome_type(xml: &mut String, mark: &acorde_core::MetronomeMark) {
     }
     xml.push_str(&format!(
         "            <per-minute>{}</per-minute>\n",
-        mark.per_minute
+        escape_xml(
+            &mark
+                .written
+                .as_ref()
+                .map_or_else(|| mark.per_minute.to_string(), |w| w.per_minute.clone())
+        )
     ));
     xml.push_str("          </metronome>\n");
     xml.push_str("        </direction-type>\n");

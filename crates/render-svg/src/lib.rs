@@ -28,9 +28,19 @@
 mod annotations;
 mod beams;
 mod collision;
+#[cfg(feature = "font-metrics")]
+mod font_metrics;
 mod geometry;
 mod glyphs;
+#[cfg(feature = "font-metrics")]
+mod lyric_connections;
+#[cfg(feature = "font-metrics")]
+mod measured_print;
+#[cfg(feature = "font-metrics")]
+mod outline_text;
 mod print;
+#[cfg(feature = "font-metrics")]
+mod print_preflight;
 mod render;
 mod smufl;
 mod spans;
@@ -49,6 +59,12 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::ops::Deref;
 
+#[cfg(feature = "font-metrics")]
+pub use font_metrics::{FontMetricsError, TextFont, TextRunMetrics};
+#[cfg(feature = "font-metrics")]
+pub use measured_print::{MeasuredEngravingError, MeasuredPrintOutput, engrave_print_pages};
+#[cfg(feature = "font-metrics")]
+pub use outline_text::OutlineTextError;
 pub use print::{PrintRenderError, render_print_page_svgs, render_print_page_svgs_with_glyphs};
 
 /// Version of the browser-facing [`RenderMetadata`] contract.
