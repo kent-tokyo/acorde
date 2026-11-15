@@ -10,12 +10,20 @@ use super::ensemble_form_development::{
 };
 use super::ensemble_roles::{EnsembleRole, EnsembleRolePart};
 use super::inner_voices::{InnerVoicesError, InnerVoicesRequest, arrange_inner_voices};
+use super::inner_voices_performance::{
+    InnerVoiceRepeatJoin, InnerVoicesPerformanceError, arrange_inner_voices_performance,
+};
 use super::notation::Dynamic;
 use super::score::{NoteAddr, Score};
 
 pub const FORM_INNER_VOICES_CONTRACT_VERSION: u16 = 1;
 pub const FORM_INNER_VOICES_ENGINE_VERSION: &str =
     concat!(env!("CARGO_PKG_VERSION"), "+form-inner-voices.1");
+pub const FORM_INNER_VOICES_PERFORMANCE_CONTRACT_VERSION: u16 = 1;
+pub const FORM_INNER_VOICES_PERFORMANCE_ENGINE_VERSION: &str = concat!(
+    env!("CARGO_PKG_VERSION"),
+    "+form-inner-voices-performance.1"
+);
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -49,6 +57,31 @@ pub struct FormInnerVoicesResult {
     pub dynamic_marks: Vec<NoteAddr>,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ResolvedFormInnerVoicesPerformance {
+    pub contract_version: u16,
+    pub engine_version: String,
+    pub source_fingerprint: String,
+    pub request: FormInnerVoicesRequest,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FormInnerVoicesPerformanceResult {
+    /// The compact score retains authored repeats and form sections.
+    pub written_score: Score,
+    /// Exportable score in playback order, with visit-specific inner pitches.
+    pub performance_score: Score,
+    pub written_measures_by_visit: Vec<usize>,
+    pub resolved: ResolvedFormInnerVoicesPerformance,
+    pub role_parts: Vec<EnsembleRolePart>,
+    pub inner_part: usize,
+    /// One report per playback visit, in performance-score order.
+    pub performance_measures: Vec<EnsembleFormMeasure>,
+    pub inner_dynamic_marks: Vec<NoteAddr>,
+    pub repeat_back_joins: Vec<InnerVoiceRepeatJoin>,
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum FormInnerVoicesError {
     #[error("inner-voice form request is inconsistent")]
@@ -66,6 +99,26 @@ pub enum FormInnerVoicesError {
     #[error("inner-voice form source mismatch")]
     SourceMismatch,
     #[error("invalid generated score")]
+    InvalidOutput,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum FormInnerVoicesPerformanceError {
+    #[error("written inner-voice form failed: {0}")]
+    Written(#[from] FormInnerVoicesError),
+    #[error("form realization failed: {0}")]
+    Form(#[from] EnsembleFormDevelopmentError),
+    #[error("inner-voice performance failed: {0}")]
+    Performance(#[from] InnerVoicesPerformanceError),
+    #[error("inner voice collides with {role:?} at playback visit {visit}")]
+    Collision { role: EnsembleRole, visit: usize },
+    #[error("generated attack density exceeded at playback visit {0}")]
+    Density(usize),
+    #[error("unsupported inner-voice form performance contract")]
+    UnsupportedContract,
+    #[error("inner-voice form performance source mismatch")]
+    SourceMismatch,
+    #[error("invalid generated performance score")]
     InvalidOutput,
 }
 
@@ -268,4 +321,199 @@ pub fn replay_form_inner_voices(
         return Err(FormInnerVoicesError::SourceMismatch);
     }
     arrange_form_inner_voices(source, &resolved.request)
+}
+
+fn attack_count(score: &Score, part: usize, visit: usize) -> Option<usize> {
+    let bar = score.parts.get(part)?.staves.first()?.measures.get(visit)?;
+    Some(
+        bar.voices
+            .iter()
+            .flat_map(|voice| voice.iter())
+            .filter(|note| !note.is_rest && !note.tie_end)
+            .count(),
+    )
+}
+
+fn mark_inner_visit(
+    score: &mut Score,
+    part: usize,
+    visit: usize,
+    level: Option<Dynamic>,
+) -> Result<(usize, Option<NoteAddr>), FormInnerVoicesPerformanceError> {
+    let bar = score
+        .parts
+        .get_mut(part)
+        .and_then(|part| part.staves.first_mut())
+        .and_then(|staff| staff.measures.get_mut(visit))
+        .ok_or(FormInnerVoicesPerformanceError::InvalidOutput)?;
+    let mut attacks = 0;
+    let mut first = None;
+    for voice in 0..2 {
+        let events = bar
+            .voices
+            .get(voice)
+            .ok_or(FormInnerVoicesPerformanceError::InvalidOutput)?;
+        let mut onset = 0.0;
+        for (note, event) in events.iter().enumerate() {
+            if !event.is_rest && !event.tie_end {
+                attacks += 1;
+                if first.as_ref().is_none_or(|(best, _)| onset < *best) {
+                    first = Some((
+                        onset,
+                        NoteAddr {
+                            part,
+                            staff: 0,
+                            measure: visit,
+                            voice,
+                            note,
+                        },
+                    ));
+                }
+            }
+            onset += event.beats();
+        }
+    }
+    if let (Some(level), Some((_, address))) = (level, first.as_ref()) {
+        let event = bar
+            .voices
+            .get_mut(address.voice)
+            .and_then(|voice| voice.get_mut(address.note))
+            .ok_or(FormInnerVoicesPerformanceError::InvalidOutput)?;
+        event.dynamic = Some(level);
+    }
+    Ok((attacks, level.and(first.map(|(_, address)| address))))
+}
+
+/// Preserve the sectioned written form and generate an export score that
+/// chooses each inner-voice entrance in playback order. Every visit is checked
+/// against the form's role spacing, dynamic and total density constraints.
+pub fn arrange_form_inner_voices_performance(
+    source: &Score,
+    request: &FormInnerVoicesRequest,
+) -> Result<FormInnerVoicesPerformanceResult, FormInnerVoicesPerformanceError> {
+    let written = arrange_form_inner_voices(source, request)?;
+    let base = arrange_ensemble_form_development(source, &request.form)?;
+    let mut inner_request = request.inner.clone();
+    inner_request.active_measures = written
+        .measures
+        .iter()
+        .map(|measure| {
+            request
+                .section_levels
+                .get(measure.section_index)
+                .is_some_and(Option::is_some)
+        })
+        .collect();
+    inner_request.phrase_end_measures = request.form.form.phrase_end_measures.clone();
+    let performance = arrange_inner_voices_performance(&base.score, inner_request)?;
+    let mut output = performance.performance_score;
+    if output.parts.len() != written.score.parts.len() {
+        return Err(FormInnerVoicesPerformanceError::InvalidOutput);
+    }
+    for (part, compact) in output.parts.iter_mut().zip(&written.score.parts) {
+        part.id.clone_from(&compact.id);
+    }
+    let inner_part = performance.added_part;
+    let mut reports = Vec::with_capacity(performance.written_measures_by_visit.len());
+    let mut marks = Vec::new();
+    for (visit, &physical) in performance.written_measures_by_visit.iter().enumerate() {
+        let mut report = base
+            .measures
+            .get(physical)
+            .cloned()
+            .ok_or(FormInnerVoicesPerformanceError::InvalidOutput)?;
+        let level = *request
+            .section_levels
+            .get(report.section_index)
+            .ok_or(FormInnerVoicesPerformanceError::InvalidOutput)?;
+        let inner_spans = spans(&output, inner_part, visit);
+        for role_part in &base.role_parts {
+            let peer = spans(&output, role_part.part_index, visit);
+            let collision = match role_part.role {
+                EnsembleRole::Bass => crosses(
+                    &peer,
+                    &inner_spans,
+                    request.form.form.ensemble.min_bass_harmony_gap_semitones,
+                ),
+                EnsembleRole::Countermelody => crosses(
+                    &inner_spans,
+                    &peer,
+                    request
+                        .form
+                        .form
+                        .ensemble
+                        .min_harmony_countermelody_gap_semitones,
+                ),
+                EnsembleRole::Harmony => true,
+            };
+            if collision {
+                return Err(FormInnerVoicesPerformanceError::Collision {
+                    role: role_part.role,
+                    visit,
+                });
+            }
+            let count = attack_count(&output, role_part.part_index, visit)
+                .ok_or(FormInnerVoicesPerformanceError::InvalidOutput)?;
+            match role_part.role {
+                EnsembleRole::Bass => report.bass_attacks = count,
+                EnsembleRole::Countermelody => report.countermelody_attacks = count,
+                EnsembleRole::Harmony => {}
+            }
+        }
+        let (attacks, mark) = mark_inner_visit(&mut output, inner_part, visit, level)?;
+        report.harmony_attacks = attacks;
+        if let Some(mark) = mark {
+            marks.push(mark);
+        }
+        let total = report.harmony_attacks + report.bass_attacks + report.countermelody_attacks;
+        if request
+            .form
+            .form
+            .ensemble
+            .max_generated_attacks_per_measure
+            .is_some_and(|limit| total > limit)
+        {
+            return Err(FormInnerVoicesPerformanceError::Density(visit));
+        }
+        reports.push(report);
+    }
+    if !super::validate::validate(&output).is_valid() {
+        return Err(FormInnerVoicesPerformanceError::InvalidOutput);
+    }
+    let source_fingerprint = written.resolved.source_fingerprint;
+    Ok(FormInnerVoicesPerformanceResult {
+        written_score: written.score,
+        performance_score: output,
+        written_measures_by_visit: performance.written_measures_by_visit,
+        resolved: ResolvedFormInnerVoicesPerformance {
+            contract_version: FORM_INNER_VOICES_PERFORMANCE_CONTRACT_VERSION,
+            engine_version: FORM_INNER_VOICES_PERFORMANCE_ENGINE_VERSION.into(),
+            source_fingerprint,
+            request: request.clone(),
+        },
+        role_parts: base.role_parts,
+        inner_part,
+        performance_measures: reports,
+        inner_dynamic_marks: marks,
+        repeat_back_joins: performance.repeat_back_joins,
+    })
+}
+
+pub fn replay_form_inner_voices_performance(
+    source: &Score,
+    resolved: &ResolvedFormInnerVoicesPerformance,
+) -> Result<FormInnerVoicesPerformanceResult, FormInnerVoicesPerformanceError> {
+    if resolved.contract_version != FORM_INNER_VOICES_PERFORMANCE_CONTRACT_VERSION
+        || resolved.engine_version != FORM_INNER_VOICES_PERFORMANCE_ENGINE_VERSION
+    {
+        return Err(FormInnerVoicesPerformanceError::UnsupportedContract);
+    }
+    if fingerprint(source).as_deref() != Some(resolved.source_fingerprint.as_str()) {
+        return Err(FormInnerVoicesPerformanceError::SourceMismatch);
+    }
+    let result = arrange_form_inner_voices_performance(source, &resolved.request)?;
+    if result.resolved != *resolved {
+        return Err(FormInnerVoicesPerformanceError::UnsupportedContract);
+    }
+    Ok(result)
 }

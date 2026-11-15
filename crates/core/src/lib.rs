@@ -131,9 +131,13 @@ pub use model::ensemble_form_development::{
     replay_ensemble_form_development,
 };
 pub use model::ensemble_form_inner_voices::{
-    FORM_INNER_VOICES_CONTRACT_VERSION, FORM_INNER_VOICES_ENGINE_VERSION, FormInnerVoicesError,
+    FORM_INNER_VOICES_CONTRACT_VERSION, FORM_INNER_VOICES_ENGINE_VERSION,
+    FORM_INNER_VOICES_PERFORMANCE_CONTRACT_VERSION, FORM_INNER_VOICES_PERFORMANCE_ENGINE_VERSION,
+    FormInnerVoicesError, FormInnerVoicesPerformanceError, FormInnerVoicesPerformanceResult,
     FormInnerVoicesRequest, FormInnerVoicesResult, ResolvedFormInnerVoices,
-    arrange_form_inner_voices, replay_form_inner_voices,
+    ResolvedFormInnerVoicesPerformance, arrange_form_inner_voices,
+    arrange_form_inner_voices_performance, replay_form_inner_voices,
+    replay_form_inner_voices_performance,
 };
 pub use model::ensemble_form_proposals::{
     EnsembleFormProposalCandidate, EnsembleFormProposalRequest, EnsembleFormProposalResult,
