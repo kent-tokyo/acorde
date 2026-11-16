@@ -143,8 +143,8 @@ fn scheduled_harmony_bass_and_countermelody_replay_through_json() {
     );
 
     let mut tied = source;
-    for measure in 1..4 {
-        tied.parts[0].staves[0].measures[measure].voices[0][0]
+    for measure in tied.parts[0].staves[0].measures.iter_mut().take(4).skip(1) {
+        measure.voices[0][0]
             .pitches
             .push(acorde_core::Pitch::from_midi(88, false));
     }
