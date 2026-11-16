@@ -2,6 +2,227 @@
 
 ## [Unreleased]
 
+- Add opt-in phrase-entry leap bounds to rhythmic ensemble-form development
+  in Rust and full/viewer WASM. Adjacent active countermelody phrases retain
+  their prior ending pitch for the next chord-tone choice; impossible joins
+  fail atomically with a measure diagnostic. Saved contracts replay the bound,
+  while the original call and its JSON contract keep their prior behavior.
+
+- Add opt-in `suggest_developed_form_proposals` and replay in Rust and
+  full/viewer WASM. Select three to five source-bound sectional scores from
+  form profiles and source-rhythm countermelody treatments, deduplicate their
+  generated playback, and report failed combinations with form diagnostics.
+
+- Add opt-in `arrange_ensemble_form_development` and source-bound replay in
+  Rust and full/viewer WASM. Source-rhythm countermelody transformations now
+  follow written section activity and dynamics alongside harmony and bass;
+  density and vertical collision checks can reject a developed form atomically.
+
+- Add opt-in source-rhythm countermelody development and replay in Rust and
+  full/viewer WASM. Imitation, inversion, augmentation, diminution and answer
+  treatments retain motif note/rest durations, stay within chord and melody
+  clearance constraints, and return a source-bound resolved contract. Existing
+  countermelody calls retain their previous score and JSON behavior.
+
+- Add opt-in `suggest_ensemble_form_proposals` and source-bound replay in Rust
+  and full/viewer WASM. Three to five whole-piece proposals vary role entrances,
+  section textures, dynamics and attack shape. Candidates are deduplicated by
+  generated playback events; collided countermelody sections are omitted with
+  their indices recorded in the resolved contract. Invalid or insufficient
+  requests return a typed error without a partial proposal set.
+
+- Add authored bass rhythm sections to `arrange_bass_line` and `FormBass`.
+  Composable note/rest slots choose chord-relative tones, duration and accents,
+  including walking motion, syncopation, ostinato, anticipation and phrase-end
+  fills. Bars close at their actual length, mid-bar chord changes split slots,
+  and invalid plans return no partial score.
+
+- Add explicit parallel-mode borrowed and short chromatic passing chord targets
+  to phrase-harmony search. Passing diminished chords require free bass and
+  connect neighboring roots by semitone in one direction. Both targets respect
+  locks, change budgets and source-bound resolved chord plans; unsupported or
+  conflicting targets return no candidate.
+
+- Add opt-in `arrange_ensemble_form_visits_score` and replay in Rust and
+  full/viewer WASM. Repeat visits are unfolded into a separate exportable
+  performance score with the selected generated variation. The function
+  checks that playback equals the visit-specific event contract and rejects
+  source-level references it cannot relocate safely.
+
+- Add explicit root-motion cadence targets to phrase-harmony requests. The
+  bounded progression search can require dominant–tonic, subdominant–tonic or
+  dominant arrival at caller-selected harmonic positions. Candidates,
+  including supplied source plans, must satisfy the target; contradictory
+  locks return no candidate. The source score and replay fingerprint remain
+  unchanged.
+
+- Add explicit `local_keys` to phrase-harmony requests. Bounded major/minor key
+  regions override written keys only during chord search; the original score
+  and candidate replay fingerprint remain unchanged. Regions must start and
+  end on harmonic bar boundaries and are returned with the result.
+
+- Extend opt-in `suggest_phrase_harmony` with explicit source-entry reanchoring.
+  New chord positions can split or merge old regions while preserving mapped
+  spelling, bass and source references. Locked original regions retain their
+  exact boundaries and chord. Omitted source entries are reported, and the
+  changed-region budget is checked against the original plan after reanchoring.
+
+- Add opt-in `suggest_phrase_harmony` to Rust and full/viewer WASM. Callers
+  choose chord-change pace by complete phrase ranges, including two changes at
+  compound or irregular meter-group boundaries. Existing source-plan chords
+  and locks are retained only when their positions match the requested pace;
+  otherwise the request returns an atomic diagnostic. This initial API uses
+  the existing progression vocabulary and does not change the score model.
+
+- Add opt-in `arrange_ensemble_form_visits` and replay in Rust and full/viewer
+  WASM. A second written-measure visit can select another generated texture and
+  dynamic while retaining the original melody events and a separate written
+  base score. The source-bound contract rejects invalid visit indices,
+  unchanged alternatives, incompatible parts and ambiguous event timing.
+
+- Add opt-in `arrange_ensemble_form` and `replay_ensemble_form` in Rust and
+  full/viewer WASM. An explicit whole-piece plan coordinates generated role
+  entrances, harmony and bass patterns, phrase endings and per-section dynamics.
+  Source-bound, versioned replay retains the source parts. Invalid plans and
+  downstream realization failures return no partial score or reports. A written
+  bar retains its treatment on every repeat visit in this initial contract.
+
+- Add opt-in `suggest_arrangement_proposals` to Rust and full/viewer WASM. It
+  combines source-bound chord plans with seven bounded ensemble profiles,
+  returns three to five distinct scores or an atomic diagnostic, reports
+  written note-event difference axes and replays each resolved proposal.
+  `regenerate_arrangement_region` replaces a selected physical-measure range
+  while retaining source parts, locked roles/measures and generated measures
+  outside the range; it also validates locked source harmonic spans. A selected
+  region can add or rest a countermelody, and crossing ties are rejected.
+  Deduplication distinguishes tied
+  sustain, reattack and articulation, and changed-measure reports ignore note IDs.
+  When a countermelody is supplied, three-candidate requests try answer
+  textures early enough to expose an orchestration alternative. Proposal
+  features include per-measure generated attack counts.
+
+- Add opt-in `arrange_ensemble_roles` to Rust and full/viewer WASM. It composes
+  independent chordal-pad, bass and motif-derived countermelody parts around
+  unchanged source parts, with separate measure activity for each role, pairwise
+  register checks and a
+  per-measure generated-attack limit. Invalid sections, collisions and density
+  violations return diagnostics without a partial score. The resolved schedule
+  replays the same note pitches and timing. Standalone `arrange_countermelody`
+  extracts a short source-melody contour, realizes it with chord tones and
+  bounded melody clearance, and reports its resolved motif and generated notes.
+  `arrange_ensemble_with_melody` creates a separate performance score that can
+  rest a selected source melody staff in scheduled measures while the generated
+  countermelody takes over; the input score remains unchanged. Optional authored
+  countermelody phrase endings reduce attacks and invert the following phrase.
+
+- Extend explicit free-bass harmony realization to suspended second/fourth,
+  major/minor added ninth and half-diminished chords in presets, chordal pad
+  and independent bass. MusicXML and MSCZ round trips retain these kinds;
+  standard-bass presets continue to reject unavailable button qualities.
+  `ChordProposalRequest.max_changed_spans` optionally limits reharmonization
+  to 0–16 source harmonic regions while retaining locks and unchanged source
+  provenance. Opt-in `contextual_nonchord_tones` reduces the proposal weight
+  of short weak passing/neighboring notes and resolving suspensions. Both
+  selections are recorded in resolved proposals.
+
+- Add opt-in `arrange_bass_line` to Rust and full/viewer WASM. It appends an
+  independent GM bass part with root pulses, root/fifth alternation or a
+  chromatic approach into the next chord, including changes across barlines.
+  It composes with chordal pad parts and preserves the source score; register,
+  channel and rhythm errors return no partial score. Results report bass attack
+  count and absolute semitone movement in written and repeat-expanded order.
+
+- Add opt-in `arrange_chordal_pad` to Rust and full/viewer WASM. It appends a
+  polyphonic GM chord part to a validated score, including a multi-part score,
+  without replacing or rewriting existing parts. Explicit harmony can be held,
+  reattacked each beat or offbeat, or played as an up-down eighth-note arpeggio.
+  Optional, non-overlapping physical-measure sections switch these textures
+  within one score while preserving chord changes and the source parts.
+  Optional `smooth` voicing chooses close inversions in written chord order
+  to reduce movement between adjacent chord changes; the default remains
+  root position. `open` voicing spreads an inner chord tone up an octave,
+  choosing an in-range inversion or reporting that the requested range cannot
+  fit it. Optional `min_melody_gap_semitones` and `melody_part_index` constrain
+  every chord region beneath all timed notes in a selected source staff.
+  Results report selected voicings and symmetric nearest-tone movement in
+  written and repeat-expanded playback order, including backward jumps.
+  Opt-in `global-smooth` uses bounded coordinate search to select close
+  inversions against the expanded playback graph while respecting the chosen
+  register and melody clearance.
+  `meter-pulse` follows compound or irregular beat groups, with accented
+  attacks and rests. Authored phrase-ending measures hold the final two groups
+  while preserving chord changes; resolved groups and start ticks are reported.
+  Register and MIDI-channel checks,
+  exact note splits and structured diagnostics prevent partial output.
+
+- Add `arrange_sections_with_dynamics` to Rust and full/viewer WASM. Callers
+  set sustained accompaniment dynamics over written measure ranges, separately
+  from pattern and melodic-voice sections. Staff-local markings change left-hand
+  playback velocity and survive repeats without changing the source melody.
+  Silent measures have no mark; invalid ranges and accent-only dynamics return
+  diagnostics without a partial score.
+
+- Add opt-in `arrange_with_response_fills` to Rust and full/viewer WASM.
+  Callers select authored two-beat melody rests; the generator places one
+  quarter-note chord tone in the second half of each rest, considering the
+  neighboring melody notes and the chord active at its onset. Source melody,
+  accompaniment and chord plan are preserved. Invalid or unplayable requests
+  return diagnostics without a partial score.
+
+- Add `arrange_sections_with_melodic_voices` to Rust and full/viewer WASM.
+  Right-hand harmony can switch independently of accompaniment by physical
+  measure, including unison-free rests, thirds, sixths and octaves below the
+  original melody. Invalid ranges or incompatible chord tones yield no partial
+  score. Existing layer and section APIs keep their output behavior.
+
+- Add opt-in `suggest_chord_plans_at_positions` to Rust and full/viewer WASM.
+  Callers can select exact chord-change positions inside bars for melody-only
+  proposals; invalid positions return no candidates. The existing one-chord-
+  per-bar and source-plan behavior, candidate replay and score schema remain
+  unchanged.
+
+- Add optional `min_melody_gap_semitones` to both free-bass voicing APIs.
+  Block-chord candidates stay below all overlapping right-hand voices for
+  their full written duration; effective ceilings are reported per voicing.
+  Impossible constraints return diagnostics without a partial score. Omitted
+  or null gaps preserve the existing search and serialized voicing shape.
+
+- Add `suggest_chord_plans_with_locks` to Rust and full/viewer WASM for partial
+  reharmonization. Selected source-plan entries become hard progression-search
+  constraints, retaining chord spelling, slash bass, boundaries and provenance.
+  Invalid locks return no candidates; empty locks preserve existing results.
+  Existing request/resolved-plan fields and saved-plan replay remain unchanged.
+
+- Add `arrange_sections_with_voice_leading` to Rust and full/viewer WASM.
+  It combines explicit accompaniment sections with the shared free-bass chord
+  voicing search, preserving melodic patterns, rests, melody and bass attacks.
+  Motion reports follow block-chord attacks across section and repeat edges;
+  invalid constraints return no partial score or section/voicing mappings.
+
+- Add `arrange_with_sections` to Rust and full/viewer WASM for explicit
+  measure-range accompaniment changes and rests. Generation preserves the
+  source melody, pickups, meter changes, harmony carry, repeats and endings.
+  Resolved per-measure patterns and notated-swing measures accompany the score;
+  invalid or overlapping sections return no partial arrangement. Existing
+  single-pattern APIs retain their behavior.
+
+- Add opt-in `arrange_with_voice_leading` to Rust and full/viewer WASM. It
+  repositions generated free-bass block-chord tones within a caller range and
+  span, preserving melody, harmony, bass pitches and rhythm. The bounded search
+  includes repeat-back transitions and reports original/selected voicings and
+  motion costs. Existing arrangement APIs keep their output behavior; fixed
+  standard-bass buttons and melodic bass patterns are outside this API's scope.
+
+- Chord proposals now evaluate the whole written progression with duration- and
+  meter-weighted melody evidence, cadence preferences and a change penalty for
+  simplified harmony. Jazz proposals distinguish dominant from major sevenths
+  and can use applied dominants that resolve in the following region. Generated
+  IDs are `conservative-v2`, `simplified-v2` and `jazz-color-v2`; supplied harmony
+  and replay of saved v1 plans are preserved. Standard-bass proposals exclude
+  unavailable chord qualities during search. The existing Rust/WASM proposal,
+  accompaniment and replay APIs use the new search without a score-schema change.
+
+
 ## 1.3.13 - 2026-11-15
 
 - **Migration:** Analysis result schema and cache keys advance from 13 to 14;

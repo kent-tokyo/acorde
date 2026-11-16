@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-17",
+  "stage": 0,
+  "state": "local-validation-passed-ci-pending",
+  "main_base": "b12bf625",
+  "development_base": "c6a47d4e62b23738f1f9549e40714b36be8e98c8",
+  "build_environment": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_BUILD_JOBS": "2",
+    "rustc": "1.97.0 (2d8144b78 2026-07-07)"
+  },
+  "checks": {
+    "tests": {
+      "log_sha256": "4cadfb340f05c10b006029153fbb18242bc595e7b87ac6cc532588bf514b87bc",
+      "passed_tests": 2528
+    },
+    "clippy": {
+      "log_sha256": "503d70d9fa512223b24d9ea0f5ecc17dc7ff01867e47ba3c352cda8f6e1938f0",
+      "passed_tests": 0
+    },
+    "full-wasm": {
+      "log_sha256": "acb654e331059a6bcebef50ef7e49b58e327250c5826066451565316ddad4e87",
+      "passed_tests": 107
+    },
+    "viewer-wasm": {
+      "log_sha256": "84a850bf2fc5e47ade96a5919c7bd22e38f3f7272435e511d0a5cdb57053b714",
+      "passed_tests": 104
+    }
+  },
+  "baseline_packs": {
+    "sources": {
+      "count": 12,
+      "comparison": "exact manifest match",
+      "pinned_manifest": "tests/fixtures/arrangement/development-v2-manifest.json",
+      "sha256": "0321a4be33aec3ffb32099316096ca21fdfa6ebb1effb44d3d4725ec71eaa521"
+    },
+    "proposals": {
+      "count": 36,
+      "comparison": "exact manifest match",
+      "pinned_manifest": "tests/fixtures/arrangement/development-v2-proposals-manifest.json",
+      "sha256": "f62ccedab0d117c89e84c1a25f31e043688c4935a3e81a138fd085927cf5480b"
+    },
+    "forms": {
+      "baseline_engine_version": "1.3.12+ensemble-form.1",
+      "baseline_manifest_sha256": "beab90959fbf8c2d834cdd8115eb579ab2c00cee5066292ef4a4919521849f27",
+      "candidates": 60,
+      "current_engine_version": "1.3.13+ensemble-form.1",
+      "generated_manifest_sha256": "d39e5ba01c9eeab6381370c8f6a0cd85895b5adf31829466dd727220621281bc",
+      "musicxml_and_wav": "exact-sha256-match",
+      "resolved_comparison": "only-form.engine_version-normalized",
+      "schema_version": 1
+    }
+  },
+  "audio": {
+    "sample_rate_hz": 22050,
+    "channels": 1,
+    "release_tail_millis": 500,
+    "program": 0,
+    "normalization": "none",
+    "renderer": "acorde-rustysynth-sf2-v1",
+    "soundfont_sha256": "cf2a98eb38a32c4954b4b6e2caae4112d62dd8e892eceefdd7942b0e7d01ac2f"
+  },
+  "remaining": [
+    "hosted macOS/Linux/Windows CI",
+    "matched optimized WASM size",
+    "new harmony-groove generation and listening comparison"
+  ]
+}

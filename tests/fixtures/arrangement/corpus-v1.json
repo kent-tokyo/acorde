@@ -1,0 +1,13 @@
+{
+  "contract_version": 1,
+  "cases": [
+    {"id":"major-4-4","partition":"development","meter":[4,4],"repeat":true,"melody":[[60,62,64,67],[65,64,62,60]],"chords":[[0,0.0,"C","major"],[1,0.0,"F","major"]]},
+    {"id":"minor-3-4","partition":"development","meter":[3,4],"melody":[[69,72,71],[69,68,64]],"chords":[[0,0.0,"A","minor"],[1,0.0,"E","major"]]},
+    {"id":"compound-6-8","partition":"development","meter":[6,8],"melody":[[67,69,71],[74,71,69]],"chords":[[0,0.0,"G","major"],[1,0.0,"D","major"]]},
+    {"id":"midbar-4-4","partition":"development","meter":[4,4],"melody":[[60,64,65,69],[67,71,74,71]],"chords":[[0,0.0,"C","major"],[0,2.0,"F","major"],[1,0.0,"G","major"]]},
+    {"id":"irregular-5-8","partition":"holdout","meter":[5,8],"melody":[[60,62,64],[65,67,69]],"chords":[[0,0.0,"C","major"],[1,0.0,"F","major"]]},
+    {"id":"irregular-7-8","partition":"holdout","meter":[7,8],"melody":[[62,64,66,69],[67,69,71,74]],"chords":[[0,0.0,"D","major"],[1,0.0,"G","major"]]},
+    {"id":"pickup-4-4","partition":"holdout","meter":[4,4],"pickup_beats":0.5,"melody":[[67],[69,67,65,64]],"chords":[[0,0.0,"C","major"],[1,0.0,"F","major"]]},
+    {"id":"multipart-4-4","partition":"holdout","meter":[4,4],"second_part":true,"melody":[[72,74,76,79],[77,76,74,72]],"chords":[[0,0.0,"C","major"],[1,0.0,"F","major"]]}
+  ]
+}

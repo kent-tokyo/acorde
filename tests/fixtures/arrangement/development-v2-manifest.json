@@ -1,0 +1,660 @@
+{
+  "audio_program_override": 0,
+  "audio_program_scope": "all-parts",
+  "cases": [
+    {
+      "audio_score_json": "mosaic-morning-audio-piano.json",
+      "audio_score_json_sha256": "e33f1116703ffe0cfc958989f03fb87e4f96c213b65290846fc2bcfa5c6ec4e7",
+      "form": "A B bridge coda",
+      "id": "mosaic-morning",
+      "key_changes": [],
+      "key_fifths": 0,
+      "measures": 16,
+      "meter": [
+        4,
+        4
+      ],
+      "mode": "major",
+      "musicxml": "mosaic-morning.musicxml",
+      "musicxml_sha256": "06556a465bdc90b31ddd92dc884c814637cf38dd971a723c9c8e27df78a6f864",
+      "parts": 1,
+      "pickup_eighths": null,
+      "playback_events": 56,
+      "repeat_range": null,
+      "sections": [
+        {
+          "end_measure_exclusive": 4,
+          "label": "A",
+          "start_measure": 0
+        },
+        {
+          "end_measure_exclusive": 8,
+          "label": "B",
+          "start_measure": 4
+        },
+        {
+          "end_measure_exclusive": 12,
+          "label": "bridge",
+          "start_measure": 8
+        },
+        {
+          "end_measure_exclusive": 16,
+          "label": "coda",
+          "start_measure": 12
+        }
+      ],
+      "source_json": "mosaic-morning.json",
+      "source_json_sha256": "13776f8cdc8b991631f92dd30faa9364a4bbbcc27bb7bdf2ee54e3697f8ca5d1",
+      "source_programs": [
+        73
+      ],
+      "tempo_bpm": 104,
+      "title": "Mosaic Morning",
+      "wav": "mosaic-morning.wav",
+      "wav_sha256": "4f707146bcf4a4ebac2209571fbc745299febf8c15caebbc4e841e14f76664b4"
+    },
+    {
+      "audio_score_json": "minor-waltz-audio-piano.json",
+      "audio_score_json_sha256": "1cb1344d20971c031413037c44daf19745e96d4e21442b174ac7a0d2ff893c2e",
+      "form": "A A-prime B return",
+      "id": "minor-waltz",
+      "key_changes": [],
+      "key_fifths": 0,
+      "measures": 16,
+      "meter": [
+        3,
+        4
+      ],
+      "mode": "minor",
+      "musicxml": "minor-waltz.musicxml",
+      "musicxml_sha256": "a9c6ca14b8a8f027e5a55631c14fe81e5c5a263d33a9ebe64d89eb6015b1aa13",
+      "parts": 1,
+      "pickup_eighths": null,
+      "playback_events": 44,
+      "repeat_range": null,
+      "sections": [
+        {
+          "end_measure_exclusive": 4,
+          "label": "A",
+          "start_measure": 0
+        },
+        {
+          "end_measure_exclusive": 8,
+          "label": "A-prime",
+          "start_measure": 4
+        },
+        {
+          "end_measure_exclusive": 12,
+          "label": "B",
+          "start_measure": 8
+        },
+        {
+          "end_measure_exclusive": 16,
+          "label": "return",
+          "start_measure": 12
+        }
+      ],
+      "source_json": "minor-waltz.json",
+      "source_json_sha256": "b83a41258ddcdb16a4f5214f61cb5da7bb5cfa5d59c6a2d69bfca6e1a6982bca",
+      "source_programs": [
+        21
+      ],
+      "tempo_bpm": 138,
+      "title": "Minor Waltz",
+      "wav": "minor-waltz.wav",
+      "wav_sha256": "dcae3b5e08e2fc759a9d3f93f908be501b56bcd191bdf8496f1208ce63941098"
+    },
+    {
+      "audio_score_json": "river-six-audio-piano.json",
+      "audio_score_json_sha256": "f041dbe64b6e0cd59c063105f55bb7b2b3d09e245b15e37bc1e3cddb619a07b5",
+      "form": "A B bridge return",
+      "id": "river-six",
+      "key_changes": [],
+      "key_fifths": 1,
+      "measures": 16,
+      "meter": [
+        6,
+        8
+      ],
+      "mode": "major",
+      "musicxml": "river-six.musicxml",
+      "musicxml_sha256": "d7ac8c04d9c39b90acc8c01c83dad30aff6b776c616539204d64cef22781fe22",
+      "parts": 1,
+      "pickup_eighths": null,
+      "playback_events": 86,
+      "repeat_range": null,
+      "sections": [
+        {
+          "end_measure_exclusive": 4,
+          "label": "A",
+          "start_measure": 0
+        },
+        {
+          "end_measure_exclusive": 8,
+          "label": "B",
+          "start_measure": 4
+        },
+        {
+          "end_measure_exclusive": 12,
+          "label": "bridge",
+          "start_measure": 8
+        },
+        {
+          "end_measure_exclusive": 16,
+          "label": "return",
+          "start_measure": 12
+        }
+      ],
+      "source_json": "river-six.json",
+      "source_json_sha256": "66b2d325e85e7e8eaef8e0052a181b093cd110b4fa87bdc4d8bafe00d22d9663",
+      "source_programs": [
+        73
+      ],
+      "tempo_bpm": 92,
+      "title": "River in Six",
+      "wav": "river-six.wav",
+      "wav_sha256": "d9d6ff432380814992eec1204b6c008ea446317c5a98eeb83589be7f99354fea"
+    },
+    {
+      "audio_score_json": "five-step-audio-piano.json",
+      "audio_score_json_sha256": "0bba0aaf7c06a1c511d3c93895207293f098853040a5c93f13c7871d798d88e9",
+      "form": "A B A-prime ending",
+      "id": "five-step",
+      "key_changes": [],
+      "key_fifths": -1,
+      "measures": 16,
+      "meter": [
+        5,
+        8
+      ],
+      "mode": "minor",
+      "musicxml": "five-step.musicxml",
+      "musicxml_sha256": "ea1c0ee413431ad3b505c31d4bb574297cfc5fe42896d50411488aa00ab18f73",
+      "parts": 1,
+      "pickup_eighths": null,
+      "playback_events": 72,
+      "repeat_range": null,
+      "sections": [
+        {
+          "end_measure_exclusive": 4,
+          "label": "A",
+          "start_measure": 0
+        },
+        {
+          "end_measure_exclusive": 8,
+          "label": "B",
+          "start_measure": 4
+        },
+        {
+          "end_measure_exclusive": 12,
+          "label": "A-prime",
+          "start_measure": 8
+        },
+        {
+          "end_measure_exclusive": 16,
+          "label": "ending",
+          "start_measure": 12
+        }
+      ],
+      "source_json": "five-step.json",
+      "source_json_sha256": "d96941e2b897e08f230659964a5a26c3d27f51ea5c1f5e6dc4aa27de31525d52",
+      "source_programs": [
+        71
+      ],
+      "tempo_bpm": 112,
+      "title": "Five Step",
+      "wav": "five-step.wav",
+      "wav_sha256": "6f4149f7aefc1f7e531db76a72404672a8a585b257c492dc4be75f30d3848204"
+    },
+    {
+      "audio_score_json": "seven-lanterns-audio-piano.json",
+      "audio_score_json_sha256": "53fd698c2bc1a291110d6d58534605c26e22e7846a2effdd6dc90f222a16bf52",
+      "form": "A B crossing return",
+      "id": "seven-lanterns",
+      "key_changes": [],
+      "key_fifths": 1,
+      "measures": 16,
+      "meter": [
+        7,
+        8
+      ],
+      "mode": "minor",
+      "musicxml": "seven-lanterns.musicxml",
+      "musicxml_sha256": "5410b3f790c32e01457da2a76dae0b4e29336bb9272341d4219930a5d4397912",
+      "parts": 1,
+      "pickup_eighths": null,
+      "playback_events": 99,
+      "repeat_range": null,
+      "sections": [
+        {
+          "end_measure_exclusive": 4,
+          "label": "A",
+          "start_measure": 0
+        },
+        {
+          "end_measure_exclusive": 8,
+          "label": "B",
+          "start_measure": 4
+        },
+        {
+          "end_measure_exclusive": 12,
+          "label": "crossing",
+          "start_measure": 8
+        },
+        {
+          "end_measure_exclusive": 16,
+          "label": "return",
+          "start_measure": 12
+        }
+      ],
+      "source_json": "seven-lanterns.json",
+      "source_json_sha256": "6f6148c52e17444249fe1d60ebd43d6c8b3bf8823792218820eefca6bd199b08",
+      "source_programs": [
+        40
+      ],
+      "tempo_bpm": 126,
+      "title": "Seven Lanterns",
+      "wav": "seven-lanterns.wav",
+      "wav_sha256": "2cfe5e666af9a7029443e716d81a794fcf94c03b761ebba90bb5eaa48a344a0a"
+    },
+    {
+      "audio_score_json": "pickup-harbor-audio-piano.json",
+      "audio_score_json_sha256": "569ed6a43e19d998fabe6f764d7870cad7f2e7621b6b0a1cf43ee8670f422499",
+      "form": "pickup A B return",
+      "id": "pickup-harbor",
+      "key_changes": [],
+      "key_fifths": -1,
+      "measures": 17,
+      "meter": [
+        4,
+        4
+      ],
+      "mode": "major",
+      "musicxml": "pickup-harbor.musicxml",
+      "musicxml_sha256": "32383717bf9421d69acbf4877831e71d9d44a787feef17b177770c0aa6e4e70f",
+      "parts": 1,
+      "pickup_eighths": 1,
+      "playback_events": 57,
+      "repeat_range": null,
+      "sections": [
+        {
+          "end_measure_exclusive": 1,
+          "label": "pickup",
+          "start_measure": 0
+        },
+        {
+          "end_measure_exclusive": 5,
+          "label": "A",
+          "start_measure": 1
+        },
+        {
+          "end_measure_exclusive": 9,
+          "label": "B",
+          "start_measure": 5
+        },
+        {
+          "end_measure_exclusive": 17,
+          "label": "return",
+          "start_measure": 9
+        }
+      ],
+      "source_json": "pickup-harbor.json",
+      "source_json_sha256": "569ed6a43e19d998fabe6f764d7870cad7f2e7621b6b0a1cf43ee8670f422499",
+      "source_programs": [
+        0
+      ],
+      "tempo_bpm": 96,
+      "title": "Harbor Pickup",
+      "wav": "pickup-harbor.wav",
+      "wav_sha256": "f1d8143ef86c3b53317ed3eda01ffb41d100d69184ab957921c8856f5698e1d7"
+    },
+    {
+      "audio_score_json": "low-tide-audio-piano.json",
+      "audio_score_json_sha256": "7db540fc316b096683e03cd07f13bfd8b78b9c86bc102be3b694269cb5a76833",
+      "form": "A B descent return",
+      "id": "low-tide",
+      "key_changes": [],
+      "key_fifths": -3,
+      "measures": 16,
+      "meter": [
+        6,
+        8
+      ],
+      "mode": "minor",
+      "musicxml": "low-tide.musicxml",
+      "musicxml_sha256": "b2bffca2e0ac3a1f99cfb0b4fc383e10c83ea2f531bcaaaa92ed893b4b058638",
+      "parts": 1,
+      "pickup_eighths": null,
+      "playback_events": 84,
+      "repeat_range": null,
+      "sections": [
+        {
+          "end_measure_exclusive": 4,
+          "label": "A",
+          "start_measure": 0
+        },
+        {
+          "end_measure_exclusive": 8,
+          "label": "B",
+          "start_measure": 4
+        },
+        {
+          "end_measure_exclusive": 12,
+          "label": "descent",
+          "start_measure": 8
+        },
+        {
+          "end_measure_exclusive": 16,
+          "label": "return",
+          "start_measure": 12
+        }
+      ],
+      "source_json": "low-tide.json",
+      "source_json_sha256": "6926c953fd18b98a780b6ba3d233d33f8ea2dc54a82a87e0b9264bcb2ad4c3bb",
+      "source_programs": [
+        42
+      ],
+      "tempo_bpm": 78,
+      "title": "Low Tide",
+      "wav": "low-tide.wav",
+      "wav_sha256": "138d716b7b1346b95baacf7a42e83d258ab9315b96d7e97017bc1c56c7c57037"
+    },
+    {
+      "audio_score_json": "bright-turn-audio-piano.json",
+      "audio_score_json_sha256": "8e34232c1bdc1c52ec947bc9d1d790eb1c995a6dbbb5a747d49ab5910d537147",
+      "form": "A B sequence coda",
+      "id": "bright-turn",
+      "key_changes": [],
+      "key_fifths": 2,
+      "measures": 16,
+      "meter": [
+        3,
+        4
+      ],
+      "mode": "major",
+      "musicxml": "bright-turn.musicxml",
+      "musicxml_sha256": "818a9733c130c93daba384ede71626af1995c808c82bb03e0a2e0bd9efbd34bb",
+      "parts": 1,
+      "pickup_eighths": null,
+      "playback_events": 44,
+      "repeat_range": null,
+      "sections": [
+        {
+          "end_measure_exclusive": 4,
+          "label": "A",
+          "start_measure": 0
+        },
+        {
+          "end_measure_exclusive": 8,
+          "label": "B",
+          "start_measure": 4
+        },
+        {
+          "end_measure_exclusive": 12,
+          "label": "sequence",
+          "start_measure": 8
+        },
+        {
+          "end_measure_exclusive": 16,
+          "label": "coda",
+          "start_measure": 12
+        }
+      ],
+      "source_json": "bright-turn.json",
+      "source_json_sha256": "03d97cdb2ee9d14e46469c7c0f14fc350b3b8f01c192772925e4873fed5d55d5",
+      "source_programs": [
+        40
+      ],
+      "tempo_bpm": 150,
+      "title": "Bright Turn",
+      "wav": "bright-turn.wav",
+      "wav_sha256": "d93ea7bb303706ef3d822e43eeca85d8584d60e0a3257e761dfe44784e756f76"
+    },
+    {
+      "audio_score_json": "shadow-march-audio-piano.json",
+      "audio_score_json_sha256": "48ff7b23318eae15f3674a3caaefdd2dd132bc7cc28d6f377ace909059eeb059",
+      "form": "A B trio return",
+      "id": "shadow-march",
+      "key_changes": [],
+      "key_fifths": -2,
+      "measures": 16,
+      "meter": [
+        4,
+        4
+      ],
+      "mode": "minor",
+      "musicxml": "shadow-march.musicxml",
+      "musicxml_sha256": "d16d598c885dde833762166a0d0f5232b3e7ba28ad2ffae765ea8a324a7ab32d",
+      "parts": 1,
+      "pickup_eighths": null,
+      "playback_events": 56,
+      "repeat_range": null,
+      "sections": [
+        {
+          "end_measure_exclusive": 4,
+          "label": "A",
+          "start_measure": 0
+        },
+        {
+          "end_measure_exclusive": 8,
+          "label": "B",
+          "start_measure": 4
+        },
+        {
+          "end_measure_exclusive": 12,
+          "label": "trio",
+          "start_measure": 8
+        },
+        {
+          "end_measure_exclusive": 16,
+          "label": "return",
+          "start_measure": 12
+        }
+      ],
+      "source_json": "shadow-march.json",
+      "source_json_sha256": "87a03300695aaa9f0f164f524e433f63b51402e9cdd90f2ef3f7076ef293797c",
+      "source_programs": [
+        65
+      ],
+      "tempo_bpm": 116,
+      "title": "Shadow March",
+      "wav": "shadow-march.wav",
+      "wav_sha256": "4c0e329815fca23aa3c202b01576d946bd863e7b4447bd1ae52c7584f8a63206"
+    },
+    {
+      "audio_score_json": "new-horizon-audio-piano.json",
+      "audio_score_json_sha256": "6470d3309e51e15e7e84de367bc6f21cefa1e25bb5286cbefb7a04f4cabac32a",
+      "form": "A B modulation return",
+      "id": "new-horizon",
+      "key_changes": [
+        [
+          8,
+          4
+        ],
+        [
+          12,
+          3
+        ]
+      ],
+      "key_fifths": 3,
+      "measures": 16,
+      "meter": [
+        4,
+        4
+      ],
+      "mode": "major",
+      "musicxml": "new-horizon.musicxml",
+      "musicxml_sha256": "3096e05b88551162810ec3a18c1dbe22ad30204c97035b2a124a9322b0155c15",
+      "parts": 1,
+      "pickup_eighths": null,
+      "playback_events": 56,
+      "repeat_range": null,
+      "sections": [
+        {
+          "end_measure_exclusive": 4,
+          "label": "A",
+          "start_measure": 0
+        },
+        {
+          "end_measure_exclusive": 8,
+          "label": "B",
+          "start_measure": 4
+        },
+        {
+          "end_measure_exclusive": 12,
+          "label": "modulation",
+          "start_measure": 8
+        },
+        {
+          "end_measure_exclusive": 16,
+          "label": "return",
+          "start_measure": 12
+        }
+      ],
+      "source_json": "new-horizon.json",
+      "source_json_sha256": "b61935b9728f81d9caef2e0b2efcbf22b42a0418d484a0aeb475ea3a4e6a4b09",
+      "source_programs": [
+        56
+      ],
+      "tempo_bpm": 108,
+      "title": "New Horizon",
+      "wav": "new-horizon.wav",
+      "wav_sha256": "b8336c68c121d46bb0771998c1dcd58616cf23986f24bdf0c78b5054947db200"
+    },
+    {
+      "audio_score_json": "two-voices-audio-piano.json",
+      "audio_score_json_sha256": "9eeef3ebacd8ed461563383750b125049e97cebd9e35ad6dfb34c2f1977c508f",
+      "form": "A B A-prime release",
+      "id": "two-voices",
+      "key_changes": [],
+      "key_fifths": 0,
+      "measures": 16,
+      "meter": [
+        4,
+        4
+      ],
+      "mode": "major",
+      "musicxml": "two-voices.musicxml",
+      "musicxml_sha256": "d309996d58ed5895de43c4c973614e7573c907dfc3ce9b3f3cc3a057d5880fb0",
+      "parts": 2,
+      "pickup_eighths": null,
+      "playback_events": 178,
+      "repeat_range": [
+        0,
+        8
+      ],
+      "sections": [
+        {
+          "end_measure_exclusive": 4,
+          "label": "A",
+          "start_measure": 0
+        },
+        {
+          "end_measure_exclusive": 8,
+          "label": "B",
+          "start_measure": 4
+        },
+        {
+          "end_measure_exclusive": 12,
+          "label": "A-prime",
+          "start_measure": 8
+        },
+        {
+          "end_measure_exclusive": 16,
+          "label": "release",
+          "start_measure": 12
+        }
+      ],
+      "source_json": "two-voices.json",
+      "source_json_sha256": "d0210b1cda9abe60882d080c240fdc74995e699ff01640ee8520941c40c12e3e",
+      "source_programs": [
+        68,
+        40
+      ],
+      "tempo_bpm": 88,
+      "title": "Two Voices",
+      "wav": "two-voices.wav",
+      "wav_sha256": "55b1d908f6c1a9afe4e90c07da799f1b42cd8a5325c3f95f1031230cc5e4f578"
+    },
+    {
+      "audio_score_json": "long-road-audio-piano.json",
+      "audio_score_json_sha256": "f384ce54fcaad369ec625fab4b3d65edf8c4a18182897b8d03603a5274800896",
+      "form": "A A-prime B C A-prime B-prime bridge coda",
+      "id": "long-road",
+      "key_changes": [],
+      "key_fifths": 1,
+      "measures": 32,
+      "meter": [
+        4,
+        4
+      ],
+      "mode": "minor",
+      "musicxml": "long-road.musicxml",
+      "musicxml_sha256": "74195748b352d21485ebb400996ac82ca5e6697e2c50249e3995de30beeefbd0",
+      "parts": 1,
+      "pickup_eighths": null,
+      "playback_events": 112,
+      "repeat_range": null,
+      "sections": [
+        {
+          "end_measure_exclusive": 4,
+          "label": "A",
+          "start_measure": 0
+        },
+        {
+          "end_measure_exclusive": 8,
+          "label": "A-prime",
+          "start_measure": 4
+        },
+        {
+          "end_measure_exclusive": 12,
+          "label": "B",
+          "start_measure": 8
+        },
+        {
+          "end_measure_exclusive": 16,
+          "label": "C",
+          "start_measure": 12
+        },
+        {
+          "end_measure_exclusive": 20,
+          "label": "A-prime",
+          "start_measure": 16
+        },
+        {
+          "end_measure_exclusive": 24,
+          "label": "B-prime",
+          "start_measure": 20
+        },
+        {
+          "end_measure_exclusive": 28,
+          "label": "bridge",
+          "start_measure": 24
+        },
+        {
+          "end_measure_exclusive": 32,
+          "label": "coda",
+          "start_measure": 28
+        }
+      ],
+      "source_json": "long-road.json",
+      "source_json_sha256": "5f14df4000d91997cee7463e2c867d7a1cd95243b5ad385a3e8fc735f866ec8f",
+      "source_programs": [
+        73
+      ],
+      "tempo_bpm": 100,
+      "title": "Long Road",
+      "wav": "long-road.wav",
+      "wav_sha256": "3e08a6c7044112829ca0e070a6706304aa452c9414d2e470e7435ecea374ef4c"
+    }
+  ],
+  "channels": 1,
+  "corpus_sha256": "6755ff347c7d7565c691954e2742b5f523f2da15bcc8eeda55c677145ac2ab1f",
+  "normalization": "none",
+  "release_tail_millis": 500,
+  "renderer": "acorde-rustysynth-sf2-v1",
+  "sample_rate_hz": 22050,
+  "schema_version": 1,
+  "soundfont": "UprightPianoKW-small-20190703.sf2",
+  "soundfont_sha256": "cf2a98eb38a32c4954b4b6e2caae4112d62dd8e892eceefdd7942b0e7d01ac2f"
+}

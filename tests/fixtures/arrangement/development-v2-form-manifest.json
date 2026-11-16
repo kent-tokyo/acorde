@@ -1,0 +1,1231 @@
+{
+  "audio_program_override": 0,
+  "cases": [
+    {
+      "candidates": [
+        {
+          "difference_codes": [
+            "reference-form"
+          ],
+          "display_label": "E",
+          "id": "terraced-arc",
+          "index": 1,
+          "musicxml": "mosaic-morning-form-1.musicxml",
+          "musicxml_sha256": "08eab771f4559e27ecc9bcfb840d593fc7e69f8061058638066b4e6875d7bcb6",
+          "omitted_countermelody_sections": [],
+          "resolved": "mosaic-morning-form-1-resolved.json",
+          "resolved_sha256": "a0f6fae1fe0dbdb97842d36ca49495849ef3240f776ed13f9e8992f3455628e1",
+          "wav": "mosaic-morning-form-1.wav",
+          "wav_sha256": "829e2b33f9c77e39d79ef891dccbe8416eb7278924efded182ff481ab04ffd7c"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "D",
+          "id": "section-dialogue",
+          "index": 2,
+          "musicxml": "mosaic-morning-form-2.musicxml",
+          "musicxml_sha256": "2b8dcca120f3ba338048e1f771e0cfcc17dcd5eff6bef68d93ffe28e94272a10",
+          "omitted_countermelody_sections": [],
+          "resolved": "mosaic-morning-form-2-resolved.json",
+          "resolved_sha256": "fc81fb2b3fc58a15b55f620f846c7def575d3920bd6a71d406014a0c1215ab26",
+          "wav": "mosaic-morning-form-2.wav",
+          "wav_sha256": "e1584ca8778234ae093b665d92b0bbe3e260a802d0bb01389a4a8d7f9c9bef82"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "A",
+          "id": "bass-led-entry",
+          "index": 3,
+          "musicxml": "mosaic-morning-form-3.musicxml",
+          "musicxml_sha256": "c0f2cab7b305192cea3b21825c74470cce8077a8fb7fbc27f5789ac8a74e1d24",
+          "omitted_countermelody_sections": [],
+          "resolved": "mosaic-morning-form-3-resolved.json",
+          "resolved_sha256": "c3a7c44b3cb5de64dbf96dc0d3d3fb707c8f3157ffbdbe106ca191746d005303",
+          "wav": "mosaic-morning-form-3.wav",
+          "wav_sha256": "539cb9e3f8b557f7ad7c0093f9fb6fb17dbe26406ee3e0ffcc9411b59392b01f"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "B",
+          "id": "active-contrast",
+          "index": 4,
+          "musicxml": "mosaic-morning-form-4.musicxml",
+          "musicxml_sha256": "5cbbde9900418c7c4b39d22d1319eb965cd9c9d6c4db94a7836dbc6e6816bab9",
+          "omitted_countermelody_sections": [],
+          "resolved": "mosaic-morning-form-4-resolved.json",
+          "resolved_sha256": "9c0840cffed9554ad310b67ed1ba4e4896e1b52985e91fa6b7fe538dbf63eae4",
+          "wav": "mosaic-morning-form-4.wav",
+          "wav_sha256": "808629a7b75e974d649aaf517826a7618ef0e0b337e3050fb18db4b611f0d57e"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "C",
+          "id": "thin-middle",
+          "index": 5,
+          "musicxml": "mosaic-morning-form-5.musicxml",
+          "musicxml_sha256": "3f4c8761da0aac78f5d339303f262f2b6bb0935d2446346a1814248ec9f8b5e6",
+          "omitted_countermelody_sections": [
+            0
+          ],
+          "resolved": "mosaic-morning-form-5-resolved.json",
+          "resolved_sha256": "f75c3bda66494ae9ea03760753fb2a01c67501b10e9f2a598c55eeb9050789b4",
+          "wav": "mosaic-morning-form-5.wav",
+          "wav_sha256": "5c5aa34928e4f1050a67a9a1cbd8f1a319a4585809181efe088371084e8b88ce"
+        }
+      ],
+      "case_id": "mosaic-morning",
+      "source_fingerprint": "211cc5857e386628",
+      "source_musicxml": "mosaic-morning.musicxml",
+      "source_musicxml_sha256": "06556a465bdc90b31ddd92dc884c814637cf38dd971a723c9c8e27df78a6f864",
+      "source_wav": "mosaic-morning.wav",
+      "source_wav_sha256": "4f707146bcf4a4ebac2209571fbc745299febf8c15caebbc4e841e14f76664b4"
+    },
+    {
+      "candidates": [
+        {
+          "difference_codes": [
+            "reference-form"
+          ],
+          "display_label": "A",
+          "id": "terraced-arc",
+          "index": 1,
+          "musicxml": "minor-waltz-form-1.musicxml",
+          "musicxml_sha256": "edd3de93355cf4abb1b478a91e7aed16975fb291c7325b73742dbb0c2eec8a53",
+          "omitted_countermelody_sections": [
+            1
+          ],
+          "resolved": "minor-waltz-form-1-resolved.json",
+          "resolved_sha256": "0f165a42215838df9357161ca3e317b021a619b496d1e906952da859dbb46a9a",
+          "wav": "minor-waltz-form-1.wav",
+          "wav_sha256": "7c21860a28769429d06aa16cba4098bcaf91942ba5685335a7b40ab69ca54331"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "E",
+          "id": "section-dialogue",
+          "index": 2,
+          "musicxml": "minor-waltz-form-2.musicxml",
+          "musicxml_sha256": "2a678f418d5113a576df34a875b3a0cc59755265a9e251430903fbb4954f5002",
+          "omitted_countermelody_sections": [
+            1
+          ],
+          "resolved": "minor-waltz-form-2-resolved.json",
+          "resolved_sha256": "da5028785e5b7f5a11e036275f0b9ff55961b6aef5ea9118a69e3b164528714f",
+          "wav": "minor-waltz-form-2.wav",
+          "wav_sha256": "325610eb81488addc33843a99d47e9108033f6a5f93feb7bc2604fb9c9bb3d65"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "B",
+          "id": "bass-led-entry",
+          "index": 3,
+          "musicxml": "minor-waltz-form-3.musicxml",
+          "musicxml_sha256": "84f423c365e4ce095be5d42ca8a9ad0c3f603588a1e45344bf3d74509da0bfd8",
+          "omitted_countermelody_sections": [
+            1
+          ],
+          "resolved": "minor-waltz-form-3-resolved.json",
+          "resolved_sha256": "e7f9d759990fd123a087be62eac2c6a95a3ce9afa5146be8744c76f1b197fe95",
+          "wav": "minor-waltz-form-3.wav",
+          "wav_sha256": "c8f90273849971a4e629cd9bd91f5d5fade97626ecc775a25e733bee40c68bdd"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "C",
+          "id": "active-contrast",
+          "index": 4,
+          "musicxml": "minor-waltz-form-4.musicxml",
+          "musicxml_sha256": "f6bf8da234400c4e6f1d00f1dd9edc6ae41aaaa38c6c688e3f9bafc1afafa512",
+          "omitted_countermelody_sections": [],
+          "resolved": "minor-waltz-form-4-resolved.json",
+          "resolved_sha256": "bf8d3b46e9c70d5ed75f6fa67eca62ad63b437ca1aa300d90223d603061efb3e",
+          "wav": "minor-waltz-form-4.wav",
+          "wav_sha256": "919edd4947997b56cd973410d0eabd2ff3f21a632c7176c47bf99b76238c9ecb"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "D",
+          "id": "thin-middle",
+          "index": 5,
+          "musicxml": "minor-waltz-form-5.musicxml",
+          "musicxml_sha256": "f78257420a9bd2530ce0d012a2fd81e3f4ada2c691f9374ede1c3a14a346cd95",
+          "omitted_countermelody_sections": [],
+          "resolved": "minor-waltz-form-5-resolved.json",
+          "resolved_sha256": "249dc325911be3f551c7f99a4f81bdeb2a2273c50b8c4a9a05e6487a4de84f38",
+          "wav": "minor-waltz-form-5.wav",
+          "wav_sha256": "b8d5f3b4c0e768d4221932882d393caefd8ebd228b89db126dd68ca726ebc7a4"
+        }
+      ],
+      "case_id": "minor-waltz",
+      "source_fingerprint": "da07d48d0f1b34c7",
+      "source_musicxml": "minor-waltz.musicxml",
+      "source_musicxml_sha256": "a9c6ca14b8a8f027e5a55631c14fe81e5c5a263d33a9ebe64d89eb6015b1aa13",
+      "source_wav": "minor-waltz.wav",
+      "source_wav_sha256": "dcae3b5e08e2fc759a9d3f93f908be501b56bcd191bdf8496f1208ce63941098"
+    },
+    {
+      "candidates": [
+        {
+          "difference_codes": [
+            "reference-form"
+          ],
+          "display_label": "E",
+          "id": "terraced-arc",
+          "index": 1,
+          "musicxml": "river-six-form-1.musicxml",
+          "musicxml_sha256": "21ddba51fdde15151848be3308bd6d20bfc099eb73b759b359e36daea757bca0",
+          "omitted_countermelody_sections": [],
+          "resolved": "river-six-form-1-resolved.json",
+          "resolved_sha256": "d3b8522b303b6eadce429b26ba6266473338f4c02aeb1e47ba493a9f2219f506",
+          "wav": "river-six-form-1.wav",
+          "wav_sha256": "344485dd9c29332b3f7d49e5cf37a04a03f0587b1596ad5ac8015658ab3cb644"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "A",
+          "id": "section-dialogue",
+          "index": 2,
+          "musicxml": "river-six-form-2.musicxml",
+          "musicxml_sha256": "87aebb4fbd3ee9514708fc4bc773b3082565e2893ad9975b16179269b1da19fb",
+          "omitted_countermelody_sections": [],
+          "resolved": "river-six-form-2-resolved.json",
+          "resolved_sha256": "3d27763f63853f30292e13c2df359789d2cb8f0877e77fba3982f2e149a3bdf5",
+          "wav": "river-six-form-2.wav",
+          "wav_sha256": "c31dc1b344f460c0c8fc95ddaa9fa2134db712bde761beabc2d77b12ea4b379f"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "B",
+          "id": "bass-led-entry",
+          "index": 3,
+          "musicxml": "river-six-form-3.musicxml",
+          "musicxml_sha256": "42462013867022c15112ad8679d3a2808443425fb39058b545e2b31a97ebe1a5",
+          "omitted_countermelody_sections": [],
+          "resolved": "river-six-form-3-resolved.json",
+          "resolved_sha256": "393387f963472bdf91ed5cea4d502743a9aeb613902b136dc5672e26476279c3",
+          "wav": "river-six-form-3.wav",
+          "wav_sha256": "60882e91da3b64eaded7de00d186663997301f7acc0092e528eab57df83cf5be"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "C",
+          "id": "active-contrast",
+          "index": 4,
+          "musicxml": "river-six-form-4.musicxml",
+          "musicxml_sha256": "7e1200db951fcb896f5b37e7393e49a3c08eb59beb823f499f6070aa5428600d",
+          "omitted_countermelody_sections": [],
+          "resolved": "river-six-form-4-resolved.json",
+          "resolved_sha256": "d627c5a0d4ddc64ed8d415b4b1406ba3a93ad2a38dd3b1bf6c150864728ce181",
+          "wav": "river-six-form-4.wav",
+          "wav_sha256": "74e5eedd97f4440bca99f97b1881d4a3294539c6e9e0bee81d1c2b5e2c8212ac"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "D",
+          "id": "thin-middle",
+          "index": 5,
+          "musicxml": "river-six-form-5.musicxml",
+          "musicxml_sha256": "2774dff911be962dce8cdf2cd145a7de3125ff6c96fa121bdbb8b342dfc3fb63",
+          "omitted_countermelody_sections": [],
+          "resolved": "river-six-form-5-resolved.json",
+          "resolved_sha256": "02ae4521f9eac687232416421940a8a0869fd56d83101eb0a67a21612d24cf56",
+          "wav": "river-six-form-5.wav",
+          "wav_sha256": "4c54ccc7509f0e2efa0f9c0b7566edff286bc2f688774d0d0abdf4596e036e79"
+        }
+      ],
+      "case_id": "river-six",
+      "source_fingerprint": "435f957406eba43a",
+      "source_musicxml": "river-six.musicxml",
+      "source_musicxml_sha256": "d7ac8c04d9c39b90acc8c01c83dad30aff6b776c616539204d64cef22781fe22",
+      "source_wav": "river-six.wav",
+      "source_wav_sha256": "d9d6ff432380814992eec1204b6c008ea446317c5a98eeb83589be7f99354fea"
+    },
+    {
+      "candidates": [
+        {
+          "difference_codes": [
+            "reference-form"
+          ],
+          "display_label": "D",
+          "id": "terraced-arc",
+          "index": 1,
+          "musicxml": "five-step-form-1.musicxml",
+          "musicxml_sha256": "d6bdf171f3c5c20c051b673b3bbce1d6ceda00252aac5e4bfb258a9c65e6f71e",
+          "omitted_countermelody_sections": [],
+          "resolved": "five-step-form-1-resolved.json",
+          "resolved_sha256": "1b17cfdde4bb336815fbfc567eafcd69303c090cf18781c93621e675a1b749ac",
+          "wav": "five-step-form-1.wav",
+          "wav_sha256": "34ffded461d536340c7ad09ae0cff9661b3ead027a1e4d72194bce1d0f572bc1"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "B",
+          "id": "section-dialogue",
+          "index": 2,
+          "musicxml": "five-step-form-2.musicxml",
+          "musicxml_sha256": "c1e675c8df04081f0f7b272b7a4c7ecc2161ffdf01ce664f1a694452573883cc",
+          "omitted_countermelody_sections": [],
+          "resolved": "five-step-form-2-resolved.json",
+          "resolved_sha256": "c523a4442582ba614b76ee14c7a34edbbb28a3359690eeb6c8133d69f26dea0b",
+          "wav": "five-step-form-2.wav",
+          "wav_sha256": "f1cb435b0d921d34caa7358275c0448e29c7debaa1ac82edb1e37348938de016"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "A",
+          "id": "bass-led-entry",
+          "index": 3,
+          "musicxml": "five-step-form-3.musicxml",
+          "musicxml_sha256": "bcde8a4defa5901d2045dd74a2f856b03533490fad78a469af9ae3ec5054c61d",
+          "omitted_countermelody_sections": [],
+          "resolved": "five-step-form-3-resolved.json",
+          "resolved_sha256": "dea87dc0e28bd9d630fb073bf94b0151625fbeb11d74b22d4d4535fac7a85741",
+          "wav": "five-step-form-3.wav",
+          "wav_sha256": "cc6ec4485c2c3ec951e559606d8eee0c850d52d7095ad742a109252dec17187f"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "E",
+          "id": "active-contrast",
+          "index": 4,
+          "musicxml": "five-step-form-4.musicxml",
+          "musicxml_sha256": "6b36d9a5bca2053f7f1a07d3a13768d81d54aa274796d36b2843cdf9a624ae9c",
+          "omitted_countermelody_sections": [],
+          "resolved": "five-step-form-4-resolved.json",
+          "resolved_sha256": "6bd67c0f48a1d3ee620fff073f4be430bb934e89f8c9a97d4cbcdc152b4d5a0e",
+          "wav": "five-step-form-4.wav",
+          "wav_sha256": "1510ace9d51866b7569fe1d3233e8b5d8e36d0bea887e31fd6fffc7058ed6d15"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "C",
+          "id": "thin-middle",
+          "index": 5,
+          "musicxml": "five-step-form-5.musicxml",
+          "musicxml_sha256": "ebfcebbc7f81339958872c5c002109d0d69c7f580f1080d400f3fe6dcd6214af",
+          "omitted_countermelody_sections": [],
+          "resolved": "five-step-form-5-resolved.json",
+          "resolved_sha256": "c430ae8fce72c88b85035f67be04c1bba7bbe39faf2825f8eed571da07e70b48",
+          "wav": "five-step-form-5.wav",
+          "wav_sha256": "dbd4d4fa1d50353459a2d7d280505311c1b79bb90f010f0d82285fb275df86c8"
+        }
+      ],
+      "case_id": "five-step",
+      "source_fingerprint": "31d67eec7c04ef92",
+      "source_musicxml": "five-step.musicxml",
+      "source_musicxml_sha256": "ea1c0ee413431ad3b505c31d4bb574297cfc5fe42896d50411488aa00ab18f73",
+      "source_wav": "five-step.wav",
+      "source_wav_sha256": "6f4149f7aefc1f7e531db76a72404672a8a585b257c492dc4be75f30d3848204"
+    },
+    {
+      "candidates": [
+        {
+          "difference_codes": [
+            "reference-form"
+          ],
+          "display_label": "D",
+          "id": "terraced-arc",
+          "index": 1,
+          "musicxml": "seven-lanterns-form-1.musicxml",
+          "musicxml_sha256": "e7a5f52ed347e0ce71c41aed1518fbaf3dbadb543eaf52166851ff5d968fc1be",
+          "omitted_countermelody_sections": [],
+          "resolved": "seven-lanterns-form-1-resolved.json",
+          "resolved_sha256": "5d8b4e55fee2aff74037b0312c72a4ae96db30e4d6994f341339dc8e854415d2",
+          "wav": "seven-lanterns-form-1.wav",
+          "wav_sha256": "5f640e74e4e7c7bcc7cded9eb4490e8f8b22c53e9925a5cfc644512e350c72bb"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "E",
+          "id": "section-dialogue",
+          "index": 2,
+          "musicxml": "seven-lanterns-form-2.musicxml",
+          "musicxml_sha256": "a764610877999b73ab0e7425a06573b7883710f230afbba81324f8fc95df1dad",
+          "omitted_countermelody_sections": [],
+          "resolved": "seven-lanterns-form-2-resolved.json",
+          "resolved_sha256": "441f49ea91f9267b4b6c13fe4cd2787e5f2111c2845d8adb28804f56334ae1be",
+          "wav": "seven-lanterns-form-2.wav",
+          "wav_sha256": "b1ac999661b95a3cad9476644cc2b0364e633fea127893e92616cfeed1824d5a"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "B",
+          "id": "bass-led-entry",
+          "index": 3,
+          "musicxml": "seven-lanterns-form-3.musicxml",
+          "musicxml_sha256": "88ac8c440bc26b5961ca60b8d110dcca045c84e13bfdb7c791109e17969e1929",
+          "omitted_countermelody_sections": [],
+          "resolved": "seven-lanterns-form-3-resolved.json",
+          "resolved_sha256": "4c185666894bebae70d4f9b13889f84a23cf18c1b2f4a6bc53f982845918b9b4",
+          "wav": "seven-lanterns-form-3.wav",
+          "wav_sha256": "92d2c7bdbb7f9a4eeff352bcc2f89410602c59c99ee8163f8669dc70f94906bd"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "C",
+          "id": "active-contrast",
+          "index": 4,
+          "musicxml": "seven-lanterns-form-4.musicxml",
+          "musicxml_sha256": "894786cff738427fe45557755b288d7e4e2c9bdea08ff85fbb3ee49769afa5b9",
+          "omitted_countermelody_sections": [],
+          "resolved": "seven-lanterns-form-4-resolved.json",
+          "resolved_sha256": "6650df8a3739b1cf53f74800a42e1a0f6fdb751439448279f8ae076293521e8b",
+          "wav": "seven-lanterns-form-4.wav",
+          "wav_sha256": "8aaddc74caaea8922070675379cb054b47999ffd14ff94a768ceed3a64a75e3f"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "A",
+          "id": "thin-middle",
+          "index": 5,
+          "musicxml": "seven-lanterns-form-5.musicxml",
+          "musicxml_sha256": "ebfdeb4f0de67c773512bc6cb25a86bd50c880a5867dc3842bee2286c060b0c4",
+          "omitted_countermelody_sections": [],
+          "resolved": "seven-lanterns-form-5-resolved.json",
+          "resolved_sha256": "e753a810b49a9aecbad1ce11ff090c9670b5c6a47dca83c5d513ecd0f8efa8aa",
+          "wav": "seven-lanterns-form-5.wav",
+          "wav_sha256": "ffa8f9227e46df141e6973707c102aabdef2cbf7e3358128fa257c4244adeb70"
+        }
+      ],
+      "case_id": "seven-lanterns",
+      "source_fingerprint": "1923bd987560d64e",
+      "source_musicxml": "seven-lanterns.musicxml",
+      "source_musicxml_sha256": "5410b3f790c32e01457da2a76dae0b4e29336bb9272341d4219930a5d4397912",
+      "source_wav": "seven-lanterns.wav",
+      "source_wav_sha256": "2cfe5e666af9a7029443e716d81a794fcf94c03b761ebba90bb5eaa48a344a0a"
+    },
+    {
+      "candidates": [
+        {
+          "difference_codes": [
+            "reference-form"
+          ],
+          "display_label": "B",
+          "id": "terraced-arc",
+          "index": 1,
+          "musicxml": "pickup-harbor-form-1.musicxml",
+          "musicxml_sha256": "fef96f1d5677c72b723e59e173be79349a25071b25633363ad00b2badf3e4997",
+          "omitted_countermelody_sections": [
+            1
+          ],
+          "resolved": "pickup-harbor-form-1-resolved.json",
+          "resolved_sha256": "4e17cc2367691ae6c1aaa593d6d40acf3da2d06fc27a0c8525d3cb8717abd93e",
+          "wav": "pickup-harbor-form-1.wav",
+          "wav_sha256": "34b523823a129e00bc09594942e2e43db3825ce6b3bf9c922307890c1c74b02d"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "E",
+          "id": "section-dialogue",
+          "index": 2,
+          "musicxml": "pickup-harbor-form-2.musicxml",
+          "musicxml_sha256": "fd6ad5006a53ec41aebe18cd001ee3ea6bf8cdeafdfa02e7421f830e6e0b635d",
+          "omitted_countermelody_sections": [
+            1
+          ],
+          "resolved": "pickup-harbor-form-2-resolved.json",
+          "resolved_sha256": "26751319de64c50ff21177603401edb378af1ae53a6a783369fd4722c875db33",
+          "wav": "pickup-harbor-form-2.wav",
+          "wav_sha256": "930f568100c36e203e496f2a37937dacc3d4fe7c07f3b8261412b9f7b2774e4a"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "A",
+          "id": "bass-led-entry",
+          "index": 3,
+          "musicxml": "pickup-harbor-form-3.musicxml",
+          "musicxml_sha256": "eb00ee57767119f7caaeafab9f600626be7cee0ae0670bf0cae6f3bb959ded19",
+          "omitted_countermelody_sections": [
+            1
+          ],
+          "resolved": "pickup-harbor-form-3-resolved.json",
+          "resolved_sha256": "c61ceef821c3763773e39ce95fd61903a2fa6a55be70b173e9df043dab80fed4",
+          "wav": "pickup-harbor-form-3.wav",
+          "wav_sha256": "10c6a5549bc8a57116c50cda0980a56ea01e1eb25e236e5fdc9ad3f7a3c27f48"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "C",
+          "id": "active-contrast",
+          "index": 4,
+          "musicxml": "pickup-harbor-form-4.musicxml",
+          "musicxml_sha256": "9d8c637eaca83a8ca5278d4ebf7fb15605ad3418b8ce11a30479581fee32452d",
+          "omitted_countermelody_sections": [
+            0
+          ],
+          "resolved": "pickup-harbor-form-4-resolved.json",
+          "resolved_sha256": "e91c03e4bef1a23f888fd020d8a42b3184bdf28e24b90a936680dbeb9bbb0980",
+          "wav": "pickup-harbor-form-4.wav",
+          "wav_sha256": "ef70cd6d4d83aa21b81184d6a01a88f651c4e998f05a560a216e9f3351d4ff96"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "D",
+          "id": "thin-middle",
+          "index": 5,
+          "musicxml": "pickup-harbor-form-5.musicxml",
+          "musicxml_sha256": "ffd1681dddc832008ecad7cec6f640ec966b062330689ef975649805372bd356",
+          "omitted_countermelody_sections": [
+            0
+          ],
+          "resolved": "pickup-harbor-form-5-resolved.json",
+          "resolved_sha256": "619dd9495a04d6cf74e4b4123efd499c18e59941eca47ebff20623d1d9d714c0",
+          "wav": "pickup-harbor-form-5.wav",
+          "wav_sha256": "609dd04a4169b8d6bdf1b285fd335a27fe31b91f8aa123448e7e8fd33cec7052"
+        }
+      ],
+      "case_id": "pickup-harbor",
+      "source_fingerprint": "0a83c56974934c81",
+      "source_musicxml": "pickup-harbor.musicxml",
+      "source_musicxml_sha256": "32383717bf9421d69acbf4877831e71d9d44a787feef17b177770c0aa6e4e70f",
+      "source_wav": "pickup-harbor.wav",
+      "source_wav_sha256": "f1d8143ef86c3b53317ed3eda01ffb41d100d69184ab957921c8856f5698e1d7"
+    },
+    {
+      "candidates": [
+        {
+          "difference_codes": [
+            "reference-form"
+          ],
+          "display_label": "E",
+          "id": "terraced-arc",
+          "index": 1,
+          "musicxml": "low-tide-form-1.musicxml",
+          "musicxml_sha256": "2b06b094a42b03fd37f42bbcf5285b37a8e25e8b524f48a71dad5d85f9aecb73",
+          "omitted_countermelody_sections": [],
+          "resolved": "low-tide-form-1-resolved.json",
+          "resolved_sha256": "2c9bacf5081ef45a28be0acac9996989b905af77dbb5ffc7e2c6b0c0904f0b30",
+          "wav": "low-tide-form-1.wav",
+          "wav_sha256": "a8e460d0e9e8b0c6c08f08f0b129db06fe24717831e29b79f406cf61891468dd"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "A",
+          "id": "section-dialogue",
+          "index": 2,
+          "musicxml": "low-tide-form-2.musicxml",
+          "musicxml_sha256": "c9e35d56308b77e5be1c64bfaf1fdc1c3b677b4a3fed79f2c2f1eee62c6f672e",
+          "omitted_countermelody_sections": [],
+          "resolved": "low-tide-form-2-resolved.json",
+          "resolved_sha256": "f5ca5706d2eacb983d200c26778bdce30e60aa600bf2a1172df03afbdedb12d1",
+          "wav": "low-tide-form-2.wav",
+          "wav_sha256": "aa5668c07a7304e9213c712b3406d76c67c2aeef67e35f12f8712ec597a7ee7c"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "C",
+          "id": "bass-led-entry",
+          "index": 3,
+          "musicxml": "low-tide-form-3.musicxml",
+          "musicxml_sha256": "760e91d18ad998598dc1e125e66a04590eb8df918b8cfd1a1cc8d88a920ad767",
+          "omitted_countermelody_sections": [],
+          "resolved": "low-tide-form-3-resolved.json",
+          "resolved_sha256": "b29d12ed87b2cfb783b789c10e3854b6874440ab3a07ed55c19725aa316c90aa",
+          "wav": "low-tide-form-3.wav",
+          "wav_sha256": "4a1b60ea3caf6839fb1d05fdb29c4ba2b9ec977f927df15ab811f41ed37414ac"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "B",
+          "id": "active-contrast",
+          "index": 4,
+          "musicxml": "low-tide-form-4.musicxml",
+          "musicxml_sha256": "c078840763a452d13ed6083ead6a4315cf1bba5f902a50d16ee338175f63a0e7",
+          "omitted_countermelody_sections": [],
+          "resolved": "low-tide-form-4-resolved.json",
+          "resolved_sha256": "250e1e0ac90c9ae4ff66919cbb18cfcdab27fb1081af7b89d61b68a4cfb300ca",
+          "wav": "low-tide-form-4.wav",
+          "wav_sha256": "eaf2d3b7ad4df10ede91d11cc051e9a2c80671f7dee654a839b7bc646de5cdcd"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "D",
+          "id": "thin-middle",
+          "index": 5,
+          "musicxml": "low-tide-form-5.musicxml",
+          "musicxml_sha256": "1a5c5833241c21dab0b4e25b2efbfe7abe2af35e91549dc87e686fd242aef357",
+          "omitted_countermelody_sections": [],
+          "resolved": "low-tide-form-5-resolved.json",
+          "resolved_sha256": "c860e783918dde22e40e0567ccec348d3db376ff6a74d83832bb90d6af491235",
+          "wav": "low-tide-form-5.wav",
+          "wav_sha256": "72ffc095b1deadacd2e8546432d59a17333f80fff50d438437d7acf78ce86c55"
+        }
+      ],
+      "case_id": "low-tide",
+      "source_fingerprint": "9edf00d6c9ce8551",
+      "source_musicxml": "low-tide.musicxml",
+      "source_musicxml_sha256": "b2bffca2e0ac3a1f99cfb0b4fc383e10c83ea2f531bcaaaa92ed893b4b058638",
+      "source_wav": "low-tide.wav",
+      "source_wav_sha256": "138d716b7b1346b95baacf7a42e83d258ab9315b96d7e97017bc1c56c7c57037"
+    },
+    {
+      "candidates": [
+        {
+          "difference_codes": [
+            "reference-form"
+          ],
+          "display_label": "B",
+          "id": "terraced-arc",
+          "index": 1,
+          "musicxml": "bright-turn-form-1.musicxml",
+          "musicxml_sha256": "0e59861d1b86a2b2a6212c733e6f4f8716444d1b6b51264ff0e1fc7b053badf9",
+          "omitted_countermelody_sections": [
+            1
+          ],
+          "resolved": "bright-turn-form-1-resolved.json",
+          "resolved_sha256": "f6b04e707bb67353071b914d439b3dda3f8a55ab4ec3bcb0748caec846257864",
+          "wav": "bright-turn-form-1.wav",
+          "wav_sha256": "04ba64803eef8b258b06659a2f7724355f98b52a2667ab2b06b734a896c79ad1"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "D",
+          "id": "section-dialogue",
+          "index": 2,
+          "musicxml": "bright-turn-form-2.musicxml",
+          "musicxml_sha256": "3a3c4a763085d5a80b8d28a84f6eb7a8ae70747883c401a705ffd442cfdf0d15",
+          "omitted_countermelody_sections": [
+            1
+          ],
+          "resolved": "bright-turn-form-2-resolved.json",
+          "resolved_sha256": "a198dbc1b2da922294eba1da367f8937a358a967af061b1f05943c16f2e7be5b",
+          "wav": "bright-turn-form-2.wav",
+          "wav_sha256": "33af7b9642a815b668120234376d812c92fab0b0f3e4458f520592f1fdaa6709"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "E",
+          "id": "bass-led-entry",
+          "index": 3,
+          "musicxml": "bright-turn-form-3.musicxml",
+          "musicxml_sha256": "00807195523d1b1c570e2667e65d41361d2ce037ff73bf62e6a5ab23f4bd9de7",
+          "omitted_countermelody_sections": [
+            1
+          ],
+          "resolved": "bright-turn-form-3-resolved.json",
+          "resolved_sha256": "aa6a53916ccfed028d3259d629762247139afb764abaa3f86bc646e43303e5b7",
+          "wav": "bright-turn-form-3.wav",
+          "wav_sha256": "e2a3a6825050335e6b9151aad77205a1e287e053ab28468fd302a96f6a228c4d"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "C",
+          "id": "active-contrast",
+          "index": 4,
+          "musicxml": "bright-turn-form-4.musicxml",
+          "musicxml_sha256": "311637e69e5769773e563709389b2da0bd1ee496de932fe01f7e3de50bb5d220",
+          "omitted_countermelody_sections": [],
+          "resolved": "bright-turn-form-4-resolved.json",
+          "resolved_sha256": "bb55213994695defc5779a43d447444bff144e6715ad6fe2c49709f40e23f115",
+          "wav": "bright-turn-form-4.wav",
+          "wav_sha256": "a7c6a3c5ef2f218740f69f190f5bf969213152745d427cf7d4bb3cd59fdf1af9"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "A",
+          "id": "thin-middle",
+          "index": 5,
+          "musicxml": "bright-turn-form-5.musicxml",
+          "musicxml_sha256": "a7cf67f2ee7beec17d3a367a8d9f8061be4d53e9381c7e23e016a2d0355ddc02",
+          "omitted_countermelody_sections": [],
+          "resolved": "bright-turn-form-5-resolved.json",
+          "resolved_sha256": "9674036c6a4c3484e19c5b1d2cbca504cff65364ed2d88231b52576f23e65294",
+          "wav": "bright-turn-form-5.wav",
+          "wav_sha256": "2e18e892a6318f1d9826ed2d52c856cbf094eb8c963cadb16cfccd589ffd83de"
+        }
+      ],
+      "case_id": "bright-turn",
+      "source_fingerprint": "e70757ab38fd846f",
+      "source_musicxml": "bright-turn.musicxml",
+      "source_musicxml_sha256": "818a9733c130c93daba384ede71626af1995c808c82bb03e0a2e0bd9efbd34bb",
+      "source_wav": "bright-turn.wav",
+      "source_wav_sha256": "d93ea7bb303706ef3d822e43eeca85d8584d60e0a3257e761dfe44784e756f76"
+    },
+    {
+      "candidates": [
+        {
+          "difference_codes": [
+            "reference-form"
+          ],
+          "display_label": "D",
+          "id": "terraced-arc",
+          "index": 1,
+          "musicxml": "shadow-march-form-1.musicxml",
+          "musicxml_sha256": "7775447a7240f567a61cbda14e3eee4d79917d7829e0d4396a28473ee5251f8a",
+          "omitted_countermelody_sections": [],
+          "resolved": "shadow-march-form-1-resolved.json",
+          "resolved_sha256": "520ea3a07cb901dafb5268476f7fbd712ed3fff156fdfd64e2b33d5a8291b787",
+          "wav": "shadow-march-form-1.wav",
+          "wav_sha256": "428ea398730f0c9f0b2a0efc26c202124ae6ad2afba5197ced3beabe38fff0c9"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "C",
+          "id": "section-dialogue",
+          "index": 2,
+          "musicxml": "shadow-march-form-2.musicxml",
+          "musicxml_sha256": "740f9df0985b1b7464e3e5eba10a1aa9f0c22ec15a75fa215b96c8b2ae6758d7",
+          "omitted_countermelody_sections": [
+            2
+          ],
+          "resolved": "shadow-march-form-2-resolved.json",
+          "resolved_sha256": "8f21b1825b464b6f9f987c030f775d1aa7240f9bf439018e5da9301d0642bcf5",
+          "wav": "shadow-march-form-2.wav",
+          "wav_sha256": "689b94a1d48a3e78cde7bd98c332dcdd68d90cdf78ce5c9dd77a0bffe2f98e0a"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "A",
+          "id": "bass-led-entry",
+          "index": 3,
+          "musicxml": "shadow-march-form-3.musicxml",
+          "musicxml_sha256": "fbf815d20ccfb683c8e34488a54635d9188e1ef32cf8765ac13937c745f7687a",
+          "omitted_countermelody_sections": [
+            2
+          ],
+          "resolved": "shadow-march-form-3-resolved.json",
+          "resolved_sha256": "3250ce69c4f1b146bea89b17b6b21772d5448d2217f1338dc7863cd084b9cb9f",
+          "wav": "shadow-march-form-3.wav",
+          "wav_sha256": "b75b03037a5d5cf6c461cb670177f0be6ce43c244c727a516e180c7965f0d318"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "E",
+          "id": "active-contrast",
+          "index": 4,
+          "musicxml": "shadow-march-form-4.musicxml",
+          "musicxml_sha256": "be7caa4e81baae2b0f809389117f43437cf363e98fd2ebd589c775429fbd5ae3",
+          "omitted_countermelody_sections": [
+            2
+          ],
+          "resolved": "shadow-march-form-4-resolved.json",
+          "resolved_sha256": "7cb34c5649029532e61f75222b1f7a445b76d88950423224b9288adbcf0fd4d1",
+          "wav": "shadow-march-form-4.wav",
+          "wav_sha256": "60daf2ff17fba8f89cbe1a091cad497fc6da2fb7ef3bb2e0fa21cfd63c82986c"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "B",
+          "id": "thin-middle",
+          "index": 5,
+          "musicxml": "shadow-march-form-5.musicxml",
+          "musicxml_sha256": "0c63e739c48938aa2a2024ff960e2b603fd36592b0bc3e4336fa94ab7ad50a08",
+          "omitted_countermelody_sections": [],
+          "resolved": "shadow-march-form-5-resolved.json",
+          "resolved_sha256": "c98105848935c7317c585b960256f462441d9770c2a1ed47e6c5863423598e36",
+          "wav": "shadow-march-form-5.wav",
+          "wav_sha256": "1a94a2dab59f538097bec30dc4e3530b20d34afb8a3632b279ed71668a651abc"
+        }
+      ],
+      "case_id": "shadow-march",
+      "source_fingerprint": "c1609f9eaa050c48",
+      "source_musicxml": "shadow-march.musicxml",
+      "source_musicxml_sha256": "d16d598c885dde833762166a0d0f5232b3e7ba28ad2ffae765ea8a324a7ab32d",
+      "source_wav": "shadow-march.wav",
+      "source_wav_sha256": "4c0e329815fca23aa3c202b01576d946bd863e7b4447bd1ae52c7584f8a63206"
+    },
+    {
+      "candidates": [
+        {
+          "difference_codes": [
+            "reference-form"
+          ],
+          "display_label": "D",
+          "id": "terraced-arc",
+          "index": 1,
+          "musicxml": "new-horizon-form-1.musicxml",
+          "musicxml_sha256": "c9c54003b53d7d0f026a251fba35ce7e977cb5d51ee0510969d5f4121e9b897d",
+          "omitted_countermelody_sections": [
+            1
+          ],
+          "resolved": "new-horizon-form-1-resolved.json",
+          "resolved_sha256": "24c399675839216dbb81a04f30236e763a20e5ffa813b601b7d265363c5d3683",
+          "wav": "new-horizon-form-1.wav",
+          "wav_sha256": "be9659ae646499037018fb25a8b6e33b8b3db7717ef9fdce496639f7204b8513"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "A",
+          "id": "section-dialogue",
+          "index": 2,
+          "musicxml": "new-horizon-form-2.musicxml",
+          "musicxml_sha256": "51580cfb837266c0251f3b1ebf6872317471cd6bd4a265111448fb187a88f545",
+          "omitted_countermelody_sections": [
+            1,
+            2
+          ],
+          "resolved": "new-horizon-form-2-resolved.json",
+          "resolved_sha256": "955d65186744d138539eb316cfcfc603cec90bc9ad3c891cda3b153aa9915a32",
+          "wav": "new-horizon-form-2.wav",
+          "wav_sha256": "1110eccbed8df1341105e8a1004e2d3368f7a68d381e74d4946a1b64a4d61014"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "C",
+          "id": "bass-led-entry",
+          "index": 3,
+          "musicxml": "new-horizon-form-3.musicxml",
+          "musicxml_sha256": "29c87c6576181d09ebde9185580f262f43b7edb261c55d633c4c590ba23a3bda",
+          "omitted_countermelody_sections": [
+            1,
+            2
+          ],
+          "resolved": "new-horizon-form-3-resolved.json",
+          "resolved_sha256": "bda44d4a9019319473920dcea00bab09ff26249944c660feffc7098acb48fe0e",
+          "wav": "new-horizon-form-3.wav",
+          "wav_sha256": "0e55aed4b60d68b060c69ba8efbeb6832e2c1060799ee79f081ff581b8226301"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "B",
+          "id": "active-contrast",
+          "index": 4,
+          "musicxml": "new-horizon-form-4.musicxml",
+          "musicxml_sha256": "f0bc78dc153e599e36ab803176a837d90ea8118c2bebb97dec0c79f0268a84f5",
+          "omitted_countermelody_sections": [
+            2
+          ],
+          "resolved": "new-horizon-form-4-resolved.json",
+          "resolved_sha256": "697a39bc66f7d900b070ea525788261c1a60f58c7522aa1bb959e4635fde491a",
+          "wav": "new-horizon-form-4.wav",
+          "wav_sha256": "6ca1ce163a1342c9d5ab039c4c1fc5ee87fffef2446452c3477bb219f1d428fe"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "E",
+          "id": "thin-middle",
+          "index": 5,
+          "musicxml": "new-horizon-form-5.musicxml",
+          "musicxml_sha256": "2e4f91e51810bf2b9f5e17d26473f3c71b16f5d2a36afb5e73cf99d307671465",
+          "omitted_countermelody_sections": [],
+          "resolved": "new-horizon-form-5-resolved.json",
+          "resolved_sha256": "1b238c3d4ddeb922daae375d167e799393a910518c3d2407de61d8d55aed3225",
+          "wav": "new-horizon-form-5.wav",
+          "wav_sha256": "58c437b16cc1884d63ed105db899e18cfe7bd192749d03d42b5f5705c32b7de8"
+        }
+      ],
+      "case_id": "new-horizon",
+      "source_fingerprint": "15e58bc70b161986",
+      "source_musicxml": "new-horizon.musicxml",
+      "source_musicxml_sha256": "3096e05b88551162810ec3a18c1dbe22ad30204c97035b2a124a9322b0155c15",
+      "source_wav": "new-horizon.wav",
+      "source_wav_sha256": "b8336c68c121d46bb0771998c1dcd58616cf23986f24bdf0c78b5054947db200"
+    },
+    {
+      "candidates": [
+        {
+          "difference_codes": [
+            "reference-form"
+          ],
+          "display_label": "D",
+          "id": "terraced-arc",
+          "index": 1,
+          "musicxml": "two-voices-form-1.musicxml",
+          "musicxml_sha256": "3e23b3b2081d1fa5499becec640004dfeb223cf32d42166288d7f6d2d7b9b687",
+          "omitted_countermelody_sections": [
+            1
+          ],
+          "resolved": "two-voices-form-1-resolved.json",
+          "resolved_sha256": "03b25e06b6802ec3ee90f0ca45660c981021200957681444f5d628a166ecced6",
+          "wav": "two-voices-form-1.wav",
+          "wav_sha256": "89fe7f4bbe9bc392ea063226a1bcd2400cd24c98d5782ddb2d65c23111bb5c05"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "A",
+          "id": "section-dialogue",
+          "index": 2,
+          "musicxml": "two-voices-form-2.musicxml",
+          "musicxml_sha256": "37dd95c1bbd9b141a05bc4816147eefd6b6657b7d3cca10e38a7d384f205276e",
+          "omitted_countermelody_sections": [
+            1,
+            2
+          ],
+          "resolved": "two-voices-form-2-resolved.json",
+          "resolved_sha256": "3ba2f4914d7ebee1e78e4a163a1e56d2258d35fd38ceadce1e8cd5dbdf367616",
+          "wav": "two-voices-form-2.wav",
+          "wav_sha256": "658ec6e328538ce462f716d9ca1b17fc442fb9773840a0678940ea53d0ea27b0"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "E",
+          "id": "bass-led-entry",
+          "index": 3,
+          "musicxml": "two-voices-form-3.musicxml",
+          "musicxml_sha256": "d5aacfe83006ea53a0222956b3ec44a70b7f7f237561cbd048d158cf74e26856",
+          "omitted_countermelody_sections": [
+            1,
+            2
+          ],
+          "resolved": "two-voices-form-3-resolved.json",
+          "resolved_sha256": "1116a83a11718f26e95d227bd65282575fcdf2e36b7faed8404e1c11d47815b5",
+          "wav": "two-voices-form-3.wav",
+          "wav_sha256": "d6bf65d01c688d5060546df1c8bef762eb06c589c4c4ff9abb277ce9180d8b4a"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "C",
+          "id": "active-contrast",
+          "index": 4,
+          "musicxml": "two-voices-form-4.musicxml",
+          "musicxml_sha256": "e215f0c3f4018e929584fd059f09bfcf0ccf96d63cc503f6c8572a4a77173139",
+          "omitted_countermelody_sections": [
+            2
+          ],
+          "resolved": "two-voices-form-4-resolved.json",
+          "resolved_sha256": "6861256bf5734f3ddeff8fcec8e85287f85eb007045b4b32126d90226dc557e0",
+          "wav": "two-voices-form-4.wav",
+          "wav_sha256": "ea0c550452d3272ac5e650759217c2539f524a2f4bce748c68c645b5140fff7b"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "B",
+          "id": "thin-middle",
+          "index": 5,
+          "musicxml": "two-voices-form-5.musicxml",
+          "musicxml_sha256": "8564ffd9720929952a7816f5e9c6ab1242754aadfa2e1c55f1573691b79e6224",
+          "omitted_countermelody_sections": [
+            0
+          ],
+          "resolved": "two-voices-form-5-resolved.json",
+          "resolved_sha256": "7eac12b2077779d428bb35636878db7fc85f4d09d028bbf715bca94274710e3d",
+          "wav": "two-voices-form-5.wav",
+          "wav_sha256": "2022ea61212f6c23480223fafa7bad73486f3bccad7324cb3de194660bd9930e"
+        }
+      ],
+      "case_id": "two-voices",
+      "source_fingerprint": "312d45a36a9ecd7c",
+      "source_musicxml": "two-voices.musicxml",
+      "source_musicxml_sha256": "d309996d58ed5895de43c4c973614e7573c907dfc3ce9b3f3cc3a057d5880fb0",
+      "source_wav": "two-voices.wav",
+      "source_wav_sha256": "55b1d908f6c1a9afe4e90c07da799f1b42cd8a5325c3f95f1031230cc5e4f578"
+    },
+    {
+      "candidates": [
+        {
+          "difference_codes": [
+            "reference-form"
+          ],
+          "display_label": "B",
+          "id": "terraced-arc",
+          "index": 1,
+          "musicxml": "long-road-form-1.musicxml",
+          "musicxml_sha256": "6a154af94dce40807db1c7c7785778bd880c959e41e138238734c4d8fd31a39d",
+          "omitted_countermelody_sections": [],
+          "resolved": "long-road-form-1-resolved.json",
+          "resolved_sha256": "a17f25bf32c291b8b3628f49d46ec80318d2edca658090c84f041bfa396281fc",
+          "wav": "long-road-form-1.wav",
+          "wav_sha256": "c0a0b8535aeb3c9b50b8d8ca5e9fd98aa49295ddefd0d8c9921800552e6c1a5b"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "A",
+          "id": "section-dialogue",
+          "index": 2,
+          "musicxml": "long-road-form-2.musicxml",
+          "musicxml_sha256": "8fba85d39232cd133707aa620b385b32be2d21309dba9229a5b8f055f8843e57",
+          "omitted_countermelody_sections": [],
+          "resolved": "long-road-form-2-resolved.json",
+          "resolved_sha256": "146e9053ffe7509d6d7eeb00fd9c4245f66f3d0941770481ef2dca0889df3d9f",
+          "wav": "long-road-form-2.wav",
+          "wav_sha256": "823c7b204ace11c49eb8d104f84f500d142fbfe30b2a3f728c2d5e39187243ae"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "E",
+          "id": "bass-led-entry",
+          "index": 3,
+          "musicxml": "long-road-form-3.musicxml",
+          "musicxml_sha256": "c6f2f017f92878143939dbae33cbc7bf3e9f4feac12e0c440d3057856fd62234",
+          "omitted_countermelody_sections": [],
+          "resolved": "long-road-form-3-resolved.json",
+          "resolved_sha256": "fbf33f76bc0847ba7c997b4af38a3084ddb505859aad9ab4bc5d1c81aa02148d",
+          "wav": "long-road-form-3.wav",
+          "wav_sha256": "2106861449225062fd144181b63119b591a33c2ad8f1c324f7f7f53d4f65a6fc"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "D",
+          "id": "active-contrast",
+          "index": 4,
+          "musicxml": "long-road-form-4.musicxml",
+          "musicxml_sha256": "4739c86013e07a8682a00734c78842a941f3d90973e4b6560c397a88f6eee527",
+          "omitted_countermelody_sections": [],
+          "resolved": "long-road-form-4-resolved.json",
+          "resolved_sha256": "a4281d94eda38cc870de712a8a9f723b6267d3bce04da0ddb0d952405c937442",
+          "wav": "long-road-form-4.wav",
+          "wav_sha256": "103459aff059748628c791f6e738238fe3e7f3a6a70cecb3d8cf9f9b524fe2c9"
+        },
+        {
+          "difference_codes": [
+            "section-activity-changed",
+            "section-texture-changed",
+            "section-dynamics-changed",
+            "section-attack-shape-changed"
+          ],
+          "display_label": "C",
+          "id": "thin-middle",
+          "index": 5,
+          "musicxml": "long-road-form-5.musicxml",
+          "musicxml_sha256": "d457c828ebdfa54d145d5d91046d9dded25868db57d90358dd5add1836bc9e10",
+          "omitted_countermelody_sections": [],
+          "resolved": "long-road-form-5-resolved.json",
+          "resolved_sha256": "2f54686dd22e57cd9d5d78e1ca7feb6fcfcdb9b379b2c16d81aebb6af078fc83",
+          "wav": "long-road-form-5.wav",
+          "wav_sha256": "1d8aa7ba00c8a349046bee8caa7dc90dac3ba54d6e365b9a125d70d2e5f61353"
+        }
+      ],
+      "case_id": "long-road",
+      "source_fingerprint": "705f4cb1495164e1",
+      "source_musicxml": "long-road.musicxml",
+      "source_musicxml_sha256": "74195748b352d21485ebb400996ac82ca5e6697e2c50249e3995de30beeefbd0",
+      "source_wav": "long-road.wav",
+      "source_wav_sha256": "3e08a6c7044112829ca0e070a6706304aa452c9414d2e470e7435ecea374ef4c"
+    }
+  ],
+  "channels": 1,
+  "corpus_sha256": "6755ff347c7d7565c691954e2742b5f523f2da15bcc8eeda55c677145ac2ab1f",
+  "normalization": "none",
+  "partition": "development-v2-form",
+  "release_tail_millis": 500,
+  "renderer": "acorde-rustysynth-sf2-v1",
+  "sample_rate_hz": 22050,
+  "schema_version": 1,
+  "soundfont_sha256": "cf2a98eb38a32c4954b4b6e2caae4112d62dd8e892eceefdd7942b0e7d01ac2f",
+  "source_manifest_sha256": "0321a4be33aec3ffb32099316096ca21fdfa6ebb1effb44d3d4725ec71eaa521"
+}
