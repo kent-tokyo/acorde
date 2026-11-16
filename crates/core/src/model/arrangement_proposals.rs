@@ -220,7 +220,7 @@ fn features(
     let mut peak = 0;
     let measures = score.parts[0].staves[0].measures.len();
     let mut attacks_by_measure = Vec::with_capacity(measures);
-    for measure in 0..measures {
+    for (measure, _) in score.parts[0].staves[0].measures.iter().enumerate() {
         let attacks = arranged
             .role_parts
             .iter()

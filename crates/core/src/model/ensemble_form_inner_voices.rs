@@ -252,8 +252,12 @@ pub fn arrange_form_inner_voices(
             }
         }
         let mut first_attack = None;
-        for voice in 0..2 {
-            let events = &mut output.parts[inner_part].staves[0].measures[measure].voices[voice];
+        for (voice, events) in output.parts[inner_part].staves[0].measures[measure]
+            .voices
+            .iter_mut()
+            .take(2)
+            .enumerate()
+        {
             let mut onset = 0.0;
             for (note, event) in events.iter_mut().enumerate() {
                 if !event.is_rest && !event.tie_end {

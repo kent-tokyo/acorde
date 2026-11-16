@@ -2233,6 +2233,7 @@ fn arranged_extended_harmony_kinds_survive_musicxml_roundtrip() {
 }
 
 #[test]
+#[cfg(feature = "mei")]
 fn harmony_function_semantics_match_between_mei_and_musicxml() {
     let mei = r##"<mei><music><body><mdiv><score><section><measure n="1"><harm startid="#n1" deg="V7" func="D" type="roman">C7</harm><staff n="1"><layer n="1"><note xml:id="n1" pname="c" oct="4" dur="4"/></layer></staff></measure></section></score></mdiv></body></music></mei>"##;
     let musicxml = SIMPLE_XML.replacen(
