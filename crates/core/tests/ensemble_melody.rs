@@ -158,8 +158,13 @@ fn melody_handoff_closes_ties_on_both_sides_of_a_silent_measure() {
 #[test]
 fn melody_handoff_closes_only_the_crossing_partial_chord_ties() {
     let mut source = source();
-    for measure in 1..4 {
-        source.parts[0].staves[0].measures[measure].voices[0][0]
+    for measure in source.parts[0].staves[0]
+        .measures
+        .iter_mut()
+        .take(4)
+        .skip(1)
+    {
+        measure.voices[0][0]
             .pitches
             .push(Pitch::from_midi(88, false));
     }
