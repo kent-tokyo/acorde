@@ -87,5 +87,16 @@
     "range loops use iterators for Rust 1.100 Clippy",
     "test request initialized in one expression",
     "measured WASM budget recorded above"
-  ]
+  ],
+  "ci_compatible_local_validation": {
+    "rustc": "1.100.0",
+    "clippy_command": "cargo +1.100.0 clippy --all-features --all-targets --keep-going --locked --offline -- -D warnings",
+    "clippy_log_sha256": "df08ea606a46499e24eb0f3805c8f930ddb6de655d0cbdd45d74d3bcd67cc3c4",
+    "focused_tests": [
+      "core:ensemble_melody",
+      "io:arrangement_melody_handoff",
+      "wasm:ensemble_roles (native)"
+    ],
+    "focused_tests_log_sha256": "5a868265d587bcc3c6882c798798bba1b32d007f923bb4995487a0c3e0ae2cd6"
+  }
 }

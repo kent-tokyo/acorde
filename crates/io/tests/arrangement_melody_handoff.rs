@@ -22,10 +22,10 @@ fn melody_events(score: &Score) -> Vec<(u64, u64, u8)> {
 #[test]
 fn melody_handoff_with_a_broken_tie_round_trips_through_musicxml() {
     let mut source = Score::new("tied melody handoff", 120, 4, 4, 0, 3);
-    for measure in 0..3 {
+    for measure in source.parts[0].staves[0].measures.iter_mut().take(3) {
         let mut chord = Note::new(Pitch::from_midi(72, false), Duration::Whole);
         chord.pitches.push(Pitch::from_midi(76, false));
-        source.parts[0].staves[0].measures[measure].voices[0] = vec![chord];
+        measure.voices[0] = vec![chord];
     }
     source.parts[0].staves[0].measures[0].voices[0][0]
         .set_pitch_ties(&[true, false], &[false, false]);
