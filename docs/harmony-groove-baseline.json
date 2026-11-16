@@ -65,7 +65,27 @@
   },
   "remaining": [
     "hosted macOS/Linux/Windows CI",
-    "matched optimized WASM size",
     "new harmony-groove generation and listening comparison"
+  ],
+  "wasm_size": {
+    "platform": "Linux GitHub Actions ubuntu-latest",
+    "rustc": "1.100.0 (0ef1bc386 2026-11-09)",
+    "wasm_pack": "0.15.0",
+    "optimization": "release, wasm-opt -Oz",
+    "base_commit": "b12bf6252743323d50ad52abf9813879e900c8b5",
+    "base_job": "https://github.com/kent-tokyo/acorde/actions/runs/43710125411/job/132799659856",
+    "base_bytes": 7198793,
+    "integration_commit": "00cbaf56",
+    "integration_job": "https://github.com/kent-tokyo/acorde/actions/runs/43980019596/job/133693770454",
+    "integration_bytes": 8046523,
+    "increase_bytes": 847730,
+    "budget_bytes": 8070000,
+    "headroom_bytes": 23477
+  },
+  "ci_repairs": [
+    "MEI-only round-trip test gated on mei",
+    "range loops use iterators for Rust 1.100 Clippy",
+    "test request initialized in one expression",
+    "measured WASM budget recorded above"
   ]
 }

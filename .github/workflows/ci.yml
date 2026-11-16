@@ -291,7 +291,12 @@ jobs:
           # measured 7,130,353 bytes, +35,427 over the same-base #433 build.
           # The prior Linux #433 artifact was 7,169,359 bytes; this gate leaves
           # about 15 KB above its size plus the measured feature delta.
-          test "$size" -le 7220000
+          # Arrangement integration (PR #442) measured 8,046,523 bytes versus
+          # 7,198,793 at b12bf625: +847,730 bytes. Both are Linux CI builds
+          # with Rust 1.100.0, wasm-pack 0.15.0 and the same -Oz optimization.
+          # Keep approximately 23 KB headroom; receipts are in
+          # docs/harmony-groove-baseline.json.
+          test "$size" -le 8070000
 
   renderer-benchmark:
     name: Renderer performance budget
