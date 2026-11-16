@@ -92,8 +92,10 @@ fn source_reanchor_keeps_locked_chord_and_provenance_in_wasm() {
             })
             .collect(),
     };
-    let mut proposal = acorde_core::ChordProposalRequest::default();
-    proposal.source_plan = Some(source_plan.clone());
+    let proposal = acorde_core::ChordProposalRequest {
+        source_plan: Some(source_plan.clone()),
+        ..Default::default()
+    };
     let request = acorde_core::PhraseHarmonyRequest {
         phrases: vec![acorde_core::PhraseHarmonySection {
             start_measure: 0,
