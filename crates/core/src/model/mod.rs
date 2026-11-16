@@ -31,6 +31,7 @@ pub mod fragment;
 pub mod free_bass;
 pub mod gm;
 pub mod harmony;
+pub mod harmony_expansion;
 pub mod inner_voices;
 pub mod inner_voices_performance;
 pub mod instrument_plan;

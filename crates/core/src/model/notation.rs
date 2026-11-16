@@ -855,7 +855,8 @@ pub struct ChordBarre {
 pub struct ChordDegree {
     /// Scale degree number (normally 1 through 13).
     pub value: u8,
-    /// Semitone alteration relative to the diatonic degree.
+    /// Semitone alteration: relative to the base chord kind for `alter`/`subtract`,
+    /// or dominant-scale intervals (minor seventh) for `add`, per MusicXML.
     pub alter: i8,
     /// MusicXML degree type, such as `add`, `alter`, or `subtract`.
     pub kind: String,

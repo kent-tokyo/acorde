@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+- Add opt-in `expand_harmony` in Rust and full/viewer WASM: spelled compound
+  degrees, tension roles, slash-bass separation, and checked MusicXML
+  add/alter/subtract semantics. Existing arrangement presets remain unchanged.
+- Preserve extended chord kinds when importing MSCZ compact labels. Absent
+  altered extensions such as G7b9 are represented as added degrees.
+
+
 - Add opt-in phrase-entry leap bounds to rhythmic ensemble-form development
   in Rust and full/viewer WASM. Adjacent active countermelody phrases retain
   their prior ending pitch for the next chord-tone choice; impossible joins

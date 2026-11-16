@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "objective": "stages 0-3 of arrangement-harmony-groove-plan.md",
+  "stage_0": {
+    "state": "hosted-ci-rerun-pending",
+    "branch": "codex/harmony-groove-20261117",
+    "pull_request": "https://github.com/kent-tokyo/acorde/pull/442",
+    "baseline": "harmony-groove-baseline.json"
+  },
+  "stage_1": {
+    "state": "local-contract-verified-hosted-ci-pending",
+    "base": "69c9e815",
+    "checks": {
+      "native": {
+        "log_sha256": "59ca752027596285efa7097e1b41ff3b090c44ff884366dafcd8f99151868bc1",
+        "passed_tests": 2539
+      },
+      "clippy": {
+        "log_sha256": "e5aba42b808d30d2e37cd6c9c08a156f21820d15170f494c28eff2b625b7452c",
+        "passed_tests": 0
+      },
+      "full-wasm": {
+        "log_sha256": "41663d52c56d00ae2676ce49eb0e302552bdc0310d8c54c3f2ce7db3d2f783cd",
+        "passed_tests": 109
+      },
+      "viewer-wasm": {
+        "log_sha256": "6dbed56d2e1c58e7766d7e02561992dd13a71be233eea8d4fd84c7459e46df94",
+        "passed_tests": 106
+      }
+    },
+    "corpus": "../tests/fixtures/arrangement/harmony-expansion.json",
+    "specification": "harmony-expansion.md"
+  },
+  "stage_2": {
+    "state": "in-progress",
+    "remaining": [
+      "score-derived bass and melody contexts",
+      "registered and tested voicing graph API",
+      "repeat transitions",
+      "notation and replay integration"
+    ]
+  },
+  "stage_3": {
+    "state": "not-yet-implemented",
+    "remaining": [
+      "anticipatory timing and ties",
+      "pickup, final, locked and repeated boundaries",
+      "three distinct candidates on 8 and 16 bars",
+      "saved-setting replay",
+      "shared-soundfont audio comparison and review"
+    ]
+  }
+}

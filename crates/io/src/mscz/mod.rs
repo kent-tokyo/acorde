@@ -3767,7 +3767,7 @@ fn mscx_chord_symbol(
     }
     let trimmed_name = name.trim();
     let (kind_name, degrees) = mscx_harmony_kind_and_degrees(trimmed_name);
-    let kind = match kind_name {
+    let kind = match kind_name.as_str() {
         "" => "major",
         "m" => "minor",
         "7" => "dominant",
@@ -3807,60 +3807,10 @@ fn mscx_chord_symbol(
 ///
 /// The parser intentionally recognizes only unambiguous MusicXML-compatible
 /// tokens. Unknown suffixes remain in the kind string instead of being guessed.
-fn mscx_harmony_kind_and_degrees(name: &str) -> (&str, Vec<ChordDegree>) {
-    if matches!(name, "add9" | "madd9") {
-        return (name, Vec::new());
-    }
-    let quality_len = [
-        "maj7", "m7b5", "dim7", "sus2", "sus4", "min7", "m6", "maj", "min", "dim", "aug", "m", "7",
-        "6",
-    ]
-    .iter()
-    .find_map(|quality| name.strip_prefix(quality).map(|_| quality.len()))
-    .unwrap_or(name.len());
-    let (quality, suffix) = name.split_at(quality_len);
-    if suffix.is_empty() {
-        return (quality, Vec::new());
-    }
-    let mut degrees = Vec::new();
-    let mut rest = suffix;
-    while !rest.is_empty() {
-        let (kind, tail) = if let Some(tail) = rest.strip_prefix("add") {
-            ("add", tail)
-        } else if let Some(tail) = rest.strip_prefix("no") {
-            ("subtract", tail)
-        } else {
-            ("alter", rest)
-        };
-        let alter_len = tail
-            .chars()
-            .take_while(|ch| matches!(ch, '#' | 'b'))
-            .count();
-        let (accidentals, value_text) = tail.split_at(alter_len);
-        let value_len = value_text.chars().take_while(char::is_ascii_digit).count();
-        if value_len == 0 {
-            return (name, Vec::new());
-        }
-        let value = match value_text[..value_len].parse::<u8>() {
-            Ok(value) if value > 0 => value,
-            _ => return (name, Vec::new()),
-        };
-        let alter = match accidentals {
-            "" => 0,
-            "#" => 1,
-            "##" => 2,
-            "b" => -1,
-            "bb" => -2,
-            _ => return (name, Vec::new()),
-        };
-        degrees.push(ChordDegree {
-            value,
-            alter,
-            kind: kind.to_string(),
-        });
-        rest = &value_text[value_len..];
-    }
-    (quality, degrees)
+fn mscx_harmony_kind_and_degrees(name: &str) -> (String, Vec<ChordDegree>) {
+    crate::chord_label::parse_chord_label(&format!("C{name}"))
+        .map(|symbol| (symbol.kind, symbol.degrees))
+        .unwrap_or_else(|| (name.to_string(), Vec::new()))
 }
 
 fn mscx_tpc_to_note_name(tpc: i32) -> String {

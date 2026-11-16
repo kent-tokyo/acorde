@@ -1963,6 +1963,15 @@ pub fn replay_inner_voices(score_json: &str, resolved_json: &str) -> Result<Stri
         .map_err(|error| js_err(format!("inner voices replay serialization failed: {error}")))
 }
 
+/// Expand a chord into spelled tones with compound degrees, before voicing.
+#[wasm_bindgen]
+pub fn expand_harmony(chord_json: &str) -> Result<String, JsValue> {
+    let chord: acorde_core::ChordSymbol =
+        parse_json(chord_json, "harmony symbol", MAX_OPTIONS_JSON_BYTES)?;
+    let expanded = acorde_core::expand_harmony(&chord).map_err(js_err)?;
+    serde_json::to_string(&expanded).map_err(js_err)
+}
+
 /// Compose independently scheduled harmony, bass and countermelody parts.
 #[wasm_bindgen]
 pub fn arrange_ensemble_roles(score_json: &str, options_json: &str) -> Result<String, JsValue> {
