@@ -2,12 +2,12 @@
   "schema_version": 1,
   "objective": "stages 0-3 of arrangement-harmony-groove-plan.md",
   "stage_0": {
-    "state": "hosted-ci-rerun-pending",
+    "state": "windows-lf-repair-pushed-hosted-ci-rerun-pending",
     "branch": "codex/harmony-groove-20261117",
     "pull_request": "https://github.com/kent-tokyo/acorde/pull/442",
     "baseline": "harmony-groove-baseline.json",
-    "ci_run": "https://github.com/kent-tokyo/acorde/actions/runs/43983638187",
-    "head": "c32b9dc9"
+    "head": "54e52283c860a4563fc6d14e50a9b7a991693e2c",
+    "previous_ci_run": "https://github.com/kent-tokyo/acorde/actions/runs/43983638187"
   },
   "stage_1": {
     "state": "local-contract-verified-hosted-ci-pending",
@@ -33,7 +33,8 @@
     "corpus": "../tests/fixtures/arrangement/harmony-expansion.json",
     "specification": "harmony-expansion.md",
     "pull_request": "https://github.com/kent-tokyo/acorde/pull/443",
-    "ci_run": "https://github.com/kent-tokyo/acorde/actions/runs/43983668201"
+    "head": "ce6fbf4bc6e4fb27ac23caec10e57212d9ba96eb",
+    "previous_ci_run": "https://github.com/kent-tokyo/acorde/actions/runs/43983668201"
   },
   "stage_2": {
     "state": "low-level-voicing-verified-score-integration-pending",
