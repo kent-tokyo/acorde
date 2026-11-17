@@ -15,4 +15,6 @@
 
 比較用パックは `cargo run -p acorde-cli --example integrated_mix_listening_pack -- <新しい出力ディレクトリ>` で再生成する。固定した入力・設定・8/16小節の各3案の出力ハッシュは [`integrated-stage678-listening-manifest.json`](../tests/fixtures/arrangement/integrated-stage678-listening-manifest.json) に記録した。再生イベントの一致を確認したMusicXML/MSCZと、乾いたWAV、処理後のWAV、ピークを揃えた比較WAVが出力される。生成UUIDが変わるため、書き出した楽譜ファイルのバイト一致は要求しない。
 
+同じパックから `python3 scripts/derive_stage678_native_parity.py <パックのディレクトリ> tests/fixtures/arrangement/stage678-native-parity.json` でネイティブ側の確定設定と発音イベントを固定する。WASMのfull/viewerテストは8/16小節の生成・再現をこの記録と照合する。
+
 局所テストでは、全効果無効時のWAV一致、個別の有効化による発音差、同じ設定でのWAV再生成、無効なキック時刻の拒否、レール値と末尾残留の検出を確認した。8/16小節の各3案を2回生成し、WAVハッシュが一致した。6案のレポートではクリッピングと末尾の音切れは検出されていない。比較用には乾いた音声とミックス音声を線形ピーク0.7に揃えたWAVも出力する。これは知覚上の音量を一致させる処理ではない。試聴とCIは受け入れ前に必要である。
