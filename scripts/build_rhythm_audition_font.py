@@ -23,6 +23,10 @@ def wave(kind,root,seconds):
             value=.70*math.sin(phase)*math.exp(-t/0.11)+.12*n*math.exp(-t/.006)
         elif kind=='muted':
             value=(.45*math.sin(2*math.pi*frequency*t)+.14*n*math.exp(-t/.025))*math.exp(-t/.07)
+        elif kind=='fm':
+            index=4.2*math.exp(-t/.22)+.35
+            value=.35*math.sin(2*math.pi*frequency*t+index*math.sin(2*math.pi*2*frequency*t))
+            value*=math.exp(-t/1.25)
         else:
             harmonics=[1,.35,.13] if kind=='bass' else [1,.3,.17,.07]
             value=sum(a*math.sin(2*math.pi*frequency*t*(j+1)) for j,a in enumerate(harmonics))
@@ -31,8 +35,10 @@ def wave(kind,root,seconds):
         result.append(round(max(-1,min(1,value))*32767))
     return result
 
-def build():
+def build(extra_fm=False):
     definitions=[('Soft keys',0,0,'keys',60,3.0),('Round bass',0,33,'bass',40,3.0),('Muted bass',0,34,'muted',40,.5),('Kick kit',128,0,'kick',36,.7)]
+    if extra_fm:
+        definitions.append(('FM electric piano',0,3,'fm',60,3.0))
     pcm=[];headers=[];phdr=b'';inst=b'';igen=b'';ibag=b''
     for i,(label,bank,program,kind,root,secs) in enumerate(definitions):
         values=wave(kind,root,secs);start=len(pcm);pcm+=values;end=len(pcm);pcm += [0]*46
@@ -52,4 +58,4 @@ def build():
     pdta=chunk(b'LIST',b'pdta'+b''.join([chunk(b'phdr',phdr),chunk(b'pbag',b''.join(struct.pack('<HH',i,0) for i in range(count+1))),chunk(b'pmod',b'\0'*10),chunk(b'pgen',b''.join(generator(41,i) for i in range(count))+generator(0,0)),chunk(b'inst',inst),chunk(b'ibag',ibag),chunk(b'imod',b'\0'*10),chunk(b'igen',igen),chunk(b'shdr',b''.join(headers))]))
     return chunk(b'RIFF',b'sfbk'+info+sdta+pdta)
 if __name__=='__main__':
-    Path(sys.argv[1]).write_bytes(build())
+    Path(sys.argv[1]).write_bytes(build('--fm' in sys.argv[2:]))

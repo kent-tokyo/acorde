@@ -8,7 +8,14 @@
 use acorde_core::PlaybackEvent;
 use serde::Serialize;
 
+mod mix;
 mod offline;
+#[cfg(feature = "full-sf2")]
+pub use mix::render_offline_mix_wav_full_sf2;
+pub use mix::{
+    DetuneConfig, MixRenderConfig, MixRenderReport, MixRenderResult, ReverbConfig, SidechainConfig,
+    kick_frames, render_offline_mix_wav,
+};
 pub use offline::{MAX_OFFLINE_WAV_BYTES, render_offline_wav};
 mod pcm;
 pub use pcm::{PcmPeakReport, normalize_pcm16_wav_peak};

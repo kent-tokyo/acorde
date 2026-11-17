@@ -19,20 +19,56 @@
         "cargo test -p acorde-wasm --test phrase_melody --offline --locked",
         "CARGO_INCREMENTAL=0 CARGO_PROFILE_TEST_DEBUG=0 cargo test --all --locked --offline",
         "cargo clippy -p acorde-core -p acorde-io -p acorde-wasm --all-features --all-targets --offline --locked -- -D warnings",
-        "cargo fmt --all -- --check"
+        "cargo fmt --all -- --check",
+        "PR #448: macOS, Linux, Windows, full/viewer Chrome WASM and other functional checks passed at bd525ac1"
       ],
       "environment_notes": [
         "Default debug workspace/WASM test builds exceeded available disk space; the complete native suite passed with incremental compilation disabled and test debug information omitted.",
-        "Local wasm-pack Chrome execution stopped before tests because the cached wasm-bindgen CLI is 0.2.125, the crate needs 0.2.130, wasm-pack installation was denied by sandbox permissions, and offline cargo install lacked native-tls. CI verification remains pending."
+        "Local wasm-pack Chrome execution stopped before tests because the cached wasm-bindgen CLI is 0.2.125, the crate needs 0.2.130, wasm-pack installation was denied by sandbox permissions, and offline cargo install lacked native-tls. Hosted full/viewer browser CI passed.",
+        "PR #448 dependency advisory job failed on new transitive chrono unmaintained advisory RUSTSEC-2026-0543; the stage 6 code did not change that dependency."
       ],
       "pending": [
         "8 and 16 measure listening comparisons",
-        "full and viewer Chrome WASM parity",
+        "new API native/browser parity receipt and matched WASM size measurements",
         "all-features workspace tests",
         "three OS CI and matched WASM size/performance measurements"
       ]
     },
-    "7": { "status": "pending", "pending": ["technique budgets and editable range in candidate selection", "3 to 5 distinct replayable local proposals", "full validation and audition"] },
-    "8": { "status": "pending", "pending": ["reproducible electric-piano preset routing", "independent detune, reverb, and kick-keyed sidechain", "disabled-effects bit identity and clipping/cutoff reporting", "full validation and audition"] }
+    "7": {
+      "status": "in_progress",
+      "implemented": [
+        "composed stage 4 harmony, stage 5 rhythm, and stage 6 melody candidate selection",
+        "per-technique budgets, shared locked measures, editable range, bounded search",
+        "3 to 5 distinct playback proposals with difference codes and source-bound replay",
+        "typed distinction between insufficient distinct outcomes and exhausted search"
+      ],
+      "verified": [
+        "CARGO_INCREMENTAL=0 CARGO_PROFILE_TEST_DEBUG=0 cargo test -p acorde-core --test integrated_arrangement_proposals --offline --locked",
+        "CARGO_INCREMENTAL=0 CARGO_PROFILE_TEST_DEBUG=0 cargo test -p acorde-io --all-features --test integrated_arrangement_proposals --offline --locked",
+        "CARGO_INCREMENTAL=0 CARGO_PROFILE_TEST_DEBUG=0 cargo test -p acorde-wasm --test integrated_arrangement_proposals --offline --locked",
+        "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 cargo clippy -p acorde-core -p acorde-io -p acorde-wasm --all-features --all-targets --offline --locked -- -D warnings",
+        "8 and 16 measure three-proposal structural generation",
+        "8 and 16 measure score generation; 4 measure replay, MusicXML/MSCZ and native WASM local parity tests"
+      ],
+      "pending": ["8 and 16 measure listening review", "full and viewer Chrome WASM parity", "three OS CI", "matched WASM size/performance measurements"]
+    },
+    "8": {
+      "status": "in_progress",
+      "implemented": [
+        "GM Electric Piano 2 preset routing with an original FM-waveform SF2 sample",
+        "independently enabled detune, reverb, and explicit kick-frame sidechain volume control",
+        "separate score-independent settings and SF2/manifest/WAV SHA-256 identities",
+        "disabled-effects byte identity and clipping/cutoff reporting"
+      ],
+      "verified": [
+        "CARGO_INCREMENTAL=0 CARGO_PROFILE_TEST_DEBUG=0 cargo test -p acorde-soundfont --all-features --offline --locked",
+        "previous rhythm-audition.sf2 reproduction hash matches the committed fixture",
+        "8 and 16 measure dry and mixed WAV packs generated twice with matching hashes for all six proposals",
+        "six mixed examples reported no clipping and no tail cutoff",
+        "CARGO_INCREMENTAL=0 CARGO_PROFILE_TEST_DEBUG=0 cargo test --workspace --all-features --locked --offline",
+        "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 cargo clippy --workspace --all-features --all-targets --locked --offline -- -D warnings"
+      ],
+      "pending": ["8 and 16 measure listening review", "three OS CI", "matched WASM size/performance measurements and final audio provenance"]
+    }
   }
 }
