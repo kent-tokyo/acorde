@@ -1,0 +1,442 @@
+{
+  "cases": [
+    {
+      "bars": 8,
+      "candidates": [
+        {
+          "approach_resolutions": 0,
+          "clipped_samples": 0,
+          "diagnostics": [],
+          "id": "rhythm-eight-pulse",
+          "mscz": {
+            "bytes": 1648,
+            "file": "rhythm-eight-pulse.mscz",
+            "sha256": "e68fc0c73d4a05910254e4fb270d6ed74a155771509fdc3e3ce0580cf33d99ff"
+          },
+          "musicxml": {
+            "bytes": 84618,
+            "file": "rhythm-eight-pulse.musicxml",
+            "sha256": "60c823de7ff7e3da3600fd51a919c13338f9d02997bd473d65861ab106db7a87"
+          },
+          "peak_pcm16": 6081,
+          "playback_sha256": "c2d1e53b9707d25ab1ed34f5199c39c9cc8b6ab71a94505d6dfedb4aec6b8373",
+          "profile": "pulse",
+          "render": {
+            "bytes": 165887,
+            "file": "rhythm-eight-pulse-render.json",
+            "sha256": "dda6532ba64e0634f09f2ae27e08d94e77ab79e04231781b629cebe811696e0c"
+          },
+          "request": {
+            "bytes": 19723,
+            "file": "rhythm-eight-pulse-request.json",
+            "sha256": "ccaa4f574ec115db918c555c2ef629645ddd84e676bd1f7718765aaec28d9d07"
+          },
+          "resolved": {
+            "bytes": 29421,
+            "file": "rhythm-eight-pulse-resolved.json",
+            "sha256": "38ad954f66504edde517e84e7fd519013407bea9b1af5b81a95ba0dde6865860"
+          },
+          "score": {
+            "bytes": 559783,
+            "file": "rhythm-eight-pulse.json",
+            "sha256": "1c7873e72bc06e8d5ecf9c20e39c11e4b7d089c4cbf52d3766d34ee5c888f58a"
+          },
+          "synchronized_attacks": 16,
+          "wav": {
+            "bytes": 836248,
+            "file": "rhythm-eight-pulse.wav",
+            "sha256": "f0ff43dd8216af8a9542a9459ebe3916cb9cf71581a047e98e3b34a45865e968"
+          }
+        },
+        {
+          "approach_resolutions": 7,
+          "clipped_samples": 0,
+          "diagnostics": [],
+          "id": "rhythm-eight-coordinated",
+          "mscz": {
+            "bytes": 1696,
+            "file": "rhythm-eight-coordinated.mscz",
+            "sha256": "7b4c6edf1d3c8a017b51a52f0efb21f8bfb294af1150929bfbea8a1ba0d75270"
+          },
+          "musicxml": {
+            "bytes": 84611,
+            "file": "rhythm-eight-coordinated.musicxml",
+            "sha256": "013a572d65e86e8596ee08cb4838d9b5c349253196fe650d8d2f0eba80f28cda"
+          },
+          "peak_pcm16": 5621,
+          "playback_sha256": "94bad0dc402487cec7d9c6b33c3fda14728a33fa9b95769bc6b7257ddb4d684f",
+          "profile": "coordinated",
+          "render": {
+            "bytes": 179073,
+            "file": "rhythm-eight-coordinated-render.json",
+            "sha256": "e47eda6b379e7ee22b36e34cb811501aba94f83dc6c05815ea0e9918819b2ab8"
+          },
+          "request": {
+            "bytes": 21854,
+            "file": "rhythm-eight-coordinated-request.json",
+            "sha256": "f6b3e18544d5de2dd1d557629cb56bdec043ff3e97fb52f0bd05f502478c3ccd"
+          },
+          "resolved": {
+            "bytes": 33491,
+            "file": "rhythm-eight-coordinated-resolved.json",
+            "sha256": "9618763b5bf60fde9f9ab213b96e57cbe5d5c53638f681a707e0b8e6fffcf00f"
+          },
+          "score": {
+            "bytes": 561163,
+            "file": "rhythm-eight-coordinated.json",
+            "sha256": "0714f0257d95348f87ef03e019094219aa2f3c636788221777fb9e89722aa5b5"
+          },
+          "synchronized_attacks": 16,
+          "wav": {
+            "bytes": 836248,
+            "file": "rhythm-eight-coordinated.wav",
+            "sha256": "60ba1390648a3fd11f59b4a7c2a1f6bfb3855dcfe0b29f99780c26ad1b70cf0a"
+          }
+        },
+        {
+          "approach_resolutions": 7,
+          "clipped_samples": 0,
+          "diagnostics": [
+            "short-quiet-ghost-approximation"
+          ],
+          "id": "rhythm-eight-short-quiet-ghosts",
+          "mscz": {
+            "bytes": 1758,
+            "file": "rhythm-eight-short-quiet-ghosts.mscz",
+            "sha256": "513af0fd8dc557b68c864dfc0c9ee5da02629594b15c0e1b0e5de7bd9a9e9c0d"
+          },
+          "musicxml": {
+            "bytes": 89125,
+            "file": "rhythm-eight-short-quiet-ghosts.musicxml",
+            "sha256": "cdc5b2710dd4bf998d6d522af8634884706d368544bc1ac13c2b6e952945040f"
+          },
+          "peak_pcm16": 5621,
+          "playback_sha256": "429580acb99687aedd1217187d6a484982b191771b8d5842c7211ca155f9c188",
+          "profile": "short-quiet-ghosts",
+          "render": {
+            "bytes": 192281,
+            "file": "rhythm-eight-short-quiet-ghosts-render.json",
+            "sha256": "948d6def514e506cae44d5d286cf1ba792b52c7bd42a32bc35fd2cda3914d7e3"
+          },
+          "request": {
+            "bytes": 22830,
+            "file": "rhythm-eight-short-quiet-ghosts-request.json",
+            "sha256": "c8b5ea23d17e8423e9d9540e4e9ac68087b961cc30c9f9a422c8cf362e8e7b41"
+          },
+          "resolved": {
+            "bytes": 36483,
+            "file": "rhythm-eight-short-quiet-ghosts-resolved.json",
+            "sha256": "fa6b2be09a98acf67b8b193e12ff9bfc0fed36f7abc468533fabcd4e9c096f16"
+          },
+          "score": {
+            "bytes": 581569,
+            "file": "rhythm-eight-short-quiet-ghosts.json",
+            "sha256": "a0d2083665ee9d0f9d36d74ea0b8dabd0080b04e28dc855e46dc1fcfc83bd152"
+          },
+          "synchronized_attacks": 16,
+          "wav": {
+            "bytes": 836248,
+            "file": "rhythm-eight-short-quiet-ghosts.wav",
+            "sha256": "b92280e187f22411c718fc82e14b30b46584faaf20ebc9435818d6869b44abc6"
+          }
+        },
+        {
+          "approach_resolutions": 7,
+          "clipped_samples": 0,
+          "diagnostics": [
+            "caller-supplied-muted-sound"
+          ],
+          "id": "rhythm-eight-muted-ghosts",
+          "mscz": {
+            "bytes": 1824,
+            "file": "rhythm-eight-muted-ghosts.mscz",
+            "sha256": "631060a8520c11046d4d59ad326132f524ca8410c02cfa85d5df6e9eb6b1fe6e"
+          },
+          "musicxml": {
+            "bytes": 100009,
+            "file": "rhythm-eight-muted-ghosts.musicxml",
+            "sha256": "0be7f7e7beecc714ec6299ba353be03fda31526f7af5eb5be9c25bf68a22f897"
+          },
+          "peak_pcm16": 5621,
+          "playback_sha256": "e9c8c43fef31f85735a37a76ee1b1b699b6565392b64684565815ec4c2c39055",
+          "profile": "muted-ghosts",
+          "render": {
+            "bytes": 192281,
+            "file": "rhythm-eight-muted-ghosts-render.json",
+            "sha256": "8d9e0cf8b1aea6d9463ce0b350d4144808648eba08f3179d256d12f6e855a520"
+          },
+          "request": {
+            "bytes": 22940,
+            "file": "rhythm-eight-muted-ghosts-request.json",
+            "sha256": "d2b0cc23e292510840dd8d32628ad803f7b5f1cc9da70d3203d77a30e556907d"
+          },
+          "resolved": {
+            "bytes": 36603,
+            "file": "rhythm-eight-muted-ghosts-resolved.json",
+            "sha256": "6dd9e9930ba1de1e9e4d1dde5eed07b4c1aa1980a0756defc2e12242450bbe98"
+          },
+          "score": {
+            "bytes": 716784,
+            "file": "rhythm-eight-muted-ghosts.json",
+            "sha256": "a3a4e4a9293548b8812d0489b425a4a4333fdc94efd511bc3f57aa3691a8721a"
+          },
+          "synchronized_attacks": 16,
+          "wav": {
+            "bytes": 836248,
+            "file": "rhythm-eight-muted-ghosts.wav",
+            "sha256": "25aece77fef4fd287ea89031c8cf131009d5ba381182112042abdfc13fda6865"
+          }
+        }
+      ],
+      "id": "rhythm-eight",
+      "input_score": {
+        "bytes": 105780,
+        "file": "rhythm-eight-input.json",
+        "sha256": "215878fe8655e3e3de666311968fb41800de46525010f62183ff0703e66cbacb"
+      }
+    },
+    {
+      "bars": 16,
+      "candidates": [
+        {
+          "approach_resolutions": 0,
+          "clipped_samples": 0,
+          "diagnostics": [],
+          "id": "rhythm-sixteen-pulse",
+          "mscz": {
+            "bytes": 2061,
+            "file": "rhythm-sixteen-pulse.mscz",
+            "sha256": "a35fdda5aa4b93f8c7bba0db92e02b81754c9ddb0af900f5ab28575f646885cf"
+          },
+          "musicxml": {
+            "bytes": 165782,
+            "file": "rhythm-sixteen-pulse.musicxml",
+            "sha256": "015127908a40712e6e96565e29651f09c45e7e6689fa1b720ee19ce0b29f53a7"
+          },
+          "peak_pcm16": 6081,
+          "playback_sha256": "4e8c150790a2544d328e8c83233afee2a506eb12ab1a094a6a144b1d5f072e99",
+          "profile": "pulse",
+          "render": {
+            "bytes": 328978,
+            "file": "rhythm-sixteen-pulse-render.json",
+            "sha256": "d13f861d6b8c119e9f6f39fcb85549041f1940649de7c8d5948e01d11c24e373"
+          },
+          "request": {
+            "bytes": 39156,
+            "file": "rhythm-sixteen-pulse-request.json",
+            "sha256": "3b5485f3d745bb421885a02b0ef87bcb45107d2ffdbdd40d6f5e6b1e0fbc65b9"
+          },
+          "resolved": {
+            "bytes": 58390,
+            "file": "rhythm-sixteen-pulse-resolved.json",
+            "sha256": "9f3636dc2775a3965359321c261d8f101bd0feda8e73ecd97ba4cd21ada742b8"
+          },
+          "score": {
+            "bytes": 1115871,
+            "file": "rhythm-sixteen-pulse.json",
+            "sha256": "51308db5477fd0db3e6bfb7b66c96408cb1995c823cf7ef76b18b9bb97b05f4a"
+          },
+          "synchronized_attacks": 32,
+          "wav": {
+            "bytes": 1534094,
+            "file": "rhythm-sixteen-pulse.wav",
+            "sha256": "918a7b5182b08659f5306b57f16357aac02f78b82388b5a2af91baca7c53a89e"
+          }
+        },
+        {
+          "approach_resolutions": 15,
+          "clipped_samples": 0,
+          "diagnostics": [],
+          "id": "rhythm-sixteen-coordinated",
+          "mscz": {
+            "bytes": 2111,
+            "file": "rhythm-sixteen-coordinated.mscz",
+            "sha256": "1f6a63a26b018b09f51eb83011d2acfb51808c5ed953a4111fee3986b49d4581"
+          },
+          "musicxml": {
+            "bytes": 165759,
+            "file": "rhythm-sixteen-coordinated.musicxml",
+            "sha256": "e6c04c99a9e5d23285695dc55923e17d63a96644669d70a568b4f69324a26e36"
+          },
+          "peak_pcm16": 5621,
+          "playback_sha256": "d9304bb54eac354d10eb16f2be00f185162ba13d83ba48527b0ded99cc50be9e",
+          "profile": "coordinated",
+          "render": {
+            "bytes": 355400,
+            "file": "rhythm-sixteen-coordinated-render.json",
+            "sha256": "d8f860486d525c8218f49d623772cd8f7655be44437ec5bfbe4a7f4f62114fe6"
+          },
+          "request": {
+            "bytes": 43653,
+            "file": "rhythm-sixteen-coordinated-request.json",
+            "sha256": "e5a565ba785ed22b4f1fc2b91a6ba73f892a197eadb7b5b0f7c9a9fa11163e0a"
+          },
+          "resolved": {
+            "bytes": 67040,
+            "file": "rhythm-sixteen-coordinated-resolved.json",
+            "sha256": "c1e5d33fcd24d98ed01d6ef96a9ef16025b0c54a14094ee2f4fb31ce1b35e325"
+          },
+          "score": {
+            "bytes": 1118619,
+            "file": "rhythm-sixteen-coordinated.json",
+            "sha256": "25e9dfd9b14217c9fe67d5e1c356110ffdc6367a8431445c1337d6a7d714ebe8"
+          },
+          "synchronized_attacks": 32,
+          "wav": {
+            "bytes": 1534094,
+            "file": "rhythm-sixteen-coordinated.wav",
+            "sha256": "9f42ba508ab1febc2f83ace38753e5654db6601e2c81dcc76e52f7c4e00ad28e"
+          }
+        },
+        {
+          "approach_resolutions": 15,
+          "clipped_samples": 0,
+          "diagnostics": [
+            "short-quiet-ghost-approximation"
+          ],
+          "id": "rhythm-sixteen-short-quiet-ghosts",
+          "mscz": {
+            "bytes": 2205,
+            "file": "rhythm-sixteen-short-quiet-ghosts.mscz",
+            "sha256": "99a21036adfd236d4193d426f9889fd269ff72104ba72d90d2097bf40f8e3e22"
+          },
+          "musicxml": {
+            "bytes": 174745,
+            "file": "rhythm-sixteen-short-quiet-ghosts.musicxml",
+            "sha256": "5481a32f77dbb9531a53d01ad9bde91951c39cff40f9833ae5a4e22ef8c104e5"
+          },
+          "peak_pcm16": 5621,
+          "playback_sha256": "823429c7657aa5df3088c42fb12a27535a43d7571c64241cf67ec786363fb864",
+          "profile": "short-quiet-ghosts",
+          "render": {
+            "bytes": 381792,
+            "file": "rhythm-sixteen-short-quiet-ghosts-render.json",
+            "sha256": "85a5c92b406a32d8cb6487e8598db0e0c5000bbed3ad018af7360be8993bae18"
+          },
+          "request": {
+            "bytes": 45605,
+            "file": "rhythm-sixteen-short-quiet-ghosts-request.json",
+            "sha256": "82f7b4d372fd83bd2db04ca35292d499d0e1a4db20e28faecda4001336a0816e"
+          },
+          "resolved": {
+            "bytes": 73030,
+            "file": "rhythm-sixteen-short-quiet-ghosts-resolved.json",
+            "sha256": "d36960848a4b887851dfbae5ca7caa439261e3347f8ab97e789f7bebc29817df"
+          },
+          "score": {
+            "bytes": 1159455,
+            "file": "rhythm-sixteen-short-quiet-ghosts.json",
+            "sha256": "710aafea6ccd1d853ee4f6a88246d37af51dcd79361bf42285abc6c5ddcc3b91"
+          },
+          "synchronized_attacks": 32,
+          "wav": {
+            "bytes": 1534094,
+            "file": "rhythm-sixteen-short-quiet-ghosts.wav",
+            "sha256": "6be8c63b60c9f3cd0f72eb237df3fd11e94a7430d5310d21911010f243de8c77"
+          }
+        },
+        {
+          "approach_resolutions": 15,
+          "clipped_samples": 0,
+          "diagnostics": [
+            "caller-supplied-muted-sound"
+          ],
+          "id": "rhythm-sixteen-muted-ghosts",
+          "mscz": {
+            "bytes": 2306,
+            "file": "rhythm-sixteen-muted-ghosts.mscz",
+            "sha256": "4efd6701966971e614e4f0245d95836cd025bdb18321f776ab540a1b797d6fc9"
+          },
+          "musicxml": {
+            "bytes": 195818,
+            "file": "rhythm-sixteen-muted-ghosts.musicxml",
+            "sha256": "b2dfdf9afaa54fba6957fd662a396bff45a7922b48acb26a235a51981c04df1c"
+          },
+          "peak_pcm16": 5621,
+          "playback_sha256": "821f89984c116a8f1ea4f26f59c437a77e0e5134a43e4d38ec7ca97f133a62fb",
+          "profile": "muted-ghosts",
+          "render": {
+            "bytes": 381792,
+            "file": "rhythm-sixteen-muted-ghosts-render.json",
+            "sha256": "56848b93edeb973c673d18c6ee73f0ef5f2377283aa0c0213f8b6c3afdf6583f"
+          },
+          "request": {
+            "bytes": 45715,
+            "file": "rhythm-sixteen-muted-ghosts-request.json",
+            "sha256": "af8079b5d78c759e24624c954a1a092644a067bb3a29e79ba8431726d723fbb1"
+          },
+          "resolved": {
+            "bytes": 73150,
+            "file": "rhythm-sixteen-muted-ghosts-resolved.json",
+            "sha256": "b69928b8644182eec0c5137f1f323d0153f404eb27731cffc631c1118e6d048b"
+          },
+          "score": {
+            "bytes": 1429271,
+            "file": "rhythm-sixteen-muted-ghosts.json",
+            "sha256": "c47edebd9ebdc38318c32a3a33e838adf215661ca1424478a6cf52c6680e42ea"
+          },
+          "synchronized_attacks": 32,
+          "wav": {
+            "bytes": 1534094,
+            "file": "rhythm-sixteen-muted-ghosts.wav",
+            "sha256": "b54e43c416babfbb1888e8a6128ff353d9b9f7c4afef8390969c0947a6a2eec7"
+          }
+        }
+      ],
+      "id": "rhythm-sixteen",
+      "input_score": {
+        "bytes": 208926,
+        "file": "rhythm-sixteen-input.json",
+        "sha256": "e399fc0e9c7ef7982601783b4f48ef26519f4dc4ab0f679e6f584d4fcb41abc6"
+      }
+    }
+  ],
+  "channels": 1,
+  "engine_version": "1.3.13",
+  "listening_review": {
+    "status": "accepted",
+    "reviewer": "user",
+    "recorded_at_utc": "2026-11-17T10:57:35Z",
+    "scope": "stage 5: all fixed eight-bar and sixteen-bar development comparisons presented at http://127.0.0.1:8767/",
+    "observations": [
+      {
+        "case_ids": [
+          "rhythm-eight",
+          "rhythm-sixteen"
+        ],
+        "response": "問題なし",
+        "reported_issues": []
+      }
+    ],
+    "limitations": "Overall acceptance of the presented development comparisons only; no per-criterion numeric ratings or held-out multi-listener evaluation was supplied."
+  },
+  "normalization": false,
+  "programs": {
+    "bass": 33,
+    "kick_bank": 128,
+    "kick_key": 36,
+    "kick_program": 0,
+    "melody_and_harmony": 0,
+    "muted_bass": 34
+  },
+  "provider": "acorde-rustysynth-sf2-v1",
+  "release_tail_millis": 500,
+  "sample_rate_hz": 22050,
+  "schema_version": 1,
+  "soundfont": "original synthetic rhythm-audition.sf2; repository license",
+  "soundfont_sha256": "303fdd51d36f1c96320bf82d0cea339ddf5794272864af8340ef912837d96342",
+  "source_commit": "27bfa6d63cc9095879076938f80639dee859d3b6",
+  "source_files_sha256": {
+    "crates/cli/examples/rhythm_section_listening_pack.rs": "69120929bee493df59f3a7bf6dc42f95682195b096c2e961189122400b4a5942",
+    "crates/core/src/model/playback.rs": "622810b9af64b5805bb32ecd714935f73eda97ecba0a2c8a394e35010da3267e",
+    "crates/core/src/model/rhythm_section.rs": "951dafddc60f8123e7a93607409ac2980849282de05d5ea6883a2e43f4f1e016",
+    "crates/io/src/mscz/mod.rs": "7fb331cc3d8a679c93434d8ad46d6fea837fe62366124f6af67260cea9b9b497",
+    "crates/io/src/mscz/serialize.rs": "5a908a4accee037375a4e83fe875d4d3db4ec066b5f9d8ce8147b00736eb8ee8",
+    "scripts/build_rhythm_audition_font.py": "15b3850e7b2069242985987fa073966dbf0dcf6ad25617a8e180ee2541efca0e",
+    "tests/fixtures/arrangement/rhythm-section-listening.json": "9e8fdab6cb4d90555117956be59ee985cd5bfeb64a42e10a4683efd4888845e2",
+    "tests/fixtures/arrangement/rhythm_section.rs": "89c0a465dfc492e4fb05b17684c896c6d53b2cb2553741ad27f3360b76c44be3",
+    "tests/fixtures/arrangement/rhythm_section_listening.rs": "38d427cc708bb81916901fc38b78de7cc45254fc03ff4419dadc702b0a86f8cd"
+  },
+  "stage": 5,
+  "working_tree_dirty": false
+}

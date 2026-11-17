@@ -4,7 +4,7 @@
 
 #[cfg(feature = "abc")]
 pub mod abc;
-#[cfg(any(feature = "mei", feature = "gp"))]
+#[cfg(any(feature = "mei", feature = "gp", feature = "mscz"))]
 mod chord_label;
 mod error;
 #[cfg(any(feature = "musicxml", feature = "mscz"))]

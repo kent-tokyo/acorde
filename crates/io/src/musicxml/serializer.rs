@@ -1137,7 +1137,14 @@ fn serialize_note(
             xml.push_str("        </root>\n");
         }
         xml.push_str("        <kind");
-        if let Some(text) = written.and_then(|w| w.kind_text.as_ref()) {
+        let kind_text = written
+            .and_then(|w| w.kind_text.as_deref())
+            .or(match cs.kind.as_str() {
+                "major-add9" => Some("add9"),
+                "minor-add9" => Some("madd9"),
+                _ => None,
+            });
+        if let Some(text) = kind_text {
             xml.push_str(&format!(" text=\"{}\"", escape_xml(text)));
         }
         xml.push_str(&format!(

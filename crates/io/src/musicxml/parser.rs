@@ -598,6 +598,7 @@ pub(crate) fn parse_musicxml_collecting(
     let mut harmony_written = acorde_core::WrittenHarmony::default();
     let mut in_harmony_numeral = false;
     let mut in_numeral_key = false;
+    let mut harmony_kind_text: Option<String> = None;
     let mut harmony_function: Option<String> = None;
     let mut harmony_bass_step = String::new();
     let mut harmony_bass_alter: i8 = 0;
@@ -877,6 +878,7 @@ pub(crate) fn parse_musicxml_collecting(
                         harmony_written = acorde_core::WrittenHarmony::default();
                         in_harmony_numeral = false;
                         in_numeral_key = false;
+                        harmony_kind_text = None;
                         harmony_function = None;
                         harmony_bass_step.clear();
                         harmony_bass_alter = 0;
@@ -915,7 +917,10 @@ pub(crate) fn parse_musicxml_collecting(
                     "root-step" if in_harmony_root => {
                         harmony_written.root_text = attr_str(e, b"text")
                     }
-                    "kind" if in_harmony => harmony_written.kind_text = attr_str(e, b"text"),
+                    "kind" if in_harmony => {
+                        harmony_written.kind_text = attr_str(e, b"text");
+                        harmony_kind_text = harmony_written.kind_text.clone();
+                    }
                     "inversion" if in_harmony => {
                         harmony_written.inversion_text = attr_str(e, b"text")
                     }
@@ -2165,7 +2170,12 @@ pub(crate) fn parse_musicxml_collecting(
                             current_text.parse::<f32>().unwrap_or(0.0).round() as i8;
                     }
                     "kind" if in_harmony => {
-                        harmony_kind = current_text.trim().to_string();
+                        harmony_kind = match (current_text.trim(), harmony_kind_text.as_deref()) {
+                            ("other", Some("add9")) => "major-add9",
+                            ("other", Some("madd9")) => "minor-add9",
+                            (kind, _) => kind,
+                        }
+                        .to_string();
                     }
                     "function" if in_harmony => {
                         let value = current_text.trim();

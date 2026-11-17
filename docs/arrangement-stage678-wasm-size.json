@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "platform": "Linux GitHub Actions ubuntu-latest",
+  "rustc": "1.100.0 (0ef1bc386 2026-11-09)",
+  "wasm_pack": "0.15.0",
+  "optimization": "release, wasm-opt -Oz",
+  "profiles": {
+    "stage6": {
+      "commit": "9c8d059ad08354ed79ab0306e3c56d6f7202ccea",
+      "job": "https://github.com/kent-tokyo/acorde/actions/runs/44083629676/job/134040278776",
+      "full": {
+        "raw": 8596329,
+        "gzip": 2929441,
+        "brotli": 1957728
+      },
+      "viewer": {
+        "raw": 7539819,
+        "gzip": 2536981,
+        "brotli": 1684925
+      },
+      "playback-only": {
+        "raw": 1123991,
+        "gzip": 431565,
+        "brotli": 328624
+      },
+      "budget_bytes": 8600000,
+      "headroom_bytes": 3671,
+      "ci_run": "https://github.com/kent-tokyo/acorde/actions/runs/44083629676",
+      "ci_result": "19/19 passed"
+    },
+    "stage7": {
+      "commit": "332daad4fc1b701239a679402f9e01223ae25587",
+      "job": "https://github.com/kent-tokyo/acorde/actions/runs/44106356186/job/134119664083",
+      "full": {
+        "raw": 8704678,
+        "gzip": 2965210,
+        "brotli": 1976244
+      },
+      "viewer": {
+        "raw": 7643145,
+        "gzip": 2572895,
+        "brotli": 1704337
+      },
+      "playback-only": {
+        "raw": 1122880,
+        "gzip": 431911,
+        "brotli": 328942
+      },
+      "budget_bytes": 8740000,
+      "headroom_bytes": 35322,
+      "ci_run": "https://github.com/kent-tokyo/acorde/actions/runs/44106356186",
+      "ci_result": "19/19 passed"
+    },
+    "stage8": {
+      "commit": "b0a522153b2cde7658ea15393fa4547e86a7343e",
+      "job": "https://github.com/kent-tokyo/acorde/actions/runs/44106622379/job/134120594728",
+      "full": {
+        "raw": 8704678,
+        "gzip": 2965218,
+        "brotli": 1976471
+      },
+      "viewer": {
+        "raw": 7643145,
+        "gzip": 2572895,
+        "brotli": 1704337
+      },
+      "playback-only": {
+        "raw": 1122880,
+        "gzip": 431911,
+        "brotli": 328942
+      },
+      "budget_bytes": 8740000,
+      "headroom_bytes": 35322,
+      "ci_run": "https://github.com/kent-tokyo/acorde/actions/runs/44106622379",
+      "ci_result": "19/19 passed"
+    }
+  },
+  "raw_increase_stage7_over_stage6": {
+    "full": 108349,
+    "viewer": 103326,
+    "playback-only": -1111
+  },
+  "raw_increase_stage8_over_stage7": {
+    "full": 0,
+    "viewer": 0,
+    "playback-only": 0
+  },
+  "note": "The six-axis and observed-role metrics increased full WASM by 61126 bytes over the preceding passing balanced-selection build (56239567); the old 8690000-byte gate failed by 14678 bytes. The measured 8740000-byte gate leaves 35322 bytes of headroom and passed 19/19 jobs on stages 7 and 8. Stage 8 raw sizes match stage 7, but compressed sizes differ slightly; byte-identical artifacts are not claimed. These are matched CI measurements, not a generic size guarantee."
+}

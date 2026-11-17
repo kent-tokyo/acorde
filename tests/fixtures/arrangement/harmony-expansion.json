@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "root_octave": 3,
+  "cases": [
+    {
+      "id": "cmaj9",
+      "chord": {
+        "root": "C",
+        "kind": "major-ninth"
+      },
+      "midi": [
+        48,
+        52,
+        55,
+        59,
+        62
+      ]
+    },
+    {
+      "id": "dm9",
+      "chord": {
+        "root": "D",
+        "kind": "minor-ninth"
+      },
+      "midi": [
+        50,
+        53,
+        57,
+        60,
+        64
+      ]
+    },
+    {
+      "id": "g13",
+      "chord": {
+        "root": "G",
+        "kind": "dominant-13th"
+      },
+      "midi": [
+        55,
+        59,
+        62,
+        65,
+        69,
+        72,
+        76
+      ]
+    },
+    {
+      "id": "altered",
+      "chord": {
+        "root": "G",
+        "kind": "dominant",
+        "bass": "B",
+        "degrees": [
+          {
+            "value": 5,
+            "alter": 0,
+            "kind": "subtract"
+          },
+          {
+            "value": 9,
+            "alter": -1,
+            "kind": "add"
+          },
+          {
+            "value": 11,
+            "alter": 1,
+            "kind": "add"
+          }
+        ]
+      },
+      "midi": [
+        55,
+        59,
+        65,
+        68,
+        73
+      ]
+    },
+    {
+      "id": "bsharp",
+      "chord": {
+        "root": "B#",
+        "kind": "major-seventh"
+      },
+      "midi": [
+        60,
+        64,
+        67,
+        71
+      ]
+    },
+    {
+      "id": "diminished",
+      "chord": {
+        "root": "C",
+        "kind": "diminished-seventh"
+      },
+      "midi": [
+        48,
+        51,
+        54,
+        57
+      ]
+    },
+    {
+      "id": "relative-alter",
+      "chord": {
+        "root": "C",
+        "kind": "major-seventh",
+        "degrees": [
+          {
+            "value": 7,
+            "alter": -1,
+            "kind": "alter"
+          }
+        ]
+      },
+      "midi": [
+        48,
+        52,
+        55,
+        58
+      ]
+    },
+    {
+      "id": "rootless",
+      "chord": {
+        "root": "D",
+        "kind": "minor-ninth",
+        "degrees": [
+          {
+            "value": 1,
+            "alter": 0,
+            "kind": "subtract"
+          }
+        ]
+      },
+      "midi": [
+        53,
+        57,
+        60,
+        64
+      ]
+    }
+  ]
+}

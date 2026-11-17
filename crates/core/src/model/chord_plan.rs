@@ -26,7 +26,7 @@ impl BeatFraction {
         denominator: 1,
     };
 
-    fn new(numerator: u64, denominator: u64) -> Option<Self> {
+    pub(super) fn new(numerator: u64, denominator: u64) -> Option<Self> {
         if denominator == 0 {
             return None;
         }
@@ -41,7 +41,7 @@ impl BeatFraction {
         })
     }
 
-    fn add(self, other: Self) -> Option<Self> {
+    pub(super) fn add(self, other: Self) -> Option<Self> {
         Self::new(
             u64::from(self.numerator)
                 .checked_mul(u64::from(other.denominator))?
@@ -62,7 +62,7 @@ impl BeatFraction {
     }
 }
 
-fn note_length(note: &Note) -> Option<BeatFraction> {
+pub(super) fn note_length(note: &Note) -> Option<BeatFraction> {
     if note.is_grace || note.is_cue {
         return Some(BeatFraction::ZERO);
     }

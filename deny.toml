@@ -1,5 +1,8 @@
 [advisories]
 version = 2
+ignore = [
+  { id = "RUSTSEC-2026-0543", reason = "chrono 0.4.45 is transitive through lopdf, rmcp, and schemars; no safe upgrade is available yet. Revisit dependency replacements by 2027-02-17." },
+]
 
 [bans]
 multiple-versions = "warn"

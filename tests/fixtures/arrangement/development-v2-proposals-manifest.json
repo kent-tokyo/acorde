@@ -1,0 +1,2485 @@
+{
+  "audio_program_override": 0,
+  "cases": [
+    {
+      "candidates": [
+        {
+          "difference_codes": [
+            "reference-arrangement"
+          ],
+          "features": {
+            "bass_attack_count": 64,
+            "changed_harmony_spans": 16,
+            "countermelody_attack_count": 0,
+            "generated_attacks_by_measure": [
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5
+            ],
+            "generated_part_count": 2,
+            "harmony_attack_count": 16,
+            "peak_generated_attacks_per_measure": 5
+          },
+          "id": "conservative-v2-sustained-root",
+          "index": 1,
+          "musicxml": "mosaic-morning-proposal-1.musicxml",
+          "musicxml_sha256": "675ab755f9f784ee99fbf3672d0b13eaf564e2821fcfa31773bf35ba9c0f6122",
+          "reason_codes": [
+            "duration-weighted-melody-fit",
+            "progression-context",
+            "cadence-aware",
+            "generated-proposal",
+            "texture-sustained-root"
+          ],
+          "resolved": "mosaic-morning-proposal-1-resolved.json",
+          "resolved_sha256": "ec340e825e15c88ea14c8d0b9b371ae5755bd6fb288b95bc47f823543df301af",
+          "wav": "mosaic-morning-proposal-1.wav",
+          "wav_sha256": "f84a0b0dd27ec506d1bed6f3f1e9b679875ae15ef1c7d4f432f91d825df9f96c"
+        },
+        {
+          "difference_codes": [
+            "harmony-notes-changed",
+            "bass-line-changed",
+            "countermelody-changed",
+            "density-changed",
+            "orchestration-changed"
+          ],
+          "features": {
+            "bass_attack_count": 64,
+            "changed_harmony_spans": 16,
+            "countermelody_attack_count": 32,
+            "generated_attacks_by_measure": [
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14
+            ],
+            "generated_part_count": 3,
+            "harmony_attack_count": 128,
+            "peak_generated_attacks_per_measure": 14
+          },
+          "id": "conservative-v2-arpeggio-answer",
+          "index": 2,
+          "musicxml": "mosaic-morning-proposal-2.musicxml",
+          "musicxml_sha256": "1d1f7187bc1d01e58518b613b51f599ac9cfbe73e8b8e41c27051348898b2860",
+          "reason_codes": [
+            "duration-weighted-melody-fit",
+            "progression-context",
+            "cadence-aware",
+            "generated-proposal",
+            "texture-arpeggio-answer",
+            "motif-derived-countermelody"
+          ],
+          "resolved": "mosaic-morning-proposal-2-resolved.json",
+          "resolved_sha256": "783f6b1e6a0158da6d2275c597d7e505094f002877df7e27d817de0ec86b7d59",
+          "wav": "mosaic-morning-proposal-2.wav",
+          "wav_sha256": "f370713588eb3b72488a8856245c4ab3a1fefec164bc5913d56df89d167a7e2e"
+        },
+        {
+          "difference_codes": [
+            "harmony-changed",
+            "harmony-notes-changed",
+            "bass-line-changed",
+            "density-changed"
+          ],
+          "features": {
+            "bass_attack_count": 64,
+            "changed_harmony_spans": 9,
+            "countermelody_attack_count": 0,
+            "generated_attacks_by_measure": [
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8
+            ],
+            "generated_part_count": 2,
+            "harmony_attack_count": 64,
+            "peak_generated_attacks_per_measure": 8
+          },
+          "id": "simplified-v2-steady-fifth",
+          "index": 3,
+          "musicxml": "mosaic-morning-proposal-3.musicxml",
+          "musicxml_sha256": "17505909bddd787acf29f977df63b11bcaab7847d4dce701ff278e679f561ee3",
+          "reason_codes": [
+            "duration-weighted-melody-fit",
+            "progression-context",
+            "reduce-compatible-changes",
+            "generated-proposal",
+            "texture-steady-fifth"
+          ],
+          "resolved": "mosaic-morning-proposal-3-resolved.json",
+          "resolved_sha256": "2a5036306a1df6260d433b21bd98c48d693412d7161fe7fa0b23e2116d84e9b9",
+          "wav": "mosaic-morning-proposal-3.wav",
+          "wav_sha256": "f40e30a38430a36023cefa6b467ec1a9ddc07a9320fb98a86ddc11e24f714f5a"
+        }
+      ],
+      "case_id": "mosaic-morning",
+      "request": {
+        "count": 3,
+        "ensemble_template": {
+          "bass": {
+            "center_midi": 33,
+            "chords": [],
+            "high_midi": 39,
+            "low_midi": 28,
+            "midi_program": 32,
+            "pattern": "root-pulse"
+          },
+          "countermelody": {
+            "center_midi": 57,
+            "chords": [],
+            "high_midi": 61,
+            "low_midi": 53,
+            "melody_part_index": 0,
+            "midi_program": 42,
+            "min_melody_gap_semitones": 3,
+            "motif_end_measure_exclusive": 1,
+            "motif_start_measure": 0
+          },
+          "harmony": {
+            "center_midi": 48,
+            "chords": [],
+            "high_midi": 56,
+            "low_midi": 40,
+            "melody_part_index": 0,
+            "midi_program": 0,
+            "min_melody_gap_semitones": 4,
+            "pattern": "held",
+            "voicing": "smooth"
+          },
+          "max_generated_attacks_per_measure": null,
+          "min_bass_harmony_gap_semitones": 3,
+          "min_harmony_countermelody_gap_semitones": 0,
+          "sections": []
+        },
+        "harmony": {
+          "allow_jazz_color": true,
+          "bass_mode": "free-bass",
+          "max_candidates": 4,
+          "source_plan": null
+        },
+        "locked_chord_entries": []
+      },
+      "source_fingerprint": "211cc5857e386628",
+      "source_musicxml": "mosaic-morning.musicxml",
+      "source_musicxml_sha256": "06556a465bdc90b31ddd92dc884c814637cf38dd971a723c9c8e27df78a6f864",
+      "source_wav": "mosaic-morning.wav",
+      "source_wav_sha256": "4f707146bcf4a4ebac2209571fbc745299febf8c15caebbc4e841e14f76664b4"
+    },
+    {
+      "candidates": [
+        {
+          "difference_codes": [
+            "reference-arrangement"
+          ],
+          "features": {
+            "bass_attack_count": 48,
+            "changed_harmony_spans": 16,
+            "countermelody_attack_count": 0,
+            "generated_attacks_by_measure": [
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4
+            ],
+            "generated_part_count": 2,
+            "harmony_attack_count": 16,
+            "peak_generated_attacks_per_measure": 4
+          },
+          "id": "conservative-v2-sustained-root",
+          "index": 1,
+          "musicxml": "minor-waltz-proposal-1.musicxml",
+          "musicxml_sha256": "b2a085150425c1ac5e49ca74a13504fb67ffd6759d1069e1434c184b09731ad4",
+          "reason_codes": [
+            "duration-weighted-melody-fit",
+            "progression-context",
+            "cadence-aware",
+            "generated-proposal",
+            "texture-sustained-root"
+          ],
+          "resolved": "minor-waltz-proposal-1-resolved.json",
+          "resolved_sha256": "7319fa5c62dbe5560c2102803f407695c34a1346ab94ce07eeeabe1f90f3a5b3",
+          "wav": "minor-waltz-proposal-1.wav",
+          "wav_sha256": "8c3c2cab688cbdc6b2c9a7a573980f026b6e489b5c758f61f0a0b1a92f8682ec"
+        },
+        {
+          "difference_codes": [
+            "harmony-notes-changed",
+            "bass-line-changed",
+            "countermelody-changed",
+            "density-changed",
+            "orchestration-changed"
+          ],
+          "features": {
+            "bass_attack_count": 48,
+            "changed_harmony_spans": 16,
+            "countermelody_attack_count": 32,
+            "generated_attacks_by_measure": [
+              11,
+              11,
+              11,
+              11,
+              11,
+              11,
+              11,
+              11,
+              11,
+              11,
+              11,
+              11,
+              11,
+              11,
+              11,
+              11
+            ],
+            "generated_part_count": 3,
+            "harmony_attack_count": 96,
+            "peak_generated_attacks_per_measure": 11
+          },
+          "id": "conservative-v2-arpeggio-answer",
+          "index": 2,
+          "musicxml": "minor-waltz-proposal-2.musicxml",
+          "musicxml_sha256": "7a5244e24fe765e8fe461ecbd62f707ede95279fa4898e5c1e40f5390bdddbd8",
+          "reason_codes": [
+            "duration-weighted-melody-fit",
+            "progression-context",
+            "cadence-aware",
+            "generated-proposal",
+            "texture-arpeggio-answer",
+            "motif-derived-countermelody"
+          ],
+          "resolved": "minor-waltz-proposal-2-resolved.json",
+          "resolved_sha256": "1e5d024250e093590d109e6c8271e959ef62d5d0f4a28b3f6e0fd51d60d37a8e",
+          "wav": "minor-waltz-proposal-2.wav",
+          "wav_sha256": "66ba57ce94f47a520208a3ee06495b69ea7a3c6a2fcb53b998d58dc1a947938e"
+        },
+        {
+          "difference_codes": [
+            "harmony-changed",
+            "harmony-notes-changed",
+            "bass-line-changed",
+            "density-changed"
+          ],
+          "features": {
+            "bass_attack_count": 48,
+            "changed_harmony_spans": 11,
+            "countermelody_attack_count": 0,
+            "generated_attacks_by_measure": [
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6
+            ],
+            "generated_part_count": 2,
+            "harmony_attack_count": 48,
+            "peak_generated_attacks_per_measure": 6
+          },
+          "id": "simplified-v2-steady-fifth",
+          "index": 3,
+          "musicxml": "minor-waltz-proposal-3.musicxml",
+          "musicxml_sha256": "e107c58d2fb498e798bbc4c1e2a0c53dc9d8c5a95ac3f7885c874e85b72b39bb",
+          "reason_codes": [
+            "duration-weighted-melody-fit",
+            "progression-context",
+            "reduce-compatible-changes",
+            "generated-proposal",
+            "texture-steady-fifth"
+          ],
+          "resolved": "minor-waltz-proposal-3-resolved.json",
+          "resolved_sha256": "95096a97f8454332e1ef6c90b63f12f3f136a8b8e101aea1c330d3e73365099f",
+          "wav": "minor-waltz-proposal-3.wav",
+          "wav_sha256": "6cdc673cae8efdce4c15995c14ec82d3b78c213df4571169de91a2027f55fa31"
+        }
+      ],
+      "case_id": "minor-waltz",
+      "request": {
+        "count": 3,
+        "ensemble_template": {
+          "bass": {
+            "center_midi": 33,
+            "chords": [],
+            "high_midi": 39,
+            "low_midi": 28,
+            "midi_program": 32,
+            "pattern": "root-pulse"
+          },
+          "countermelody": {
+            "center_midi": 57,
+            "chords": [],
+            "high_midi": 61,
+            "low_midi": 53,
+            "melody_part_index": 0,
+            "midi_program": 42,
+            "min_melody_gap_semitones": 3,
+            "motif_end_measure_exclusive": 1,
+            "motif_start_measure": 0
+          },
+          "harmony": {
+            "center_midi": 48,
+            "chords": [],
+            "high_midi": 56,
+            "low_midi": 40,
+            "melody_part_index": 0,
+            "midi_program": 0,
+            "min_melody_gap_semitones": 4,
+            "pattern": "held",
+            "voicing": "smooth"
+          },
+          "max_generated_attacks_per_measure": null,
+          "min_bass_harmony_gap_semitones": 3,
+          "min_harmony_countermelody_gap_semitones": 0,
+          "sections": []
+        },
+        "harmony": {
+          "allow_jazz_color": true,
+          "bass_mode": "free-bass",
+          "max_candidates": 4,
+          "source_plan": null
+        },
+        "locked_chord_entries": []
+      },
+      "source_fingerprint": "da07d48d0f1b34c7",
+      "source_musicxml": "minor-waltz.musicxml",
+      "source_musicxml_sha256": "a9c6ca14b8a8f027e5a55631c14fe81e5c5a263d33a9ebe64d89eb6015b1aa13",
+      "source_wav": "minor-waltz.wav",
+      "source_wav_sha256": "dcae3b5e08e2fc759a9d3f93f908be501b56bcd191bdf8496f1208ce63941098"
+    },
+    {
+      "candidates": [
+        {
+          "difference_codes": [
+            "reference-arrangement"
+          ],
+          "features": {
+            "bass_attack_count": 48,
+            "changed_harmony_spans": 16,
+            "countermelody_attack_count": 0,
+            "generated_attacks_by_measure": [
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4
+            ],
+            "generated_part_count": 2,
+            "harmony_attack_count": 16,
+            "peak_generated_attacks_per_measure": 4
+          },
+          "id": "conservative-v2-sustained-root",
+          "index": 1,
+          "musicxml": "river-six-proposal-1.musicxml",
+          "musicxml_sha256": "cb7709108d30bc14135c946125d16dbee6ed7252995495ca1cb1ee5fa2e10b7b",
+          "reason_codes": [
+            "duration-weighted-melody-fit",
+            "progression-context",
+            "cadence-aware",
+            "generated-proposal",
+            "texture-sustained-root"
+          ],
+          "resolved": "river-six-proposal-1-resolved.json",
+          "resolved_sha256": "985cef893673a51e83fc6be27cfff3020ecb98620cd79fed2ea616d28c729c2f",
+          "wav": "river-six-proposal-1.wav",
+          "wav_sha256": "28c08a1fc9896dc07dfb9e2b6e9fbe2664b53d7a5beb0db47f59fe0fa6371728"
+        },
+        {
+          "difference_codes": [
+            "harmony-notes-changed",
+            "bass-line-changed",
+            "countermelody-changed",
+            "density-changed",
+            "orchestration-changed"
+          ],
+          "features": {
+            "bass_attack_count": 48,
+            "changed_harmony_spans": 16,
+            "countermelody_attack_count": 16,
+            "generated_attacks_by_measure": [
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10
+            ],
+            "generated_part_count": 3,
+            "harmony_attack_count": 96,
+            "peak_generated_attacks_per_measure": 10
+          },
+          "id": "conservative-v2-arpeggio-answer",
+          "index": 2,
+          "musicxml": "river-six-proposal-2.musicxml",
+          "musicxml_sha256": "29bad187a2c2e397e548b87d9bda1b4d0b30d960ceb3b8ab048f90fecfd222bc",
+          "reason_codes": [
+            "duration-weighted-melody-fit",
+            "progression-context",
+            "cadence-aware",
+            "generated-proposal",
+            "texture-arpeggio-answer",
+            "motif-derived-countermelody"
+          ],
+          "resolved": "river-six-proposal-2-resolved.json",
+          "resolved_sha256": "f26705eb5889f90d7f0c135260da0d099b970476041a954c797652e7f420b57a",
+          "wav": "river-six-proposal-2.wav",
+          "wav_sha256": "8eeeb6a5bf7f75fbdc96d13d2c7aca0fef21439c0e9536da5494e4e0b2914c8b"
+        },
+        {
+          "difference_codes": [
+            "harmony-changed",
+            "harmony-notes-changed",
+            "bass-line-changed",
+            "countermelody-changed",
+            "density-changed",
+            "orchestration-changed"
+          ],
+          "features": {
+            "bass_attack_count": 48,
+            "changed_harmony_spans": 3,
+            "countermelody_attack_count": 16,
+            "generated_attacks_by_measure": [
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6
+            ],
+            "generated_part_count": 3,
+            "harmony_attack_count": 32,
+            "peak_generated_attacks_per_measure": 6
+          },
+          "id": "simplified-v2-meter-answer",
+          "index": 3,
+          "musicxml": "river-six-proposal-3.musicxml",
+          "musicxml_sha256": "9038484859151c737c938fc26542f2f20b7b24ae480bf32755b10f652d66bf61",
+          "reason_codes": [
+            "duration-weighted-melody-fit",
+            "progression-context",
+            "reduce-compatible-changes",
+            "generated-proposal",
+            "texture-meter-answer",
+            "motif-derived-countermelody"
+          ],
+          "resolved": "river-six-proposal-3-resolved.json",
+          "resolved_sha256": "716e711e08fe24ace201cc3b4756c3f5ce697d020e9aaf4ebf23d1a0f6f37116",
+          "wav": "river-six-proposal-3.wav",
+          "wav_sha256": "b07dcc15cbb263fb5d4fc00bfb02142ce4aa3d29c1247fc55eca8f0b94df87fd"
+        }
+      ],
+      "case_id": "river-six",
+      "request": {
+        "count": 3,
+        "ensemble_template": {
+          "bass": {
+            "center_midi": 33,
+            "chords": [],
+            "high_midi": 39,
+            "low_midi": 28,
+            "midi_program": 32,
+            "pattern": "root-pulse"
+          },
+          "countermelody": {
+            "center_midi": 57,
+            "chords": [],
+            "high_midi": 61,
+            "low_midi": 53,
+            "melody_part_index": 0,
+            "midi_program": 42,
+            "min_melody_gap_semitones": 3,
+            "motif_end_measure_exclusive": 1,
+            "motif_start_measure": 0
+          },
+          "harmony": {
+            "center_midi": 48,
+            "chords": [],
+            "high_midi": 56,
+            "low_midi": 40,
+            "melody_part_index": 0,
+            "midi_program": 0,
+            "min_melody_gap_semitones": 4,
+            "pattern": "held",
+            "voicing": "smooth"
+          },
+          "max_generated_attacks_per_measure": null,
+          "min_bass_harmony_gap_semitones": 3,
+          "min_harmony_countermelody_gap_semitones": 0,
+          "sections": []
+        },
+        "harmony": {
+          "allow_jazz_color": true,
+          "bass_mode": "free-bass",
+          "max_candidates": 4,
+          "source_plan": null
+        },
+        "locked_chord_entries": []
+      },
+      "source_fingerprint": "435f957406eba43a",
+      "source_musicxml": "river-six.musicxml",
+      "source_musicxml_sha256": "d7ac8c04d9c39b90acc8c01c83dad30aff6b776c616539204d64cef22781fe22",
+      "source_wav": "river-six.wav",
+      "source_wav_sha256": "d9d6ff432380814992eec1204b6c008ea446317c5a98eeb83589be7f99354fea"
+    },
+    {
+      "candidates": [
+        {
+          "difference_codes": [
+            "reference-arrangement"
+          ],
+          "features": {
+            "bass_attack_count": 48,
+            "changed_harmony_spans": 16,
+            "countermelody_attack_count": 0,
+            "generated_attacks_by_measure": [
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4
+            ],
+            "generated_part_count": 2,
+            "harmony_attack_count": 16,
+            "peak_generated_attacks_per_measure": 4
+          },
+          "id": "conservative-v2-sustained-root",
+          "index": 1,
+          "musicxml": "five-step-proposal-1.musicxml",
+          "musicxml_sha256": "ae2e9666fe1e5b07ea236206b72dd6af81a4e601d02e1f1844b65a8e75319bca",
+          "reason_codes": [
+            "duration-weighted-melody-fit",
+            "progression-context",
+            "cadence-aware",
+            "generated-proposal",
+            "texture-sustained-root"
+          ],
+          "resolved": "five-step-proposal-1-resolved.json",
+          "resolved_sha256": "e41455352d1b18d7084798c5fdfeb8f510cd2cfe30a3453412bae1b872839a7c",
+          "wav": "five-step-proposal-1.wav",
+          "wav_sha256": "be0dbf88d57221cfb81261dd6fa5975b8fb6a82391f36e0bb387ccf6d5b3c1fa"
+        },
+        {
+          "difference_codes": [
+            "harmony-changed",
+            "harmony-notes-changed",
+            "bass-line-changed",
+            "density-changed"
+          ],
+          "features": {
+            "bass_attack_count": 48,
+            "changed_harmony_spans": 4,
+            "countermelody_attack_count": 0,
+            "generated_attacks_by_measure": [
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6
+            ],
+            "generated_part_count": 2,
+            "harmony_attack_count": 48,
+            "peak_generated_attacks_per_measure": 6
+          },
+          "id": "simplified-v2-steady-fifth",
+          "index": 2,
+          "musicxml": "five-step-proposal-2.musicxml",
+          "musicxml_sha256": "abd53361e3e02f3dbd5d541f7a1fccebab96e61f878722206b3e58c966592a55",
+          "reason_codes": [
+            "duration-weighted-melody-fit",
+            "progression-context",
+            "reduce-compatible-changes",
+            "generated-proposal",
+            "texture-steady-fifth"
+          ],
+          "resolved": "five-step-proposal-2-resolved.json",
+          "resolved_sha256": "5ab440a62e052edd32449f9e7fee1bc6c0f781f11a05a148c35b874f55410c11",
+          "wav": "five-step-proposal-2.wav",
+          "wav_sha256": "d25faaab1e58d6629ed11e5a8e638ae3deaac0c485fdb642ff8a49f3a483b9d1"
+        },
+        {
+          "difference_codes": [
+            "harmony-changed",
+            "harmony-notes-changed",
+            "bass-line-changed",
+            "density-changed"
+          ],
+          "features": {
+            "bass_attack_count": 48,
+            "changed_harmony_spans": 16,
+            "countermelody_attack_count": 0,
+            "generated_attacks_by_measure": [
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5
+            ],
+            "generated_part_count": 2,
+            "harmony_attack_count": 32,
+            "peak_generated_attacks_per_measure": 5
+          },
+          "id": "jazz-color-v2-offbeat-fifth",
+          "index": 3,
+          "musicxml": "five-step-proposal-3.musicxml",
+          "musicxml_sha256": "3063954353d33d946517b62d7366bf39483174258813266d0affd008cc8d4d51",
+          "reason_codes": [
+            "duration-weighted-melody-fit",
+            "progression-context",
+            "functional-sevenths",
+            "generated-proposal",
+            "texture-offbeat-fifth"
+          ],
+          "resolved": "five-step-proposal-3-resolved.json",
+          "resolved_sha256": "f4151d4d97df5262976a870f99a19b3ad286e1fd50e12653123158cec2698818",
+          "wav": "five-step-proposal-3.wav",
+          "wav_sha256": "b0b269dd12755cdf9de9577ff9094e53e9d2d809e2aac28bc6426760119d1e39"
+        }
+      ],
+      "case_id": "five-step",
+      "request": {
+        "count": 3,
+        "ensemble_template": {
+          "bass": {
+            "center_midi": 33,
+            "chords": [],
+            "high_midi": 39,
+            "low_midi": 28,
+            "midi_program": 32,
+            "pattern": "root-pulse"
+          },
+          "countermelody": {
+            "center_midi": 57,
+            "chords": [],
+            "high_midi": 61,
+            "low_midi": 53,
+            "melody_part_index": 0,
+            "midi_program": 42,
+            "min_melody_gap_semitones": 3,
+            "motif_end_measure_exclusive": 1,
+            "motif_start_measure": 0
+          },
+          "harmony": {
+            "center_midi": 48,
+            "chords": [],
+            "high_midi": 56,
+            "low_midi": 40,
+            "melody_part_index": 0,
+            "midi_program": 0,
+            "min_melody_gap_semitones": 4,
+            "pattern": "held",
+            "voicing": "smooth"
+          },
+          "max_generated_attacks_per_measure": null,
+          "min_bass_harmony_gap_semitones": 3,
+          "min_harmony_countermelody_gap_semitones": 0,
+          "sections": []
+        },
+        "harmony": {
+          "allow_jazz_color": true,
+          "bass_mode": "free-bass",
+          "max_candidates": 4,
+          "source_plan": null
+        },
+        "locked_chord_entries": []
+      },
+      "source_fingerprint": "31d67eec7c04ef92",
+      "source_musicxml": "five-step.musicxml",
+      "source_musicxml_sha256": "ea1c0ee413431ad3b505c31d4bb574297cfc5fe42896d50411488aa00ab18f73",
+      "source_wav": "five-step.wav",
+      "source_wav_sha256": "6f4149f7aefc1f7e531db76a72404672a8a585b257c492dc4be75f30d3848204"
+    },
+    {
+      "candidates": [
+        {
+          "difference_codes": [
+            "reference-arrangement"
+          ],
+          "features": {
+            "bass_attack_count": 64,
+            "changed_harmony_spans": 16,
+            "countermelody_attack_count": 0,
+            "generated_attacks_by_measure": [
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5
+            ],
+            "generated_part_count": 2,
+            "harmony_attack_count": 16,
+            "peak_generated_attacks_per_measure": 5
+          },
+          "id": "conservative-v2-sustained-root",
+          "index": 1,
+          "musicxml": "seven-lanterns-proposal-1.musicxml",
+          "musicxml_sha256": "c2491341193c50b1106c22a8ac675de12cc9c6939d09e3d9a273d42ee274cd55",
+          "reason_codes": [
+            "duration-weighted-melody-fit",
+            "progression-context",
+            "cadence-aware",
+            "generated-proposal",
+            "texture-sustained-root"
+          ],
+          "resolved": "seven-lanterns-proposal-1-resolved.json",
+          "resolved_sha256": "0ca0064cf196dd2e3f0ac4102b7ca3a84dafcf628c12257fcae4599dd047267a",
+          "wav": "seven-lanterns-proposal-1.wav",
+          "wav_sha256": "f908f733784e4f3ad9e279e1513c41dc7a195fdcc0fa3bdb8beb3a912193f42c"
+        },
+        {
+          "difference_codes": [
+            "harmony-notes-changed",
+            "bass-line-changed",
+            "countermelody-changed",
+            "density-changed",
+            "orchestration-changed"
+          ],
+          "features": {
+            "bass_attack_count": 64,
+            "changed_harmony_spans": 16,
+            "countermelody_attack_count": 32,
+            "generated_attacks_by_measure": [
+              13,
+              13,
+              13,
+              13,
+              13,
+              13,
+              13,
+              13,
+              13,
+              13,
+              13,
+              13,
+              13,
+              13,
+              13,
+              13
+            ],
+            "generated_part_count": 3,
+            "harmony_attack_count": 112,
+            "peak_generated_attacks_per_measure": 13
+          },
+          "id": "conservative-v2-arpeggio-answer",
+          "index": 2,
+          "musicxml": "seven-lanterns-proposal-2.musicxml",
+          "musicxml_sha256": "5692f4d1b4f744dad266ea1e2a9197819a060d955a11274fbb8691aa26a7f32b",
+          "reason_codes": [
+            "duration-weighted-melody-fit",
+            "progression-context",
+            "cadence-aware",
+            "generated-proposal",
+            "texture-arpeggio-answer",
+            "motif-derived-countermelody"
+          ],
+          "resolved": "seven-lanterns-proposal-2-resolved.json",
+          "resolved_sha256": "722dd12f2f803a74ecdedc5387144c7478aa30ebf6a87a92e315d5b5c10e4bdb",
+          "wav": "seven-lanterns-proposal-2.wav",
+          "wav_sha256": "426c73fd78c0c6d25a6f3771dca475217c33e9cef7abae9c5008123223fbc25f"
+        },
+        {
+          "difference_codes": [
+            "harmony-changed",
+            "harmony-notes-changed",
+            "bass-line-changed",
+            "countermelody-changed",
+            "density-changed",
+            "orchestration-changed"
+          ],
+          "features": {
+            "bass_attack_count": 64,
+            "changed_harmony_spans": 1,
+            "countermelody_attack_count": 32,
+            "generated_attacks_by_measure": [
+              9,
+              9,
+              9,
+              9,
+              9,
+              9,
+              9,
+              9,
+              9,
+              9,
+              9,
+              9,
+              9,
+              9,
+              9,
+              9
+            ],
+            "generated_part_count": 3,
+            "harmony_attack_count": 48,
+            "peak_generated_attacks_per_measure": 9
+          },
+          "id": "simplified-v2-meter-answer",
+          "index": 3,
+          "musicxml": "seven-lanterns-proposal-3.musicxml",
+          "musicxml_sha256": "01d9ecc4f5fec11738f2014aa182bcf471b0d982f2d86e901d59458292757e2b",
+          "reason_codes": [
+            "duration-weighted-melody-fit",
+            "progression-context",
+            "reduce-compatible-changes",
+            "generated-proposal",
+            "texture-meter-answer",
+            "motif-derived-countermelody"
+          ],
+          "resolved": "seven-lanterns-proposal-3-resolved.json",
+          "resolved_sha256": "cfb32e2810d315f409305b50cdbe9f897f6c3657f730215bceacd435d976283e",
+          "wav": "seven-lanterns-proposal-3.wav",
+          "wav_sha256": "e7033cd9d85aba2fd9cd63dd82f8646eeb5efd87ef2b3519a893db81a2df8fe3"
+        }
+      ],
+      "case_id": "seven-lanterns",
+      "request": {
+        "count": 3,
+        "ensemble_template": {
+          "bass": {
+            "center_midi": 33,
+            "chords": [],
+            "high_midi": 39,
+            "low_midi": 28,
+            "midi_program": 32,
+            "pattern": "root-pulse"
+          },
+          "countermelody": {
+            "center_midi": 57,
+            "chords": [],
+            "high_midi": 61,
+            "low_midi": 53,
+            "melody_part_index": 0,
+            "midi_program": 42,
+            "min_melody_gap_semitones": 3,
+            "motif_end_measure_exclusive": 1,
+            "motif_start_measure": 0
+          },
+          "harmony": {
+            "center_midi": 48,
+            "chords": [],
+            "high_midi": 56,
+            "low_midi": 40,
+            "melody_part_index": 0,
+            "midi_program": 0,
+            "min_melody_gap_semitones": 4,
+            "pattern": "held",
+            "voicing": "smooth"
+          },
+          "max_generated_attacks_per_measure": null,
+          "min_bass_harmony_gap_semitones": 3,
+          "min_harmony_countermelody_gap_semitones": 0,
+          "sections": []
+        },
+        "harmony": {
+          "allow_jazz_color": true,
+          "bass_mode": "free-bass",
+          "max_candidates": 4,
+          "source_plan": null
+        },
+        "locked_chord_entries": []
+      },
+      "source_fingerprint": "1923bd987560d64e",
+      "source_musicxml": "seven-lanterns.musicxml",
+      "source_musicxml_sha256": "5410b3f790c32e01457da2a76dae0b4e29336bb9272341d4219930a5d4397912",
+      "source_wav": "seven-lanterns.wav",
+      "source_wav_sha256": "2cfe5e666af9a7029443e716d81a794fcf94c03b761ebba90bb5eaa48a344a0a"
+    },
+    {
+      "candidates": [
+        {
+          "difference_codes": [
+            "reference-arrangement"
+          ],
+          "features": {
+            "bass_attack_count": 65,
+            "changed_harmony_spans": 17,
+            "countermelody_attack_count": 0,
+            "generated_attacks_by_measure": [
+              2,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5
+            ],
+            "generated_part_count": 2,
+            "harmony_attack_count": 17,
+            "peak_generated_attacks_per_measure": 5
+          },
+          "id": "conservative-v2-sustained-root",
+          "index": 1,
+          "musicxml": "pickup-harbor-proposal-1.musicxml",
+          "musicxml_sha256": "63452f19eb27144fa1b53cf364623364047b60cbf522581c5459ce6ce5c4ef1a",
+          "reason_codes": [
+            "duration-weighted-melody-fit",
+            "progression-context",
+            "cadence-aware",
+            "generated-proposal",
+            "texture-sustained-root"
+          ],
+          "resolved": "pickup-harbor-proposal-1-resolved.json",
+          "resolved_sha256": "0ec62f9828383baf68bbbdc68a199c000a7234eddfceb60cda41b901787f19f1",
+          "wav": "pickup-harbor-proposal-1.wav",
+          "wav_sha256": "4e8d63c0d2146ab9b0014190bd79085373cb6b204a1c6ee35356d212ce02cb1b"
+        },
+        {
+          "difference_codes": [
+            "harmony-notes-changed",
+            "bass-line-changed",
+            "countermelody-changed",
+            "density-changed",
+            "orchestration-changed"
+          ],
+          "features": {
+            "bass_attack_count": 65,
+            "changed_harmony_spans": 17,
+            "countermelody_attack_count": 33,
+            "generated_attacks_by_measure": [
+              3,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14
+            ],
+            "generated_part_count": 3,
+            "harmony_attack_count": 129,
+            "peak_generated_attacks_per_measure": 14
+          },
+          "id": "conservative-v2-arpeggio-answer",
+          "index": 2,
+          "musicxml": "pickup-harbor-proposal-2.musicxml",
+          "musicxml_sha256": "bc59c4d882af9ed1236993e93c7852dac2535f7bf293101ae1e141f18c090835",
+          "reason_codes": [
+            "duration-weighted-melody-fit",
+            "progression-context",
+            "cadence-aware",
+            "generated-proposal",
+            "texture-arpeggio-answer",
+            "motif-derived-countermelody"
+          ],
+          "resolved": "pickup-harbor-proposal-2-resolved.json",
+          "resolved_sha256": "7031059dc0b7a18e61576f1dcfbcc0a639559860eab7ae85baca3164284ca41a",
+          "wav": "pickup-harbor-proposal-2.wav",
+          "wav_sha256": "94abc35ca104424c6daf8ce473fd2f88daabf1fdccf5887b215eda684cd35f99"
+        },
+        {
+          "difference_codes": [
+            "harmony-changed",
+            "harmony-notes-changed",
+            "bass-line-changed",
+            "countermelody-changed",
+            "density-changed",
+            "orchestration-changed"
+          ],
+          "features": {
+            "bass_attack_count": 65,
+            "changed_harmony_spans": 11,
+            "countermelody_attack_count": 33,
+            "generated_attacks_by_measure": [
+              3,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10
+            ],
+            "generated_part_count": 3,
+            "harmony_attack_count": 65,
+            "peak_generated_attacks_per_measure": 10
+          },
+          "id": "simplified-v2-meter-answer",
+          "index": 3,
+          "musicxml": "pickup-harbor-proposal-3.musicxml",
+          "musicxml_sha256": "c46c3474cc2ea19116fcd1d2695b02579e47d7c635ef7d1f374468a1e11e2743",
+          "reason_codes": [
+            "duration-weighted-melody-fit",
+            "progression-context",
+            "reduce-compatible-changes",
+            "generated-proposal",
+            "texture-meter-answer",
+            "motif-derived-countermelody"
+          ],
+          "resolved": "pickup-harbor-proposal-3-resolved.json",
+          "resolved_sha256": "8fd12eb361772589a2a85e7b2bc71a51830dd3628a73fc3b21c969394c69ba92",
+          "wav": "pickup-harbor-proposal-3.wav",
+          "wav_sha256": "8443b9d30524cb625b65058e1102c016f38c6dc61868e7258e1c6dd3285c885d"
+        }
+      ],
+      "case_id": "pickup-harbor",
+      "request": {
+        "count": 3,
+        "ensemble_template": {
+          "bass": {
+            "center_midi": 33,
+            "chords": [],
+            "high_midi": 39,
+            "low_midi": 28,
+            "midi_program": 32,
+            "pattern": "root-pulse"
+          },
+          "countermelody": {
+            "center_midi": 57,
+            "chords": [],
+            "high_midi": 61,
+            "low_midi": 53,
+            "melody_part_index": 0,
+            "midi_program": 42,
+            "min_melody_gap_semitones": 3,
+            "motif_end_measure_exclusive": 2,
+            "motif_start_measure": 0
+          },
+          "harmony": {
+            "center_midi": 48,
+            "chords": [],
+            "high_midi": 56,
+            "low_midi": 40,
+            "melody_part_index": 0,
+            "midi_program": 0,
+            "min_melody_gap_semitones": 4,
+            "pattern": "held",
+            "voicing": "smooth"
+          },
+          "max_generated_attacks_per_measure": null,
+          "min_bass_harmony_gap_semitones": 3,
+          "min_harmony_countermelody_gap_semitones": 0,
+          "sections": []
+        },
+        "harmony": {
+          "allow_jazz_color": true,
+          "bass_mode": "free-bass",
+          "max_candidates": 4,
+          "source_plan": null
+        },
+        "locked_chord_entries": []
+      },
+      "source_fingerprint": "0a83c56974934c81",
+      "source_musicxml": "pickup-harbor.musicxml",
+      "source_musicxml_sha256": "32383717bf9421d69acbf4877831e71d9d44a787feef17b177770c0aa6e4e70f",
+      "source_wav": "pickup-harbor.wav",
+      "source_wav_sha256": "f1d8143ef86c3b53317ed3eda01ffb41d100d69184ab957921c8856f5698e1d7"
+    },
+    {
+      "candidates": [
+        {
+          "difference_codes": [
+            "reference-arrangement"
+          ],
+          "features": {
+            "bass_attack_count": 48,
+            "changed_harmony_spans": 16,
+            "countermelody_attack_count": 0,
+            "generated_attacks_by_measure": [
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4
+            ],
+            "generated_part_count": 2,
+            "harmony_attack_count": 16,
+            "peak_generated_attacks_per_measure": 4
+          },
+          "id": "conservative-v2-sustained-root",
+          "index": 1,
+          "musicxml": "low-tide-proposal-1.musicxml",
+          "musicxml_sha256": "898e7f04149835b610465f9107449a5671914aabdded3f19fc0ca829ccee6dbb",
+          "reason_codes": [
+            "duration-weighted-melody-fit",
+            "progression-context",
+            "cadence-aware",
+            "generated-proposal",
+            "texture-sustained-root"
+          ],
+          "resolved": "low-tide-proposal-1-resolved.json",
+          "resolved_sha256": "4daf5023d91f21f3bf70fdd5e5192a37c2cc6e220968219bb67e04c662968ab5",
+          "wav": "low-tide-proposal-1.wav",
+          "wav_sha256": "efc79e830367e6fbdf68449f87912a55235a4a51eab7bb7678f6e0605ac9de87"
+        },
+        {
+          "difference_codes": [
+            "harmony-changed",
+            "harmony-notes-changed",
+            "bass-line-changed",
+            "density-changed"
+          ],
+          "features": {
+            "bass_attack_count": 48,
+            "changed_harmony_spans": 5,
+            "countermelody_attack_count": 0,
+            "generated_attacks_by_measure": [
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6
+            ],
+            "generated_part_count": 2,
+            "harmony_attack_count": 48,
+            "peak_generated_attacks_per_measure": 6
+          },
+          "id": "simplified-v2-steady-fifth",
+          "index": 2,
+          "musicxml": "low-tide-proposal-2.musicxml",
+          "musicxml_sha256": "2d2cfcdc9b7cf77c750f496b1d7bda20dac3a9c233d8323dd2521e9a35f8a14e",
+          "reason_codes": [
+            "duration-weighted-melody-fit",
+            "progression-context",
+            "reduce-compatible-changes",
+            "generated-proposal",
+            "texture-steady-fifth"
+          ],
+          "resolved": "low-tide-proposal-2-resolved.json",
+          "resolved_sha256": "7667f91230b65f43292b4b6bb482c2a98688ea89f75b740ecdde29591f4b7e6e",
+          "wav": "low-tide-proposal-2.wav",
+          "wav_sha256": "d16da1b57e7f8872c9367968a35f8aa49dc770361b4cbd34c9c8fbf083fe9718"
+        },
+        {
+          "difference_codes": [
+            "harmony-notes-changed",
+            "bass-line-changed",
+            "density-changed"
+          ],
+          "features": {
+            "bass_attack_count": 48,
+            "changed_harmony_spans": 16,
+            "countermelody_attack_count": 0,
+            "generated_attacks_by_measure": [
+              9,
+              9,
+              9,
+              9,
+              9,
+              9,
+              9,
+              9,
+              9,
+              9,
+              9,
+              9,
+              9,
+              9,
+              9,
+              9
+            ],
+            "generated_part_count": 2,
+            "harmony_attack_count": 96,
+            "peak_generated_attacks_per_measure": 9
+          },
+          "id": "conservative-v2-arpeggio-answer",
+          "index": 3,
+          "musicxml": "low-tide-proposal-3.musicxml",
+          "musicxml_sha256": "2a9df5707d1e6c4c7cb38b48104dfc3d48f4ef2ca53c1a875baa399301d41688",
+          "reason_codes": [
+            "duration-weighted-melody-fit",
+            "progression-context",
+            "cadence-aware",
+            "generated-proposal",
+            "texture-arpeggio-answer"
+          ],
+          "resolved": "low-tide-proposal-3-resolved.json",
+          "resolved_sha256": "d31698ae187376602585e11be8795e5f659f4c857b7c59afeecdd00476481dca",
+          "wav": "low-tide-proposal-3.wav",
+          "wav_sha256": "690950fe952423cdd1ee781fe7245a0702ad750c9beccb8e0fed8753dd16db0d"
+        }
+      ],
+      "case_id": "low-tide",
+      "request": {
+        "count": 3,
+        "ensemble_template": {
+          "bass": {
+            "center_midi": 33,
+            "chords": [],
+            "high_midi": 39,
+            "low_midi": 28,
+            "midi_program": 32,
+            "pattern": "root-pulse"
+          },
+          "countermelody": null,
+          "harmony": {
+            "center_midi": 70,
+            "chords": [],
+            "high_midi": 78,
+            "low_midi": 65,
+            "midi_program": 48,
+            "pattern": "held",
+            "voicing": "smooth"
+          },
+          "max_generated_attacks_per_measure": null,
+          "min_bass_harmony_gap_semitones": 3,
+          "min_harmony_countermelody_gap_semitones": 0,
+          "sections": []
+        },
+        "harmony": {
+          "allow_jazz_color": true,
+          "bass_mode": "free-bass",
+          "max_candidates": 4,
+          "source_plan": null
+        },
+        "locked_chord_entries": []
+      },
+      "source_fingerprint": "9edf00d6c9ce8551",
+      "source_musicxml": "low-tide.musicxml",
+      "source_musicxml_sha256": "b2bffca2e0ac3a1f99cfb0b4fc383e10c83ea2f531bcaaaa92ed893b4b058638",
+      "source_wav": "low-tide.wav",
+      "source_wav_sha256": "138d716b7b1346b95baacf7a42e83d258ab9315b96d7e97017bc1c56c7c57037"
+    },
+    {
+      "candidates": [
+        {
+          "difference_codes": [
+            "reference-arrangement"
+          ],
+          "features": {
+            "bass_attack_count": 48,
+            "changed_harmony_spans": 16,
+            "countermelody_attack_count": 0,
+            "generated_attacks_by_measure": [
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4
+            ],
+            "generated_part_count": 2,
+            "harmony_attack_count": 16,
+            "peak_generated_attacks_per_measure": 4
+          },
+          "id": "conservative-v2-sustained-root",
+          "index": 1,
+          "musicxml": "bright-turn-proposal-1.musicxml",
+          "musicxml_sha256": "c18957cf5145a46dfad23065987ee9f1ddc4e219902fbdfab25467d1b2481c45",
+          "reason_codes": [
+            "duration-weighted-melody-fit",
+            "progression-context",
+            "cadence-aware",
+            "generated-proposal",
+            "texture-sustained-root"
+          ],
+          "resolved": "bright-turn-proposal-1-resolved.json",
+          "resolved_sha256": "cdb85b78e9a861af7553e6f020ebe6c798e104a838d9f8dfc19b94d2a5796f7b",
+          "wav": "bright-turn-proposal-1.wav",
+          "wav_sha256": "0583fe17b07bbe909d7928eed734c26434945477afe7588f61eb5a4a585159f8"
+        },
+        {
+          "difference_codes": [
+            "harmony-notes-changed",
+            "bass-line-changed",
+            "countermelody-changed",
+            "density-changed",
+            "orchestration-changed"
+          ],
+          "features": {
+            "bass_attack_count": 48,
+            "changed_harmony_spans": 16,
+            "countermelody_attack_count": 32,
+            "generated_attacks_by_measure": [
+              11,
+              11,
+              11,
+              11,
+              11,
+              11,
+              11,
+              11,
+              11,
+              11,
+              11,
+              11,
+              11,
+              11,
+              11,
+              11
+            ],
+            "generated_part_count": 3,
+            "harmony_attack_count": 96,
+            "peak_generated_attacks_per_measure": 11
+          },
+          "id": "conservative-v2-arpeggio-answer",
+          "index": 2,
+          "musicxml": "bright-turn-proposal-2.musicxml",
+          "musicxml_sha256": "4225d3eafaf374ef02836f239ff49b6ebfb8ec459a186be1e191c052247d2fa2",
+          "reason_codes": [
+            "duration-weighted-melody-fit",
+            "progression-context",
+            "cadence-aware",
+            "generated-proposal",
+            "texture-arpeggio-answer",
+            "motif-derived-countermelody"
+          ],
+          "resolved": "bright-turn-proposal-2-resolved.json",
+          "resolved_sha256": "c4225120428b14a3844376cbcfa56233c0969881365b8238df9fba3e36c78447",
+          "wav": "bright-turn-proposal-2.wav",
+          "wav_sha256": "0ccd239c894fcaa8db23790b0c0849436b45dc609b5b76b3dc8315f84525ee1d"
+        },
+        {
+          "difference_codes": [
+            "harmony-changed",
+            "harmony-notes-changed",
+            "bass-line-changed",
+            "density-changed"
+          ],
+          "features": {
+            "bass_attack_count": 48,
+            "changed_harmony_spans": 13,
+            "countermelody_attack_count": 0,
+            "generated_attacks_by_measure": [
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6
+            ],
+            "generated_part_count": 2,
+            "harmony_attack_count": 48,
+            "peak_generated_attacks_per_measure": 6
+          },
+          "id": "simplified-v2-steady-fifth",
+          "index": 3,
+          "musicxml": "bright-turn-proposal-3.musicxml",
+          "musicxml_sha256": "fb857a47d37b992db1bc4fb4cc2a910b0c3f92d26bbeba811a024c489012fa47",
+          "reason_codes": [
+            "duration-weighted-melody-fit",
+            "progression-context",
+            "reduce-compatible-changes",
+            "generated-proposal",
+            "texture-steady-fifth"
+          ],
+          "resolved": "bright-turn-proposal-3-resolved.json",
+          "resolved_sha256": "6f5328d079115b2c6f85cfade3c4dda3843bf89f7f310e5a493d6c7ab2065b3c",
+          "wav": "bright-turn-proposal-3.wav",
+          "wav_sha256": "d419845eb52a48b7d33e465a560a0de08c4e8909453dc7c7a5d497cf14bdc46c"
+        }
+      ],
+      "case_id": "bright-turn",
+      "request": {
+        "count": 3,
+        "ensemble_template": {
+          "bass": {
+            "center_midi": 33,
+            "chords": [],
+            "high_midi": 39,
+            "low_midi": 28,
+            "midi_program": 32,
+            "pattern": "root-pulse"
+          },
+          "countermelody": {
+            "center_midi": 57,
+            "chords": [],
+            "high_midi": 61,
+            "low_midi": 53,
+            "melody_part_index": 0,
+            "midi_program": 42,
+            "min_melody_gap_semitones": 3,
+            "motif_end_measure_exclusive": 1,
+            "motif_start_measure": 0
+          },
+          "harmony": {
+            "center_midi": 48,
+            "chords": [],
+            "high_midi": 56,
+            "low_midi": 40,
+            "melody_part_index": 0,
+            "midi_program": 0,
+            "min_melody_gap_semitones": 4,
+            "pattern": "held",
+            "voicing": "smooth"
+          },
+          "max_generated_attacks_per_measure": null,
+          "min_bass_harmony_gap_semitones": 3,
+          "min_harmony_countermelody_gap_semitones": 0,
+          "sections": []
+        },
+        "harmony": {
+          "allow_jazz_color": true,
+          "bass_mode": "free-bass",
+          "max_candidates": 4,
+          "source_plan": null
+        },
+        "locked_chord_entries": []
+      },
+      "source_fingerprint": "e70757ab38fd846f",
+      "source_musicxml": "bright-turn.musicxml",
+      "source_musicxml_sha256": "818a9733c130c93daba384ede71626af1995c808c82bb03e0a2e0bd9efbd34bb",
+      "source_wav": "bright-turn.wav",
+      "source_wav_sha256": "d93ea7bb303706ef3d822e43eeca85d8584d60e0a3257e761dfe44784e756f76"
+    },
+    {
+      "candidates": [
+        {
+          "difference_codes": [
+            "reference-arrangement"
+          ],
+          "features": {
+            "bass_attack_count": 64,
+            "changed_harmony_spans": 16,
+            "countermelody_attack_count": 0,
+            "generated_attacks_by_measure": [
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5
+            ],
+            "generated_part_count": 2,
+            "harmony_attack_count": 16,
+            "peak_generated_attacks_per_measure": 5
+          },
+          "id": "conservative-v2-sustained-root",
+          "index": 1,
+          "musicxml": "shadow-march-proposal-1.musicxml",
+          "musicxml_sha256": "9d16e35414aeab6237d61344deeecce884d184d1a71395e3e5759f6d2c77a075",
+          "reason_codes": [
+            "duration-weighted-melody-fit",
+            "progression-context",
+            "cadence-aware",
+            "generated-proposal",
+            "texture-sustained-root"
+          ],
+          "resolved": "shadow-march-proposal-1-resolved.json",
+          "resolved_sha256": "f3c606ef2745f40c06b28460f5969e3bfdbd74751b5908d06240d81c967260da",
+          "wav": "shadow-march-proposal-1.wav",
+          "wav_sha256": "e5a0670e820cc7755b90bb79cbcb3aa1d1e69d5e2b1aefd5fd17b61ca4e7ba4d"
+        },
+        {
+          "difference_codes": [
+            "harmony-notes-changed",
+            "bass-line-changed",
+            "countermelody-changed",
+            "density-changed",
+            "orchestration-changed"
+          ],
+          "features": {
+            "bass_attack_count": 64,
+            "changed_harmony_spans": 16,
+            "countermelody_attack_count": 32,
+            "generated_attacks_by_measure": [
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14
+            ],
+            "generated_part_count": 3,
+            "harmony_attack_count": 128,
+            "peak_generated_attacks_per_measure": 14
+          },
+          "id": "conservative-v2-arpeggio-answer",
+          "index": 2,
+          "musicxml": "shadow-march-proposal-2.musicxml",
+          "musicxml_sha256": "af84b0709ec6a5d71ad5486abeaa928125fcf73726cc3b593def7fcf1173452c",
+          "reason_codes": [
+            "duration-weighted-melody-fit",
+            "progression-context",
+            "cadence-aware",
+            "generated-proposal",
+            "texture-arpeggio-answer",
+            "motif-derived-countermelody"
+          ],
+          "resolved": "shadow-march-proposal-2-resolved.json",
+          "resolved_sha256": "a36842e31a0670c7b5a575eb28e31d0b238bce006feac4214ff4a4e991e69997",
+          "wav": "shadow-march-proposal-2.wav",
+          "wav_sha256": "a93b67d4f932b5e84052191bb482c9ef7c28a81f3ac7ae0909c982e8adae9ab4"
+        },
+        {
+          "difference_codes": [
+            "harmony-changed",
+            "harmony-notes-changed",
+            "bass-line-changed",
+            "density-changed"
+          ],
+          "features": {
+            "bass_attack_count": 64,
+            "changed_harmony_spans": 14,
+            "countermelody_attack_count": 0,
+            "generated_attacks_by_measure": [
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8
+            ],
+            "generated_part_count": 2,
+            "harmony_attack_count": 64,
+            "peak_generated_attacks_per_measure": 8
+          },
+          "id": "simplified-v2-steady-fifth",
+          "index": 3,
+          "musicxml": "shadow-march-proposal-3.musicxml",
+          "musicxml_sha256": "c7954d04074841f341001a2d8bdadd712f6c3899b540a4d98d643fc4fd5400ef",
+          "reason_codes": [
+            "duration-weighted-melody-fit",
+            "progression-context",
+            "reduce-compatible-changes",
+            "generated-proposal",
+            "texture-steady-fifth"
+          ],
+          "resolved": "shadow-march-proposal-3-resolved.json",
+          "resolved_sha256": "86a470a75095e8c0718d1c1683177f152aa03c62fe01574ac2f279aab7702e97",
+          "wav": "shadow-march-proposal-3.wav",
+          "wav_sha256": "c2b8063589199c8e937f61506777ba979182982e2913b64f3c52552e5037d500"
+        }
+      ],
+      "case_id": "shadow-march",
+      "request": {
+        "count": 3,
+        "ensemble_template": {
+          "bass": {
+            "center_midi": 33,
+            "chords": [],
+            "high_midi": 39,
+            "low_midi": 28,
+            "midi_program": 32,
+            "pattern": "root-pulse"
+          },
+          "countermelody": {
+            "center_midi": 57,
+            "chords": [],
+            "high_midi": 61,
+            "low_midi": 53,
+            "melody_part_index": 0,
+            "midi_program": 42,
+            "min_melody_gap_semitones": 3,
+            "motif_end_measure_exclusive": 1,
+            "motif_start_measure": 0
+          },
+          "harmony": {
+            "center_midi": 48,
+            "chords": [],
+            "high_midi": 56,
+            "low_midi": 40,
+            "melody_part_index": 0,
+            "midi_program": 0,
+            "min_melody_gap_semitones": 4,
+            "pattern": "held",
+            "voicing": "smooth"
+          },
+          "max_generated_attacks_per_measure": null,
+          "min_bass_harmony_gap_semitones": 3,
+          "min_harmony_countermelody_gap_semitones": 0,
+          "sections": []
+        },
+        "harmony": {
+          "allow_jazz_color": true,
+          "bass_mode": "free-bass",
+          "max_candidates": 4,
+          "source_plan": null
+        },
+        "locked_chord_entries": []
+      },
+      "source_fingerprint": "c1609f9eaa050c48",
+      "source_musicxml": "shadow-march.musicxml",
+      "source_musicxml_sha256": "d16d598c885dde833762166a0d0f5232b3e7ba28ad2ffae765ea8a324a7ab32d",
+      "source_wav": "shadow-march.wav",
+      "source_wav_sha256": "4c0e329815fca23aa3c202b01576d946bd863e7b4447bd1ae52c7584f8a63206"
+    },
+    {
+      "candidates": [
+        {
+          "difference_codes": [
+            "reference-arrangement"
+          ],
+          "features": {
+            "bass_attack_count": 64,
+            "changed_harmony_spans": 16,
+            "countermelody_attack_count": 0,
+            "generated_attacks_by_measure": [
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5
+            ],
+            "generated_part_count": 2,
+            "harmony_attack_count": 16,
+            "peak_generated_attacks_per_measure": 5
+          },
+          "id": "conservative-v2-sustained-root",
+          "index": 1,
+          "musicxml": "new-horizon-proposal-1.musicxml",
+          "musicxml_sha256": "1da7d3107c793b8645cd6106de06b9fbc385b309ed29b2a0501480339264f0f0",
+          "reason_codes": [
+            "duration-weighted-melody-fit",
+            "progression-context",
+            "cadence-aware",
+            "generated-proposal",
+            "texture-sustained-root"
+          ],
+          "resolved": "new-horizon-proposal-1-resolved.json",
+          "resolved_sha256": "3c83738befb5520183d010af373981cce5a300f8511a6bb490389eea45311abd",
+          "wav": "new-horizon-proposal-1.wav",
+          "wav_sha256": "f04bc70ac3d42efb0ca7cf59459fcc56263dc1180f4513e437b351dae3b5515c"
+        },
+        {
+          "difference_codes": [
+            "harmony-notes-changed",
+            "bass-line-changed",
+            "countermelody-changed",
+            "density-changed",
+            "orchestration-changed"
+          ],
+          "features": {
+            "bass_attack_count": 64,
+            "changed_harmony_spans": 16,
+            "countermelody_attack_count": 32,
+            "generated_attacks_by_measure": [
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14
+            ],
+            "generated_part_count": 3,
+            "harmony_attack_count": 128,
+            "peak_generated_attacks_per_measure": 14
+          },
+          "id": "conservative-v2-arpeggio-answer",
+          "index": 2,
+          "musicxml": "new-horizon-proposal-2.musicxml",
+          "musicxml_sha256": "e91d0ebca9d9718782bb659ef5b5b0e7042f26a51beba9cad4000618918c7c57",
+          "reason_codes": [
+            "duration-weighted-melody-fit",
+            "progression-context",
+            "cadence-aware",
+            "generated-proposal",
+            "texture-arpeggio-answer",
+            "motif-derived-countermelody"
+          ],
+          "resolved": "new-horizon-proposal-2-resolved.json",
+          "resolved_sha256": "21a0569f861f5d14b523e2e68d6b6396cd5d8844fd9d4a37020afb4b9fb5893b",
+          "wav": "new-horizon-proposal-2.wav",
+          "wav_sha256": "494cedf0f6236f73cb13e9744c1609fa298bbd078cfa84eec257da6b4081ba88"
+        },
+        {
+          "difference_codes": [
+            "harmony-changed",
+            "harmony-notes-changed",
+            "bass-line-changed",
+            "density-changed"
+          ],
+          "features": {
+            "bass_attack_count": 64,
+            "changed_harmony_spans": 13,
+            "countermelody_attack_count": 0,
+            "generated_attacks_by_measure": [
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8
+            ],
+            "generated_part_count": 2,
+            "harmony_attack_count": 64,
+            "peak_generated_attacks_per_measure": 8
+          },
+          "id": "simplified-v2-steady-fifth",
+          "index": 3,
+          "musicxml": "new-horizon-proposal-3.musicxml",
+          "musicxml_sha256": "f8a566d5d375f985ac8d3f4088f6fbb2594d0dd4381f236acb11ab4432808746",
+          "reason_codes": [
+            "duration-weighted-melody-fit",
+            "progression-context",
+            "reduce-compatible-changes",
+            "generated-proposal",
+            "texture-steady-fifth"
+          ],
+          "resolved": "new-horizon-proposal-3-resolved.json",
+          "resolved_sha256": "9c57a3b723e152580aec8ea553cb2305646b9a40a0ec9b16f5e69616c48b350c",
+          "wav": "new-horizon-proposal-3.wav",
+          "wav_sha256": "1470c8942673b5927666dd23a42b1863acabd7dfee3f7de0d692b94cc3e69437"
+        }
+      ],
+      "case_id": "new-horizon",
+      "request": {
+        "count": 3,
+        "ensemble_template": {
+          "bass": {
+            "center_midi": 33,
+            "chords": [],
+            "high_midi": 39,
+            "low_midi": 28,
+            "midi_program": 32,
+            "pattern": "root-pulse"
+          },
+          "countermelody": {
+            "center_midi": 57,
+            "chords": [],
+            "high_midi": 61,
+            "low_midi": 53,
+            "melody_part_index": 0,
+            "midi_program": 42,
+            "min_melody_gap_semitones": 3,
+            "motif_end_measure_exclusive": 1,
+            "motif_start_measure": 0
+          },
+          "harmony": {
+            "center_midi": 48,
+            "chords": [],
+            "high_midi": 56,
+            "low_midi": 40,
+            "melody_part_index": 0,
+            "midi_program": 0,
+            "min_melody_gap_semitones": 4,
+            "pattern": "held",
+            "voicing": "smooth"
+          },
+          "max_generated_attacks_per_measure": null,
+          "min_bass_harmony_gap_semitones": 3,
+          "min_harmony_countermelody_gap_semitones": 0,
+          "sections": []
+        },
+        "harmony": {
+          "allow_jazz_color": true,
+          "bass_mode": "free-bass",
+          "max_candidates": 4,
+          "source_plan": null
+        },
+        "locked_chord_entries": []
+      },
+      "source_fingerprint": "15e58bc70b161986",
+      "source_musicxml": "new-horizon.musicxml",
+      "source_musicxml_sha256": "3096e05b88551162810ec3a18c1dbe22ad30204c97035b2a124a9322b0155c15",
+      "source_wav": "new-horizon.wav",
+      "source_wav_sha256": "b8336c68c121d46bb0771998c1dcd58616cf23986f24bdf0c78b5054947db200"
+    },
+    {
+      "candidates": [
+        {
+          "difference_codes": [
+            "reference-arrangement"
+          ],
+          "features": {
+            "bass_attack_count": 64,
+            "changed_harmony_spans": 16,
+            "countermelody_attack_count": 0,
+            "generated_attacks_by_measure": [
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5
+            ],
+            "generated_part_count": 2,
+            "harmony_attack_count": 16,
+            "peak_generated_attacks_per_measure": 5
+          },
+          "id": "conservative-v2-sustained-root",
+          "index": 1,
+          "musicxml": "two-voices-proposal-1.musicxml",
+          "musicxml_sha256": "f4495c9d0e49d52277c6c7b93f74a3874baddaa817d6955ea1e9d14786b89fc6",
+          "reason_codes": [
+            "duration-weighted-melody-fit",
+            "progression-context",
+            "cadence-aware",
+            "generated-proposal",
+            "texture-sustained-root"
+          ],
+          "resolved": "two-voices-proposal-1-resolved.json",
+          "resolved_sha256": "df9128bee1a0e015f8b46f2116c720ff191f75bc15f437a16c2f828907b403b7",
+          "wav": "two-voices-proposal-1.wav",
+          "wav_sha256": "3a09675a59fcca0ad816d05b5777a55decf6a0648f46952f8bda50009d8d7118"
+        },
+        {
+          "difference_codes": [
+            "harmony-notes-changed",
+            "bass-line-changed",
+            "countermelody-changed",
+            "density-changed",
+            "orchestration-changed"
+          ],
+          "features": {
+            "bass_attack_count": 64,
+            "changed_harmony_spans": 16,
+            "countermelody_attack_count": 32,
+            "generated_attacks_by_measure": [
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14
+            ],
+            "generated_part_count": 3,
+            "harmony_attack_count": 128,
+            "peak_generated_attacks_per_measure": 14
+          },
+          "id": "conservative-v2-arpeggio-answer",
+          "index": 2,
+          "musicxml": "two-voices-proposal-2.musicxml",
+          "musicxml_sha256": "15fed095c887cf3c708b3f133696423e9fb2ca82eb58f5b38e6473507af0da4d",
+          "reason_codes": [
+            "duration-weighted-melody-fit",
+            "progression-context",
+            "cadence-aware",
+            "generated-proposal",
+            "texture-arpeggio-answer",
+            "motif-derived-countermelody"
+          ],
+          "resolved": "two-voices-proposal-2-resolved.json",
+          "resolved_sha256": "72a44e7476e0edd65dce9276b03f71a40d21fa7e4a1c8c0d64d0c0cd983c95c1",
+          "wav": "two-voices-proposal-2.wav",
+          "wav_sha256": "a647ade9d93ed66f153225bfa15b81ab7136e9233c7a76add44f29c677f9b142"
+        },
+        {
+          "difference_codes": [
+            "harmony-changed",
+            "harmony-notes-changed",
+            "bass-line-changed",
+            "density-changed"
+          ],
+          "features": {
+            "bass_attack_count": 64,
+            "changed_harmony_spans": 11,
+            "countermelody_attack_count": 0,
+            "generated_attacks_by_measure": [
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8,
+              8
+            ],
+            "generated_part_count": 2,
+            "harmony_attack_count": 64,
+            "peak_generated_attacks_per_measure": 8
+          },
+          "id": "simplified-v2-steady-fifth",
+          "index": 3,
+          "musicxml": "two-voices-proposal-3.musicxml",
+          "musicxml_sha256": "b7a4cbe7eca5af5731b69f6571dd05e594e626b2c00466284d0bab208234f5ea",
+          "reason_codes": [
+            "duration-weighted-melody-fit",
+            "progression-context",
+            "reduce-compatible-changes",
+            "generated-proposal",
+            "texture-steady-fifth"
+          ],
+          "resolved": "two-voices-proposal-3-resolved.json",
+          "resolved_sha256": "bedfcfc0d31d4d9b1833cad6eb1e215ccfcd4cc22a69ebad01d3c252f638f3bc",
+          "wav": "two-voices-proposal-3.wav",
+          "wav_sha256": "9da95afcc6515d7fd02bbc7a4886e6e23dd71c5b3df0f2633e63990e97dbd815"
+        }
+      ],
+      "case_id": "two-voices",
+      "request": {
+        "count": 3,
+        "ensemble_template": {
+          "bass": {
+            "center_midi": 33,
+            "chords": [],
+            "high_midi": 39,
+            "low_midi": 28,
+            "midi_program": 32,
+            "pattern": "root-pulse"
+          },
+          "countermelody": {
+            "center_midi": 57,
+            "chords": [],
+            "high_midi": 61,
+            "low_midi": 53,
+            "melody_part_index": 0,
+            "midi_program": 42,
+            "min_melody_gap_semitones": 3,
+            "motif_end_measure_exclusive": 1,
+            "motif_start_measure": 0
+          },
+          "harmony": {
+            "center_midi": 48,
+            "chords": [],
+            "high_midi": 56,
+            "low_midi": 40,
+            "melody_part_index": 0,
+            "midi_program": 0,
+            "min_melody_gap_semitones": 4,
+            "pattern": "held",
+            "voicing": "smooth"
+          },
+          "max_generated_attacks_per_measure": null,
+          "min_bass_harmony_gap_semitones": 3,
+          "min_harmony_countermelody_gap_semitones": 0,
+          "sections": []
+        },
+        "harmony": {
+          "allow_jazz_color": true,
+          "bass_mode": "free-bass",
+          "max_candidates": 4,
+          "source_plan": null
+        },
+        "locked_chord_entries": []
+      },
+      "source_fingerprint": "312d45a36a9ecd7c",
+      "source_musicxml": "two-voices.musicxml",
+      "source_musicxml_sha256": "d309996d58ed5895de43c4c973614e7573c907dfc3ce9b3f3cc3a057d5880fb0",
+      "source_wav": "two-voices.wav",
+      "source_wav_sha256": "55b1d908f6c1a9afe4e90c07da799f1b42cd8a5325c3f95f1031230cc5e4f578"
+    },
+    {
+      "candidates": [
+        {
+          "difference_codes": [
+            "reference-arrangement"
+          ],
+          "features": {
+            "bass_attack_count": 128,
+            "changed_harmony_spans": 32,
+            "countermelody_attack_count": 0,
+            "generated_attacks_by_measure": [
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5,
+              5
+            ],
+            "generated_part_count": 2,
+            "harmony_attack_count": 32,
+            "peak_generated_attacks_per_measure": 5
+          },
+          "id": "conservative-v2-sustained-root",
+          "index": 1,
+          "musicxml": "long-road-proposal-1.musicxml",
+          "musicxml_sha256": "e2bc2325a7dbba468f70104206ad8e9bde0c31789ed368eaa43fe35afda77439",
+          "reason_codes": [
+            "duration-weighted-melody-fit",
+            "progression-context",
+            "cadence-aware",
+            "generated-proposal",
+            "texture-sustained-root"
+          ],
+          "resolved": "long-road-proposal-1-resolved.json",
+          "resolved_sha256": "a3ad9684c2a8a14e8e4a9ce33ba0a5049cd1bbfb6a533e15f798561ca35ea8e4",
+          "wav": "long-road-proposal-1.wav",
+          "wav_sha256": "a75e6f4725d8ac7c628c872eda3a4ad521a64a6e93931ed48a98d04daf5af9c2"
+        },
+        {
+          "difference_codes": [
+            "harmony-notes-changed",
+            "bass-line-changed",
+            "countermelody-changed",
+            "density-changed",
+            "orchestration-changed"
+          ],
+          "features": {
+            "bass_attack_count": 128,
+            "changed_harmony_spans": 32,
+            "countermelody_attack_count": 64,
+            "generated_attacks_by_measure": [
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14
+            ],
+            "generated_part_count": 3,
+            "harmony_attack_count": 256,
+            "peak_generated_attacks_per_measure": 14
+          },
+          "id": "conservative-v2-arpeggio-answer",
+          "index": 2,
+          "musicxml": "long-road-proposal-2.musicxml",
+          "musicxml_sha256": "fa9eddf9e7abbfaf1d7b259fc64158386eb97493b26b23d6e329801633788a1b",
+          "reason_codes": [
+            "duration-weighted-melody-fit",
+            "progression-context",
+            "cadence-aware",
+            "generated-proposal",
+            "texture-arpeggio-answer",
+            "motif-derived-countermelody"
+          ],
+          "resolved": "long-road-proposal-2-resolved.json",
+          "resolved_sha256": "973c34c8de672df73d22331cab52259096d1229c3926187567c2858689f96738",
+          "wav": "long-road-proposal-2.wav",
+          "wav_sha256": "bcff7301c1679aaa91aeb147b4fb142ce375cf5ef1a1d25f0974bc4e57c4168f"
+        },
+        {
+          "difference_codes": [
+            "harmony-changed",
+            "harmony-notes-changed",
+            "bass-line-changed",
+            "countermelody-changed",
+            "density-changed",
+            "orchestration-changed"
+          ],
+          "features": {
+            "bass_attack_count": 128,
+            "changed_harmony_spans": 18,
+            "countermelody_attack_count": 64,
+            "generated_attacks_by_measure": [
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10,
+              10
+            ],
+            "generated_part_count": 3,
+            "harmony_attack_count": 128,
+            "peak_generated_attacks_per_measure": 10
+          },
+          "id": "simplified-v2-meter-answer",
+          "index": 3,
+          "musicxml": "long-road-proposal-3.musicxml",
+          "musicxml_sha256": "b5b2c120f6997d92460e4d5a2fb8162562fd4d021639e7bc957b818ce83b9389",
+          "reason_codes": [
+            "duration-weighted-melody-fit",
+            "progression-context",
+            "reduce-compatible-changes",
+            "generated-proposal",
+            "texture-meter-answer",
+            "motif-derived-countermelody"
+          ],
+          "resolved": "long-road-proposal-3-resolved.json",
+          "resolved_sha256": "567f5988d1f6b50bb4992c6a5bc8257ca3eac536b3b8fa0961a35ff725e26c83",
+          "wav": "long-road-proposal-3.wav",
+          "wav_sha256": "e50fa5d9faaa73b53f3fa3d15d2f3c8e6db18ef1d66e61d5ff7cfb3e71a4af85"
+        }
+      ],
+      "case_id": "long-road",
+      "request": {
+        "count": 3,
+        "ensemble_template": {
+          "bass": {
+            "center_midi": 33,
+            "chords": [],
+            "high_midi": 39,
+            "low_midi": 28,
+            "midi_program": 32,
+            "pattern": "root-pulse"
+          },
+          "countermelody": {
+            "center_midi": 57,
+            "chords": [],
+            "high_midi": 61,
+            "low_midi": 53,
+            "melody_part_index": 0,
+            "midi_program": 42,
+            "min_melody_gap_semitones": 3,
+            "motif_end_measure_exclusive": 1,
+            "motif_start_measure": 0
+          },
+          "harmony": {
+            "center_midi": 48,
+            "chords": [],
+            "high_midi": 56,
+            "low_midi": 40,
+            "melody_part_index": 0,
+            "midi_program": 0,
+            "min_melody_gap_semitones": 4,
+            "pattern": "held",
+            "voicing": "smooth"
+          },
+          "max_generated_attacks_per_measure": null,
+          "min_bass_harmony_gap_semitones": 3,
+          "min_harmony_countermelody_gap_semitones": 0,
+          "sections": []
+        },
+        "harmony": {
+          "allow_jazz_color": true,
+          "bass_mode": "free-bass",
+          "max_candidates": 4,
+          "source_plan": null
+        },
+        "locked_chord_entries": []
+      },
+      "source_fingerprint": "705f4cb1495164e1",
+      "source_musicxml": "long-road.musicxml",
+      "source_musicxml_sha256": "74195748b352d21485ebb400996ac82ca5e6697e2c50249e3995de30beeefbd0",
+      "source_wav": "long-road.wav",
+      "source_wav_sha256": "3e08a6c7044112829ca0e070a6706304aa452c9414d2e470e7435ecea374ef4c"
+    }
+  ],
+  "channels": 1,
+  "corpus_sha256": "6755ff347c7d7565c691954e2742b5f523f2da15bcc8eeda55c677145ac2ab1f",
+  "normalization": "none",
+  "partition": "development-v2",
+  "release_tail_millis": 500,
+  "renderer": "acorde-rustysynth-sf2-v1",
+  "sample_rate_hz": 22050,
+  "schema_version": 1,
+  "soundfont_sha256": "cf2a98eb38a32c4954b4b6e2caae4112d62dd8e892eceefdd7942b0e7d01ac2f",
+  "source_manifest_sha256": "0321a4be33aec3ffb32099316096ca21fdfa6ebb1effb44d3d4725ec71eaa521"
+}

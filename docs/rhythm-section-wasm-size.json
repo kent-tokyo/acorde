@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "platform": "Linux GitHub Actions ubuntu-latest",
+  "rustc": "1.100.0 (0ef1bc386 2026-11-09)",
+  "wasm_pack": "0.15.0",
+  "optimization": "release, wasm-opt -Oz",
+  "base_commit": "cc852678836546d352b2a18b7ae880699d120ddb",
+  "base_job": "https://github.com/kent-tokyo/acorde/actions/runs/44041454827/job/133896768988",
+  "base_profiles": {
+    "full": {
+      "raw": 8455010,
+      "gzip": 2875185,
+      "brotli": 1922771
+    },
+    "viewer": {
+      "raw": 7399566,
+      "gzip": 2486184,
+      "brotli": 1649877
+    },
+    "playback-only": {
+      "raw": 1118769,
+      "gzip": 429781,
+      "brotli": 327180
+    }
+  },
+  "rhythm_commit": "27bfa6d63cc9095879076938f80639dee859d3b6",
+  "rhythm_job": "https://github.com/kent-tokyo/acorde/actions/runs/44043631919/job/133903902846",
+  "rhythm_profiles": {
+    "full": {
+      "raw": 8564264,
+      "gzip": 2910267,
+      "brotli": 1946905
+    },
+    "viewer": {
+      "raw": 7515762,
+      "gzip": 2521918,
+      "brotli": 1675271
+    },
+    "playback-only": {
+      "raw": 1124261,
+      "gzip": 431723,
+      "brotli": 328366
+    }
+  },
+  "raw_increase_bytes": {
+    "full": 109254,
+    "viewer": 116196,
+    "playback-only": 5492
+  },
+  "budget_bytes": 8600000,
+  "headroom_bytes": 35736,
+  "log_sha256": "8f664623925c62f360c7e5812fca1e5cb6fae0428651d6bb5ffa33b31d585f6a",
+  "gate_note": "The initial build, viewer exports, profile comparisons and parity passed; the old 8490000-byte gate rejected 8564264 bytes. The new 8600000-byte gate passed on 10b1aeb7 with identical profile sizes and 35736 bytes of headroom.",
+  "minimal_profile_scope": "Shared MSCX drum map import/export also changed; playback-only does not export the arrangement APIs.",
+  "gate_verification": {
+    "commit": "10b1aeb7aeca7dc537ebeef88fb04ad2edfcebda",
+    "job": "https://github.com/kent-tokyo/acorde/actions/runs/44046254419/job/133912557276",
+    "state": "passed",
+    "log_sha256": "609760e62085ffb98f753b6008ac8050db8f49567f2bf51cdba05c2a3fe8949e",
+    "profile_sizes_match": true
+  }
+}
