@@ -48,6 +48,8 @@ pub(crate) fn parse_chord_label(value: &str) -> Option<ChordSymbol> {
         "sus2" => "suspended-second",
         "sus4" => "suspended-fourth",
         "m7b5" => "half-diminished",
+        "add9" => "major-add9",
+        "madd9" => "minor-add9",
         "6" => "major-sixth",
         "m6" => "minor-sixth",
         other => other,
@@ -58,7 +60,7 @@ pub(crate) fn parse_chord_label(value: &str) -> Option<ChordSymbol> {
     {
         return None;
     }
-    Some(ChordSymbol {
+    let mut symbol = ChordSymbol {
         root: format!("{step}{accidental}"),
         kind: kind.to_string(),
         bass: bass.map(ToString::to_string),
@@ -69,8 +71,25 @@ pub(crate) fn parse_chord_label(value: &str) -> Option<ChordSymbol> {
         harmony_type: None,
         chord_ref: None,
         range_end: None,
-        degrees,
-    })
+        degrees: Vec::new(),
+    };
+    let base = acorde_core::expand_harmony(&symbol).ok();
+    symbol.degrees = degrees
+        .into_iter()
+        .map(|mut degree| {
+            // Compact G7b9 adds a flattened ninth: a seventh chord does not
+            // already contain degree 9 for MusicXML's `alter` operation.
+            if degree.kind == "alter"
+                && base
+                    .as_ref()
+                    .is_some_and(|base| !base.tones.iter().any(|tone| tone.degree == degree.value))
+            {
+                degree.kind = "add".into();
+            }
+            degree
+        })
+        .collect();
+    Some(symbol)
 }
 
 /// Common alternative spellings of a chord suffix in the compact form the parser reads: `Maj7`,
@@ -120,26 +139,22 @@ fn canonical_suffix(suffix: &str) -> String {
         .unwrap_or_else(|| suffix.to_string())
 }
 
-fn parse_compact_chord_suffix(suffix: &str) -> Option<(&str, Vec<ChordDegree>)> {
-    let qualities = [
-        ("maj7", "major-seventh"),
-        ("m7b5", "half-diminished"),
-        ("dim7", "diminished-seventh"),
-        ("sus2", "suspended-second"),
-        ("sus4", "suspended-fourth"),
-        ("m6", "minor-sixth"),
+fn parse_compact_chord_suffix(suffix: &str) -> Option<(&'static str, Vec<ChordDegree>)> {
+    // Prefer the longest known quality: maj9 must not become major + alter9,
+    // and m7 must not become minor + alter7. The same table drives display.
+    let aliases = [
         ("maj", "major"),
         ("min", "minor"),
-        ("dim", "diminished"),
-        ("aug", "augmented"),
-        ("m", "minor"),
-        ("7", "dominant"),
-        ("6", "major-sixth"),
-        ("", "major"),
+        ("min7", "minor-seventh"),
     ];
-    let (quality, kind) = qualities
+    let (quality, kind) = acorde_core::model::notation::CHORD_KIND_SUFFIXES
         .iter()
-        .find_map(|(prefix, kind)| suffix.strip_prefix(prefix).map(|rest| (rest, *kind)))?;
+        .rev()
+        .map(|(kind, suffix)| (*suffix, *kind))
+        .chain(aliases)
+        .filter(|(prefix, _)| suffix.starts_with(prefix))
+        .max_by_key(|(prefix, _)| prefix.len())?;
+    let quality = &suffix[quality.len()..];
     let mut degrees = Vec::new();
     let mut rest = quality;
     while !rest.is_empty() {
@@ -219,5 +234,15 @@ mod tests {
         assert_eq!(altered.kind, "dominant");
         assert_eq!(altered.degrees.len(), 2);
         assert_eq!(altered.bass.as_deref(), Some("B"));
+        assert!(altered.degrees.iter().all(|degree| degree.kind == "add"));
+        let expanded = acorde_core::expand_harmony(&altered).unwrap();
+        assert_eq!(
+            expanded
+                .tones
+                .iter()
+                .map(|tone| tone.pitch_at_root_octave(3).unwrap().to_midi())
+                .collect::<Vec<_>>(),
+            [55, 59, 62, 65, 68, 73]
+        );
     }
 }

@@ -1,0 +1,23 @@
+{
+  "contract_version": 1,
+  "cases": [
+    {
+      "id": "phrase-eight-bars",
+      "partition": "longform",
+      "meter": [4, 4],
+      "melody": [
+        [72, 74, 76, 79],
+        [77, 76, 74, 72],
+        [74, 77, 79, 81],
+        [79, 77, 76, 74],
+        [76, 79, 81, 84],
+        [81, 79, 77, 76],
+        [74, 76, 77, 79],
+        [76, 74, 72, 72]
+      ],
+      "phrase_end_measures": [3, 7],
+      "harmony_meter_groups": [2, 2],
+      "counter_inactive_ranges": [[0, 2], [4, 6]]
+    }
+  ]
+}

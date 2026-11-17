@@ -1,0 +1,340 @@
+{
+  "schema_version": 2,
+  "scope": "Native release API call timing on fixed development inputs. Generation excludes setup, verification, serialization, and audio rendering. Audio times include full SF2 synthesis and WAV construction.",
+  "environment": {
+    "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+    "machine": "arm64",
+    "rustc": "rustc 1.100.0 (0ef1bc386 2026-11-09)\nbinary: rustc\ncommit-hash: 0ef1bc386059596dada8fb65b50425aab2ea637a\ncommit-date: 2026-11-09\nhost: aarch64-apple-darwin\nrelease: 1.100.0\nLLVM version: 23.1.5",
+    "profile": "release; incremental=0; debug=0; build_jobs=2; no custom RUSTFLAGS"
+  },
+  "revisions": {
+    "stage0_baseline": "7b7ffbc421b6764f0cbe86d354a565e39e7d7030",
+    "matched_candidate": "4e267c556f5b5c5e5fcd26eff36a2e8fb701b7ee",
+    "current": "4e267c556f5b5c5e5fcd26eff36a2e8fb701b7ee",
+    "current_core_tree": "b394a01e0d3666e6a15c86d130b0d1f82d5e0f82",
+    "native_audio_pack": "e6b3618ba1e43b8bf611be424a7909e8ca200255"
+  },
+  "protocol": {
+    "generation_warmups": 5,
+    "generation_samples": 30,
+    "audio_warmups": 5,
+    "audio_samples": 10,
+    "p95": "nearest rank; one current run for new APIs, three balanced rounds for matched legacy (each pools two runs)",
+    "verification": "Each generation call reproduced the same playback and resolved choices. Audio calls reproduced exact WAV SHA-256 hashes matching the listening manifest."
+  },
+  "matched_legacy": {
+    "same_input_and_playback": true,
+    "runs": [
+      {
+        "median_ratio_candidate_over_baseline": 1.0378030186301406,
+        "p95_ratio_candidate_over_baseline": 1.5001929620135166,
+        "baseline": {
+          "median_ms": 0.434833,
+          "p95_ms": 0.536375,
+          "input_sha256": "6a9579180f785bdbb13adab7c0c678fe669be76cfef0bfe4d122188d04c67a20",
+          "playback_sha256": "c826c147acfc702cd577c498a4e2d8e24e5e2d9ee7bf4311a9be5b514563c0c8"
+        },
+        "candidate": {
+          "median_ms": 0.451271,
+          "p95_ms": 0.804666,
+          "input_sha256": "6a9579180f785bdbb13adab7c0c678fe669be76cfef0bfe4d122188d04c67a20",
+          "playback_sha256": "c826c147acfc702cd577c498a4e2d8e24e5e2d9ee7bf4311a9be5b514563c0c8"
+        },
+        "raw_report_sha256": "f4e707ffa692228f750e762f9ea730e9cf89cc9e463cf2d2792d88e48b838681"
+      },
+      {
+        "median_ratio_candidate_over_baseline": 1.0110153631092247,
+        "p95_ratio_candidate_over_baseline": 1.0714383860349246,
+        "baseline": {
+          "median_ms": 0.434938,
+          "p95_ms": 0.502167,
+          "input_sha256": "6a9579180f785bdbb13adab7c0c678fe669be76cfef0bfe4d122188d04c67a20",
+          "playback_sha256": "c826c147acfc702cd577c498a4e2d8e24e5e2d9ee7bf4311a9be5b514563c0c8"
+        },
+        "candidate": {
+          "median_ms": 0.439729,
+          "p95_ms": 0.538041,
+          "input_sha256": "6a9579180f785bdbb13adab7c0c678fe669be76cfef0bfe4d122188d04c67a20",
+          "playback_sha256": "c826c147acfc702cd577c498a4e2d8e24e5e2d9ee7bf4311a9be5b514563c0c8"
+        },
+        "raw_report_sha256": "d838049039bfa5ad248d401f5069377363e9f73ba2db8efb765471a25f5847a2"
+      },
+      {
+        "median_ratio_candidate_over_baseline": 1.0074306629400007,
+        "p95_ratio_candidate_over_baseline": 1.0262619776356061,
+        "baseline": {
+          "median_ms": 0.4484795,
+          "p95_ms": 0.759958,
+          "input_sha256": "6a9579180f785bdbb13adab7c0c678fe669be76cfef0bfe4d122188d04c67a20",
+          "playback_sha256": "c826c147acfc702cd577c498a4e2d8e24e5e2d9ee7bf4311a9be5b514563c0c8"
+        },
+        "candidate": {
+          "median_ms": 0.451812,
+          "p95_ms": 0.779916,
+          "input_sha256": "6a9579180f785bdbb13adab7c0c678fe669be76cfef0bfe4d122188d04c67a20",
+          "playback_sha256": "c826c147acfc702cd577c498a4e2d8e24e5e2d9ee7bf4311a9be5b514563c0c8"
+        },
+        "raw_report_sha256": "71f4254a501509ef33be6445863ef5ee3ac3de2448633292bcb22ec32e8ef5bd"
+      }
+    ],
+    "median_ratio_range": [
+      1.0074306629400007,
+      1.0378030186301406
+    ],
+    "p95_ratio_range": [
+      1.0262619776356061,
+      1.5001929620135166
+    ]
+  },
+  "generation_cases": [
+    {
+      "id": "legacy-form-sixteen",
+      "median_ns": 435667,
+      "p95_ns": 441250,
+      "samples_ns_sorted": [
+        433708,
+        433916,
+        434458,
+        434500,
+        434708,
+        434791,
+        434958,
+        434958,
+        435084,
+        435125,
+        435166,
+        435167,
+        435250,
+        435583,
+        435625,
+        435667,
+        436041,
+        436041,
+        436250,
+        436416,
+        436458,
+        436583,
+        436791,
+        437875,
+        438625,
+        438959,
+        439291,
+        440959,
+        441250,
+        448334
+      ],
+      "observed_sha256": "b6eab922d2e097f84da53ad5bc379776e0ede66ff626055c15628896f245a2bb"
+    },
+    {
+      "id": "stage6-melody-four",
+      "median_ns": 73042,
+      "p95_ns": 75500,
+      "samples_ns_sorted": [
+        71750,
+        72041,
+        72667,
+        72708,
+        72708,
+        72792,
+        72833,
+        72875,
+        72875,
+        72875,
+        72916,
+        72917,
+        72958,
+        72959,
+        73041,
+        73042,
+        73083,
+        73083,
+        73166,
+        73208,
+        73208,
+        73291,
+        73291,
+        73417,
+        73459,
+        73583,
+        74458,
+        74750,
+        75500,
+        79542
+      ],
+      "observed_sha256": "c30d8eb49b3d0fb26ee39840d949a524b28bd129c1b4d0183795b8cdfb957e04"
+    },
+    {
+      "id": "stage7-integrated-rhythm-eight",
+      "median_ns": 21797209,
+      "p95_ns": 22156375,
+      "samples_ns_sorted": [
+        21704542,
+        21733792,
+        21735666,
+        21735875,
+        21751625,
+        21754541,
+        21775084,
+        21775334,
+        21777375,
+        21778083,
+        21784250,
+        21786875,
+        21789458,
+        21794375,
+        21795584,
+        21797209,
+        21804958,
+        21814917,
+        21815459,
+        21815958,
+        21821000,
+        21825208,
+        21834500,
+        21834500,
+        21845875,
+        21859666,
+        21883625,
+        21903459,
+        22156375,
+        22164125
+      ],
+      "observed_sha256": "5b95994f663666efad90eb46f015e11b8b2cb40db4a8c0cb41bc3b1de58e9ebc"
+    },
+    {
+      "id": "stage7-integrated-rhythm-sixteen",
+      "median_ns": 44473667,
+      "p95_ns": 45324750,
+      "samples_ns_sorted": [
+        43761333,
+        43972458,
+        44005083,
+        44241750,
+        44278584,
+        44302250,
+        44334916,
+        44341167,
+        44355583,
+        44376167,
+        44377916,
+        44393541,
+        44404542,
+        44416500,
+        44472916,
+        44473667,
+        44479458,
+        44493500,
+        44493834,
+        44502375,
+        44507667,
+        44564917,
+        44743750,
+        44749542,
+        44804416,
+        44965083,
+        44996458,
+        45095000,
+        45324750,
+        45463042
+      ],
+      "observed_sha256": "62aadefe2660daf74a64ae13dc827af2c8cf5c01ce0fc18cb27c615ccb60b809"
+    }
+  ],
+  "audio_cases": [
+    {
+      "id": "rhythm-eight-dry",
+      "median_ns": 12963875,
+      "p95_ns": 12982125,
+      "samples_ns_sorted": [
+        12956750,
+        12958084,
+        12958917,
+        12960208,
+        12962292,
+        12963875,
+        12964250,
+        12964666,
+        12981750,
+        12982125
+      ],
+      "wav_sha256": "f83c3c02fd385cf297714a26ec9613f5f862f35fbbb0002d7e55d574f9ba773e"
+    },
+    {
+      "id": "rhythm-eight-mix",
+      "median_ns": 19906834,
+      "p95_ns": 20222375,
+      "samples_ns_sorted": [
+        19880500,
+        19884917,
+        19887250,
+        19893084,
+        19901417,
+        19906834,
+        19917875,
+        19923208,
+        19953458,
+        20222375
+      ],
+      "wav_sha256": "915b1a67ab3df9f3bc15cb140d8c302cde16bb0717f6051ff5580b268de6759d"
+    },
+    {
+      "id": "rhythm-sixteen-dry",
+      "median_ns": 23845208,
+      "p95_ns": 23872542,
+      "samples_ns_sorted": [
+        23811584,
+        23814875,
+        23821417,
+        23827000,
+        23829458,
+        23845208,
+        23848708,
+        23848875,
+        23861500,
+        23872542
+      ],
+      "wav_sha256": "4b144869f267b77b73dadd294117a57269bb96a02f6a742df3949b2d4bfa1085"
+    },
+    {
+      "id": "rhythm-sixteen-mix",
+      "median_ns": 35237708,
+      "p95_ns": 35488125,
+      "samples_ns_sorted": [
+        35184667,
+        35201500,
+        35213750,
+        35222500,
+        35230583,
+        35237708,
+        35259875,
+        35264083,
+        35264917,
+        35488125
+      ],
+      "wav_sha256": "848d58ba1e9c7fefd61243a62cc2e12e1faf4e723e9977e16ae865cdd95feb42"
+    }
+  ],
+  "soundfont_sha256": "f7884c34012ffa2a000d1a310ede173149e8abc1cda1910c1531b7789d82a792",
+  "raw_sha256": {
+    "matched_reports": [
+      "ec601a06ad65befdd37a910806c8781c638cf494fee6dc86e2122dc537f0ff09",
+      "7fd53a59a592debd4955fa27fa4106f4a31948b3336fddb5a4afe723e71686e1",
+      "71f4254a501509ef33be6445863ef5ee3ac3de2448633292bcb22ec32e8ef5bd"
+    ],
+    "generation": "43a189390aad60c1acbe2da35b97c43872db8ddb0363b8ea3d9eb340e919b3b6",
+    "audio": "1326e1cf9fb1e776460f53a858a265bfd534e378b8f33a387003446cff83e22c"
+  },
+  "harness_sha256": {
+    "matched": "a04037cda72b60b7d945cf4d26960798257e3aacc55ddf42126c91ab1259c779",
+    "matched_runner": "79b9d6acda0bcf8df69d9d6e37609ef887bfd1283d1be1c44fe259213e791af1",
+    "generation": "318de86b23bdfa4bc966d74ba55cd95629d9608870777e4990c39b4486b6da83",
+    "audio": "9e8f6845ff5ce19d25e70cd75fd5bd9c4b3291e8e7f724b7ce8dd54aebbcf377"
+  },
+  "limitations": [
+    "One macOS arm64 host and development scores; no general latency or audio quality guarantee.",
+    "Stage 6 generation uses a four-bar fixture; stages 7 and 8 use eight and sixteen bars.",
+    "Stage 7 reached its configured twelve-realization cap after returning three candidates; search_limited is true.",
+    "Audio timing uses the first proposal only, the same 22,050 Hz stereo SF2 and settings as the listening pack.",
+    "The three matched legacy rounds used the same inputs and output but yielded different p95 ratios; they do not establish a speed change."
+  ]
+}

@@ -352,7 +352,7 @@ pub fn export_loss_diagnostics(score: &Score) -> Vec<crate::Diagnostic> {
                 "percussion-instruments",
                 !part.percussion_instruments.is_empty(),
                 part.percussion_instruments.len().to_string(),
-                "MSCX subset export does not emit percussion instrument declarations",
+                "MSCX drum declarations do not preserve instrument IDs or named techniques",
             ),
             (
                 "staff-groups",
@@ -649,6 +649,23 @@ pub fn serialize_mscx(score: &Score) -> Result<String, Error> {
         .map_err(fmt_error)?;
         for channel in &part.named_channels {
             write!(xml, "<Channel name=\"{}\"><program value=\"{}\"/><midiChannel>{}</midiChannel></Channel>", escape(&channel.name), channel.program.min(127), channel.midi_channel.min(15)).map_err(fmt_error)?;
+        }
+        if !part.percussion_instruments.is_empty() {
+            xml.push_str("<useDrumset>1</useDrumset>");
+            let mut keys = std::collections::BTreeSet::new();
+            for drum in &part.percussion_instruments {
+                let Some(key) = drum.midi_unpitched.filter(|p| *p <= 127) else {
+                    continue;
+                };
+                if !keys.insert(key) {
+                    return Err(Error::Xml("duplicate drum MIDI key".into()));
+                }
+                write!(xml,"<Drum pitch=\"{key}\"><head>{}</head><line>{}</line><voice>{}</voice><name>{}</name><stem>0</stem></Drum>",
+                    note_head_name(drum.notehead.as_ref().unwrap_or(&NoteHead::Normal)),
+                    4-i16::from(drum.staff_position.unwrap_or(0)),
+                    drum.preferred_voice.filter(|v|(1..=4).contains(v)).unwrap_or(1)-1,
+                    escape(drum.name.as_deref().unwrap_or("Percussion"))).map_err(fmt_error)?;
+            }
         }
         xml.push_str("</Instrument>");
         xml.push_str("</Part>");
@@ -1136,7 +1153,22 @@ fn write_staff(
                         melisma,
                         marks,
                         staff_in_part,
-                        staff.transpose_semitones,
+                        (
+                            staff.transpose_semitones,
+                            if note.is_unpitched {
+                                note.instrument_id
+                                    .as_ref()
+                                    .and_then(|id| {
+                                        score.parts[part_index]
+                                            .percussion_instruments
+                                            .iter()
+                                            .find(|d| d.id == *id)
+                                    })
+                                    .and_then(|d| d.midi_unpitched)
+                            } else {
+                                None
+                            },
+                        ),
                         (
                             (measure_index, voice_index, note_index, beats),
                             &tie_locations,
@@ -1499,7 +1531,7 @@ fn write_note(
     melisma: Option<acorde_core::MeasureLength>,
     marks: Option<&SpanMarks>,
     staff_in_part: usize,
-    transpose: i8,
+    (transpose, percussion_key): (i8, Option<u8>),
     tie_context: (
         (usize, usize, usize, f64),
         &std::collections::HashMap<TieNoteKey, TieLocations>,
@@ -1614,7 +1646,14 @@ fn write_note(
         .map_err(fmt_error)?;
     }
     for (pitch_index, pitch) in note.pitches.iter().enumerate() {
-        if transpose == 0 {
+        if let Some(key) = percussion_key {
+            write!(
+                xml,
+                "<Note><pitch>{key}</pitch><tpc>{}</tpc>",
+                pitch_tpc(&Pitch::from_midi(key, false))
+            )
+            .map_err(fmt_error)?;
+        } else if transpose == 0 {
             write!(
                 xml,
                 "<Note><pitch>{}</pitch><tpc>{}</tpc>",

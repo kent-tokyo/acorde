@@ -142,6 +142,7 @@ struct PartMeta {
     midi_program: u8,
     midi_channel: u8,
     named_channels: Vec<acorde_core::NamedInstrumentChannel>,
+    percussion_instruments: Vec<acorde_core::PercussionInstrument>,
     staff_ids: Vec<Option<usize>>,
     staff_count: usize,
     default_clefs: Vec<Option<Clef>>,
@@ -248,6 +249,8 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
     let mut candidate_midi_channel: u8 = 0;
     let mut candidate_channel_name = String::new();
     let mut cur_named_channels = Vec::new();
+    let mut cur_drums: Vec<acorde_core::PercussionInstrument> = Vec::new();
+    let mut cur_drum: Option<acorde_core::PercussionInstrument> = None;
 
     // Staff data: 1-based staff ID → measures
     let mut staff_measures: HashMap<usize, Vec<Measure>> = HashMap::new();
@@ -568,12 +571,37 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         cur_part_channel = 0;
                         selected_channel_priority = 0;
                         cur_named_channels.clear();
+                        cur_drums.clear();
+                        cur_drum = None;
                         cur_part_transpose = 0;
                         cur_part_staff_ids.clear();
                         cur_part_staff_count = 0;
                         cur_part_default_clefs.clear();
                         cur_part_staff_group_specs.clear();
                         instrument_clefs.clear();
+                    }
+                    "Drum" if in_instrument => {
+                        let key = attr_usize(e, b"pitch")
+                            .filter(|p| *p <= 127)
+                            .ok_or_else(|| Error::Xml("invalid drum MIDI key".into()))?
+                            as u8;
+                        if cur_drums.len() >= 128
+                            || cur_drum.is_some()
+                            || cur_drums.iter().any(|d| d.midi_unpitched == Some(key))
+                        {
+                            return Err(Error::Xml(
+                                "duplicate or excessive drum definitions".into(),
+                            ));
+                        }
+                        cur_drum = Some(acorde_core::PercussionInstrument {
+                            id: format!("mscx-drum-{key}"),
+                            name: None,
+                            midi_unpitched: Some(key),
+                            staff_position: None,
+                            notehead: None,
+                            preferred_voice: None,
+                            techniques: Vec::new(),
+                        });
                     }
                     "clef" if in_instrument => {
                         instrument_clef_staff = attr_usize(e, b"staff").unwrap_or(1).max(1);
@@ -1284,6 +1312,44 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             *slot = Some(mscz_clef_type(t.trim()));
                         }
                     }
+                    "name" if cur_drum.is_some() => {
+                        if let Some(d) = cur_drum.as_mut() {
+                            d.name = Some(t.to_string());
+                        }
+                    }
+                    "line" if cur_drum.is_some() => {
+                        let line = t
+                            .parse::<i16>()
+                            .map_err(|_| Error::Xml("invalid drum staff line".into()))?;
+                        let position =
+                            4_i16
+                                .checked_sub(line)
+                                .and_then(|p| i8::try_from(p).ok())
+                                .ok_or_else(|| Error::Xml("drum staff line out of range".into()))?;
+                        if let Some(d) = cur_drum.as_mut() {
+                            d.staff_position = Some(position);
+                        }
+                    }
+                    "voice" if cur_drum.is_some() => {
+                        let voice = t
+                            .parse::<u8>()
+                            .ok()
+                            .filter(|v| *v < 4)
+                            .ok_or_else(|| Error::Xml("invalid drum voice".into()))?;
+                        if let Some(d) = cur_drum.as_mut() {
+                            d.preferred_voice = Some(voice + 1);
+                        }
+                    }
+                    "head" if cur_drum.is_some() => {
+                        if let Some(d) = cur_drum.as_mut() {
+                            d.notehead = Some(mscx_note_head(t));
+                        }
+                    }
+                    "Drum" if in_instrument => {
+                        if let Some(d) = cur_drum.take() {
+                            cur_drums.push(d);
+                        }
+                    }
                     "clef" if in_instrument => {
                         instrument_clefs.push((instrument_clef_staff, mscz_clef_type(t.trim())));
                         instrument_clef_staff = 1;
@@ -1340,6 +1406,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             midi_program: cur_part_program,
                             midi_channel: cur_part_channel,
                             named_channels: std::mem::take(&mut cur_named_channels),
+                            percussion_instruments: std::mem::take(&mut cur_drums),
                             staff_ids: cur_part_staff_ids.clone(),
                             staff_count: cur_part_staff_count,
                             default_clefs: cur_part_default_clefs.clone(),
@@ -3503,6 +3570,7 @@ fn assemble_score(
             part.midi_program = meta.midi_program;
             part.midi_channel = meta.midi_channel;
             part.named_channels = meta.named_channels;
+            part.percussion_instruments = meta.percussion_instruments;
             let mut ids = Vec::new();
             for slot in 0..meta.staff_count.max(1) {
                 let id = meta.staff_ids.get(slot).copied().flatten().or_else(|| {
@@ -3560,6 +3628,52 @@ fn assemble_score(
         }
     }
 
+    // MSCX percussion pitches are MIDI kit keys; display positions come from Drum.
+    for part in &mut score.parts {
+        if part.percussion_instruments.is_empty() {
+            continue;
+        }
+        for staff in &mut part.staves {
+            for note in staff
+                .measures
+                .iter_mut()
+                .flat_map(|m| &mut m.voices)
+                .flatten()
+            {
+                if note.is_rest || note.pitches.len() != 1 {
+                    continue;
+                }
+                let midi = note.pitches[0].to_midi();
+                if let Some(d) = part
+                    .percussion_instruments
+                    .iter()
+                    .find(|d| d.midi_unpitched.map(i16::from) == Some(midi))
+                {
+                    note.is_unpitched = true;
+                    note.instrument_id = Some(d.id.clone());
+                    if let Some(position) = d.staff_position {
+                        let diatonic = 34 + i16::from(position);
+                        let steps = [
+                            Step::C,
+                            Step::D,
+                            Step::E,
+                            Step::F,
+                            Step::G,
+                            Step::A,
+                            Step::B,
+                        ];
+                        note.pitches[0] = Pitch::new(
+                            steps[diatonic.rem_euclid(7) as usize].clone(),
+                            diatonic.div_euclid(7) as i8,
+                        );
+                    }
+                    if let Some(head) = &d.notehead {
+                        note.note_head = head.clone();
+                    }
+                }
+            }
+        }
+    }
     convert_ottava_pitches(&mut score, true)?;
     Ok((score, staff_ids))
 }
@@ -3767,7 +3881,7 @@ fn mscx_chord_symbol(
     }
     let trimmed_name = name.trim();
     let (kind_name, degrees) = mscx_harmony_kind_and_degrees(trimmed_name);
-    let kind = match kind_name {
+    let kind = match kind_name.as_str() {
         "" => "major",
         "m" => "minor",
         "7" => "dominant",
@@ -3782,6 +3896,8 @@ fn mscx_chord_symbol(
         "sus2" => "suspended-second",
         "sus4" => "suspended-fourth",
         "m7b5" => "half-diminished",
+        "add9" => "major-add9",
+        "madd9" => "minor-add9",
         "6" => "major-sixth",
         "m6" => "minor-sixth",
         other => other,
@@ -3805,57 +3921,10 @@ fn mscx_chord_symbol(
 ///
 /// The parser intentionally recognizes only unambiguous MusicXML-compatible
 /// tokens. Unknown suffixes remain in the kind string instead of being guessed.
-fn mscx_harmony_kind_and_degrees(name: &str) -> (&str, Vec<ChordDegree>) {
-    let quality_len = [
-        "maj7", "m7b5", "dim7", "sus2", "sus4", "min7", "m6", "maj", "min", "dim", "aug", "m", "7",
-        "6",
-    ]
-    .iter()
-    .find_map(|quality| name.strip_prefix(quality).map(|_| quality.len()))
-    .unwrap_or(name.len());
-    let (quality, suffix) = name.split_at(quality_len);
-    if suffix.is_empty() {
-        return (quality, Vec::new());
-    }
-    let mut degrees = Vec::new();
-    let mut rest = suffix;
-    while !rest.is_empty() {
-        let (kind, tail) = if let Some(tail) = rest.strip_prefix("add") {
-            ("add", tail)
-        } else if let Some(tail) = rest.strip_prefix("no") {
-            ("subtract", tail)
-        } else {
-            ("alter", rest)
-        };
-        let alter_len = tail
-            .chars()
-            .take_while(|ch| matches!(ch, '#' | 'b'))
-            .count();
-        let (accidentals, value_text) = tail.split_at(alter_len);
-        let value_len = value_text.chars().take_while(char::is_ascii_digit).count();
-        if value_len == 0 {
-            return (name, Vec::new());
-        }
-        let value = match value_text[..value_len].parse::<u8>() {
-            Ok(value) if value > 0 => value,
-            _ => return (name, Vec::new()),
-        };
-        let alter = match accidentals {
-            "" => 0,
-            "#" => 1,
-            "##" => 2,
-            "b" => -1,
-            "bb" => -2,
-            _ => return (name, Vec::new()),
-        };
-        degrees.push(ChordDegree {
-            value,
-            alter,
-            kind: kind.to_string(),
-        });
-        rest = &value_text[value_len..];
-    }
-    (quality, degrees)
+fn mscx_harmony_kind_and_degrees(name: &str) -> (String, Vec<ChordDegree>) {
+    crate::chord_label::parse_chord_label(&format!("C{name}"))
+        .map(|symbol| (symbol.kind, symbol.degrees))
+        .unwrap_or_else(|| (name.to_string(), Vec::new()))
 }
 
 fn mscx_tpc_to_note_name(tpc: i32) -> String {

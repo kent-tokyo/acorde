@@ -541,6 +541,7 @@ pub(crate) fn parse_musicxml_collecting(
     let mut harmony_root_step = String::new();
     let mut harmony_root_alter: i8 = 0;
     let mut harmony_kind = String::new();
+    let mut harmony_kind_text: Option<String> = None;
     let mut harmony_function: Option<String> = None;
     let mut harmony_bass_step = String::new();
     let mut harmony_bass_alter: i8 = 0;
@@ -806,6 +807,7 @@ pub(crate) fn parse_musicxml_collecting(
                         harmony_root_step.clear();
                         harmony_root_alter = 0;
                         harmony_kind.clear();
+                        harmony_kind_text = None;
                         harmony_function = None;
                         harmony_bass_step.clear();
                         harmony_bass_alter = 0;
@@ -842,6 +844,7 @@ pub(crate) fn parse_musicxml_collecting(
                     }
                     "root" if in_harmony => in_harmony_root = true,
                     "bass" if in_harmony => in_harmony_bass = true,
+                    "kind" if in_harmony => harmony_kind_text = attr_str(e, b"text"),
                     "degree" if in_harmony => {
                         in_harmony_degree = true;
                         harmony_degree_value.clear();
@@ -1967,7 +1970,12 @@ pub(crate) fn parse_musicxml_collecting(
                             current_text.parse::<f32>().unwrap_or(0.0).round() as i8;
                     }
                     "kind" if in_harmony => {
-                        harmony_kind = current_text.trim().to_string();
+                        harmony_kind = match (current_text.trim(), harmony_kind_text.as_deref()) {
+                            ("other", Some("add9")) => "major-add9",
+                            ("other", Some("madd9")) => "minor-add9",
+                            (kind, _) => kind,
+                        }
+                        .to_string();
                     }
                     "function" if in_harmony => {
                         let value = current_text.trim();

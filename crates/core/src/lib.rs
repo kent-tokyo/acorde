@@ -4,6 +4,25 @@
 
 pub mod model;
 
+pub use model::accordion_dynamics::{
+    AccordionDynamicSchedule, AccordionDynamicSection, DynamicSectionedAccordionResult,
+    arrange_sections_with_dynamics,
+};
+pub use model::accordion_response::{
+    AccordionResponseFill, AccordionResponseOptions, ResponseFilledAccordionResult,
+    arrange_with_response_fills,
+};
+pub use model::accordion_sections::{
+    AccordionAccompanimentSection, AccordionMelodicSchedule, AccordionMelodicSection,
+    MelodicSectionedAccordionResult, SectionedAccordionOptions, SectionedAccordionResult,
+    arrange_sections_with_melodic_voices, arrange_with_sections,
+};
+pub use model::accordion_voicing::{
+    AccordionVoicing, AccordionVoicingOptions, VoiceLedAccordionResult,
+    VoiceLedSectionedAccordionResult, arrange_sections_with_voice_leading,
+    arrange_with_voice_leading,
+};
+
 pub use model::arrange::{
     AccordionAnalysis, AccordionBassMode, AccordionDroneOptions, AccordionDroneResult,
     AccordionInversion, AccordionLossPolicy, AccordionMelodicVoice, AccordionPattern,
@@ -35,9 +54,20 @@ pub use model::arrangement_plan_shuffle::{
     ACCORDION_PLAN_SHUFFLE_MAX_SECTIONS, AccordionPlanSectionChoices, AccordionPlanShuffleRequest,
     AccordionPlanShuffleResult, shuffle_accordion_plan,
 };
+pub use model::arrangement_proposals::{
+    ARRANGEMENT_PROPOSAL_CONTRACT_VERSION, ArrangementProposalCandidate,
+    ArrangementProposalDiagnostic, ArrangementProposalFeatures, ArrangementProposalReplayResult,
+    ArrangementProposalRequest, ArrangementProposalResult, ArrangementRegionRequest,
+    ArrangementRegionResult, ResolvedArrangementProposal, regenerate_arrangement_region,
+    replay_arrangement_proposal, suggest_arrangement_proposals,
+};
 pub use model::authored_chords::{
     AuthoredChordAnnotation, AuthoredChordDiagnostic, AuthoredChordOptions, AuthoredChordResult,
     annotate_from_authored_chords,
+};
+pub use model::bass_line::{
+    BassLineDiagnostic, BassLineMotionReport, BassLineOptions, BassLinePattern, BassLineResult,
+    BassRhythmSection, BassRhythmSlot, BassRhythmTone, arrange_bass_line,
 };
 pub use model::change_hint::{ChangeHint, ChangeScope};
 pub use model::chord_plan::{
@@ -47,11 +77,17 @@ pub use model::chord_plan::{
     chord_plan_to_preset_selection, extract_chord_plan,
 };
 pub use model::chord_proposals::{
-    CHORD_PROPOSAL_CONTRACT_VERSION, CHORD_PROPOSAL_MAX_MEASURES, ChordChangedSpan,
+    CHORD_PROPOSAL_CONTRACT_VERSION, CHORD_PROPOSAL_MAX_MEASURES, ChordCadenceKind,
+    ChordCadenceTarget, ChordChangedSpan, ChordColorKind, ChordColorTarget, ChordKeyRegion,
     ChordPresetAssessment, ChordPresetAssessmentResult, ChordProposalArrangementResult,
     ChordProposalCandidate, ChordProposalDiagnostic, ChordProposalRequest, ChordProposalResult,
     ResolvedChordProposal, SourceRangeViolation, arrange_from_chord_proposal, assess_chord_presets,
-    suggest_chord_plans,
+    suggest_chord_plans, suggest_chord_plans_at_positions, suggest_chord_plans_with_locks,
+};
+pub use model::chordal_pad::{
+    ChordalPadDiagnostic, ChordalPadMeterGroupSection, ChordalPadMotionReport, ChordalPadOptions,
+    ChordalPadPattern, ChordalPadPatternSection, ChordalPadResolvedVoicing, ChordalPadResult,
+    ChordalPadVoicing, arrange_chordal_pad,
 };
 pub use model::commands::{
     AddHairpinCmd, AddMeasureCmd, AddNoteCmd, AddPartCmd, AddPedalCmd, AddPitchCmd, AddSpannerCmd,
@@ -79,8 +115,67 @@ pub use model::commands::{
     TransposeStaffRegionCmd, TupletScalePolicy, UnrollRepeatsCmd, UpdateSpannerCmd,
     UpsertScoreViewCmd, command_key, command_label,
 };
+pub use model::countermelody::{
+    CountermelodyDiagnostic, CountermelodyOptions, CountermelodyResult, arrange_countermelody,
+};
+pub use model::countermelody_development::{
+    COUNTERMELODY_DEVELOPMENT_CONTRACT_VERSION, CountermelodyDevelopmentError,
+    CountermelodyDevelopmentKind, CountermelodyDevelopmentRequest, CountermelodyDevelopmentResult,
+    GeneratedMotifOrigin, MotifRhythmCell, ResolvedCountermelodyDevelopment,
+    arrange_countermelody_development, replay_countermelody_development,
+};
+pub use model::cross_plan_form_proposals::{
+    CROSS_PLAN_FORM_CONTRACT_VERSION, CrossPlanFormCandidate, CrossPlanFormError,
+    CrossPlanFormRequest, CrossPlanFormResult, CrossPlanRejection, ResolvedCrossPlanForm,
+    replay_cross_plan_form, suggest_cross_plan_forms,
+};
+pub use model::developed_form_proposals::{
+    DEVELOPED_FORM_PROPOSAL_CONTRACT_VERSION, DevelopedFormAxisDistance,
+    DevelopedFormProposalCandidate, DevelopedFormProposalError, DevelopedFormProposalResult,
+    DevelopedFormRejection, ResolvedDevelopedFormProposal, replay_developed_form_proposal,
+    suggest_developed_form_proposals,
+};
 pub use model::duration::Duration;
 pub use model::engine::{EngineHistory, HistoryConflict, HistoryRelation, ScoreEngine};
+pub use model::ensemble_form::{
+    ENSEMBLE_FORM_CONTRACT_VERSION, ENSEMBLE_FORM_ENGINE_VERSION, EnsembleFormDiagnostic,
+    EnsembleFormMeasure, EnsembleFormRequest, EnsembleFormResult, EnsembleFormSection, FormBass,
+    FormHarmony, ResolvedEnsembleForm, arrange_ensemble_form, replay_ensemble_form,
+};
+pub use model::ensemble_form_development::{
+    ENSEMBLE_FORM_DEVELOPMENT_CONTRACT_VERSION, EnsembleFormDevelopmentError,
+    EnsembleFormDevelopmentRequest, EnsembleFormDevelopmentResult, ResolvedEnsembleFormDevelopment,
+    arrange_ensemble_form_development, arrange_ensemble_form_development_with_phrase_joins,
+    replay_ensemble_form_development,
+};
+pub use model::ensemble_form_inner_voices::{
+    FORM_INNER_VOICES_CONTRACT_VERSION, FORM_INNER_VOICES_ENGINE_VERSION,
+    FORM_INNER_VOICES_PERFORMANCE_CONTRACT_VERSION, FORM_INNER_VOICES_PERFORMANCE_ENGINE_VERSION,
+    FormInnerVoicesError, FormInnerVoicesPerformanceError, FormInnerVoicesPerformanceResult,
+    FormInnerVoicesRequest, FormInnerVoicesResult, ResolvedFormInnerVoices,
+    ResolvedFormInnerVoicesPerformance, arrange_form_inner_voices,
+    arrange_form_inner_voices_performance, replay_form_inner_voices,
+    replay_form_inner_voices_performance,
+};
+pub use model::ensemble_form_proposals::{
+    EnsembleFormProposalCandidate, EnsembleFormProposalRequest, EnsembleFormProposalResult,
+    FORM_PROPOSAL_CONTRACT_VERSION, FormProposalBoundary, FormProposalError, ResolvedFormProposal,
+    replay_ensemble_form_proposal, suggest_ensemble_form_proposals,
+};
+pub use model::ensemble_form_visits::{
+    EnsembleFormPerformanceScoreResult, EnsembleFormVisitsRequest, EnsembleFormVisitsResult,
+    FORM_VISITS_CONTRACT_VERSION, FORM_VISITS_ENGINE_VERSION, FormVisitVariation,
+    ResolvedFormVisits, arrange_ensemble_form_visits, arrange_ensemble_form_visits_score,
+    replay_ensemble_form_visits, replay_ensemble_form_visits_score,
+};
+pub use model::ensemble_melody::{
+    EnsembleMelodyDiagnostic, EnsembleMelodyRequest, EnsembleMelodyResult, MelodyRoleSection,
+    arrange_ensemble_with_melody,
+};
+pub use model::ensemble_roles::{
+    EnsembleMeasureActivity, EnsembleRole, EnsembleRoleDiagnostic, EnsembleRoleOptions,
+    EnsembleRolePart, EnsembleRoleResult, EnsembleRoleSection, arrange_ensemble_roles,
+};
 pub use model::fragment::{
     MIN_SUPPORTED_SCORE_FRAGMENT_CONTRACT_VERSION, SCORE_FRAGMENT_CONTRACT_VERSION, ScoreFragment,
     ScoreFragmentCrossStaffTarget, ScoreFragmentDiagnostic, ScoreFragmentMeasure,
@@ -93,6 +188,57 @@ pub use model::free_bass::{
 };
 pub use model::gm::{drum_name, program_name};
 pub use model::harmony::{detect_chord, roman_numeral, roman_numeral_figured};
+pub use model::harmony_arrangement::{
+    HARMONY_ARRANGEMENT_CONTRACT_VERSION, HarmonyArrangementError, HarmonyArrangementNote,
+    HarmonyArrangementRequest, HarmonyArrangementResult, HarmonyArrangementSpan,
+    HarmonyContextFeature, HarmonyStaffRef, ResolvedHarmonyArrangement, arrange_harmony_voicings,
+    replay_harmony_arrangement,
+};
+pub use model::harmony_comping::{
+    HarmonyAnticipation, HarmonyAnticipationJoin, HarmonyAnticipationLead, HarmonyCompingAccent,
+    HarmonyCompingFailure, HarmonyCompingOptions, HarmonyCompingPattern,
+};
+pub use model::harmony_expansion::{
+    ExpandedHarmony, ExpandedHarmonyTone, HARMONY_EXPANSION_CONTRACT_VERSION,
+    HARMONY_EXPANSION_MAX_DEGREES, HarmonyExpansionError, HarmonyPitchClass, HarmonyToneOrigin,
+    HarmonyToneRole, expand_harmony,
+};
+pub use model::harmony_groove_proposals::{
+    HARMONY_GROOVE_CONTRACT_VERSION, HarmonyGrooveAnticipation, HarmonyGrooveCandidate,
+    HarmonyGrooveDifference, HarmonyGrooveError, HarmonyGrooveProfile, HarmonyGrooveQuality,
+    HarmonyGrooveRejection, HarmonyGrooveRejectionReason, HarmonyGrooveRequest,
+    HarmonyGrooveResult, HarmonyTension, HarmonyTensionAddition, HarmonyTensionAllowance,
+    ResolvedHarmonyGrooveArrangement, replay_harmony_groove_arrangement,
+    suggest_harmony_groove_arrangements,
+};
+pub use model::harmony_voicing::{
+    HARMONY_VOICING_CONTRACT_VERSION, HarmonyRootPolicy, HarmonyVoiceMotion, HarmonyVoicingEdge,
+    HarmonyVoicingError, HarmonyVoicingNode, HarmonyVoicingRequest, HarmonyVoicingResult,
+    HarmonyVoicingTransition, ResolvedHarmonyVoicing, RootVoicingDecision, VoicedHarmonyTone,
+    plan_harmony_voicings,
+};
+pub use model::inner_voices::{
+    INNER_VOICES_CONTRACT_VERSION, InnerVoiceLine, InnerVoicePattern, InnerVoicesError,
+    InnerVoicesRequest, InnerVoicesResult, ResolvedInnerVoices, arrange_inner_voices,
+    replay_inner_voices,
+};
+pub use model::inner_voices_performance::{
+    INNER_VOICES_PERFORMANCE_CONTRACT_VERSION, INNER_VOICES_PERFORMANCE_ENGINE_VERSION,
+    InnerVoiceRepeatJoin, InnerVoicesPerformanceError, InnerVoicesPerformanceResult,
+    ResolvedInnerVoicesPerformance, arrange_inner_voices_performance,
+    replay_inner_voices_performance,
+};
+pub use model::instrument_plan::{
+    INSTRUMENT_PLAN_CONTRACT_VERSION, INSTRUMENT_PLAN_ENGINE_VERSION, InstrumentPartAssignment,
+    InstrumentPartReport, InstrumentPlanError, InstrumentPlanRequest, InstrumentPlanResult,
+    PartTechnique, ResolvedInstrumentPlan, plan_instruments, replay_instrument_plan,
+};
+pub use model::integrated_arrangement_proposals::{
+    INTEGRATED_ARRANGEMENT_CONTRACT_VERSION, IntegratedArrangementAxisDistance,
+    IntegratedArrangementCandidate, IntegratedArrangementError, IntegratedArrangementRejection,
+    IntegratedArrangementRequest, IntegratedArrangementResult, ResolvedIntegratedArrangement,
+    replay_integrated_arrangement, suggest_integrated_arrangements,
+};
 pub use model::interval::{Interval, IntervalQuality};
 pub use model::melodic_insert::{
     MelodicInsertion, MelodicInsertionCandidate, MelodicInsertionContext,
@@ -118,6 +264,18 @@ pub use model::omr::{
     OMR_PROPOSAL_CONTRACT_VERSION, OmrCommandPlan, OmrDiagnostic, OmrDiagnosticKind,
     OmrMeasureProposal, OmrMeasureTarget, OmrNoteAnnotation, OmrNoteAnnotationProposal,
     OmrNoteTarget, OmrPage, OmrProposal, OmrRegion, OmrRhythmicEvent, OmrUnresolvedItem,
+};
+pub use model::phrase_harmony::{
+    ModulationApproach, PHRASE_HARMONY_TARGET_CONTRACT_VERSION, PhraseHarmonicPace,
+    PhraseHarmonyRequest, PhraseHarmonyResult, PhraseHarmonySection, PhraseHarmonyTargetCandidate,
+    PhraseHarmonyTargetError, PhraseHarmonyTargetRejection, PhraseHarmonyTargetRequest,
+    PhraseHarmonyTargetResult, PhraseModulationTarget, ResolvedModulationChoice,
+    ResolvedPhraseHarmonyTarget, SecondaryDominantTarget, TargetResolutionEvidence,
+    replay_phrase_harmony_target, suggest_phrase_harmony, suggest_phrase_harmony_targets,
+};
+pub use model::phrase_melody::{
+    MelodyAnticipationEdit, PHRASE_MELODY_CONTRACT_VERSION, PhraseMelodyError, PhraseMelodyRequest,
+    PhraseMelodyResult, ResolvedPhraseMelody, arrange_phrase_melody, replay_phrase_melody,
 };
 pub use model::pitch::{Pitch, Step};
 pub use model::playback::{
@@ -219,3 +377,11 @@ pub enum Error {
     #[error("tablature round-trip serialization failed: {0}")]
     TabRoundTripSerialization(String),
 }
+
+pub use model::rhythm_section::{
+    BassApproachDirection, BassGhostSound, RHYTHM_SECTION_CONTRACT_VERSION, ResolvedBassApproach,
+    ResolvedRhythmBass, ResolvedRhythmSection, RhythmAttackRef, RhythmBassAttack, RhythmBassTone,
+    RhythmKickAttack, RhythmSectionAttack, RhythmSectionBar, RhythmSectionDiagnostic,
+    RhythmSectionError, RhythmSectionRequest, RhythmSectionResult, RhythmSectionSlot,
+    arrange_rhythm_section, replay_rhythm_section,
+};
