@@ -2403,7 +2403,7 @@ pub fn suggest_integrated_arrangements(score_json: &str, request_json: &str) -> 
 pub fn replay_integrated_arrangement(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
     let score = score_from_json(score_json)?;
     let resolved: acorde_core::ResolvedIntegratedArrangement =
-        parse_json(resolved_json, "resolved integrated arrangement", MAX_OPTIONS_JSON_BYTES)?;
+        parse_json(resolved_json, "resolved integrated arrangement", MAX_HARMONY_REPLAY_JSON_BYTES)?;
     let score = acorde_core::replay_integrated_arrangement(&score, &resolved)
         .map_err(|error| js_err(format!("integrated arrangement replay failed: {error}")))?;
     serde_json::to_string(&score)
