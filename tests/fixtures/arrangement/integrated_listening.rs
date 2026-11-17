@@ -26,10 +26,10 @@ pub fn input(
     let (source, harmonies) = rhythm::harmony_input(&melody);
     let mut harmony_request = harmonies
         .into_iter()
-        .find(|(label, _)| *label == "secondary")
-        .ok_or("secondary harmony missing")?
+        .find(|(label, _)| *label == "common-modulation")
+        .ok_or("common modulation harmony missing")?
         .1;
-    harmony_request.count = 1;
+    harmony_request.count = 3;
     let (_, rhythms) = rhythm::input(case)?;
     let selected_rhythms = rhythms
         .into_iter()
@@ -89,7 +89,7 @@ pub fn input(
             max_rhythm_attacks: (count * 8) as u16,
             max_melody_anticipations: 1,
             count: 3,
-            max_realizations: 6,
+            max_realizations: 12,
         },
     ))
 }
