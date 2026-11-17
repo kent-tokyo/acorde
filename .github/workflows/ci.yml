@@ -309,11 +309,22 @@ jobs:
         run: cargo run --release -p acorde-render-svg --example benchmark
 
   wasm-browser:
-    name: WASM browser contract
+    name: WASM browser contract (${{ matrix.profile }})
     runs-on: ubuntu-latest
-    # Each integration-test file costs about 16 s of browser start-up. The full run took
-    # 4 m 40 s, close to its step limit, before the transposition tests were added.
-    timeout-minutes: 15
+    # Run 43984805684 passed 24 binaries before the old 8-minute full-profile cap.
+    # Browser startup costs ~16 s per binary; 42 integration binaries now need
+    # about 12 minutes plus compilation. Keep each profile independently bounded.
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - profile: full
+            feature_args: ''
+          - profile: viewer
+            feature_args: '--no-default-features --features viewer'
+          - profile: playback-only
+            feature_args: '--no-default-features --features playback-only'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
@@ -324,11 +335,7 @@ jobs:
       - name: Install wasm-pack
         run: cargo install wasm-pack --version 0.15.0 --locked
       - name: wasm browser tests
-        run: timeout 8m wasm-pack test --headless --chrome crates/wasm
-      - name: Viewer browser tests
-        run: timeout 6m wasm-pack test --headless --chrome crates/wasm --no-default-features --features viewer
-      - name: Playback-only browser tests
-        run: timeout 5m wasm-pack test --headless --chrome crates/wasm --no-default-features --features playback-only
+        run: timeout 20m wasm-pack test --headless --chrome crates/wasm ${{ matrix.feature_args }}
 
   browser-matrix:
     name: Browser smoke (${{ matrix.browser }})
