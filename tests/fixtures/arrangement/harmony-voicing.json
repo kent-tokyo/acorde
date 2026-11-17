@@ -1,0 +1,19 @@
+{
+  "nodes": [
+    {"chord":{"root":"D","kind":"minor-ninth"},"bass_midi":38,"melody_ceiling_midi":76},
+    {"chord":{"root":"G","kind":"dominant-13th"},"bass_midi":31,"melody_ceiling_midi":76},
+    {"chord":{"root":"C","kind":"major-ninth"},"bass_midi":36,"melody_ceiling_midi":76}
+  ],
+  "edges": [
+    {"from":0,"to":1,"repeat_boundary":false},
+    {"from":1,"to":2,"repeat_boundary":false},
+    {"from":2,"to":0,"repeat_boundary":true}
+  ],
+  "root_policy":"automatic",
+  "voices":4,
+  "low_midi":48,
+  "high_midi":84,
+  "center_midi":60,
+  "max_leap_semitones":12,
+  "parallel_perfect_penalty":0
+}

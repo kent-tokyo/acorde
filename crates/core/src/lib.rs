@@ -193,6 +193,12 @@ pub use model::harmony_expansion::{
     HARMONY_EXPANSION_MAX_DEGREES, HarmonyExpansionError, HarmonyPitchClass, HarmonyToneOrigin,
     HarmonyToneRole, expand_harmony,
 };
+pub use model::harmony_voicing::{
+    HARMONY_VOICING_CONTRACT_VERSION, HarmonyRootPolicy, HarmonyVoiceMotion, HarmonyVoicingEdge,
+    HarmonyVoicingError, HarmonyVoicingNode, HarmonyVoicingRequest, HarmonyVoicingResult,
+    HarmonyVoicingTransition, ResolvedHarmonyVoicing, RootVoicingDecision, VoicedHarmonyTone,
+    plan_harmony_voicings,
+};
 pub use model::inner_voices::{
     INNER_VOICES_CONTRACT_VERSION, InnerVoiceLine, InnerVoicePattern, InnerVoicesError,
     InnerVoicesRequest, InnerVoicesResult, ResolvedInnerVoices, arrange_inner_voices,

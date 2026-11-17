@@ -5,7 +5,9 @@
     "state": "hosted-ci-rerun-pending",
     "branch": "codex/harmony-groove-20261117",
     "pull_request": "https://github.com/kent-tokyo/acorde/pull/442",
-    "baseline": "harmony-groove-baseline.json"
+    "baseline": "harmony-groove-baseline.json",
+    "ci_run": "https://github.com/kent-tokyo/acorde/actions/runs/43983638187",
+    "head": "c32b9dc9"
   },
   "stage_1": {
     "state": "local-contract-verified-hosted-ci-pending",
@@ -29,16 +31,44 @@
       }
     },
     "corpus": "../tests/fixtures/arrangement/harmony-expansion.json",
-    "specification": "harmony-expansion.md"
+    "specification": "harmony-expansion.md",
+    "pull_request": "https://github.com/kent-tokyo/acorde/pull/443",
+    "ci_run": "https://github.com/kent-tokyo/acorde/actions/runs/43983668201"
   },
   "stage_2": {
-    "state": "in-progress",
+    "state": "low-level-voicing-verified-score-integration-pending",
     "remaining": [
-      "score-derived bass and melody contexts",
-      "registered and tested voicing graph API",
-      "repeat transitions",
-      "notation and replay integration"
-    ]
+      "derive interval-wide bass and melody context from the source score",
+      "connect all actual harmony and repeat transitions",
+      "write spelled notes and preserve notation/playback through IO",
+      "source-bound replay and complete stage validation"
+    ],
+    "branch": "codex/harmony-voicing-20261117",
+    "specification": "harmony-voicing.md",
+    "checks": {
+      "core": {
+        "log_sha256": "8fc8acd467daeb7cf7aa37535aa1e3361d62471b6635847a2591a1a8d543bae2",
+        "passed_tests": 7
+      },
+      "full-wasm-focused": {
+        "log_sha256": "744e53f36e02c2c42e2c2a04c37f5418d730b477cb267047444dc36fa468d8f2",
+        "passed_tests": 2
+      },
+      "viewer-wasm-focused": {
+        "log_sha256": "603076850b4a97d51692d3252d93cd2bf80806ba598893e9097d958e8a0ddac2",
+        "passed_tests": 2
+      },
+      "clippy-rust-1.100": {
+        "log_sha256": "57d00c7bafd7a779b4b6c0ca7d2f24c3ba7c1c62b0aa2d35d098ade2e022240a",
+        "passed_tests": 0
+      }
+    },
+    "stress_example": {
+      "harmonic_positions": 64,
+      "search_states": 128032,
+      "native_debug_milliseconds": 184.572541,
+      "interpretation": "one bounded development check, not a browser latency guarantee"
+    }
   },
   "stage_3": {
     "state": "not-yet-implemented",

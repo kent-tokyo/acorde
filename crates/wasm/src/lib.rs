@@ -1972,6 +1972,15 @@ pub fn expand_harmony(chord_json: &str) -> Result<String, JsValue> {
     serde_json::to_string(&expanded).map_err(js_err)
 }
 
+/// Select ordered voices from interval-wide bass/melody context and transition edges.
+#[wasm_bindgen]
+pub fn plan_harmony_voicings(request_json: &str) -> Result<String, JsValue> {
+    let request: acorde_core::HarmonyVoicingRequest =
+        parse_json(request_json, "harmony voicing request", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::plan_harmony_voicings(&request).map_err(js_err)?;
+    serde_json::to_string(&result).map_err(js_err)
+}
+
 /// Compose independently scheduled harmony, bass and countermelody parts.
 #[wasm_bindgen]
 pub fn arrange_ensemble_roles(score_json: &str, options_json: &str) -> Result<String, JsValue> {

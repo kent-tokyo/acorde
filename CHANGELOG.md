@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+- Add a bounded, opt-in `plan_harmony_voicings` graph API in Rust and full/viewer
+  WASM. It preserves ordered voice identities over repeat transitions and uses
+  supplied interval-wide bass/melody context for root omission and register limits.
+  Score-derived context and accompaniment scheduling remain in development.
+
+
 - Add opt-in `expand_harmony` in Rust and full/viewer WASM: spelled compound
   degrees, tension roles, slash-bass separation, and checked MusicXML
   add/alter/subtract semantics. Existing arrangement presets remain unchanged.

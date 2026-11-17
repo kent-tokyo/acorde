@@ -32,6 +32,7 @@ pub mod free_bass;
 pub mod gm;
 pub mod harmony;
 pub mod harmony_expansion;
+pub mod harmony_voicing;
 pub mod inner_voices;
 pub mod inner_voices_performance;
 pub mod instrument_plan;
