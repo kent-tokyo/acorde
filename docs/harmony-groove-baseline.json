@@ -107,5 +107,20 @@
     "local_checkout_probe": "git -c core.autocrlf=true checkout-index --prefix=<empty-directory>/ -- <all pinned JSON paths>",
     "matching_json_files": 8,
     "windows_ci": "rerun-required"
+  },
+  "expansion_wasm_size": {
+    "platform": "Linux GitHub Actions ubuntu-latest",
+    "rustc": "1.100.0 (0ef1bc386 2026-11-09)",
+    "wasm_pack": "0.15.0",
+    "optimization": "release, wasm-opt -Oz",
+    "integration_commit": "7b7ffbc4",
+    "integration_job": "https://github.com/kent-tokyo/acorde/actions/runs/43986850571/job/133717096993",
+    "integration_bytes": 8049482,
+    "expansion_commit": "689c2b38",
+    "expansion_job": "https://github.com/kent-tokyo/acorde/actions/runs/43987397646/job/133718986323",
+    "expansion_bytes": 8085336,
+    "increase_bytes": 35854,
+    "budget_bytes": 8110000,
+    "headroom_bytes": 24664
   }
 }
