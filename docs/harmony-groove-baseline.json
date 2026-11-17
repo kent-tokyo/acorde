@@ -98,5 +98,14 @@
       "wasm:ensemble_roles (native)"
     ],
     "focused_tests_log_sha256": "5a868265d587bcc3c6882c798798bba1b32d007f923bb4995487a0c3e0ae2cd6"
+  },
+  "windows_fixture_checkout": {
+    "failure_job": "https://github.com/kent-tokyo/acorde/actions/runs/43983638187/job/133706117485",
+    "lf_corpus_sha256": "6755ff347c7d7565c691954e2742b5f523f2da15bcc8eeda55c677145ac2ab1f",
+    "crlf_corpus_sha256": "22d5e62b5b74ebc8be748d0cd1d99b30446788363a7ab3291aed9db6a088e39c",
+    "repair": "tests/fixtures/arrangement/.gitattributes forces *.json text eol=lf",
+    "local_checkout_probe": "git -c core.autocrlf=true checkout-index --prefix=<empty-directory>/ -- <all pinned JSON paths>",
+    "matching_json_files": 8,
+    "windows_ci": "rerun-required"
   }
 }

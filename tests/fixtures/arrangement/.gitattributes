@@ -1,0 +1,2 @@
+# Pinned manifests hash these JSON bytes; Windows checkouts must retain LF.
+*.json text eol=lf
