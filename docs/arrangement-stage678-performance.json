@@ -10,9 +10,9 @@
   "revisions": {
     "stage0_baseline": "7b7ffbc421b6764f0cbe86d354a565e39e7d7030",
     "matched_candidate": "ea3459c3f923dec7b23e4b33d3b45b076324bcbd",
-    "current": "ea3459c3f923dec7b23e4b33d3b45b076324bcbd",
+    "current": "c395fa822ca1a4dbe2c43100fa8e1cde016dc396",
     "current_core_tree": "fa23fe1cf9357934bbec2d0e09e51b48b4c0698b",
-    "native_audio_pack": "ea3459c3f923dec7b23e4b33d3b45b076324bcbd"
+    "native_audio_pack": "c395fa822ca1a4dbe2c43100fa8e1cde016dc396"
   },
   "protocol": {
     "generation_warmups": 5,
@@ -287,6 +287,7 @@
     "Stage 6 generation uses a four-bar fixture; stages 7 and 8 use eight and sixteen bars.",
     "Stage 7 reached its configured six-realization cap after returning three candidates; search_limited is true.",
     "Audio timing uses the first proposal only, the same 22,050 Hz stereo SF2 and settings as the listening pack.",
-    "The matched legacy ratio compares the pinned stage-0 code with the current core tree under one runner; it is not a cross-API speed ratio."
+    "The matched legacy ratio compares the pinned stage-0 code with the current core tree under one runner; it is not a cross-API speed ratio.",
+    "The stage 7 CI-only rebase did not change the candidate core tree. The later soundfont loop edit was checked by regenerating the listening pack on c395fa82: all WAV, score event, and resolved-choice hashes matched the measured pack. Only MusicXML byte hashes changed because output IDs vary. Timing samples were measured on ea3459c3, not remeasured on c395fa82."
   ]
 }
