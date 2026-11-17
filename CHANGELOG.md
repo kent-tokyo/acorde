@@ -2,10 +2,18 @@
 
 ## [Unreleased]
 
+- Add score-derived harmony accompaniment and source-bound replay in Rust and
+  full/viewer WASM. Spelled voices respect the actual bass and melody intervals,
+  including eighth/sixteenth anticipations, cross-bar ties, reattacks and accents.
+- Add bounded `suggest_harmony_groove_arrangements` and replay: select distinct
+  plain, colored and rhythmic scores from explicit tension and rhythm permissions.
+  Results report audible differences, costs, shortages and search limits. Fixed
+  8/16-bar inputs and a same-SoundFont listening-pack generator accompany the API.
+
 - Add a bounded, opt-in `plan_harmony_voicings` graph API in Rust and full/viewer
   WASM. It preserves ordered voice identities over repeat transitions and uses
   supplied interval-wide bass/melody context for root omission and register limits.
-  Score-derived context and accompaniment scheduling remain in development.
+  The score-level API derives this context before selecting its voices.
 
 
 - Add opt-in `expand_harmony` in Rust and full/viewer WASM: spelled compound

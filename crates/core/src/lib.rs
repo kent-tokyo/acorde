@@ -194,10 +194,22 @@ pub use model::harmony_arrangement::{
     HarmonyContextFeature, HarmonyStaffRef, ResolvedHarmonyArrangement, arrange_harmony_voicings,
     replay_harmony_arrangement,
 };
+pub use model::harmony_comping::{
+    HarmonyAnticipation, HarmonyAnticipationJoin, HarmonyAnticipationLead, HarmonyCompingAccent,
+    HarmonyCompingFailure, HarmonyCompingOptions, HarmonyCompingPattern,
+};
 pub use model::harmony_expansion::{
     ExpandedHarmony, ExpandedHarmonyTone, HARMONY_EXPANSION_CONTRACT_VERSION,
     HARMONY_EXPANSION_MAX_DEGREES, HarmonyExpansionError, HarmonyPitchClass, HarmonyToneOrigin,
     HarmonyToneRole, expand_harmony,
+};
+pub use model::harmony_groove_proposals::{
+    HARMONY_GROOVE_CONTRACT_VERSION, HarmonyGrooveAnticipation, HarmonyGrooveCandidate,
+    HarmonyGrooveDifference, HarmonyGrooveError, HarmonyGrooveProfile, HarmonyGrooveQuality,
+    HarmonyGrooveRejection, HarmonyGrooveRejectionReason, HarmonyGrooveRequest,
+    HarmonyGrooveResult, HarmonyTension, HarmonyTensionAddition, HarmonyTensionAllowance,
+    ResolvedHarmonyGrooveArrangement, replay_harmony_groove_arrangement,
+    suggest_harmony_groove_arrangements,
 };
 pub use model::harmony_voicing::{
     HARMONY_VOICING_CONTRACT_VERSION, HarmonyRootPolicy, HarmonyVoiceMotion, HarmonyVoicingEdge,

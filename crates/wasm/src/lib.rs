@@ -2001,6 +2001,26 @@ pub fn replay_harmony_arrangement(score_json: &str, resolved_json: &str) -> Resu
     serde_json::to_string(&result).map_err(js_err)
 }
 
+/// Select distinct plain, colored and rhythmic harmony arrangements.
+#[wasm_bindgen]
+pub fn suggest_harmony_groove_arrangements(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::HarmonyGrooveRequest =
+        parse_json(request_json, "harmony groove request", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::suggest_harmony_groove_arrangements(&score, &request).map_err(js_err)?;
+    serde_json::to_string(&result).map_err(js_err)
+}
+
+/// Reproduce a selected groove after revalidating the saved permissions.
+#[wasm_bindgen]
+pub fn replay_harmony_groove_arrangement(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedHarmonyGrooveArrangement =
+        parse_json(resolved_json, "resolved harmony groove", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::replay_harmony_groove_arrangement(&score, &resolved).map_err(js_err)?;
+    serde_json::to_string(&result).map_err(js_err)
+}
+
 /// Compose independently scheduled harmony, bass and countermelody parts.
 #[wasm_bindgen]
 pub fn arrange_ensemble_roles(score_json: &str, options_json: &str) -> Result<String, JsValue> {

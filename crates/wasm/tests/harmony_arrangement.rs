@@ -40,6 +40,43 @@ fn score_context_notes_and_replay_match_native() {
     assert_eq!(fixture::sound(&replay.score), fixture::sound(&web.score));
 }
 
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
+#[cfg_attr(not(target_arch = "wasm32"), test)]
+fn anticipated_harmony_uses_the_same_actual_intervals_and_ties_as_native() {
+    let source = fixture::source();
+    let mut request = fixture::request();
+    request.comping.pattern = acorde_core::HarmonyCompingPattern::OffbeatPulse;
+    request.comping.accent = acorde_core::HarmonyCompingAccent::Anticipations;
+    request.comping.anticipations = vec![acorde_core::HarmonyAnticipation {
+        chord_entry: 1,
+        lead: acorde_core::HarmonyAnticipationLead::Eighth,
+        join: acorde_core::HarmonyAnticipationJoin::Tie,
+    }];
+    let native = acorde_core::arrange_harmony_voicings(&source, &request).unwrap();
+    let source_json = serde_json::to_string(&source).unwrap();
+    let web: acorde_core::HarmonyArrangementResult = serde_json::from_str(
+        &acorde_wasm::arrange_harmony_voicings(
+            &source_json,
+            &serde_json::to_string(&request).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(web.context, native.context);
+    assert_eq!(web.spans, native.spans);
+    assert_eq!(fixture::sound(&web.score), fixture::sound(&native.score));
+    assert!(web.spans.iter().any(|span| span.tie_to_next));
+    let replay: acorde_core::HarmonyArrangementResult = serde_json::from_str(
+        &acorde_wasm::replay_harmony_arrangement(
+            &source_json,
+            &serde_json::to_string(&web.resolved).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(fixture::sound(&replay.score), fixture::sound(&native.score));
+}
+
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen_test::wasm_bindgen_test]
 fn malformed_requests_and_changed_source_fail_atomically() {

@@ -8,8 +8,10 @@ Dm9 → G13 → Cmaj9 and a repeat return to Dm9.
 
 This component accepts already-derived context. The
 [score-level API](harmony-arrangement.md) derives it from a `Score` and emits
-spelled accompaniment notes with source-bound replay. Anticipatory scheduling
-and the three-candidate comparison remain required by stage 3 of the
+spelled accompaniment notes with source-bound replay. The development branch
+also provides [anticipated comping](harmony-comping.md) and
+[three-profile selection](harmony-groove-proposals.md). Listening acceptance and
+the completed validation gates remain required by stage 3 of the
 [implementation plan](arrangement-harmony-groove-plan.md).
 
 The root policies are `include`, `automatic` and `omit`. Automatic omission

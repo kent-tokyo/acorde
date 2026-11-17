@@ -7,6 +7,7 @@
 use super::arrange_presets::input_fingerprint;
 use super::chord_plan::{BeatFraction, CHORD_PLAN_CONTRACT_VERSION, ChordPlan, note_length};
 use super::chordal_pad::{duration_for_ticks, emit_rest, free_channel};
+use super::harmony_comping::{HarmonyCompingFailure, HarmonyCompingOptions, schedule};
 use super::harmony_expansion::expand_harmony;
 use super::harmony_voicing::{
     HarmonyRootPolicy, HarmonyVoicingEdge, HarmonyVoicingError, HarmonyVoicingNode,
@@ -19,8 +20,8 @@ use super::score::{Measure, Note, NoteAddr, Part, Score, Staff};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 
-pub const HARMONY_ARRANGEMENT_CONTRACT_VERSION: u16 = 1;
-const ENGINE: &str = concat!(env!("CARGO_PKG_VERSION"), "+harmony-arrangement.1");
+pub const HARMONY_ARRANGEMENT_CONTRACT_VERSION: u16 = 2;
+const ENGINE: &str = concat!(env!("CARGO_PKG_VERSION"), "+harmony-arrangement.2");
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -48,6 +49,8 @@ pub struct HarmonyArrangementRequest {
     pub max_leap_semitones: u8,
     pub parallel_perfect_penalty: u16,
     pub midi_program: u8,
+    #[serde(default)]
+    pub comping: HarmonyCompingOptions,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -59,8 +62,8 @@ pub struct ResolvedHarmonyArrangement {
     pub request: HarmonyArrangementRequest,
 }
 
-/// A written sounding interval. Later comping schedules can move the start
-/// without moving `chord_entry`, which identifies the harmonic reference.
+/// A written sounding interval. Comping can move its start without moving
+/// `chord_entry`, which identifies the original harmonic reference.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HarmonyArrangementSpan {
     pub measure: usize,
@@ -68,6 +71,10 @@ pub struct HarmonyArrangementSpan {
     pub end: BeatFraction,
     pub chord_entry: usize,
     pub node: usize,
+    pub attack: usize,
+    pub accent: bool,
+    pub tie_from_previous: bool,
+    pub tie_to_next: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -100,6 +107,11 @@ pub enum HarmonyContextFeature {
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum HarmonyArrangementError {
+    #[error("comping at chord entry {entry} violates {reason:?}")]
+    Comping {
+        entry: usize,
+        reason: HarmonyCompingFailure,
+    },
     #[error("invalid or unbounded harmony arrangement request")]
     InvalidRequest,
     #[error("invalid source score")]
@@ -135,7 +147,7 @@ type Error = HarmonyArrangementError;
 
 /// Normalized exact time, with numerical rather than lexical fraction ordering.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct Time(BeatFraction);
+pub(super) struct Time(pub(super) BeatFraction);
 impl Ord for Time {
     fn cmp(&self, other: &Self) -> Ordering {
         (u64::from(self.0.numerator) * u64::from(other.0.denominator))
@@ -149,16 +161,16 @@ impl PartialOrd for Time {
 }
 impl Time {
     const ZERO: Self = Self(BeatFraction::ZERO);
-    fn new(n: u64, d: u64) -> Result<Self, Error> {
+    pub(super) fn new(n: u64, d: u64) -> Result<Self, Error> {
         BeatFraction::new(n, d).map(Self).ok_or(Error::InvalidTime)
     }
     fn from(value: BeatFraction) -> Result<Self, Error> {
         Self::new(value.numerator.into(), value.denominator.into())
     }
-    fn add(self, other: Self) -> Result<Self, Error> {
+    pub(super) fn add(self, other: Self) -> Result<Self, Error> {
         self.0.add(other.0).map(Self).ok_or(Error::InvalidTime)
     }
-    fn sub(self, other: Self) -> Result<Self, Error> {
+    pub(super) fn sub(self, other: Self) -> Result<Self, Error> {
         let n = (u64::from(self.0.numerator) * u64::from(other.0.denominator))
             .checked_sub(u64::from(other.0.numerator) * u64::from(self.0.denominator))
             .ok_or(Error::InvalidTime)?;
@@ -167,7 +179,7 @@ impl Time {
             u64::from(self.0.denominator) * u64::from(other.0.denominator),
         )
     }
-    fn ticks(self, measure: usize) -> Result<u32, Error> {
+    pub(super) fn ticks(self, measure: usize) -> Result<u32, Error> {
         let n = u64::from(self.0.numerator) * 32;
         let d = u64::from(self.0.denominator);
         if !n.is_multiple_of(d) {
@@ -205,7 +217,7 @@ fn lengths(score: &Score, staff: &Staff) -> Result<Vec<Time>, Error> {
         .collect()
 }
 
-fn bounds(score: &Score, request: &HarmonyArrangementRequest) -> Result<(), Error> {
+pub(super) fn bounds(score: &Score, request: &HarmonyArrangementRequest) -> Result<(), Error> {
     if score.parts.is_empty()
         || score.parts.len() > 32
         || request.chords.entries.is_empty()
@@ -215,6 +227,8 @@ fn bounds(score: &Score, request: &HarmonyArrangementRequest) -> Result<(), Erro
         || request.midi_program > 127
         || request.min_melody_gap_semitones > 24
         || request.min_bass_gap_semitones > 24
+        || request.comping.anticipations.len() > 64
+        || !(1..=64).contains(&request.comping.max_attacks_per_measure)
     {
         return Err(Error::InvalidRequest);
     }
@@ -442,7 +456,7 @@ fn emit_spelled(pitches: &[Pitch], mut ticks: u32, voice: &mut Vec<Note>) -> Res
     Ok(())
 }
 
-/// Generate held voicings, reattacked at written bar boundaries, without
+/// Generate harmony with exact attacks and optional anticipations without
 /// mutating source parts. Every performed transition participates in planning.
 pub fn arrange_harmony_voicings(
     score: &Score,
@@ -491,6 +505,7 @@ pub fn arrange_harmony_voicings(
         }
         positions.push(position);
     }
+    let scheduled = schedule(score, request, &starts, &positions)?;
     let melody = context_sounds(score, request.melody, &starts)?;
     let bass = request
         .bass
@@ -502,85 +517,79 @@ pub fn arrange_harmony_voicings(
     let mut nodes = Vec::new();
     let mut supported = Vec::new();
     let mut by_measure = vec![Vec::new(); bars.len()];
-    for measure in request.start_measure..request.end_measure_exclusive {
-        if request.locked_measures.contains(&measure) {
-            continue;
-        }
-        for (entry, &position) in positions.iter().enumerate() {
-            let start = position.max(starts[measure]);
-            let end = positions
-                .get(entry + 1)
-                .copied()
-                .unwrap_or(cursor)
-                .min(starts[measure + 1]);
-            if start >= end {
-                continue;
-            }
-            let node = if let Some(node) = entry_nodes[entry] {
-                node
-            } else {
-                let node = nodes.len();
-                entry_nodes[entry] = Some(node);
-                nodes.push(HarmonyVoicingNode {
-                    chord: request.chords.entries[entry].chord.clone(),
-                    bass_midi: None,
-                    melody_ceiling_midi: None,
-                    accompaniment_floor_midi: None,
-                });
-                supported.push(true);
-                node
-            };
-            let harmony = expand_harmony(&nodes[node].chord)
-                .map_err(|source| HarmonyVoicingError::Harmony { node, source })?;
-            if let Some(pitch) = bass
-                .iter()
-                .filter(|s| s.start < end && s.end > start)
-                .map(|s| s.midi)
-                .max()
-            {
-                let floor = pitch
-                    .checked_add(request.min_bass_gap_semitones)
-                    .filter(|p| *p <= 127)
-                    .ok_or(Error::NoRegister { entry })?;
-                nodes[node].accompaniment_floor_midi = Some(
-                    nodes[node]
-                        .accompaniment_floor_midi
-                        .map_or(floor, |p| p.max(floor)),
-                );
-            }
-            let floor = nodes[node]
-                .accompaniment_floor_midi
-                .unwrap_or(0)
-                .max(request.low_midi);
-            let root_support = coverage(&bass, start, end, harmony.root.pitch_class(), floor);
-            supported[node] &= root_support.is_some();
-            if let Some(pitch) = root_support {
-                nodes[node].bass_midi = Some(nodes[node].bass_midi.map_or(pitch, |p| p.max(pitch)));
-            }
-            if let Some(pitch) = melody
-                .iter()
-                .filter(|s| s.start < end && s.end > start)
-                .map(|s| s.midi)
-                .min()
-            {
-                let ceiling = pitch
-                    .checked_sub(request.min_melody_gap_semitones)
-                    .ok_or(Error::NoRegister { entry })?;
-                nodes[node].melody_ceiling_midi = Some(
-                    nodes[node]
-                        .melody_ceiling_midi
-                        .map_or(ceiling, |p| p.min(ceiling)),
-                );
-            }
-            by_measure[measure].push(spans.len());
-            spans.push(HarmonyArrangementSpan {
-                measure,
-                start: start.sub(starts[measure])?.0,
-                end: end.sub(starts[measure])?.0,
-                chord_entry: entry,
-                node,
+    for planned in scheduled {
+        let measure = planned.measure;
+        let entry = planned.entry;
+        let start = starts[measure].add(planned.start)?;
+        let end = starts[measure].add(planned.end)?;
+        let node = if let Some(node) = entry_nodes[entry] {
+            node
+        } else {
+            let node = nodes.len();
+            entry_nodes[entry] = Some(node);
+            nodes.push(HarmonyVoicingNode {
+                chord: request.chords.entries[entry].chord.clone(),
+                bass_midi: None,
+                melody_ceiling_midi: None,
+                accompaniment_floor_midi: None,
             });
+            supported.push(true);
+            node
+        };
+        let harmony = expand_harmony(&nodes[node].chord)
+            .map_err(|source| HarmonyVoicingError::Harmony { node, source })?;
+        if let Some(pitch) = bass
+            .iter()
+            .filter(|s| s.start < end && s.end > start)
+            .map(|s| s.midi)
+            .max()
+        {
+            let floor = pitch
+                .checked_add(request.min_bass_gap_semitones)
+                .filter(|p| *p <= 127)
+                .ok_or(Error::NoRegister { entry })?;
+            nodes[node].accompaniment_floor_midi = Some(
+                nodes[node]
+                    .accompaniment_floor_midi
+                    .map_or(floor, |p| p.max(floor)),
+            );
         }
+        let floor = nodes[node]
+            .accompaniment_floor_midi
+            .unwrap_or(0)
+            .max(request.low_midi);
+        let root_support = coverage(&bass, start, end, harmony.root.pitch_class(), floor);
+        supported[node] &= root_support.is_some();
+        if let Some(pitch) = root_support {
+            nodes[node].bass_midi = Some(nodes[node].bass_midi.map_or(pitch, |p| p.max(pitch)));
+        }
+        if let Some(pitch) = melody
+            .iter()
+            .filter(|s| s.start < end && s.end > start)
+            .map(|s| s.midi)
+            .min()
+        {
+            let ceiling = pitch
+                .checked_sub(request.min_melody_gap_semitones)
+                .ok_or(Error::NoRegister { entry })?;
+            nodes[node].melody_ceiling_midi = Some(
+                nodes[node]
+                    .melody_ceiling_midi
+                    .map_or(ceiling, |p| p.min(ceiling)),
+            );
+        }
+        by_measure[measure].push(spans.len());
+        spans.push(HarmonyArrangementSpan {
+            measure,
+            start: start.sub(starts[measure])?.0,
+            end: end.sub(starts[measure])?.0,
+            chord_entry: entry,
+            node,
+            attack: planned.attack,
+            accent: planned.accent,
+            tie_from_previous: planned.tie_from_previous,
+            tie_to_next: planned.tie_to_next,
+        });
     }
     if nodes.is_empty() {
         return Err(Error::EmptySelection);
@@ -654,6 +663,15 @@ pub fn arrange_harmony_voicings(
                 .map(|tone| tone.pitch.clone())
                 .collect::<Vec<_>>();
             emit_spelled(&pitches, end - start, &mut voice)?;
+            if let Some(first) = voice.get_mut(begin) {
+                first.tie_end |= span.tie_from_previous;
+                if span.accent && !first.tie_end {
+                    first.articulations.push(Articulation::Accent);
+                }
+            }
+            if let Some(last) = voice.last_mut() {
+                last.tie_start |= span.tie_to_next;
+            }
             for note in begin..voice.len() {
                 generated_notes.push(HarmonyArrangementNote {
                     address: NoteAddr {

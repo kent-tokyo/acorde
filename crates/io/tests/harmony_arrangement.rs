@@ -3,6 +3,19 @@
 mod fixture;
 
 fn roundtrip(convert: impl Fn(&acorde_core::Score) -> acorde_core::Score) {
+    for join in [
+        None,
+        Some(acorde_core::HarmonyAnticipationJoin::Tie),
+        Some(acorde_core::HarmonyAnticipationJoin::Reattack),
+    ] {
+        roundtrip_case(&convert, join);
+    }
+}
+
+fn roundtrip_case(
+    convert: &impl Fn(&acorde_core::Score) -> acorde_core::Score,
+    join: Option<acorde_core::HarmonyAnticipationJoin>,
+) {
     let mut source = fixture::source();
     source.parts[0].staves[0].measures[2].barline_right = acorde_core::Barline::RepeatEnd;
     let mut request = fixture::request();
@@ -12,6 +25,17 @@ fn roundtrip(convert: impl Fn(&acorde_core::Score) -> acorde_core::Score) {
         denominator: 2,
     };
     request.chords.entries[1].offset_beats = 0.5;
+    if let Some(join) = join {
+        request.chords.entries[1].position.offset = acorde_core::BeatFraction::ZERO;
+        request.chords.entries[1].offset_beats = 0.0;
+        request.comping.pattern = acorde_core::HarmonyCompingPattern::OffbeatPulse;
+        request.comping.accent = acorde_core::HarmonyCompingAccent::Anticipations;
+        request.comping.anticipations = vec![acorde_core::HarmonyAnticipation {
+            chord_entry: 1,
+            lead: acorde_core::HarmonyAnticipationLead::Eighth,
+            join,
+        }];
+    }
     let result = acorde_core::arrange_harmony_voicings(&source, &request).unwrap();
     let restored = convert(&result.score);
     assert!(acorde_core::validate(&restored).is_valid());
@@ -22,6 +46,7 @@ fn roundtrip(convert: impl Fn(&acorde_core::Score) -> acorde_core::Score) {
         assert_eq!(a.voices[0].len(), b.voices[0].len());
         for (a, b) in a.voices[0].iter().zip(&b.voices[0]) {
             assert_eq!(a.pitches, b.pitches);
+            assert_eq!(a.articulations, b.articulations);
             assert_eq!((a.tie_start, a.tie_end), (b.tie_start, b.tie_end));
             assert_eq!(a.beats(), b.beats());
         }
