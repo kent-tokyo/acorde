@@ -316,8 +316,10 @@ fn decode_canonical_wav(wav: &[u8], expected_samples: usize) -> Result<Vec<f32>,
         return Err(Error::InvalidSample);
     }
     Ok(wav[44..]
-        .chunks_exact(2)
-        .map(|sample| f32::from(i16::from_le_bytes([sample[0], sample[1]])))
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|sample| f32::from(i16::from_le_bytes(*sample)))
         .collect())
 }
 
