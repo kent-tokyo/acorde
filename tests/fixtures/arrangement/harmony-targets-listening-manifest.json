@@ -1,0 +1,2519 @@
+{
+  "cases": [
+    {
+      "bars": 8,
+      "baseline": {
+        "clipped_samples": 0,
+        "id": "target-eight-baseline",
+        "mscz": {
+          "bytes": 1036,
+          "file": "target-eight-baseline.mscz",
+          "sha256": "0e36bb4c5c8362f5b3b062596a857b642250714e3847816fe1df05f3cf3f2bdb"
+        },
+        "musicxml": {
+          "bytes": 16725,
+          "file": "target-eight-baseline.musicxml",
+          "sha256": "ef9bb98613308e626ea91bb4450bb91ce51280e8d193e9c31d9f48abe9530a77"
+        },
+        "peak_pcm16": 7071,
+        "playback_sha256": "48d8b01952a4bb3be172026ef25503dbf4e98f4a3cf483ebcdd6c189c76698e9",
+        "render": {
+          "bytes": 81993,
+          "file": "target-eight-baseline-render.json",
+          "sha256": "89321ddaddd46df6fdf396cd4364116c7dcfaabfcc0da4235accebaddb5b5733"
+        },
+        "score": {
+          "bytes": 105900,
+          "file": "target-eight-baseline.json",
+          "sha256": "dace63f9e54403fd87b47fa66154ddfcf0e573640d8b6c7caeace5421317d458"
+        },
+        "wav": {
+          "bytes": 836248,
+          "file": "target-eight-baseline.wav",
+          "sha256": "72509be75b997b5604861649a9f8f2242f3bd40a76f1052bd01dc923d20e587b"
+        }
+      },
+      "candidates": [
+        {
+          "changed_chord_entries": [
+            0,
+            2,
+            4,
+            6
+          ],
+          "clipped_samples": 0,
+          "generation_milliseconds": 6.649959000000001,
+          "id": "target-eight-secondary",
+          "mscz": {
+            "bytes": 1021,
+            "file": "target-eight-secondary.mscz",
+            "sha256": "c6b47afa73cd90ca0a039f4f73fd4b9fe9880882dd18291c60695a2e0fd9bcec"
+          },
+          "musicxml": {
+            "bytes": 16836,
+            "file": "target-eight-secondary.musicxml",
+            "sha256": "d9d48f7f4777bac80c5e9ec553d7d7993cfad1627b6f3fe6e412bf30ee6f3be2"
+          },
+          "peak_pcm16": 7064,
+          "playback_sha256": "5f0b28563083ae0b86539ef1e3fa4bb61fac4b66e6a86bfac0b1717ca382ae97",
+          "profile": "secondary",
+          "quality": {
+            "low_register_clusters": 1,
+            "melody_friction_ticks": 3840000,
+            "voice_motion_cost": 164
+          },
+          "realizations": 1,
+          "render": {
+            "bytes": 81993,
+            "file": "target-eight-secondary-render.json",
+            "sha256": "97739c61a008643807f50e9e7d8bd54b3c8a9b0ef8e7ab3424bca18a1b72a8b1"
+          },
+          "request": {
+            "bytes": 7272,
+            "file": "target-eight-secondary-request.json",
+            "sha256": "3fd4a81e5e6a3445d985448c485c928d071b95015da0f2902d05cb426e3506bb"
+          },
+          "resolutions": [
+            {
+              "approach_entry": 0,
+              "arrival_entry": 1,
+              "arrival_root": {
+                "alter": 0,
+                "step": "A"
+              },
+              "leading_tone": {
+                "alter": 1,
+                "step": "G"
+              },
+              "resolved_leading_tones": 1,
+              "resolved_sevenths": 1,
+              "transitions": [
+                {
+                  "edge": {
+                    "from": 0,
+                    "repeat_boundary": false,
+                    "to": 1
+                  },
+                  "parallel_perfects": 0,
+                  "voices": [
+                    {
+                      "from_degree": 5,
+                      "from_midi": 59,
+                      "semitones": -2,
+                      "to_degree": 1,
+                      "to_midi": 57,
+                      "voice": 0
+                    },
+                    {
+                      "from_degree": 7,
+                      "from_midi": 62,
+                      "semitones": -2,
+                      "to_degree": 3,
+                      "to_midi": 60,
+                      "voice": 1
+                    },
+                    {
+                      "from_degree": 1,
+                      "from_midi": 64,
+                      "semitones": 0,
+                      "to_degree": 5,
+                      "to_midi": 64,
+                      "voice": 2
+                    },
+                    {
+                      "from_degree": 3,
+                      "from_midi": 68,
+                      "semitones": 1,
+                      "to_degree": 1,
+                      "to_midi": 69,
+                      "voice": 3
+                    }
+                  ]
+                }
+              ],
+              "unresolved_leading_tones": 0,
+              "unresolved_sevenths": 0
+            },
+            {
+              "approach_entry": 2,
+              "arrival_entry": 3,
+              "arrival_root": {
+                "alter": 0,
+                "step": "G"
+              },
+              "leading_tone": {
+                "alter": 1,
+                "step": "F"
+              },
+              "resolved_leading_tones": 1,
+              "resolved_sevenths": 1,
+              "transitions": [
+                {
+                  "edge": {
+                    "from": 2,
+                    "repeat_boundary": false,
+                    "to": 3
+                  },
+                  "parallel_perfects": 0,
+                  "voices": [
+                    {
+                      "from_degree": 5,
+                      "from_midi": 57,
+                      "semitones": -2,
+                      "to_degree": 1,
+                      "to_midi": 55,
+                      "voice": 0
+                    },
+                    {
+                      "from_degree": 7,
+                      "from_midi": 60,
+                      "semitones": -1,
+                      "to_degree": 3,
+                      "to_midi": 59,
+                      "voice": 1
+                    },
+                    {
+                      "from_degree": 1,
+                      "from_midi": 62,
+                      "semitones": 0,
+                      "to_degree": 5,
+                      "to_midi": 62,
+                      "voice": 2
+                    },
+                    {
+                      "from_degree": 3,
+                      "from_midi": 66,
+                      "semitones": 1,
+                      "to_degree": 1,
+                      "to_midi": 67,
+                      "voice": 3
+                    }
+                  ]
+                }
+              ],
+              "unresolved_leading_tones": 0,
+              "unresolved_sevenths": 0
+            },
+            {
+              "approach_entry": 4,
+              "arrival_entry": 5,
+              "arrival_root": {
+                "alter": 0,
+                "step": "A"
+              },
+              "leading_tone": {
+                "alter": 1,
+                "step": "G"
+              },
+              "resolved_leading_tones": 1,
+              "resolved_sevenths": 0,
+              "transitions": [
+                {
+                  "edge": {
+                    "from": 4,
+                    "repeat_boundary": false,
+                    "to": 5
+                  },
+                  "parallel_perfects": 0,
+                  "voices": [
+                    {
+                      "from_degree": 3,
+                      "from_midi": 56,
+                      "semitones": 1,
+                      "to_degree": 1,
+                      "to_midi": 57,
+                      "voice": 0
+                    },
+                    {
+                      "from_degree": 5,
+                      "from_midi": 59,
+                      "semitones": 1,
+                      "to_degree": 3,
+                      "to_midi": 60,
+                      "voice": 1
+                    },
+                    {
+                      "from_degree": 7,
+                      "from_midi": 62,
+                      "semitones": 2,
+                      "to_degree": 5,
+                      "to_midi": 64,
+                      "voice": 2
+                    },
+                    {
+                      "from_degree": 1,
+                      "from_midi": 64,
+                      "semitones": 5,
+                      "to_degree": 1,
+                      "to_midi": 69,
+                      "voice": 3
+                    }
+                  ]
+                }
+              ],
+              "unresolved_leading_tones": 0,
+              "unresolved_sevenths": 1
+            },
+            {
+              "approach_entry": 6,
+              "arrival_entry": 7,
+              "arrival_root": {
+                "alter": 0,
+                "step": "G"
+              },
+              "leading_tone": {
+                "alter": 1,
+                "step": "F"
+              },
+              "resolved_leading_tones": 1,
+              "resolved_sevenths": 1,
+              "transitions": [
+                {
+                  "edge": {
+                    "from": 6,
+                    "repeat_boundary": false,
+                    "to": 7
+                  },
+                  "parallel_perfects": 0,
+                  "voices": [
+                    {
+                      "from_degree": 5,
+                      "from_midi": 57,
+                      "semitones": -2,
+                      "to_degree": 1,
+                      "to_midi": 55,
+                      "voice": 0
+                    },
+                    {
+                      "from_degree": 7,
+                      "from_midi": 60,
+                      "semitones": -1,
+                      "to_degree": 3,
+                      "to_midi": 59,
+                      "voice": 1
+                    },
+                    {
+                      "from_degree": 1,
+                      "from_midi": 62,
+                      "semitones": 0,
+                      "to_degree": 5,
+                      "to_midi": 62,
+                      "voice": 2
+                    },
+                    {
+                      "from_degree": 3,
+                      "from_midi": 66,
+                      "semitones": 1,
+                      "to_degree": 1,
+                      "to_midi": 67,
+                      "voice": 3
+                    }
+                  ]
+                }
+              ],
+              "unresolved_leading_tones": 0,
+              "unresolved_sevenths": 0
+            }
+          ],
+          "resolved": {
+            "bytes": 16059,
+            "file": "target-eight-secondary-resolved.json",
+            "sha256": "cfcefc15f2edfb2fc0723186ae68beb12cdbb1a8b8679dc2561727c1e238d412"
+          },
+          "score": {
+            "bytes": 105909,
+            "file": "target-eight-secondary.json",
+            "sha256": "78d4d29f4d5bf37c84b3c2a3c93229b065140ff3ffdccaa34a46b2be03dcaac5"
+          },
+          "search_limited": true,
+          "wav": {
+            "bytes": 836248,
+            "file": "target-eight-secondary.wav",
+            "sha256": "50a5ab3fafb8f9eff499955ef89a7bb9c6cff270c6add4b3a128573a5c0c6ed9"
+          }
+        },
+        {
+          "changed_chord_entries": [
+            0,
+            2,
+            4,
+            5,
+            6
+          ],
+          "clipped_samples": 0,
+          "generation_milliseconds": 24.766416,
+          "id": "target-eight-common-modulation",
+          "mscz": {
+            "bytes": 1031,
+            "file": "target-eight-common-modulation.mscz",
+            "sha256": "3eb05edefa72c2f16ea7eb248821e0015eb21bfd999b04ba99bf9f44c537158c"
+          },
+          "musicxml": {
+            "bytes": 16833,
+            "file": "target-eight-common-modulation.musicxml",
+            "sha256": "8363ddcccc5d1040ab0316b4456a4b209ed0063373059760a1f681f337b90391"
+          },
+          "peak_pcm16": 7064,
+          "playback_sha256": "3dc55735593bb45c1e2625f54d4b59dc13b414679cd3324e0089fce6e499699c",
+          "profile": "common-modulation",
+          "quality": {
+            "low_register_clusters": 0,
+            "melody_friction_ticks": 2880000,
+            "voice_motion_cost": 176
+          },
+          "realizations": 4,
+          "render": {
+            "bytes": 81993,
+            "file": "target-eight-common-modulation-render.json",
+            "sha256": "b9122399cef4bd7aaeb52ebdae81be7e4dbe2a9aa02caefa5a8789b7191247c1"
+          },
+          "request": {
+            "bytes": 7417,
+            "file": "target-eight-common-modulation-request.json",
+            "sha256": "f32ee8d21b5763a646f07ff1f76082b2525ad7470f6663d063b2d79df8fe3cbb"
+          },
+          "resolutions": [
+            {
+              "approach_entry": 0,
+              "arrival_entry": 1,
+              "arrival_root": {
+                "alter": 0,
+                "step": "A"
+              },
+              "leading_tone": {
+                "alter": 1,
+                "step": "G"
+              },
+              "resolved_leading_tones": 1,
+              "resolved_sevenths": 1,
+              "transitions": [
+                {
+                  "edge": {
+                    "from": 0,
+                    "repeat_boundary": false,
+                    "to": 1
+                  },
+                  "parallel_perfects": 0,
+                  "voices": [
+                    {
+                      "from_degree": 5,
+                      "from_midi": 59,
+                      "semitones": -2,
+                      "to_degree": 1,
+                      "to_midi": 57,
+                      "voice": 0
+                    },
+                    {
+                      "from_degree": 7,
+                      "from_midi": 62,
+                      "semitones": -2,
+                      "to_degree": 3,
+                      "to_midi": 60,
+                      "voice": 1
+                    },
+                    {
+                      "from_degree": 1,
+                      "from_midi": 64,
+                      "semitones": 0,
+                      "to_degree": 5,
+                      "to_midi": 64,
+                      "voice": 2
+                    },
+                    {
+                      "from_degree": 3,
+                      "from_midi": 68,
+                      "semitones": 1,
+                      "to_degree": 1,
+                      "to_midi": 69,
+                      "voice": 3
+                    }
+                  ]
+                }
+              ],
+              "unresolved_leading_tones": 0,
+              "unresolved_sevenths": 0
+            },
+            {
+              "approach_entry": 2,
+              "arrival_entry": 3,
+              "arrival_root": {
+                "alter": 0,
+                "step": "G"
+              },
+              "leading_tone": {
+                "alter": 1,
+                "step": "F"
+              },
+              "resolved_leading_tones": 1,
+              "resolved_sevenths": 1,
+              "transitions": [
+                {
+                  "edge": {
+                    "from": 2,
+                    "repeat_boundary": false,
+                    "to": 3
+                  },
+                  "parallel_perfects": 0,
+                  "voices": [
+                    {
+                      "from_degree": 5,
+                      "from_midi": 57,
+                      "semitones": -2,
+                      "to_degree": 1,
+                      "to_midi": 55,
+                      "voice": 0
+                    },
+                    {
+                      "from_degree": 7,
+                      "from_midi": 60,
+                      "semitones": -1,
+                      "to_degree": 3,
+                      "to_midi": 59,
+                      "voice": 1
+                    },
+                    {
+                      "from_degree": 1,
+                      "from_midi": 62,
+                      "semitones": 0,
+                      "to_degree": 5,
+                      "to_midi": 62,
+                      "voice": 2
+                    },
+                    {
+                      "from_degree": 3,
+                      "from_midi": 66,
+                      "semitones": 1,
+                      "to_degree": 1,
+                      "to_midi": 67,
+                      "voice": 3
+                    }
+                  ]
+                }
+              ],
+              "unresolved_leading_tones": 0,
+              "unresolved_sevenths": 0
+            },
+            {
+              "approach_entry": 6,
+              "arrival_entry": 7,
+              "arrival_root": {
+                "alter": 0,
+                "step": "G"
+              },
+              "leading_tone": {
+                "alter": 1,
+                "step": "F"
+              },
+              "resolved_leading_tones": 1,
+              "resolved_sevenths": 1,
+              "transitions": [
+                {
+                  "edge": {
+                    "from": 6,
+                    "repeat_boundary": false,
+                    "to": 7
+                  },
+                  "parallel_perfects": 0,
+                  "voices": [
+                    {
+                      "from_degree": 3,
+                      "from_midi": 54,
+                      "semitones": 1,
+                      "to_degree": 1,
+                      "to_midi": 55,
+                      "voice": 0
+                    },
+                    {
+                      "from_degree": 7,
+                      "from_midi": 60,
+                      "semitones": -1,
+                      "to_degree": 3,
+                      "to_midi": 59,
+                      "voice": 1
+                    },
+                    {
+                      "from_degree": 1,
+                      "from_midi": 62,
+                      "semitones": 0,
+                      "to_degree": 5,
+                      "to_midi": 62,
+                      "voice": 2
+                    },
+                    {
+                      "from_degree": 5,
+                      "from_midi": 69,
+                      "semitones": -2,
+                      "to_degree": 1,
+                      "to_midi": 67,
+                      "voice": 3
+                    }
+                  ]
+                }
+              ],
+              "unresolved_leading_tones": 0,
+              "unresolved_sevenths": 0
+            }
+          ],
+          "resolved": {
+            "bytes": 16733,
+            "file": "target-eight-common-modulation-resolved.json",
+            "sha256": "34288125a2ba083bfe370026e26902bb7b0d541eb3a77d543d3f7ec17dc25a89"
+          },
+          "score": {
+            "bytes": 105981,
+            "file": "target-eight-common-modulation.json",
+            "sha256": "11aaa62df7fa945a752e9be183bdc5652986dd723842896847d166e02b655031"
+          },
+          "search_limited": true,
+          "wav": {
+            "bytes": 836248,
+            "file": "target-eight-common-modulation.wav",
+            "sha256": "8b25137d2a82ffaa93152427d90ce031b4a822017525168c230730d885ec5ad0"
+          }
+        },
+        {
+          "changed_chord_entries": [
+            0,
+            2,
+            4,
+            5,
+            6
+          ],
+          "clipped_samples": 0,
+          "generation_milliseconds": 6.6697500000000005,
+          "id": "target-eight-dominant-modulation",
+          "mscz": {
+            "bytes": 1013,
+            "file": "target-eight-dominant-modulation.mscz",
+            "sha256": "81fc5ef499834e0bd851b8a1df5fbbbdf767c52378fead0a88487aabb406244a"
+          },
+          "musicxml": {
+            "bytes": 16866,
+            "file": "target-eight-dominant-modulation.musicxml",
+            "sha256": "29fc4717614194d78a8007d26d9fc4f54ffba63ae211ce1fd04b0454c289f314"
+          },
+          "peak_pcm16": 7064,
+          "playback_sha256": "372d098359fae4d71d0726b6a1d11f163bf9438ad39c81eaefe8d4a98437cc85",
+          "profile": "dominant-modulation",
+          "quality": {
+            "low_register_clusters": 0,
+            "melody_friction_ticks": 1920000,
+            "voice_motion_cost": 155
+          },
+          "realizations": 1,
+          "render": {
+            "bytes": 81993,
+            "file": "target-eight-dominant-modulation-render.json",
+            "sha256": "4a91b3bc440fe719808c4d142b149f3fea63fa41ef775048f452ac4f85d9b9a8"
+          },
+          "request": {
+            "bytes": 7413,
+            "file": "target-eight-dominant-modulation-request.json",
+            "sha256": "21c3c715b5d25374dc838dcf1fd6e8002be36e15543985121da3e25ca126ae65"
+          },
+          "resolutions": [
+            {
+              "approach_entry": 0,
+              "arrival_entry": 1,
+              "arrival_root": {
+                "alter": 0,
+                "step": "A"
+              },
+              "leading_tone": {
+                "alter": 1,
+                "step": "G"
+              },
+              "resolved_leading_tones": 1,
+              "resolved_sevenths": 1,
+              "transitions": [
+                {
+                  "edge": {
+                    "from": 0,
+                    "repeat_boundary": false,
+                    "to": 1
+                  },
+                  "parallel_perfects": 0,
+                  "voices": [
+                    {
+                      "from_degree": 5,
+                      "from_midi": 59,
+                      "semitones": -2,
+                      "to_degree": 1,
+                      "to_midi": 57,
+                      "voice": 0
+                    },
+                    {
+                      "from_degree": 7,
+                      "from_midi": 62,
+                      "semitones": -2,
+                      "to_degree": 3,
+                      "to_midi": 60,
+                      "voice": 1
+                    },
+                    {
+                      "from_degree": 1,
+                      "from_midi": 64,
+                      "semitones": 0,
+                      "to_degree": 5,
+                      "to_midi": 64,
+                      "voice": 2
+                    },
+                    {
+                      "from_degree": 3,
+                      "from_midi": 68,
+                      "semitones": 1,
+                      "to_degree": 1,
+                      "to_midi": 69,
+                      "voice": 3
+                    }
+                  ]
+                }
+              ],
+              "unresolved_leading_tones": 0,
+              "unresolved_sevenths": 0
+            },
+            {
+              "approach_entry": 2,
+              "arrival_entry": 3,
+              "arrival_root": {
+                "alter": 0,
+                "step": "G"
+              },
+              "leading_tone": {
+                "alter": 1,
+                "step": "F"
+              },
+              "resolved_leading_tones": 1,
+              "resolved_sevenths": 1,
+              "transitions": [
+                {
+                  "edge": {
+                    "from": 2,
+                    "repeat_boundary": false,
+                    "to": 3
+                  },
+                  "parallel_perfects": 0,
+                  "voices": [
+                    {
+                      "from_degree": 5,
+                      "from_midi": 57,
+                      "semitones": -2,
+                      "to_degree": 1,
+                      "to_midi": 55,
+                      "voice": 0
+                    },
+                    {
+                      "from_degree": 7,
+                      "from_midi": 60,
+                      "semitones": -1,
+                      "to_degree": 3,
+                      "to_midi": 59,
+                      "voice": 1
+                    },
+                    {
+                      "from_degree": 1,
+                      "from_midi": 62,
+                      "semitones": 0,
+                      "to_degree": 5,
+                      "to_midi": 62,
+                      "voice": 2
+                    },
+                    {
+                      "from_degree": 3,
+                      "from_midi": 66,
+                      "semitones": 1,
+                      "to_degree": 1,
+                      "to_midi": 67,
+                      "voice": 3
+                    }
+                  ]
+                }
+              ],
+              "unresolved_leading_tones": 0,
+              "unresolved_sevenths": 0
+            },
+            {
+              "approach_entry": 6,
+              "arrival_entry": 7,
+              "arrival_root": {
+                "alter": 0,
+                "step": "G"
+              },
+              "leading_tone": {
+                "alter": 1,
+                "step": "F"
+              },
+              "resolved_leading_tones": 1,
+              "resolved_sevenths": 1,
+              "transitions": [
+                {
+                  "edge": {
+                    "from": 6,
+                    "repeat_boundary": false,
+                    "to": 7
+                  },
+                  "parallel_perfects": 0,
+                  "voices": [
+                    {
+                      "from_degree": 5,
+                      "from_midi": 57,
+                      "semitones": -2,
+                      "to_degree": 1,
+                      "to_midi": 55,
+                      "voice": 0
+                    },
+                    {
+                      "from_degree": 7,
+                      "from_midi": 60,
+                      "semitones": -1,
+                      "to_degree": 3,
+                      "to_midi": 59,
+                      "voice": 1
+                    },
+                    {
+                      "from_degree": 1,
+                      "from_midi": 62,
+                      "semitones": 0,
+                      "to_degree": 5,
+                      "to_midi": 62,
+                      "voice": 2
+                    },
+                    {
+                      "from_degree": 3,
+                      "from_midi": 66,
+                      "semitones": 1,
+                      "to_degree": 1,
+                      "to_midi": 67,
+                      "voice": 3
+                    }
+                  ]
+                }
+              ],
+              "unresolved_leading_tones": 0,
+              "unresolved_sevenths": 0
+            },
+            {
+              "approach_entry": 4,
+              "arrival_entry": 5,
+              "arrival_root": {
+                "alter": 0,
+                "step": "G"
+              },
+              "leading_tone": {
+                "alter": 1,
+                "step": "F"
+              },
+              "resolved_leading_tones": 1,
+              "resolved_sevenths": 1,
+              "transitions": [
+                {
+                  "edge": {
+                    "from": 4,
+                    "repeat_boundary": false,
+                    "to": 5
+                  },
+                  "parallel_perfects": 0,
+                  "voices": [
+                    {
+                      "from_degree": 5,
+                      "from_midi": 57,
+                      "semitones": -2,
+                      "to_degree": 1,
+                      "to_midi": 55,
+                      "voice": 0
+                    },
+                    {
+                      "from_degree": 7,
+                      "from_midi": 60,
+                      "semitones": -1,
+                      "to_degree": 3,
+                      "to_midi": 59,
+                      "voice": 1
+                    },
+                    {
+                      "from_degree": 1,
+                      "from_midi": 62,
+                      "semitones": 0,
+                      "to_degree": 5,
+                      "to_midi": 62,
+                      "voice": 2
+                    },
+                    {
+                      "from_degree": 3,
+                      "from_midi": 66,
+                      "semitones": 1,
+                      "to_degree": 1,
+                      "to_midi": 67,
+                      "voice": 3
+                    }
+                  ]
+                }
+              ],
+              "unresolved_leading_tones": 0,
+              "unresolved_sevenths": 0
+            }
+          ],
+          "resolved": {
+            "bytes": 16428,
+            "file": "target-eight-dominant-modulation-resolved.json",
+            "sha256": "07d3b097faef6692ee9499878a18544174e14184cc6b90e44320378c6011bdc6"
+          },
+          "score": {
+            "bytes": 105999,
+            "file": "target-eight-dominant-modulation.json",
+            "sha256": "c2c5d3f0b473324cc5640a33cf8211e75b2261dfc8fb16c72a4561eaeab808c9"
+          },
+          "search_limited": true,
+          "wav": {
+            "bytes": 836248,
+            "file": "target-eight-dominant-modulation.wav",
+            "sha256": "c0d23cf0a22465abbc3f27c11926984a9c1ba0715d2982d31979e219340ad49d"
+          }
+        }
+      ],
+      "id": "target-eight",
+      "input_score": {
+        "bytes": 73842,
+        "file": "target-eight-input.json",
+        "sha256": "c53627317e124a6572e6b72f9e8bc8aadf7d280b8071c0cf5b75c9782b661b73"
+      }
+    },
+    {
+      "bars": 16,
+      "baseline": {
+        "clipped_samples": 0,
+        "id": "target-sixteen-baseline",
+        "mscz": {
+          "bytes": 1148,
+          "file": "target-sixteen-baseline.mscz",
+          "sha256": "841144078318323790a6bd77d3f3fb37c0b833bfb518f5ce5c5b0f3d60232258"
+        },
+        "musicxml": {
+          "bytes": 31547,
+          "file": "target-sixteen-baseline.musicxml",
+          "sha256": "3791d0ab1f93dd66ff83f2e2a3e63564b942d066b1ef331f48ff5645d16461d1"
+        },
+        "peak_pcm16": 7036,
+        "playback_sha256": "1402d872b14daf88e37b9ee9eca12852ec4b4338732c06ef45c85e11d67e7fbc",
+        "render": {
+          "bytes": 161014,
+          "file": "target-sixteen-baseline-render.json",
+          "sha256": "e4fe6f51a2f5fde3bb6bb86eac022ba218e30bdc1144c3d9b604371eb71d44e7"
+        },
+        "score": {
+          "bytes": 209147,
+          "file": "target-sixteen-baseline.json",
+          "sha256": "46cd108bdbd1a4575a325e198161876968e2431ea214a5e44c1e38484ea28c5b"
+        },
+        "wav": {
+          "bytes": 1534094,
+          "file": "target-sixteen-baseline.wav",
+          "sha256": "f08412f7be4d777b9d35bd104c5457e5e1e6b0a1e7d2ffe33cb6039e7677ffd0"
+        }
+      },
+      "candidates": [
+        {
+          "changed_chord_entries": [
+            0,
+            2,
+            4,
+            6,
+            8,
+            10,
+            12,
+            14
+          ],
+          "clipped_samples": 0,
+          "generation_milliseconds": 14.314375,
+          "id": "target-sixteen-secondary",
+          "mscz": {
+            "bytes": 1133,
+            "file": "target-sixteen-secondary.mscz",
+            "sha256": "004a17fddbd7454da746570b93f44553d7e2a6d01fb349b481d6f4a05576f926"
+          },
+          "musicxml": {
+            "bytes": 31766,
+            "file": "target-sixteen-secondary.musicxml",
+            "sha256": "99057646eeab598efcb8a4f5ee1b5b23d843c9b7beb8fb20efef860fb99f5f9c"
+          },
+          "peak_pcm16": 6986,
+          "playback_sha256": "3205559448693fc89fe0e248be9753147b1f7dddb8377b969aa85f23d85f0e1d",
+          "profile": "secondary",
+          "quality": {
+            "low_register_clusters": 3,
+            "melody_friction_ticks": 7680000,
+            "voice_motion_cost": 334
+          },
+          "realizations": 1,
+          "render": {
+            "bytes": 161014,
+            "file": "target-sixteen-secondary-render.json",
+            "sha256": "5c75f68ce9c873ded055f33a169a0e21a0f097b57f8654a06875cc8b25748f80"
+          },
+          "request": {
+            "bytes": 13698,
+            "file": "target-sixteen-secondary-request.json",
+            "sha256": "c15cee7f1cad45d89050b4ccf74804156a8f05c753a40161489530edf0db852e"
+          },
+          "resolutions": [
+            {
+              "approach_entry": 0,
+              "arrival_entry": 1,
+              "arrival_root": {
+                "alter": 0,
+                "step": "A"
+              },
+              "leading_tone": {
+                "alter": 1,
+                "step": "G"
+              },
+              "resolved_leading_tones": 1,
+              "resolved_sevenths": 1,
+              "transitions": [
+                {
+                  "edge": {
+                    "from": 0,
+                    "repeat_boundary": false,
+                    "to": 1
+                  },
+                  "parallel_perfects": 0,
+                  "voices": [
+                    {
+                      "from_degree": 5,
+                      "from_midi": 59,
+                      "semitones": -2,
+                      "to_degree": 1,
+                      "to_midi": 57,
+                      "voice": 0
+                    },
+                    {
+                      "from_degree": 7,
+                      "from_midi": 62,
+                      "semitones": -2,
+                      "to_degree": 3,
+                      "to_midi": 60,
+                      "voice": 1
+                    },
+                    {
+                      "from_degree": 1,
+                      "from_midi": 64,
+                      "semitones": 0,
+                      "to_degree": 5,
+                      "to_midi": 64,
+                      "voice": 2
+                    },
+                    {
+                      "from_degree": 3,
+                      "from_midi": 68,
+                      "semitones": 1,
+                      "to_degree": 1,
+                      "to_midi": 69,
+                      "voice": 3
+                    }
+                  ]
+                }
+              ],
+              "unresolved_leading_tones": 0,
+              "unresolved_sevenths": 0
+            },
+            {
+              "approach_entry": 2,
+              "arrival_entry": 3,
+              "arrival_root": {
+                "alter": 0,
+                "step": "G"
+              },
+              "leading_tone": {
+                "alter": 1,
+                "step": "F"
+              },
+              "resolved_leading_tones": 1,
+              "resolved_sevenths": 1,
+              "transitions": [
+                {
+                  "edge": {
+                    "from": 2,
+                    "repeat_boundary": false,
+                    "to": 3
+                  },
+                  "parallel_perfects": 0,
+                  "voices": [
+                    {
+                      "from_degree": 5,
+                      "from_midi": 57,
+                      "semitones": -2,
+                      "to_degree": 1,
+                      "to_midi": 55,
+                      "voice": 0
+                    },
+                    {
+                      "from_degree": 7,
+                      "from_midi": 60,
+                      "semitones": -1,
+                      "to_degree": 3,
+                      "to_midi": 59,
+                      "voice": 1
+                    },
+                    {
+                      "from_degree": 1,
+                      "from_midi": 62,
+                      "semitones": 0,
+                      "to_degree": 5,
+                      "to_midi": 62,
+                      "voice": 2
+                    },
+                    {
+                      "from_degree": 3,
+                      "from_midi": 66,
+                      "semitones": 1,
+                      "to_degree": 1,
+                      "to_midi": 67,
+                      "voice": 3
+                    }
+                  ]
+                }
+              ],
+              "unresolved_leading_tones": 0,
+              "unresolved_sevenths": 0
+            },
+            {
+              "approach_entry": 4,
+              "arrival_entry": 5,
+              "arrival_root": {
+                "alter": 0,
+                "step": "A"
+              },
+              "leading_tone": {
+                "alter": 1,
+                "step": "G"
+              },
+              "resolved_leading_tones": 1,
+              "resolved_sevenths": 0,
+              "transitions": [
+                {
+                  "edge": {
+                    "from": 4,
+                    "repeat_boundary": false,
+                    "to": 5
+                  },
+                  "parallel_perfects": 0,
+                  "voices": [
+                    {
+                      "from_degree": 3,
+                      "from_midi": 56,
+                      "semitones": 1,
+                      "to_degree": 1,
+                      "to_midi": 57,
+                      "voice": 0
+                    },
+                    {
+                      "from_degree": 5,
+                      "from_midi": 59,
+                      "semitones": 1,
+                      "to_degree": 3,
+                      "to_midi": 60,
+                      "voice": 1
+                    },
+                    {
+                      "from_degree": 7,
+                      "from_midi": 62,
+                      "semitones": 2,
+                      "to_degree": 5,
+                      "to_midi": 64,
+                      "voice": 2
+                    },
+                    {
+                      "from_degree": 1,
+                      "from_midi": 64,
+                      "semitones": 5,
+                      "to_degree": 1,
+                      "to_midi": 69,
+                      "voice": 3
+                    }
+                  ]
+                }
+              ],
+              "unresolved_leading_tones": 0,
+              "unresolved_sevenths": 1
+            },
+            {
+              "approach_entry": 6,
+              "arrival_entry": 7,
+              "arrival_root": {
+                "alter": 0,
+                "step": "G"
+              },
+              "leading_tone": {
+                "alter": 1,
+                "step": "F"
+              },
+              "resolved_leading_tones": 1,
+              "resolved_sevenths": 1,
+              "transitions": [
+                {
+                  "edge": {
+                    "from": 6,
+                    "repeat_boundary": false,
+                    "to": 7
+                  },
+                  "parallel_perfects": 0,
+                  "voices": [
+                    {
+                      "from_degree": 5,
+                      "from_midi": 57,
+                      "semitones": -2,
+                      "to_degree": 1,
+                      "to_midi": 55,
+                      "voice": 0
+                    },
+                    {
+                      "from_degree": 7,
+                      "from_midi": 60,
+                      "semitones": -1,
+                      "to_degree": 3,
+                      "to_midi": 59,
+                      "voice": 1
+                    },
+                    {
+                      "from_degree": 1,
+                      "from_midi": 62,
+                      "semitones": 0,
+                      "to_degree": 5,
+                      "to_midi": 62,
+                      "voice": 2
+                    },
+                    {
+                      "from_degree": 3,
+                      "from_midi": 66,
+                      "semitones": 1,
+                      "to_degree": 1,
+                      "to_midi": 67,
+                      "voice": 3
+                    }
+                  ]
+                }
+              ],
+              "unresolved_leading_tones": 0,
+              "unresolved_sevenths": 0
+            },
+            {
+              "approach_entry": 8,
+              "arrival_entry": 9,
+              "arrival_root": {
+                "alter": 0,
+                "step": "A"
+              },
+              "leading_tone": {
+                "alter": 1,
+                "step": "G"
+              },
+              "resolved_leading_tones": 1,
+              "resolved_sevenths": 0,
+              "transitions": [
+                {
+                  "edge": {
+                    "from": 8,
+                    "repeat_boundary": false,
+                    "to": 9
+                  },
+                  "parallel_perfects": 0,
+                  "voices": [
+                    {
+                      "from_degree": 3,
+                      "from_midi": 56,
+                      "semitones": 1,
+                      "to_degree": 1,
+                      "to_midi": 57,
+                      "voice": 0
+                    },
+                    {
+                      "from_degree": 5,
+                      "from_midi": 59,
+                      "semitones": 1,
+                      "to_degree": 3,
+                      "to_midi": 60,
+                      "voice": 1
+                    },
+                    {
+                      "from_degree": 7,
+                      "from_midi": 62,
+                      "semitones": 2,
+                      "to_degree": 5,
+                      "to_midi": 64,
+                      "voice": 2
+                    },
+                    {
+                      "from_degree": 1,
+                      "from_midi": 64,
+                      "semitones": 5,
+                      "to_degree": 1,
+                      "to_midi": 69,
+                      "voice": 3
+                    }
+                  ]
+                }
+              ],
+              "unresolved_leading_tones": 0,
+              "unresolved_sevenths": 1
+            },
+            {
+              "approach_entry": 10,
+              "arrival_entry": 11,
+              "arrival_root": {
+                "alter": 0,
+                "step": "G"
+              },
+              "leading_tone": {
+                "alter": 1,
+                "step": "F"
+              },
+              "resolved_leading_tones": 1,
+              "resolved_sevenths": 1,
+              "transitions": [
+                {
+                  "edge": {
+                    "from": 10,
+                    "repeat_boundary": false,
+                    "to": 11
+                  },
+                  "parallel_perfects": 0,
+                  "voices": [
+                    {
+                      "from_degree": 5,
+                      "from_midi": 57,
+                      "semitones": -2,
+                      "to_degree": 1,
+                      "to_midi": 55,
+                      "voice": 0
+                    },
+                    {
+                      "from_degree": 7,
+                      "from_midi": 60,
+                      "semitones": -1,
+                      "to_degree": 3,
+                      "to_midi": 59,
+                      "voice": 1
+                    },
+                    {
+                      "from_degree": 1,
+                      "from_midi": 62,
+                      "semitones": 0,
+                      "to_degree": 5,
+                      "to_midi": 62,
+                      "voice": 2
+                    },
+                    {
+                      "from_degree": 3,
+                      "from_midi": 66,
+                      "semitones": 1,
+                      "to_degree": 1,
+                      "to_midi": 67,
+                      "voice": 3
+                    }
+                  ]
+                }
+              ],
+              "unresolved_leading_tones": 0,
+              "unresolved_sevenths": 0
+            },
+            {
+              "approach_entry": 12,
+              "arrival_entry": 13,
+              "arrival_root": {
+                "alter": 0,
+                "step": "A"
+              },
+              "leading_tone": {
+                "alter": 1,
+                "step": "G"
+              },
+              "resolved_leading_tones": 1,
+              "resolved_sevenths": 0,
+              "transitions": [
+                {
+                  "edge": {
+                    "from": 12,
+                    "repeat_boundary": false,
+                    "to": 13
+                  },
+                  "parallel_perfects": 0,
+                  "voices": [
+                    {
+                      "from_degree": 3,
+                      "from_midi": 56,
+                      "semitones": 1,
+                      "to_degree": 1,
+                      "to_midi": 57,
+                      "voice": 0
+                    },
+                    {
+                      "from_degree": 5,
+                      "from_midi": 59,
+                      "semitones": 1,
+                      "to_degree": 3,
+                      "to_midi": 60,
+                      "voice": 1
+                    },
+                    {
+                      "from_degree": 7,
+                      "from_midi": 62,
+                      "semitones": 2,
+                      "to_degree": 5,
+                      "to_midi": 64,
+                      "voice": 2
+                    },
+                    {
+                      "from_degree": 1,
+                      "from_midi": 64,
+                      "semitones": 5,
+                      "to_degree": 1,
+                      "to_midi": 69,
+                      "voice": 3
+                    }
+                  ]
+                }
+              ],
+              "unresolved_leading_tones": 0,
+              "unresolved_sevenths": 1
+            },
+            {
+              "approach_entry": 14,
+              "arrival_entry": 15,
+              "arrival_root": {
+                "alter": 0,
+                "step": "G"
+              },
+              "leading_tone": {
+                "alter": 1,
+                "step": "F"
+              },
+              "resolved_leading_tones": 1,
+              "resolved_sevenths": 1,
+              "transitions": [
+                {
+                  "edge": {
+                    "from": 14,
+                    "repeat_boundary": false,
+                    "to": 15
+                  },
+                  "parallel_perfects": 0,
+                  "voices": [
+                    {
+                      "from_degree": 5,
+                      "from_midi": 57,
+                      "semitones": -2,
+                      "to_degree": 1,
+                      "to_midi": 55,
+                      "voice": 0
+                    },
+                    {
+                      "from_degree": 7,
+                      "from_midi": 60,
+                      "semitones": -1,
+                      "to_degree": 3,
+                      "to_midi": 59,
+                      "voice": 1
+                    },
+                    {
+                      "from_degree": 1,
+                      "from_midi": 62,
+                      "semitones": 0,
+                      "to_degree": 5,
+                      "to_midi": 62,
+                      "voice": 2
+                    },
+                    {
+                      "from_degree": 3,
+                      "from_midi": 66,
+                      "semitones": 1,
+                      "to_degree": 1,
+                      "to_midi": 67,
+                      "voice": 3
+                    }
+                  ]
+                }
+              ],
+              "unresolved_leading_tones": 0,
+              "unresolved_sevenths": 0
+            }
+          ],
+          "resolved": {
+            "bytes": 30160,
+            "file": "target-sixteen-secondary-resolved.json",
+            "sha256": "b9e7c99149558c7e189dad8666f4945ad8ed423236d10c65c6b8741ab5536471"
+          },
+          "score": {
+            "bytes": 209164,
+            "file": "target-sixteen-secondary.json",
+            "sha256": "a088251178dfca8050988fec99925253b063b8dec6baba65943dc63c69ed8251"
+          },
+          "search_limited": true,
+          "wav": {
+            "bytes": 1534094,
+            "file": "target-sixteen-secondary.wav",
+            "sha256": "52b46c3dde4b810629d2231ba3c6daf8884c23f233217f18856d200572afab97"
+          }
+        },
+        {
+          "changed_chord_entries": [
+            0,
+            2,
+            4,
+            6,
+            8,
+            10,
+            12,
+            13,
+            14
+          ],
+          "clipped_samples": 0,
+          "generation_milliseconds": 51.128458,
+          "id": "target-sixteen-common-modulation",
+          "mscz": {
+            "bytes": 1149,
+            "file": "target-sixteen-common-modulation.mscz",
+            "sha256": "4e73baeed7fd0eeb5fdc65904548077e6c8025070a4147467b822a6c65091433"
+          },
+          "musicxml": {
+            "bytes": 31763,
+            "file": "target-sixteen-common-modulation.musicxml",
+            "sha256": "1648a4b0e0a28535c22de5cac08e4cf50563749f4ec24cfd4d0bc9bd36d7b34a"
+          },
+          "peak_pcm16": 6988,
+          "playback_sha256": "1f9806a1bfa39d81cda47e5ff825347b666c2530c7fad556826891c979571655",
+          "profile": "common-modulation",
+          "quality": {
+            "low_register_clusters": 2,
+            "melody_friction_ticks": 6720000,
+            "voice_motion_cost": 346
+          },
+          "realizations": 4,
+          "render": {
+            "bytes": 161014,
+            "file": "target-sixteen-common-modulation-render.json",
+            "sha256": "bfa647095a31eecb30b453a1af1d57a1b95f8091000594684bd10f1b49777b27"
+          },
+          "request": {
+            "bytes": 13841,
+            "file": "target-sixteen-common-modulation-request.json",
+            "sha256": "8a3a116c0f5fd43e694b83a2ddfb52222ad2da387bb361c577f1adec11e92df2"
+          },
+          "resolutions": [
+            {
+              "approach_entry": 0,
+              "arrival_entry": 1,
+              "arrival_root": {
+                "alter": 0,
+                "step": "A"
+              },
+              "leading_tone": {
+                "alter": 1,
+                "step": "G"
+              },
+              "resolved_leading_tones": 1,
+              "resolved_sevenths": 1,
+              "transitions": [
+                {
+                  "edge": {
+                    "from": 0,
+                    "repeat_boundary": false,
+                    "to": 1
+                  },
+                  "parallel_perfects": 0,
+                  "voices": [
+                    {
+                      "from_degree": 5,
+                      "from_midi": 59,
+                      "semitones": -2,
+                      "to_degree": 1,
+                      "to_midi": 57,
+                      "voice": 0
+                    },
+                    {
+                      "from_degree": 7,
+                      "from_midi": 62,
+                      "semitones": -2,
+                      "to_degree": 3,
+                      "to_midi": 60,
+                      "voice": 1
+                    },
+                    {
+                      "from_degree": 1,
+                      "from_midi": 64,
+                      "semitones": 0,
+                      "to_degree": 5,
+                      "to_midi": 64,
+                      "voice": 2
+                    },
+                    {
+                      "from_degree": 3,
+                      "from_midi": 68,
+                      "semitones": 1,
+                      "to_degree": 1,
+                      "to_midi": 69,
+                      "voice": 3
+                    }
+                  ]
+                }
+              ],
+              "unresolved_leading_tones": 0,
+              "unresolved_sevenths": 0
+            },
+            {
+              "approach_entry": 2,
+              "arrival_entry": 3,
+              "arrival_root": {
+                "alter": 0,
+                "step": "G"
+              },
+              "leading_tone": {
+                "alter": 1,
+                "step": "F"
+              },
+              "resolved_leading_tones": 1,
+              "resolved_sevenths": 1,
+              "transitions": [
+                {
+                  "edge": {
+                    "from": 2,
+                    "repeat_boundary": false,
+                    "to": 3
+                  },
+                  "parallel_perfects": 0,
+                  "voices": [
+                    {
+                      "from_degree": 5,
+                      "from_midi": 57,
+                      "semitones": -2,
+                      "to_degree": 1,
+                      "to_midi": 55,
+                      "voice": 0
+                    },
+                    {
+                      "from_degree": 7,
+                      "from_midi": 60,
+                      "semitones": -1,
+                      "to_degree": 3,
+                      "to_midi": 59,
+                      "voice": 1
+                    },
+                    {
+                      "from_degree": 1,
+                      "from_midi": 62,
+                      "semitones": 0,
+                      "to_degree": 5,
+                      "to_midi": 62,
+                      "voice": 2
+                    },
+                    {
+                      "from_degree": 3,
+                      "from_midi": 66,
+                      "semitones": 1,
+                      "to_degree": 1,
+                      "to_midi": 67,
+                      "voice": 3
+                    }
+                  ]
+                }
+              ],
+              "unresolved_leading_tones": 0,
+              "unresolved_sevenths": 0
+            },
+            {
+              "approach_entry": 4,
+              "arrival_entry": 5,
+              "arrival_root": {
+                "alter": 0,
+                "step": "A"
+              },
+              "leading_tone": {
+                "alter": 1,
+                "step": "G"
+              },
+              "resolved_leading_tones": 1,
+              "resolved_sevenths": 0,
+              "transitions": [
+                {
+                  "edge": {
+                    "from": 4,
+                    "repeat_boundary": false,
+                    "to": 5
+                  },
+                  "parallel_perfects": 0,
+                  "voices": [
+                    {
+                      "from_degree": 3,
+                      "from_midi": 56,
+                      "semitones": 1,
+                      "to_degree": 1,
+                      "to_midi": 57,
+                      "voice": 0
+                    },
+                    {
+                      "from_degree": 5,
+                      "from_midi": 59,
+                      "semitones": 1,
+                      "to_degree": 3,
+                      "to_midi": 60,
+                      "voice": 1
+                    },
+                    {
+                      "from_degree": 7,
+                      "from_midi": 62,
+                      "semitones": 2,
+                      "to_degree": 5,
+                      "to_midi": 64,
+                      "voice": 2
+                    },
+                    {
+                      "from_degree": 1,
+                      "from_midi": 64,
+                      "semitones": 5,
+                      "to_degree": 1,
+                      "to_midi": 69,
+                      "voice": 3
+                    }
+                  ]
+                }
+              ],
+              "unresolved_leading_tones": 0,
+              "unresolved_sevenths": 1
+            },
+            {
+              "approach_entry": 6,
+              "arrival_entry": 7,
+              "arrival_root": {
+                "alter": 0,
+                "step": "G"
+              },
+              "leading_tone": {
+                "alter": 1,
+                "step": "F"
+              },
+              "resolved_leading_tones": 1,
+              "resolved_sevenths": 1,
+              "transitions": [
+                {
+                  "edge": {
+                    "from": 6,
+                    "repeat_boundary": false,
+                    "to": 7
+                  },
+                  "parallel_perfects": 0,
+                  "voices": [
+                    {
+                      "from_degree": 5,
+                      "from_midi": 57,
+                      "semitones": -2,
+                      "to_degree": 1,
+                      "to_midi": 55,
+                      "voice": 0
+                    },
+                    {
+                      "from_degree": 7,
+                      "from_midi": 60,
+                      "semitones": -1,
+                      "to_degree": 3,
+                      "to_midi": 59,
+                      "voice": 1
+                    },
+                    {
+                      "from_degree": 1,
+                      "from_midi": 62,
+                      "semitones": 0,
+                      "to_degree": 5,
+                      "to_midi": 62,
+                      "voice": 2
+                    },
+                    {
+                      "from_degree": 3,
+                      "from_midi": 66,
+                      "semitones": 1,
+                      "to_degree": 1,
+                      "to_midi": 67,
+                      "voice": 3
+                    }
+                  ]
+                }
+              ],
+              "unresolved_leading_tones": 0,
+              "unresolved_sevenths": 0
+            },
+            {
+              "approach_entry": 8,
+              "arrival_entry": 9,
+              "arrival_root": {
+                "alter": 0,
+                "step": "A"
+              },
+              "leading_tone": {
+                "alter": 1,
+                "step": "G"
+              },
+              "resolved_leading_tones": 1,
+              "resolved_sevenths": 0,
+              "transitions": [
+                {
+                  "edge": {
+                    "from": 8,
+                    "repeat_boundary": false,
+                    "to": 9
+                  },
+                  "parallel_perfects": 0,
+                  "voices": [
+                    {
+                      "from_degree": 3,
+                      "from_midi": 56,
+                      "semitones": 1,
+                      "to_degree": 1,
+                      "to_midi": 57,
+                      "voice": 0
+                    },
+                    {
+                      "from_degree": 5,
+                      "from_midi": 59,
+                      "semitones": 1,
+                      "to_degree": 3,
+                      "to_midi": 60,
+                      "voice": 1
+                    },
+                    {
+                      "from_degree": 7,
+                      "from_midi": 62,
+                      "semitones": 2,
+                      "to_degree": 5,
+                      "to_midi": 64,
+                      "voice": 2
+                    },
+                    {
+                      "from_degree": 1,
+                      "from_midi": 64,
+                      "semitones": 5,
+                      "to_degree": 1,
+                      "to_midi": 69,
+                      "voice": 3
+                    }
+                  ]
+                }
+              ],
+              "unresolved_leading_tones": 0,
+              "unresolved_sevenths": 1
+            },
+            {
+              "approach_entry": 10,
+              "arrival_entry": 11,
+              "arrival_root": {
+                "alter": 0,
+                "step": "G"
+              },
+              "leading_tone": {
+                "alter": 1,
+                "step": "F"
+              },
+              "resolved_leading_tones": 1,
+              "resolved_sevenths": 1,
+              "transitions": [
+                {
+                  "edge": {
+                    "from": 10,
+                    "repeat_boundary": false,
+                    "to": 11
+                  },
+                  "parallel_perfects": 0,
+                  "voices": [
+                    {
+                      "from_degree": 5,
+                      "from_midi": 57,
+                      "semitones": -2,
+                      "to_degree": 1,
+                      "to_midi": 55,
+                      "voice": 0
+                    },
+                    {
+                      "from_degree": 7,
+                      "from_midi": 60,
+                      "semitones": -1,
+                      "to_degree": 3,
+                      "to_midi": 59,
+                      "voice": 1
+                    },
+                    {
+                      "from_degree": 1,
+                      "from_midi": 62,
+                      "semitones": 0,
+                      "to_degree": 5,
+                      "to_midi": 62,
+                      "voice": 2
+                    },
+                    {
+                      "from_degree": 3,
+                      "from_midi": 66,
+                      "semitones": 1,
+                      "to_degree": 1,
+                      "to_midi": 67,
+                      "voice": 3
+                    }
+                  ]
+                }
+              ],
+              "unresolved_leading_tones": 0,
+              "unresolved_sevenths": 0
+            },
+            {
+              "approach_entry": 14,
+              "arrival_entry": 15,
+              "arrival_root": {
+                "alter": 0,
+                "step": "G"
+              },
+              "leading_tone": {
+                "alter": 1,
+                "step": "F"
+              },
+              "resolved_leading_tones": 1,
+              "resolved_sevenths": 1,
+              "transitions": [
+                {
+                  "edge": {
+                    "from": 14,
+                    "repeat_boundary": false,
+                    "to": 15
+                  },
+                  "parallel_perfects": 0,
+                  "voices": [
+                    {
+                      "from_degree": 3,
+                      "from_midi": 54,
+                      "semitones": 1,
+                      "to_degree": 1,
+                      "to_midi": 55,
+                      "voice": 0
+                    },
+                    {
+                      "from_degree": 7,
+                      "from_midi": 60,
+                      "semitones": -1,
+                      "to_degree": 3,
+                      "to_midi": 59,
+                      "voice": 1
+                    },
+                    {
+                      "from_degree": 1,
+                      "from_midi": 62,
+                      "semitones": 0,
+                      "to_degree": 5,
+                      "to_midi": 62,
+                      "voice": 2
+                    },
+                    {
+                      "from_degree": 5,
+                      "from_midi": 69,
+                      "semitones": -2,
+                      "to_degree": 1,
+                      "to_midi": 67,
+                      "voice": 3
+                    }
+                  ]
+                }
+              ],
+              "unresolved_leading_tones": 0,
+              "unresolved_sevenths": 0
+            }
+          ],
+          "resolved": {
+            "bytes": 30832,
+            "file": "target-sixteen-common-modulation-resolved.json",
+            "sha256": "14f84db63e8d062aae252f2e1212ea17467da9f48c31c80b1c0ee9987b42629f"
+          },
+          "score": {
+            "bytes": 209300,
+            "file": "target-sixteen-common-modulation.json",
+            "sha256": "4a270d9669dcb9128c4d87cd7f96c9bd5ad247edc9c230cc1a45569ff8f1d467"
+          },
+          "search_limited": true,
+          "wav": {
+            "bytes": 1534094,
+            "file": "target-sixteen-common-modulation.wav",
+            "sha256": "b19baf2f1889e9f60d6d8c3e4d26b3f854672a5e88b66aa4445927a706d671be"
+          }
+        },
+        {
+          "changed_chord_entries": [
+            0,
+            2,
+            4,
+            6,
+            8,
+            10,
+            12,
+            13,
+            14
+          ],
+          "clipped_samples": 0,
+          "generation_milliseconds": 14.742041,
+          "id": "target-sixteen-dominant-modulation",
+          "mscz": {
+            "bytes": 1133,
+            "file": "target-sixteen-dominant-modulation.mscz",
+            "sha256": "c68e9108b425e7be5316d320813ec019ab5a41a0c59f5f17e5f058968a2e5804"
+          },
+          "musicxml": {
+            "bytes": 31796,
+            "file": "target-sixteen-dominant-modulation.musicxml",
+            "sha256": "906d6f5665db4b28cb98f59d0e0f0e0d47749ed89f02a71abc5966bb8402381d"
+          },
+          "peak_pcm16": 6986,
+          "playback_sha256": "ea27c27ec209151ecc84948e47aa8decf9a2d21e643f2268eaeaab9e01b71a03",
+          "profile": "dominant-modulation",
+          "quality": {
+            "low_register_clusters": 2,
+            "melody_friction_ticks": 5760000,
+            "voice_motion_cost": 325
+          },
+          "realizations": 1,
+          "render": {
+            "bytes": 161014,
+            "file": "target-sixteen-dominant-modulation-render.json",
+            "sha256": "29fec18bd2e74711cc7b9068f44a6951820842f520615c35c88f2937dfdc557d"
+          },
+          "request": {
+            "bytes": 13837,
+            "file": "target-sixteen-dominant-modulation-request.json",
+            "sha256": "37cc6c727985679ba56b529c01f2ec52f4d65868fb770acad961df6173859f73"
+          },
+          "resolutions": [
+            {
+              "approach_entry": 0,
+              "arrival_entry": 1,
+              "arrival_root": {
+                "alter": 0,
+                "step": "A"
+              },
+              "leading_tone": {
+                "alter": 1,
+                "step": "G"
+              },
+              "resolved_leading_tones": 1,
+              "resolved_sevenths": 1,
+              "transitions": [
+                {
+                  "edge": {
+                    "from": 0,
+                    "repeat_boundary": false,
+                    "to": 1
+                  },
+                  "parallel_perfects": 0,
+                  "voices": [
+                    {
+                      "from_degree": 5,
+                      "from_midi": 59,
+                      "semitones": -2,
+                      "to_degree": 1,
+                      "to_midi": 57,
+                      "voice": 0
+                    },
+                    {
+                      "from_degree": 7,
+                      "from_midi": 62,
+                      "semitones": -2,
+                      "to_degree": 3,
+                      "to_midi": 60,
+                      "voice": 1
+                    },
+                    {
+                      "from_degree": 1,
+                      "from_midi": 64,
+                      "semitones": 0,
+                      "to_degree": 5,
+                      "to_midi": 64,
+                      "voice": 2
+                    },
+                    {
+                      "from_degree": 3,
+                      "from_midi": 68,
+                      "semitones": 1,
+                      "to_degree": 1,
+                      "to_midi": 69,
+                      "voice": 3
+                    }
+                  ]
+                }
+              ],
+              "unresolved_leading_tones": 0,
+              "unresolved_sevenths": 0
+            },
+            {
+              "approach_entry": 2,
+              "arrival_entry": 3,
+              "arrival_root": {
+                "alter": 0,
+                "step": "G"
+              },
+              "leading_tone": {
+                "alter": 1,
+                "step": "F"
+              },
+              "resolved_leading_tones": 1,
+              "resolved_sevenths": 1,
+              "transitions": [
+                {
+                  "edge": {
+                    "from": 2,
+                    "repeat_boundary": false,
+                    "to": 3
+                  },
+                  "parallel_perfects": 0,
+                  "voices": [
+                    {
+                      "from_degree": 5,
+                      "from_midi": 57,
+                      "semitones": -2,
+                      "to_degree": 1,
+                      "to_midi": 55,
+                      "voice": 0
+                    },
+                    {
+                      "from_degree": 7,
+                      "from_midi": 60,
+                      "semitones": -1,
+                      "to_degree": 3,
+                      "to_midi": 59,
+                      "voice": 1
+                    },
+                    {
+                      "from_degree": 1,
+                      "from_midi": 62,
+                      "semitones": 0,
+                      "to_degree": 5,
+                      "to_midi": 62,
+                      "voice": 2
+                    },
+                    {
+                      "from_degree": 3,
+                      "from_midi": 66,
+                      "semitones": 1,
+                      "to_degree": 1,
+                      "to_midi": 67,
+                      "voice": 3
+                    }
+                  ]
+                }
+              ],
+              "unresolved_leading_tones": 0,
+              "unresolved_sevenths": 0
+            },
+            {
+              "approach_entry": 4,
+              "arrival_entry": 5,
+              "arrival_root": {
+                "alter": 0,
+                "step": "A"
+              },
+              "leading_tone": {
+                "alter": 1,
+                "step": "G"
+              },
+              "resolved_leading_tones": 1,
+              "resolved_sevenths": 0,
+              "transitions": [
+                {
+                  "edge": {
+                    "from": 4,
+                    "repeat_boundary": false,
+                    "to": 5
+                  },
+                  "parallel_perfects": 0,
+                  "voices": [
+                    {
+                      "from_degree": 3,
+                      "from_midi": 56,
+                      "semitones": 1,
+                      "to_degree": 1,
+                      "to_midi": 57,
+                      "voice": 0
+                    },
+                    {
+                      "from_degree": 5,
+                      "from_midi": 59,
+                      "semitones": 1,
+                      "to_degree": 3,
+                      "to_midi": 60,
+                      "voice": 1
+                    },
+                    {
+                      "from_degree": 7,
+                      "from_midi": 62,
+                      "semitones": 2,
+                      "to_degree": 5,
+                      "to_midi": 64,
+                      "voice": 2
+                    },
+                    {
+                      "from_degree": 1,
+                      "from_midi": 64,
+                      "semitones": 5,
+                      "to_degree": 1,
+                      "to_midi": 69,
+                      "voice": 3
+                    }
+                  ]
+                }
+              ],
+              "unresolved_leading_tones": 0,
+              "unresolved_sevenths": 1
+            },
+            {
+              "approach_entry": 6,
+              "arrival_entry": 7,
+              "arrival_root": {
+                "alter": 0,
+                "step": "G"
+              },
+              "leading_tone": {
+                "alter": 1,
+                "step": "F"
+              },
+              "resolved_leading_tones": 1,
+              "resolved_sevenths": 1,
+              "transitions": [
+                {
+                  "edge": {
+                    "from": 6,
+                    "repeat_boundary": false,
+                    "to": 7
+                  },
+                  "parallel_perfects": 0,
+                  "voices": [
+                    {
+                      "from_degree": 5,
+                      "from_midi": 57,
+                      "semitones": -2,
+                      "to_degree": 1,
+                      "to_midi": 55,
+                      "voice": 0
+                    },
+                    {
+                      "from_degree": 7,
+                      "from_midi": 60,
+                      "semitones": -1,
+                      "to_degree": 3,
+                      "to_midi": 59,
+                      "voice": 1
+                    },
+                    {
+                      "from_degree": 1,
+                      "from_midi": 62,
+                      "semitones": 0,
+                      "to_degree": 5,
+                      "to_midi": 62,
+                      "voice": 2
+                    },
+                    {
+                      "from_degree": 3,
+                      "from_midi": 66,
+                      "semitones": 1,
+                      "to_degree": 1,
+                      "to_midi": 67,
+                      "voice": 3
+                    }
+                  ]
+                }
+              ],
+              "unresolved_leading_tones": 0,
+              "unresolved_sevenths": 0
+            },
+            {
+              "approach_entry": 8,
+              "arrival_entry": 9,
+              "arrival_root": {
+                "alter": 0,
+                "step": "A"
+              },
+              "leading_tone": {
+                "alter": 1,
+                "step": "G"
+              },
+              "resolved_leading_tones": 1,
+              "resolved_sevenths": 0,
+              "transitions": [
+                {
+                  "edge": {
+                    "from": 8,
+                    "repeat_boundary": false,
+                    "to": 9
+                  },
+                  "parallel_perfects": 0,
+                  "voices": [
+                    {
+                      "from_degree": 3,
+                      "from_midi": 56,
+                      "semitones": 1,
+                      "to_degree": 1,
+                      "to_midi": 57,
+                      "voice": 0
+                    },
+                    {
+                      "from_degree": 5,
+                      "from_midi": 59,
+                      "semitones": 1,
+                      "to_degree": 3,
+                      "to_midi": 60,
+                      "voice": 1
+                    },
+                    {
+                      "from_degree": 7,
+                      "from_midi": 62,
+                      "semitones": 2,
+                      "to_degree": 5,
+                      "to_midi": 64,
+                      "voice": 2
+                    },
+                    {
+                      "from_degree": 1,
+                      "from_midi": 64,
+                      "semitones": 5,
+                      "to_degree": 1,
+                      "to_midi": 69,
+                      "voice": 3
+                    }
+                  ]
+                }
+              ],
+              "unresolved_leading_tones": 0,
+              "unresolved_sevenths": 1
+            },
+            {
+              "approach_entry": 10,
+              "arrival_entry": 11,
+              "arrival_root": {
+                "alter": 0,
+                "step": "G"
+              },
+              "leading_tone": {
+                "alter": 1,
+                "step": "F"
+              },
+              "resolved_leading_tones": 1,
+              "resolved_sevenths": 1,
+              "transitions": [
+                {
+                  "edge": {
+                    "from": 10,
+                    "repeat_boundary": false,
+                    "to": 11
+                  },
+                  "parallel_perfects": 0,
+                  "voices": [
+                    {
+                      "from_degree": 5,
+                      "from_midi": 57,
+                      "semitones": -2,
+                      "to_degree": 1,
+                      "to_midi": 55,
+                      "voice": 0
+                    },
+                    {
+                      "from_degree": 7,
+                      "from_midi": 60,
+                      "semitones": -1,
+                      "to_degree": 3,
+                      "to_midi": 59,
+                      "voice": 1
+                    },
+                    {
+                      "from_degree": 1,
+                      "from_midi": 62,
+                      "semitones": 0,
+                      "to_degree": 5,
+                      "to_midi": 62,
+                      "voice": 2
+                    },
+                    {
+                      "from_degree": 3,
+                      "from_midi": 66,
+                      "semitones": 1,
+                      "to_degree": 1,
+                      "to_midi": 67,
+                      "voice": 3
+                    }
+                  ]
+                }
+              ],
+              "unresolved_leading_tones": 0,
+              "unresolved_sevenths": 0
+            },
+            {
+              "approach_entry": 14,
+              "arrival_entry": 15,
+              "arrival_root": {
+                "alter": 0,
+                "step": "G"
+              },
+              "leading_tone": {
+                "alter": 1,
+                "step": "F"
+              },
+              "resolved_leading_tones": 1,
+              "resolved_sevenths": 1,
+              "transitions": [
+                {
+                  "edge": {
+                    "from": 14,
+                    "repeat_boundary": false,
+                    "to": 15
+                  },
+                  "parallel_perfects": 0,
+                  "voices": [
+                    {
+                      "from_degree": 5,
+                      "from_midi": 57,
+                      "semitones": -2,
+                      "to_degree": 1,
+                      "to_midi": 55,
+                      "voice": 0
+                    },
+                    {
+                      "from_degree": 7,
+                      "from_midi": 60,
+                      "semitones": -1,
+                      "to_degree": 3,
+                      "to_midi": 59,
+                      "voice": 1
+                    },
+                    {
+                      "from_degree": 1,
+                      "from_midi": 62,
+                      "semitones": 0,
+                      "to_degree": 5,
+                      "to_midi": 62,
+                      "voice": 2
+                    },
+                    {
+                      "from_degree": 3,
+                      "from_midi": 66,
+                      "semitones": 1,
+                      "to_degree": 1,
+                      "to_midi": 67,
+                      "voice": 3
+                    }
+                  ]
+                }
+              ],
+              "unresolved_leading_tones": 0,
+              "unresolved_sevenths": 0
+            },
+            {
+              "approach_entry": 12,
+              "arrival_entry": 13,
+              "arrival_root": {
+                "alter": 0,
+                "step": "G"
+              },
+              "leading_tone": {
+                "alter": 1,
+                "step": "F"
+              },
+              "resolved_leading_tones": 1,
+              "resolved_sevenths": 1,
+              "transitions": [
+                {
+                  "edge": {
+                    "from": 12,
+                    "repeat_boundary": false,
+                    "to": 13
+                  },
+                  "parallel_perfects": 0,
+                  "voices": [
+                    {
+                      "from_degree": 5,
+                      "from_midi": 57,
+                      "semitones": -2,
+                      "to_degree": 1,
+                      "to_midi": 55,
+                      "voice": 0
+                    },
+                    {
+                      "from_degree": 7,
+                      "from_midi": 60,
+                      "semitones": -1,
+                      "to_degree": 3,
+                      "to_midi": 59,
+                      "voice": 1
+                    },
+                    {
+                      "from_degree": 1,
+                      "from_midi": 62,
+                      "semitones": 0,
+                      "to_degree": 5,
+                      "to_midi": 62,
+                      "voice": 2
+                    },
+                    {
+                      "from_degree": 3,
+                      "from_midi": 66,
+                      "semitones": 1,
+                      "to_degree": 1,
+                      "to_midi": 67,
+                      "voice": 3
+                    }
+                  ]
+                }
+              ],
+              "unresolved_leading_tones": 0,
+              "unresolved_sevenths": 0
+            }
+          ],
+          "resolved": {
+            "bytes": 30527,
+            "file": "target-sixteen-dominant-modulation-resolved.json",
+            "sha256": "1ceec799bb59bdd750ebf198e3e79b1fe28073658f940ff32ea647bdbf28d863"
+          },
+          "score": {
+            "bytes": 209334,
+            "file": "target-sixteen-dominant-modulation.json",
+            "sha256": "e51f20489f23a217bf884b0ef942cf97dd4a619451fdc23306f126eec8bcdf76"
+          },
+          "search_limited": true,
+          "wav": {
+            "bytes": 1534094,
+            "file": "target-sixteen-dominant-modulation.wav",
+            "sha256": "269caf6791ba02c346c8a7c5918dad0b3c9292cfb0b0daf997146a1d78d40056"
+          }
+        }
+      ],
+      "id": "target-sixteen",
+      "input_score": {
+        "bytes": 145898,
+        "file": "target-sixteen-input.json",
+        "sha256": "db72753dc8afdc0515b8895c4ae408b2c4d53cf4f1f1774fb8e5aae41f505fda"
+      }
+    }
+  ],
+  "channels": 1,
+  "engine_version": "1.3.13",
+  "listening_review": {
+    "observations": [],
+    "status": "pending"
+  },
+  "normalization": false,
+  "programs": 0,
+  "provider": "acorde-rustysynth-sf2-v1",
+  "release_tail_millis": 500,
+  "sample_rate_hz": 22050,
+  "schema_version": 1,
+  "soundfont_sha256": "cf2a98eb38a32c4954b4b6e2caae4112d62dd8e892eceefdd7942b0e7d01ac2f",
+  "source_commit": "7c8e5e32d57b1625bd7a1e006300c570735e88a8",
+  "source_files_sha256": {
+    "crates/cli/examples/harmony_targets_listening_pack.rs": "e13828bd16739dee1debbcb3ce2e3b9c993308c79f9e7d1150e48869300c49d4",
+    "crates/core/src/model/harmony_arrangement.rs": "9a7efb6eb12d7a4198063c0c57757f44ff7e2b8d4d21d1cb7141ea00b4d2f4f4",
+    "crates/core/src/model/harmony_comping.rs": "4c5550d1a685d0d9f08da16a6449cd0d9030cf71e91767c53fc9c8fd236c23ac",
+    "crates/core/src/model/harmony_expansion.rs": "95fe126862cae3a2c02be5dfd6b04e14dc34eec9cdaec9aa85f140951182c095",
+    "crates/core/src/model/harmony_groove_proposals.rs": "1c7557abc4390ce3b21d29c27bd6c7a387ff2fbc9ec393430ced29cfd9087d90",
+    "crates/core/src/model/harmony_voicing.rs": "76f0cee9ce11b669505bc6c4838f0ac825e5de0df90132314330ad3c0c645a98",
+    "crates/core/src/model/phrase_harmony/targets.rs": "eed1fc4fc2b97321881c58234d1e87b46b4ec6be7663b0cf3c790f57b4c8e0d6",
+    "tests/fixtures/arrangement/harmony-targets-listening.json": "13442a38f3f8237e4b16bbea7de118876a276628a29b80341d70ee62963b6986",
+    "tests/fixtures/arrangement/harmony_targets_listening.rs": "af178484117d287712e12f678d85d20ea6afc0688ecf829d3aee40a9f9c16c56"
+  },
+  "stage": 4,
+  "working_tree_dirty": false
+}

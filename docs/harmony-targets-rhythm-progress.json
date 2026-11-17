@@ -34,9 +34,29 @@
       "viewer-wasm-focused": {
         "log_sha256": "e80f246f7ff2e957ae5238b5d44018542b64326c0cbf08dec5361c1f2a6026b4",
         "passed_tests": 3
+      },
+      "full-wasm": {
+        "log_sha256": "ebc54d2c3b785ed8673c084275a64f99c420317b3dae26118056dd29cecab03b",
+        "passed_tests": 122
+      },
+      "viewer-wasm": {
+        "log_sha256": "407c5fca6d0f00282521bc99928099ee1de3714734ee1e03f8fb6e619b4d2076",
+        "passed_tests": 119
       }
     },
-    "listening_review": "pending new stage-4 eight/sixteen-bar comparison; earlier stage-3 acceptance does not apply"
+    "listening_review": "pending new stage-4 eight/sixteen-bar comparison; earlier stage-3 acceptance does not apply",
+    "pull_request": "https://github.com/kent-tokyo/acorde/pull/446",
+    "source_commit": "7c8e5e32d57b1625bd7a1e006300c570735e88a8",
+    "listening_pack": {
+      "directory": "/private/tmp/acorde-hg-stage4-listening-v2",
+      "source_commit": "7c8e5e32d57b1625bd7a1e006300c570735e88a8",
+      "review_status": "pending",
+      "pinned_manifest": "../tests/fixtures/arrangement/harmony-targets-listening-manifest.json",
+      "artifacts_verified": 54,
+      "wav_files": 8,
+      "clipped_samples": 0,
+      "reproduction": "All eight WAV files byte-identical to the first generation"
+    }
   },
   "stage_5": {
     "state": "planned",
