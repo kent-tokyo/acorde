@@ -88,3 +88,85 @@ fn malformed_groove_and_disallowed_replay_are_errors() {
         .is_err()
     );
 }
+
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
+#[cfg_attr(not(target_arch = "wasm32"), test)]
+fn source_provenance_that_fits_the_request_can_replay_a_larger_resolved_contract() {
+    let source = fixture::source();
+    let mut request = fixture::request();
+    for entry in &mut request.base.chords.entries {
+        entry.sources = vec![acorde_core::ChordPlanSource {
+            note: None,
+            reference: Some("source-ref".repeat(2_000)),
+        }];
+    }
+    let source_json = serde_json::to_string(&source).unwrap();
+    let request_json = serde_json::to_string(&request).unwrap();
+    assert!(request_json.len() < 64 * 1024);
+    let result: acorde_core::HarmonyGrooveResult = serde_json::from_str(
+        &acorde_wasm::suggest_harmony_groove_arrangements(&source_json, &request_json).unwrap(),
+    )
+    .unwrap();
+    assert!(result.complete);
+    for candidate in result.candidates {
+        let resolved = serde_json::to_string(&candidate.resolved).unwrap();
+        assert!(resolved.len() > 64 * 1024);
+        let replay: acorde_core::HarmonyGrooveCandidate = serde_json::from_str(
+            &acorde_wasm::replay_harmony_groove_arrangement(&source_json, &resolved).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(candidate.resolved, replay.resolved);
+        assert_eq!(
+            fixture::sound(&candidate.arrangement.score),
+            fixture::sound(&replay.arrangement.score)
+        );
+        let direct = serde_json::to_string(&candidate.arrangement.resolved).unwrap();
+        acorde_wasm::replay_harmony_arrangement(&source_json, &direct).unwrap();
+    }
+    for entry in &mut request.base.chords.entries {
+        if let Some(reference) = &mut entry.sources[0].reference {
+            reference.push_str(&"x".repeat(3_000));
+        }
+    }
+    let direct_request = serde_json::to_string(&request.base).unwrap();
+    assert!(direct_request.len() > 64 * 1024);
+    let direct: acorde_core::HarmonyArrangementResult = serde_json::from_str(
+        &acorde_wasm::arrange_harmony_voicings(&source_json, &direct_request).unwrap(),
+    )
+    .unwrap();
+    let direct_resolved = serde_json::to_string(&direct.resolved).unwrap();
+    assert!(direct_resolved.len() > 64 * 1024);
+    let replay: acorde_core::HarmonyArrangementResult = serde_json::from_str(
+        &acorde_wasm::replay_harmony_arrangement(&source_json, &direct_resolved).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(fixture::sound(&direct.score), fixture::sound(&replay.score));
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen_test::wasm_bindgen_test]
+fn larger_harmony_limits_still_reject_oversized_input() {
+    let source_json = serde_json::to_string(&fixture::source()).unwrap();
+    assert!(
+        acorde_wasm::suggest_harmony_groove_arrangements(
+            &source_json,
+            &" ".repeat(2 * 1024 * 1024 + 1)
+        )
+        .is_err()
+    );
+    assert!(
+        acorde_wasm::replay_harmony_groove_arrangement(
+            &source_json,
+            &" ".repeat(8 * 1024 * 1024 + 1)
+        )
+        .is_err()
+    );
+    assert!(
+        acorde_wasm::arrange_harmony_voicings(&source_json, &" ".repeat(2 * 1024 * 1024 + 1))
+            .is_err()
+    );
+    assert!(
+        acorde_wasm::replay_harmony_arrangement(&source_json, &" ".repeat(8 * 1024 * 1024 + 1))
+            .is_err()
+    );
+}

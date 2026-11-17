@@ -303,7 +303,11 @@ jobs:
           # Score-connected voicing (PR #444) measured 8,170,504 bytes,
           # +85,168 over stage 1 under the same Linux build conditions.
           # Keep 29.5 KB headroom; voicing_wasm_size records the matched jobs.
-          test "$size" -le 8200000
+          # Anticipated comping and harmony/groove proposals (PR #445) measured
+          # 8,383,186 bytes, +212,682 over stage 2 under the same Linux/Rust
+          # 1.100/wasm-pack 0.15/-Oz conditions. Keep 36.8 KB headroom;
+          # groove_wasm_size records full/viewer and compressed measurements.
+          test "$size" -le 8420000
 
   renderer-benchmark:
     name: Renderer performance budget

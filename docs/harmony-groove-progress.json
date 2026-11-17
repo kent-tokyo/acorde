@@ -435,10 +435,9 @@
     ]
   },
   "stage_3": {
-    "state": "three-profiles-and-audio-generated-full-validation-and-listening-pending",
+    "state": "local-gates-and-provenance-replay-passed-final-hosted-ci-and-listening-pending",
     "remaining": [
-      "complete full/viewer browser suites on the final source",
-      "hosted CI and matched optimized WASM size on the completed stage",
+      "hosted CI on final commit including measured WASM budget and full/viewer suites",
       "listening review of the fixed eight and sixteen bar comparison"
     ],
     "branch": "codex/harmony-comping-20261117",
@@ -475,6 +474,30 @@
       "clippy-all": {
         "log_sha256": "618c739e635c969cfbfbebc11666a0d0f91cbdfb80f916f9cb771beae81fed12",
         "passed_tests": 0
+      },
+      "full-wasm-all": {
+        "log_sha256": "ccd866a95d0859ef4ed09b50384cc6a10c4a1dd0c19b2f44f688cbba569c079a",
+        "passed_tests": 117
+      },
+      "viewer-wasm-all": {
+        "log_sha256": "40d9b57ec6dcff913ebd6827bea9ec3bd59d05c8e63a0baf7633f5f6af4821e0",
+        "passed_tests": 114
+      },
+      "provenance-full-wasm": {
+        "log_sha256": "36498bef410da8628d57585880dda520eaabf29992ef45db56c1438b37c71277",
+        "passed_tests": 5
+      },
+      "provenance-viewer-wasm": {
+        "log_sha256": "e53000f7725a976b99abc6036c3bc5b6af6290b2ae3cc30dc53387b8fe092e7c",
+        "passed_tests": 5
+      },
+      "provenance-native": {
+        "log_sha256": "8c1356d2858a1f7bba3d2f62771fb8206ba0c0898c78644e4be314b828b2e296",
+        "passed_tests": 3
+      },
+      "clippy-final": {
+        "log_sha256": "513210e4f4be39da34672382d64355e4dec70002aafa540ad5425cfbc4fdab85",
+        "passed_tests": 0
       }
     },
     "limitations": [
@@ -482,10 +505,14 @@
       "context effects rejected by the stage-2 score arranger remain explicit errors"
     ],
     "listening_pack": {
-      "directory": "/private/tmp/acorde-hg-stage3-listening-v1",
-      "manifest_sha256": "d577255c042fa3ce0598f414475fd2bf576e3de8798ab57c5944af816f7c2cbf",
+      "directory": "/private/tmp/acorde-hg-stage3-listening-v2",
+      "manifest_sha256": "f8099efc11fb48631b583952b2f8f5b9afa8abf0ef12ab04d1ef20801d0a4d82",
       "review_status": "pending",
-      "artifacts_verified": "8 WAVs, Score JSON, resolved settings, MusicXML/MSCZ, render manifests and all file hashes; zero clipped samples"
+      "artifacts_verified": "8 WAVs, Score JSON, resolved settings, MusicXML/MSCZ, render manifests and all file hashes; zero clipped samples",
+      "pinned_manifest": "../tests/fixtures/arrangement/harmony-groove-listening-manifest.json",
+      "source_commit": "f23ec595c2478426a6e30df4b814fe02b00e4ece",
+      "comparison_with_v1": "all eight WAV files byte-identical",
+      "pinned_manifest_sha256": "91be7a55d8820e25ca9558e9fad1d4e43132bce8186e20114d500afcfcb1f626"
     },
     "validation_retry": {
       "reason": "native linker errno 28: no space left on device",
@@ -493,6 +520,7 @@
       "status": "default native 2581 and all-feature native 2585 passed; workspace Clippy passed after a CLI sample-chunk lint fix"
     },
     "source_commit": "f99e2003041eed2d525b29402f544ee23b102756",
-    "pull_request": "https://github.com/kent-tokyo/acorde/pull/445"
+    "pull_request": "https://github.com/kent-tokyo/acorde/pull/445",
+    "wasm_size": "harmony-groove-baseline.json#groove_wasm_size"
   }
 }

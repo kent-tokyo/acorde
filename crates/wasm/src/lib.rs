@@ -22,6 +22,8 @@ const MAX_SCORE_JSON_BYTES: usize = 16 * 1024 * 1024;
 const MAX_LAYOUT_JSON_BYTES: usize = 32 * 1024 * 1024;
 const MAX_OPTIONS_JSON_BYTES: usize = 64 * 1024;
 const MAX_CHORD_PLAN_JSON_BYTES: usize = 2 * 1024 * 1024;
+// Resolved harmony stores the original permissions and selected chord plan.
+const MAX_HARMONY_REPLAY_JSON_BYTES: usize = 8 * 1024 * 1024;
 const MAX_SMALL_JSON_BYTES: usize = 256 * 1024;
 #[cfg(feature = "soundfont")]
 const MAX_SOUNDFONT_BYTES: usize = acorde_soundfont::MAX_ASSET_BYTES;
@@ -1986,7 +1988,7 @@ pub fn plan_harmony_voicings(request_json: &str) -> Result<String, JsValue> {
 pub fn arrange_harmony_voicings(score_json: &str, request_json: &str) -> Result<String, JsValue> {
     let score = score_from_json(score_json)?;
     let request: acorde_core::HarmonyArrangementRequest =
-        parse_json(request_json, "harmony arrangement request", MAX_OPTIONS_JSON_BYTES)?;
+        parse_json(request_json, "harmony arrangement request", MAX_CHORD_PLAN_JSON_BYTES)?;
     let result = acorde_core::arrange_harmony_voicings(&score, &request).map_err(js_err)?;
     serde_json::to_string(&result).map_err(js_err)
 }
@@ -1996,7 +1998,7 @@ pub fn arrange_harmony_voicings(score_json: &str, request_json: &str) -> Result<
 pub fn replay_harmony_arrangement(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
     let score = score_from_json(score_json)?;
     let resolved: acorde_core::ResolvedHarmonyArrangement =
-        parse_json(resolved_json, "resolved harmony arrangement", MAX_OPTIONS_JSON_BYTES)?;
+        parse_json(resolved_json, "resolved harmony arrangement", MAX_HARMONY_REPLAY_JSON_BYTES)?;
     let result = acorde_core::replay_harmony_arrangement(&score, &resolved).map_err(js_err)?;
     serde_json::to_string(&result).map_err(js_err)
 }
@@ -2006,7 +2008,7 @@ pub fn replay_harmony_arrangement(score_json: &str, resolved_json: &str) -> Resu
 pub fn suggest_harmony_groove_arrangements(score_json: &str, request_json: &str) -> Result<String, JsValue> {
     let score = score_from_json(score_json)?;
     let request: acorde_core::HarmonyGrooveRequest =
-        parse_json(request_json, "harmony groove request", MAX_OPTIONS_JSON_BYTES)?;
+        parse_json(request_json, "harmony groove request", MAX_CHORD_PLAN_JSON_BYTES)?;
     let result = acorde_core::suggest_harmony_groove_arrangements(&score, &request).map_err(js_err)?;
     serde_json::to_string(&result).map_err(js_err)
 }
@@ -2016,7 +2018,7 @@ pub fn suggest_harmony_groove_arrangements(score_json: &str, request_json: &str)
 pub fn replay_harmony_groove_arrangement(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
     let score = score_from_json(score_json)?;
     let resolved: acorde_core::ResolvedHarmonyGrooveArrangement =
-        parse_json(resolved_json, "resolved harmony groove", MAX_OPTIONS_JSON_BYTES)?;
+        parse_json(resolved_json, "resolved harmony groove", MAX_HARMONY_REPLAY_JSON_BYTES)?;
     let result = acorde_core::replay_harmony_groove_arrangement(&score, &resolved).map_err(js_err)?;
     serde_json::to_string(&result).map_err(js_err)
 }

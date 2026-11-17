@@ -35,6 +35,12 @@ apply, including 32 bars and 64 harmonic positions. Refer to the fixed request
 builder in `tests/fixtures/arrangement/harmony_groove_source.rs` for a complete
 Rust example.
 
+WASM accepts at most 2 MiB of request JSON and 8 MiB of resolved JSON. Resolved
+contracts contain both the original permissions and the selected chord plan,
+including caller provenance. Their limit therefore differs from the generic
+64 KiB options limit. Oversized inputs are rejected before JSON parsing; the
+score JSON limit remains 16 MiB.
+
 The harmonic beam holds at most 16 sets of additions, preserving alternatives at
 different change counts. This is a bounded heuristic, not an exhaustive search
 or proof that no better arrangement exists. Up to half the realization budget

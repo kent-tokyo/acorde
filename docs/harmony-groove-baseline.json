@@ -137,5 +137,58 @@
     "increase_bytes": 85168,
     "budget_bytes": 8200000,
     "headroom_bytes": 29496
+  },
+  "groove_wasm_size": {
+    "platform": "Linux GitHub Actions ubuntu-latest",
+    "rustc": "1.100.0 (0ef1bc386 2026-11-09)",
+    "wasm_pack": "0.15.0",
+    "optimization": "release, wasm-opt -Oz",
+    "base_commit": "feeecd5cd406256e5a154de0d6b63feefc907a7e",
+    "base_job": "https://github.com/kent-tokyo/acorde/actions/runs/43989378572/job/133725757124",
+    "groove_commit": "f99e2003041eed2d525b29402f544ee23b102756",
+    "groove_job": "https://github.com/kent-tokyo/acorde/actions/runs/43996272514/job/133748990912",
+    "base_profiles": {
+      "full": {
+        "raw": 8170504,
+        "gzip": 2782394,
+        "brotli": 1861663
+      },
+      "viewer": {
+        "raw": 7109722,
+        "gzip": 2387388,
+        "brotli": 1585752
+      },
+      "playback-only": {
+        "raw": 1119051,
+        "gzip": 430105,
+        "brotli": 327172
+      }
+    },
+    "groove_profiles": {
+      "full": {
+        "raw": 8383186,
+        "gzip": 2849755,
+        "brotli": 1903364
+      },
+      "viewer": {
+        "raw": 7353127,
+        "gzip": 2468266,
+        "brotli": 1636666
+      },
+      "playback-only": {
+        "raw": 1118982,
+        "gzip": 430008,
+        "brotli": 327272
+      }
+    },
+    "raw_increase_bytes": {
+      "full": 212682,
+      "viewer": 243405,
+      "playback-only": -69
+    },
+    "budget_bytes": 8420000,
+    "headroom_bytes": 36814,
+    "log_sha256": "21b519a0024be8f83b0c755c2412cb967445baf0e6eaec92fe35a95c4888fc42",
+    "final_recheck": "required after the WASM provenance JSON-bound fix; native musical source unchanged"
   }
 }
