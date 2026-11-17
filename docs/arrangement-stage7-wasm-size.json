@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "platform": "Linux GitHub Actions ubuntu-latest",
+  "rustc": "1.100.0 (0ef1bc386 2026-11-09)",
+  "wasm_pack": "0.15.0",
+  "optimization": "release, wasm-opt -Oz",
+  "base_stage": 6,
+  "base_commit": "9c8d059ad08354ed79ab0306e3c56d6f7202ccea",
+  "base_job": "https://github.com/kent-tokyo/acorde/actions/runs/44083629676/job/134040278776",
+  "base_profiles": {
+    "full": { "raw": 8596329, "gzip": 2929441, "brotli": 1957728 },
+    "viewer": { "raw": 7539819, "gzip": 2536981, "brotli": 1684925 },
+    "playback-only": { "raw": 1123991, "gzip": 431565, "brotli": 328624 }
+  },
+  "stage7_commit": "b24278aa",
+  "stage7_job": "https://github.com/kent-tokyo/acorde/actions/runs/44083662780/job/134040396377",
+  "stage7_profiles": {
+    "full": { "raw": 8643030, "gzip": 2938584, "brotli": 1964828 },
+    "viewer": { "raw": 7589965, "gzip": 2548517, "brotli": 1692964 },
+    "playback-only": { "raw": 1124067, "gzip": 431677, "brotli": 328694 }
+  },
+  "raw_increase_bytes": {
+    "full": 46701,
+    "viewer": 50146,
+    "playback-only": 76
+  },
+  "budget_bytes": 8690000,
+  "headroom_bytes": 46970,
+  "gate_note": "The stage 7 artifact exceeded the previous 8600000-byte gate by 43030 bytes. The new gate is based on the measured stage 7 artifact and retains 46970 bytes of headroom. Verification on the updated commit is pending."
+}

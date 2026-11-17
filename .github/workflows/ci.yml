@@ -315,7 +315,11 @@ jobs:
           # measure 8,564,264 bytes, +109,254 over stage 4 on matched Linux
           # Rust 1.100.0 / wasm-pack 0.15 / -Oz builds. Keep 35,736 bytes;
           # docs/rhythm-section-wasm-size.json records all three profiles.
-          test "$size" -le 8600000
+          # Stage 7 integrated proposals (PR #449) measured 8,643,030 bytes,
+          # +46,701 over stage 6 on matched Linux/Rust 1.100/wasm-pack 0.15/-Oz.
+          # Keep 46,970 bytes of headroom; the three profiles and CI jobs are
+          # recorded in docs/arrangement-stage7-wasm-size.json.
+          test "$size" -le 8690000
 
   renderer-benchmark:
     name: Renderer performance budget
