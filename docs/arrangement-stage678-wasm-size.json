@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "platform": "Linux GitHub Actions ubuntu-latest",
+  "rustc": "1.100.0 (0ef1bc386 2026-11-09)",
+  "wasm_pack": "0.15.0",
+  "optimization": "release, wasm-opt -Oz",
+  "profiles": {
+    "stage6": {
+      "commit": "9c8d059ad08354ed79ab0306e3c56d6f7202ccea",
+      "job": "https://github.com/kent-tokyo/acorde/actions/runs/44083629676/job/134040278776",
+      "full": { "raw": 8596329, "gzip": 2929441, "brotli": 1957728 },
+      "viewer": { "raw": 7539819, "gzip": 2536981, "brotli": 1684925 },
+      "playback-only": { "raw": 1123991, "gzip": 431565, "brotli": 328624 },
+      "budget_bytes": 8600000,
+      "headroom_bytes": 3671,
+      "ci_run": "https://github.com/kent-tokyo/acorde/actions/runs/44083629676",
+      "ci_result": "19/19 passed"
+    },
+    "stage7": {
+      "commit": "5623956739c70464425fc69b4d65df1b0660973e",
+      "job": "https://github.com/kent-tokyo/acorde/actions/runs/44092813270/job/134072078013",
+      "full": { "raw": 8643552, "gzip": 2938978, "brotli": 1964283 },
+      "viewer": { "raw": 7591731, "gzip": 2549034, "brotli": 1692246 },
+      "playback-only": { "raw": 1124269, "gzip": 431642, "brotli": 328454 },
+      "budget_bytes": 8690000,
+      "headroom_bytes": 46448,
+      "ci_run": "https://github.com/kent-tokyo/acorde/actions/runs/44092813270",
+      "ci_result": "19/19 passed"
+    },
+    "stage8": {
+      "commit": "d82c709e89e3538edf872a52e337b833f9118a09",
+      "job": "https://github.com/kent-tokyo/acorde/actions/runs/44094127198/job/134076648343",
+      "full": { "raw": 8643552, "gzip": 2938976, "brotli": 1964844 },
+      "viewer": { "raw": 7591731, "gzip": 2549034, "brotli": 1692246 },
+      "playback-only": { "raw": 1124269, "gzip": 431642, "brotli": 328454 },
+      "budget_bytes": 8690000,
+      "headroom_bytes": 46448,
+      "ci_run": "https://github.com/kent-tokyo/acorde/actions/runs/44094127198",
+      "ci_result": "19/19 passed"
+    }
+  },
+  "raw_increase_stage7_over_stage6": {
+    "full": 47223,
+    "viewer": 51912,
+    "playback-only": 278
+  },
+  "raw_increase_stage8_over_stage7": {
+    "full": 0,
+    "viewer": 0,
+    "playback-only": 0
+  },
+  "note": "Stage 8 profiles have the same raw byte counts as stage 7; compressed sizes differ slightly, so this receipt does not claim byte-identical artifacts. These are matched CI measurements, not a generic size guarantee."
+}

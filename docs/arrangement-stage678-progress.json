@@ -22,7 +22,8 @@
         "cargo clippy -p acorde-core -p acorde-io -p acorde-wasm --all-features --all-targets --offline --locked -- -D warnings",
         "cargo fmt --all -- --check",
         "PR #448: macOS, Linux, Windows, full/viewer Chrome WASM and other functional checks passed at bd525ac1",
-        "PR #448: complete CI passed at 9c8d059a, including macOS/Linux/Windows, full/viewer Chrome, and 8,596,329-byte full WASM size"
+        "PR #448: complete CI passed at 9c8d059a, including macOS/Linux/Windows, full/viewer Chrome, and 8,596,329-byte full WASM size",
+        "Matched optimized full/viewer/playback-only WASM sizes and the 19/19 CI result are recorded in arrangement-stage678-wasm-size.json"
       ],
       "environment_notes": [
         "Default debug workspace/WASM test builds exceeded available disk space; the complete native suite passed with incremental compilation disabled and test debug information omitted.",
@@ -49,15 +50,16 @@
         "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 cargo clippy -p acorde-core -p acorde-io -p acorde-wasm --all-features --all-targets --offline --locked -- -D warnings",
         "8 and 16 measure three-proposal structural generation",
         "8 and 16 measure score generation; 4 measure replay, MusicXML/MSCZ and native WASM local parity tests",
-        "PR #449: matched Linux WASM full 8,643,030 bytes; stage 7 increment +46,701 over stage 6, recorded in arrangement-stage7-wasm-size.json",
+        "Earlier PR #449 artifact measured full WASM 8,643,030 bytes; the latest balanced-selection artifact and matched comparison are in arrangement-stage678-wasm-size.json",
         "8/16-bar fixed inputs each return reference, harmony-only, and rhythm-plus-melody proposals after 12 bounded realizations",
         "clean b1d3c64b pack pins native playback and resolved-choice receipts for full/viewer WASM comparison",
         "fixed 8/16-bar native release timing with 12 realizations per case in arrangement-stage678-performance.json",
-        "cargo +1.100.0 test -p acorde-core --test integrated_listening --test integrated_arrangement_proposals --locked --offline"
+        "cargo +1.100.0 test -p acorde-core --test integrated_listening --test integrated_arrangement_proposals --locked --offline",
+        "PR #449 at 56239567: 19/19 CI jobs passed, including macOS/Linux/Windows, full/viewer Chrome native parity, and the 8,643,552-byte full WASM budget check",
+        "Matched stage 6 to stage 7 raw WASM increase is 47,223 bytes; all profiles are recorded in arrangement-stage678-wasm-size.json"
       ],
       "pending": [
-        "8/16-bar listening review",
-        "new stage 7 head CI: three OS, full/viewer Chrome, and measured WASM size"
+        "8/16-bar listening review of the updated harmony-only and rhythm-plus-melody proposals"
       ]
     },
     "8": {
@@ -76,11 +78,12 @@
         "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 cargo clippy --workspace --all-features --all-targets --locked --offline -- -D warnings",
         "clean b1d3c64b produced updated manifest and native replay receipt with isolated harmony alternatives",
         "two clean b1d3c64b pack generations matched every dry, mixed, and peak-matched WAV hash; the six mixed renders report no clipping or cutoff",
-        "fixed 8/16-bar full-SF2 dry/mix release timing matches the updated listening manifest"
+        "fixed 8/16-bar full-SF2 dry/mix release timing matches the updated listening manifest",
+        "PR #450 at d82c709e: 19/19 CI jobs passed, including macOS/Linux/Windows, full/viewer Chrome native parity, and the 8,643,552-byte full WASM budget check",
+        "Matched stage 7 to stage 8 raw WASM size increase is zero bytes for full/viewer/playback-only profiles; compressed sizes are recorded separately in arrangement-stage678-wasm-size.json"
       ],
       "pending": [
-        "8/16-bar listening review",
-        "new stage 8 head CI: three OS, full/viewer Chrome, and measured WASM size"
+        "8/16-bar listening review of the updated harmony-only and rhythm-plus-melody proposals and dry/mixed audio"
       ]
     }
   }
