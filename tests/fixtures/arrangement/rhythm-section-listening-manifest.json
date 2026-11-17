@@ -394,8 +394,21 @@
   "channels": 1,
   "engine_version": "1.3.13",
   "listening_review": {
-    "observations": [],
-    "status": "pending"
+    "status": "accepted",
+    "reviewer": "user",
+    "recorded_at_utc": "2026-11-17T10:57:35Z",
+    "scope": "stage 5: all fixed eight-bar and sixteen-bar development comparisons presented at http://127.0.0.1:8767/",
+    "observations": [
+      {
+        "case_ids": [
+          "rhythm-eight",
+          "rhythm-sixteen"
+        ],
+        "response": "問題なし",
+        "reported_issues": []
+      }
+    ],
+    "limitations": "Overall acceptance of the presented development comparisons only; no per-criterion numeric ratings or held-out multi-listener evaluation was supplied."
   },
   "normalization": false,
   "programs": {

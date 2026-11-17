@@ -71,9 +71,12 @@ in [Open Music Theory: tonicization](https://viva.pressbooks.pub/openmusictheory
 and [modulation](https://openmusictheory.github.io/Modulation.html). The bounded
 vocabulary, numeric costs and API restrictions above are implementation choices.
 
-Current acceptance and remaining work for stages 4 and 5 are recorded in
-`harmony-targets-rhythm-progress.json`. Full CI, matched optimized WASM sizes
-and the fixed eight/sixteen-bar listening review remain required.
+Stage 4 development acceptance is complete: structural/IO checks, full/viewer
+WASM, hosted CI, matched size/runtime evidence, and the fixed eight/sixteen-bar
+listening comparisons. On 2026-11-17 the user accepted all presented comparisons
+with "問題なし". Evidence is recorded in `harmony-targets-rhythm-progress.json`
+and the pinned listening manifest. This is not a held-out multi-listener result
+or a release/publication claim.
 
 Native generation measurements are pinned in
 [`arrangement-stage45-performance.json`](arrangement-stage45-performance.json).

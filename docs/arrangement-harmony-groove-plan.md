@@ -1,8 +1,8 @@
 # 和声・声部配置・先取りを組み合わせる編曲拡張計画
 
-2026-11-17 作成・更新。状態: 段階0〜3は完了。実装と自動検証に加え、8/16小節の比較音声についてユーザーから「両方とも問題なし」と試聴確認を得た。段階ごとの証跡は `harmony-groove-progress.json` に記録する。
+2026-11-17 作成・更新。状態: 段階0〜5は完了。段階0〜3の受け入れ記録は `harmony-groove-progress.json`、段階4・5は `harmony-targets-rhythm-progress.json` に記録する。今回の8/16小節の比較についてユーザーから「問題なし」と試聴確認を得た。
 
-段階4は `cc852678` に実装され、3 OS・ブラウザー・WASM容量を含むCI 20項目が通過した。段階5の実装は `27bfa6d6`、容量上限を含む検証対象は `10b1aeb7`。3 OSの全機能テスト各2,615件、Chrome full 124件・viewer 121件、WASM容量検査を含むCI 20項目が通過した。WebKitは初回にUndo操作で失敗し、同じコミット・条件での再実行は3件すべて通過した。原因は未特定として両方の記録を残す。両段階の8/16小節音源は生成・再現確認済みで、今回の試聴回答を待つ。段階0〜3の回答を段階4・5の評価として流用しない。証跡と残作業は [`harmony-targets-rhythm-progress.json`](harmony-targets-rhythm-progress.json)、API仕様は [`harmony-targets.md`](harmony-targets.md) と [`rhythm-section.md`](rhythm-section.md) に記録する。開発PRは [#446](https://github.com/kent-tokyo/acorde/pull/446) と [#447](https://github.com/kent-tokyo/acorde/pull/447)。
+段階4は `cc852678`、段階4・5を統合した検証版は `7c8b340c`。統合版は3 OSの全機能テスト各2,617件、Chrome full 126件・viewer 123件、WASM容量検査を含むCI 20項目が通過した。以前のWebKitのUndo失敗は同条件の再実行で通過し、最新の実行でも通過している。初回失敗の原因が未特定であることも記録に残す。両段階の8/16小節音源は生成・再現確認済みで、今回の回答により試聴の受け入れも完了した。証跡は [`harmony-targets-rhythm-progress.json`](harmony-targets-rhythm-progress.json)、API仕様は [`harmony-targets.md`](harmony-targets.md) と [`rhythm-section.md`](rhythm-section.md) に記録する。開発PRは [#446](https://github.com/kent-tokyo/acorde/pull/446) と [#447](https://github.com/kent-tokyo/acorde/pull/447)。いずれもdraft・未マージで、段階6〜8と後続の6作品・3人以上の評価、公開は今回の完了範囲に含めない。
 
 生成時間と探索回数は [`arrangement-stage45-performance.json`](arrangement-stage45-performance.json) に記録した。段階0には当時の時間計測がなかったため、その固定コミットと現行版を同じ環境で再ビルドして比較した。既存の16小節処理は同じ入力・再生結果で中央値比0.9824。新APIは8/16小節の固定例を各60回測定し、観測したp95の最大値は段階4が7.446 ms、段階5が0.804 msだった。段階4の実現試行は1回または4回、段階5は探索を行わず決定的に生成する。入力準備・検証・音声合成は計測外で、最大入力やブラウザーでの遅延保証には使わない。
 
