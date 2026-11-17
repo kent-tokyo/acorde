@@ -296,7 +296,11 @@ jobs:
           # with Rust 1.100.0, wasm-pack 0.15.0 and the same -Oz optimization.
           # Keep approximately 23 KB headroom; receipts are in
           # docs/harmony-groove-baseline.json.
-          test "$size" -le 8070000
+          # Spelled harmony expansion (PR #443) measured 8,085,336 bytes
+          # versus the current integration's 8,049,482 (+35,854), using
+          # the same Linux/Rust/wasm-pack/-Oz configuration. Keep 24.7 KB
+          # headroom; expansion_wasm_size in the baseline records both jobs.
+          test "$size" -le 8110000
 
   renderer-benchmark:
     name: Renderer performance budget
