@@ -311,7 +311,11 @@ jobs:
           # measured on Linux with the same Rust 1.100.0 / wasm-pack 0.15 / -Oz.
           # Full 8,455,010; keep 34,990 bytes. Matched receipts and all profiles
           # are recorded in docs/harmony-targets-wasm-size.json.
-          test "$size" -le 8490000
+          # Shared kick/bass rhythms and explicit MSCX drum maps (PR #447)
+          # measure 8,564,264 bytes, +109,254 over stage 4 on matched Linux
+          # Rust 1.100.0 / wasm-pack 0.15 / -Oz builds. Keep 35,736 bytes;
+          # docs/rhythm-section-wasm-size.json records all three profiles.
+          test "$size" -le 8600000
 
   renderer-benchmark:
     name: Renderer performance budget
