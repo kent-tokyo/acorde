@@ -5,9 +5,9 @@ mod harmony;
 #[allow(dead_code)]
 #[path = "rhythm_section.rs"]
 pub mod small;
-pub use harmony::{Case, Corpus};
 #[allow(unused_imports)]
 pub use harmony::input as harmony_input;
+pub use harmony::{Case, Corpus};
 pub const FIXTURE: &str = include_str!("rhythm-section-listening.json");
 type ListeningInput = (Score, Vec<(&'static str, RhythmSectionRequest)>);
 pub fn input(case: &Case) -> Result<ListeningInput, Box<dyn std::error::Error>> {
