@@ -435,10 +435,8 @@
     ]
   },
   "stage_3": {
-    "state": "hosted-ci-passed-listening-review-pending",
-    "remaining": [
-      "listening review of the fixed eight and sixteen bar comparison"
-    ],
+    "state": "complete",
+    "remaining": [],
     "branch": "codex/harmony-comping-20261117",
     "specification": "harmony-groove-proposals.md",
     "checks": {
@@ -506,12 +504,13 @@
     "listening_pack": {
       "directory": "/private/tmp/acorde-hg-stage3-listening-v2",
       "manifest_sha256": "f8099efc11fb48631b583952b2f8f5b9afa8abf0ef12ab04d1ef20801d0a4d82",
-      "review_status": "pending",
+      "review_status": "accepted",
       "artifacts_verified": "8 WAVs, Score JSON, resolved settings, MusicXML/MSCZ, render manifests and all file hashes; zero clipped samples",
       "pinned_manifest": "../tests/fixtures/arrangement/harmony-groove-listening-manifest.json",
       "source_commit": "f23ec595c2478426a6e30df4b814fe02b00e4ece",
       "comparison_with_v1": "all eight WAV files byte-identical",
-      "pinned_manifest_sha256": "91be7a55d8820e25ca9558e9fad1d4e43132bce8186e20114d500afcfcb1f626"
+      "pinned_manifest_sha256": "cc0740275dbfe99d144196c862a24eb8c85773589acbe06c26d24de337d5d56c",
+      "review_reference": "../tests/fixtures/arrangement/harmony-groove-listening-manifest.json#/listening_review"
     },
     "validation_retry": {
       "reason": "native linker errno 28: no space left on device",
@@ -656,6 +655,122 @@
         "state": "SUCCESS",
         "link": "https://github.com/kent-tokyo/acorde/actions/runs/43999010994/job/133758108820"
       }
-    ]
+    ],
+    "completed_at_utc": "2026-11-17T06:38:57Z",
+    "acceptance_ci": {
+      "head": "43d3c607aba0535e749119c2572992c90639e7dc",
+      "checks": [
+        {
+          "name": "Dependency security and license checks",
+          "state": "SUCCESS",
+          "link": "https://github.com/kent-tokyo/acorde/actions/runs/44001167757/job/133765301977"
+        },
+        {
+          "name": "Rust coverage",
+          "state": "SUCCESS",
+          "link": "https://github.com/kent-tokyo/acorde/actions/runs/44001167740/job/133765301459"
+        },
+        {
+          "name": "Parser fuzz smoke",
+          "state": "SUCCESS",
+          "link": "https://github.com/kent-tokyo/acorde/actions/runs/44001167757/job/133765302087"
+        },
+        {
+          "name": "External interoperability contract",
+          "state": "SUCCESS",
+          "link": "https://github.com/kent-tokyo/acorde/actions/runs/44001167757/job/133765302052"
+        },
+        {
+          "name": "MSRV (Rust 1.89)",
+          "state": "SUCCESS",
+          "link": "https://github.com/kent-tokyo/acorde/actions/runs/44001167757/job/133765301986"
+        },
+        {
+          "name": "Test (ubuntu-latest)",
+          "state": "SUCCESS",
+          "link": "https://github.com/kent-tokyo/acorde/actions/runs/44001167757/job/133765302111"
+        },
+        {
+          "name": "Test (macos-latest)",
+          "state": "SUCCESS",
+          "link": "https://github.com/kent-tokyo/acorde/actions/runs/44001167757/job/133765302285"
+        },
+        {
+          "name": "Test (windows-latest)",
+          "state": "SUCCESS",
+          "link": "https://github.com/kent-tokyo/acorde/actions/runs/44001167757/job/133765302092"
+        },
+        {
+          "name": "IO feature contract",
+          "state": "SUCCESS",
+          "link": "https://github.com/kent-tokyo/acorde/actions/runs/44001167757/job/133765301687"
+        },
+        {
+          "name": "Package workspace",
+          "state": "SUCCESS",
+          "link": "https://github.com/kent-tokyo/acorde/actions/runs/44001167757/job/133765302217"
+        },
+        {
+          "name": "WASM build",
+          "state": "SUCCESS",
+          "link": "https://github.com/kent-tokyo/acorde/actions/runs/44001167757/job/133765302200"
+        },
+        {
+          "name": "Renderer performance budget",
+          "state": "SUCCESS",
+          "link": "https://github.com/kent-tokyo/acorde/actions/runs/44001167757/job/133765301947"
+        },
+        {
+          "name": "WASM browser contract (full)",
+          "state": "SUCCESS",
+          "link": "https://github.com/kent-tokyo/acorde/actions/runs/44001167757/job/133765302232"
+        },
+        {
+          "name": "WASM browser contract (viewer)",
+          "state": "SUCCESS",
+          "link": "https://github.com/kent-tokyo/acorde/actions/runs/44001167757/job/133765302207"
+        },
+        {
+          "name": "WASM browser contract (playback-only)",
+          "state": "SUCCESS",
+          "link": "https://github.com/kent-tokyo/acorde/actions/runs/44001167757/job/133765302153"
+        },
+        {
+          "name": "Browser smoke (chromium)",
+          "state": "SUCCESS",
+          "link": "https://github.com/kent-tokyo/acorde/actions/runs/44001167757/job/133765302434"
+        },
+        {
+          "name": "Browser smoke (firefox)",
+          "state": "SUCCESS",
+          "link": "https://github.com/kent-tokyo/acorde/actions/runs/44001167757/job/133765302253"
+        },
+        {
+          "name": "Browser smoke (webkit)",
+          "state": "SUCCESS",
+          "link": "https://github.com/kent-tokyo/acorde/actions/runs/44001167757/job/133765302167"
+        },
+        {
+          "name": "Browser smoke (Chromium HiDPI)",
+          "state": "SUCCESS",
+          "link": "https://github.com/kent-tokyo/acorde/actions/runs/44001167757/job/133765302128"
+        },
+        {
+          "name": "Browser adapter typecheck",
+          "state": "SUCCESS",
+          "link": "https://github.com/kent-tokyo/acorde/actions/runs/44001167757/job/133765302210"
+        }
+      ],
+      "scope": "Final documented implementation before the listening-acceptance metadata update; code unchanged since ff5e1c95."
+    }
+  },
+  "completion": {
+    "state": "complete",
+    "scope": "stages 0-3 only",
+    "recorded_at_utc": "2026-11-17T06:38:57Z",
+    "acceptance": "harmony-groove-acceptance.md",
+    "remaining": [],
+    "publication": "Development branches and draft PRs; not merged or released.",
+    "later_scope": "Stages 4-8 and the six-work/three-listener final evaluation remain outside this objective."
   }
 }

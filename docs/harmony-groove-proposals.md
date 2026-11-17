@@ -5,7 +5,8 @@ plain, colored and rhythmic scores, their resolved permissions, actual differenc
 and development costs. Both this API and `replay_harmony_groove_arrangement` are
 available in Rust and full/viewer WASM. Existing arrangement entry points are
 unchanged. The implementation is on the harmony development branch. The final code at
-`ff5e1c95` passed all 20 hosted checks; listening acceptance remains pending.
+`ff5e1c95` and the documentation head `43d3c607` passed all 20 hosted checks.
+The user accepted both fixed listening comparisons on 2026-11-17.
 See `harmony-groove-acceptance.md` for the tested contracts and evidence.
 
 The request's `base` is a concrete `HarmonyArrangementRequest`: root policy
@@ -91,3 +92,8 @@ The comparison uses the pinned repository piano SF2, 22,050 Hz mono and 500 ms
 release tail, with no per-candidate normalization. The manifest records file and
 source hashes, checkout identity, timing, search limits and a pending listening
 review. Producing these artifacts does not complete that review.
+
+The pinned `harmony-groove-listening-manifest.json` now records the user’s
+acceptance of both development comparisons (“両方とも問題なし”). A newly generated
+pack still starts with a pending review; acceptance belongs to the reviewed
+artifact hashes and does not transfer to changed music or render settings.

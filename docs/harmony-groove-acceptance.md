@@ -1,8 +1,9 @@
 # Stages 0–3 acceptance evidence
 
-The objective remains incomplete until every required row below has current
-passing evidence. Stage-3 musical acceptance is separate from structural tests.
+Stages 0–3 are accepted as of 2026-11-17. All rows below have passing evidence,
+including the user’s acceptance of both listening comparisons: “両方とも問題なし”.
 The later six-work/three-listener final evaluation is outside this initial MVP.
+This records development acceptance; the stacked PRs remain unmerged and unreleased.
 
 | Requirement | Evidence | Status |
 | --- | --- | --- |
@@ -18,7 +19,7 @@ The later six-work/three-listener final evaluation is outside this initial MVP.
 | macOS/Linux/Windows, MSRV, package, IO, fuzz and browser CI | PR #445 at `ff5e1c95`; all 20 hosted checks successful; CI run 43999010994 and coverage run 43999010999 | Passed |
 | Matched optimized WASM size | `ff5e1c95`: full 8,383,190 bytes (+212,686); viewer 7,353,131 (+243,409), same Linux/Rust/wasm-pack/-Oz. Full budget 8,420,000 | Passed |
 | Fixed 8/16-bar source, same SF2/program/tempo/gain, score/settings/XML/MSCZ/WAV artifacts | `tests/fixtures/arrangement/harmony-groove-listening-manifest.json`; clean source `f23ec595`; 8 WAVs, all file hashes verified, zero clipped samples | Passed |
-| Listening review of melody clarity, harmony, anticipation and audible differences | User review requested for `/private/tmp/acorde-hg-stage3-listening-v1/index.html`; v2's eight WAVs are byte-identical | Pending |
+| Listening review of melody clarity, harmony, anticipation and audible differences | User accepted both eight/sixteen-bar comparisons with “両方とも問題なし”; exact response and case IDs in the pinned manifest's `listening_review` | Passed |
 
 Detailed test-log hashes and the live stage states are in
 `harmony-groove-progress.json`. The local audio artifacts are in
@@ -36,4 +37,13 @@ profiles, with no added tensions selected. Plain/color have 8/16 attacks; rhythm
 has 32/64 attacks and one anticipated, accented change in each case. These
 artifacts demonstrate those actual choices, not audible coverage of every
 permitted tension. Tension selection and rejection are covered separately by the
-core proposal regression fixtures. All listening observations remain pending.
+core proposal regression fixtures. The user reported no issues in either
+comparison. This is overall acceptance, without separate numeric ratings or a
+claim of held-out multi-listener quality.
+
+The documentation head `43d3c607` also passed all 20 hosted checks (CI run
+44001167757 and coverage run 44001167740). The listening-acceptance update
+changes only documentation and the pinned manifest’s review metadata; the
+generated scores, settings, audio and implementation remain unchanged. The
+original generated manifest stays intact, while its pinned repository copy
+contains the subsequent user review.
