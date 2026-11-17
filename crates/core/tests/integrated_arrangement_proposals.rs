@@ -157,6 +157,7 @@ fn modulation_paths_can_supply_harmony_axis() {
     .unwrap();
     request.max_realizations = 12;
     let result = suggest_integrated_arrangements(&source, &request).unwrap();
+    assert_eq!(result.candidates[1].difference_codes, ["harmony-changed"]);
     assert!(result.candidates.iter().any(|candidate| {
         candidate
             .difference_codes

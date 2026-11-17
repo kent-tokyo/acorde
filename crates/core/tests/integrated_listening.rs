@@ -10,6 +10,12 @@ fn eight_and_sixteen_bar_inputs_produce_three_playable_proposals() {
             .unwrap_or_else(|error| panic!("{}: {error:?}", case.id));
         assert_eq!(result.candidates.len(), 3, "{}", case.id);
         assert_eq!(result.realizations, 12, "{}", case.id);
+        assert_eq!(
+            result.candidates[1].difference_codes,
+            ["harmony-changed"],
+            "{}",
+            case.id
+        );
         for axis in ["harmony-changed", "rhythm-changed", "melody-changed"] {
             assert!(
                 result.candidates.iter().any(|candidate| {

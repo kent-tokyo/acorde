@@ -333,6 +333,20 @@ pub fn suggest_integrated_arrangements(
     let mut selected = Vec::new();
     selected.push(pool.remove(0));
     while selected.len() < usize::from(request.count) {
+        // Keep a pure harmony comparison when the bounded search found one.
+        // This lets the next proposal show the independent rhythm/melody axes.
+        if selected.len() == 1 {
+            let reference = &selected[0].resolved;
+            if let Some(index) = pool.iter().position(|candidate| {
+                candidate.resolved.harmony.arrangement.request.chords
+                    != reference.harmony.arrangement.request.chords
+                    && candidate.resolved.rhythm_variant == reference.rhythm_variant
+                    && candidate.resolved.melody_variant == reference.melody_variant
+            }) {
+                selected.push(pool.remove(index));
+                continue;
+            }
+        }
         let index = pool
             .iter()
             .enumerate()
