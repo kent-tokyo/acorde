@@ -16,12 +16,19 @@
         "cargo test -p acorde-core --test phrase_melody --offline --locked",
         "cargo test -p acorde-core --test countermelody_development --offline --locked",
         "cargo test -p acorde-io --test phrase_melody --all-features --offline --locked",
-        "cargo test -p acorde-wasm --test phrase_melody --offline --locked"
+        "cargo test -p acorde-wasm --test phrase_melody --offline --locked",
+        "CARGO_INCREMENTAL=0 CARGO_PROFILE_TEST_DEBUG=0 cargo test --all --locked --offline",
+        "cargo clippy -p acorde-core -p acorde-io -p acorde-wasm --all-features --all-targets --offline --locked -- -D warnings",
+        "cargo fmt --all -- --check"
+      ],
+      "environment_notes": [
+        "Default debug workspace/WASM test builds exceeded available disk space; the complete native suite passed with incremental compilation disabled and test debug information omitted.",
+        "Local wasm-pack Chrome execution stopped before tests because the cached wasm-bindgen CLI is 0.2.125, the crate needs 0.2.130, wasm-pack installation was denied by sandbox permissions, and offline cargo install lacked native-tls. CI verification remains pending."
       ],
       "pending": [
         "8 and 16 measure listening comparisons",
         "full and viewer Chrome WASM parity",
-        "full workspace tests and clippy",
+        "all-features workspace tests",
         "three OS CI and matched WASM size/performance measurements"
       ]
     },
