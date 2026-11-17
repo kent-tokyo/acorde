@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "id": "turnaround-eight",
+      "tempo_bpm": 104,
+      "melody": [[77,76,74,72],[71,74,77,76],[76,79,83,81],[79,76,74,72],[74,77,81,79],[77,74,71,74],[76,74,72,71],[72]],
+      "chords": [["D","minor-seventh",38],["G","dominant",31],["C","major-seventh",36],["A","minor-seventh",33],["D","minor-seventh",38],["G","dominant",31],["C","major-seventh",36],["C","major-seventh",36]]
+    },
+    {
+      "id": "answer-sixteen",
+      "tempo_bpm": 112,
+      "melody": [[77,0,76,77,74,76,72,74],[71,74,0,77,76,74,72,71],[76,79,83,79],[81,79,76,72],[74,77,81,77],[77,76,74,71],[76,74,72,74],[76,0,79,81],[81,79,77,76],[77,76,74,72],[79,76,74,72],[72,71,69,72],[74,76,77,81],[79,77,74,71],[76,74,72,71],[72]],
+      "chords": [["D","minor-seventh",38],["G","dominant",31],["C","major-seventh",36],["A","minor-seventh",33],["D","minor-seventh",38],["G","dominant",31],["C","major-seventh",36],["C","major-seventh",36],["F","major-seventh",29],["G","dominant",31],["C","major-seventh",36],["A","minor-seventh",33],["D","minor-seventh",38],["G","dominant",31],["C","major-seventh",36],["C","major-seventh",36]]
+    }
+  ]
+}

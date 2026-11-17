@@ -22,6 +22,8 @@ const MAX_SCORE_JSON_BYTES: usize = 16 * 1024 * 1024;
 const MAX_LAYOUT_JSON_BYTES: usize = 32 * 1024 * 1024;
 const MAX_OPTIONS_JSON_BYTES: usize = 64 * 1024;
 const MAX_CHORD_PLAN_JSON_BYTES: usize = 2 * 1024 * 1024;
+// Resolved harmony stores the original permissions and selected chord plan.
+const MAX_HARMONY_REPLAY_JSON_BYTES: usize = 8 * 1024 * 1024;
 const MAX_SMALL_JSON_BYTES: usize = 256 * 1024;
 #[cfg(feature = "soundfont")]
 const MAX_SOUNDFONT_BYTES: usize = acorde_soundfont::MAX_ASSET_BYTES;
@@ -1837,6 +1839,631 @@ pub fn shuffle_accordion_plan(score_json: &str, request_json: &str) -> Result<St
         .map_err(|error| js_err(format!("arrangement plan shuffle serialization failed: {error}")))
 }
 
+/// Generate accompaniment changes and rests on explicit physical measure ranges.
+#[wasm_bindgen]
+pub fn arrange_with_sections(score_json: &str, options_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let options: acorde_core::SectionedAccordionOptions =
+        parse_json(options_json, "sectioned arrangement options", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::arrange_with_sections(&score, options))
+        .map_err(|error| js_err(format!("sectioned arrangement serialization failed: {error}")))
+}
+
+/// Apply measure-specific staff-local dynamics to the generated accompaniment.
+#[wasm_bindgen]
+pub fn arrange_sections_with_dynamics(
+    score_json: &str,
+    accompaniment_json: &str,
+    dynamics_json: &str,
+) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let accompaniment: acorde_core::SectionedAccordionOptions =
+        parse_json(accompaniment_json, "sectioned arrangement options", MAX_OPTIONS_JSON_BYTES)?;
+    let dynamics: acorde_core::AccordionDynamicSchedule =
+        parse_json(dynamics_json, "dynamic section options", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::arrange_sections_with_dynamics(&score, accompaniment, dynamics))
+        .map_err(|error| js_err(format!("dynamic section arrangement serialization failed: {error}")))
+}
+
+/// Select accompaniment and melodic harmony independently over written measures.
+#[wasm_bindgen]
+pub fn arrange_sections_with_melodic_voices(
+    score_json: &str,
+    accompaniment_json: &str,
+    melodic_json: &str,
+) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let accompaniment: acorde_core::SectionedAccordionOptions =
+        parse_json(accompaniment_json, "sectioned arrangement options", MAX_OPTIONS_JSON_BYTES)?;
+    let melodic: acorde_core::AccordionMelodicSchedule =
+        parse_json(melodic_json, "melodic section options", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::arrange_sections_with_melodic_voices(&score, accompaniment, melodic))
+        .map_err(|error| js_err(format!("melodic section arrangement serialization failed: {error}")))
+}
+
+/// Add caller-selected chord-tone responses inside two-beat melody rests.
+#[wasm_bindgen]
+pub fn arrange_with_response_fills(
+    score_json: &str,
+    accompaniment_json: &str,
+    response_json: &str,
+) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let accompaniment: acorde_core::SectionedAccordionOptions =
+        parse_json(accompaniment_json, "sectioned arrangement options", MAX_OPTIONS_JSON_BYTES)?;
+    let response: acorde_core::AccordionResponseOptions =
+        parse_json(response_json, "response fill options", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::arrange_with_response_fills(&score, accompaniment, response))
+        .map_err(|error| js_err(format!("response fill serialization failed: {error}")))
+}
+
+/// Append a chordal accompaniment part to any supported multi-part score.
+#[wasm_bindgen]
+pub fn arrange_chordal_pad(score_json: &str, options_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let options: acorde_core::ChordalPadOptions =
+        parse_json(options_json, "chordal pad options", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::arrange_chordal_pad(&score, options))
+        .map_err(|error| js_err(format!("chordal pad serialization failed: {error}")))
+}
+
+/// Append an independent bass line to an existing score.
+#[wasm_bindgen]
+pub fn arrange_bass_line(score_json: &str, options_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let options: acorde_core::BassLineOptions =
+        parse_json(options_json, "bass line options", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::arrange_bass_line(&score, options))
+        .map_err(|error| js_err(format!("bass line serialization failed: {error}")))
+}
+
+/// Unfold visits and choose inner-voice pitches in playback order.
+#[wasm_bindgen]
+pub fn arrange_inner_voices_performance(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::InnerVoicesRequest =
+        parse_json(request_json, "inner-voice performance request", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::arrange_inner_voices_performance(&score, request)
+        .map_err(|error| js_err(format!("inner-voice performance failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("inner-voice performance serialization failed: {error}")))
+}
+
+/// Rebuild visit-specific inner voices against the saved written source.
+#[wasm_bindgen]
+pub fn replay_inner_voices_performance(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedInnerVoicesPerformance =
+        parse_json(resolved_json, "resolved inner-voice performance", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::replay_inner_voices_performance(&score, &resolved)
+        .map_err(|error| js_err(format!("inner-voice performance replay failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("inner-voice performance replay serialization failed: {error}")))
+}
+
+/// Add two independently timed, chord-grounded inner voices.
+#[wasm_bindgen]
+pub fn arrange_inner_voices(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::InnerVoicesRequest =
+        parse_json(request_json, "inner voices request", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::arrange_inner_voices(&score, request)
+        .map_err(|error| js_err(format!("inner voices failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("inner voices serialization failed: {error}")))
+}
+
+/// Rebuild independently timed inner voices from a source-bound contract.
+#[wasm_bindgen]
+pub fn replay_inner_voices(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedInnerVoices =
+        parse_json(resolved_json, "resolved inner voices", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::replay_inner_voices(&score, &resolved)
+        .map_err(|error| js_err(format!("inner voices replay failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("inner voices replay serialization failed: {error}")))
+}
+
+/// Expand a chord into spelled tones with compound degrees, before voicing.
+#[wasm_bindgen]
+pub fn expand_harmony(chord_json: &str) -> Result<String, JsValue> {
+    let chord: acorde_core::ChordSymbol =
+        parse_json(chord_json, "harmony symbol", MAX_OPTIONS_JSON_BYTES)?;
+    let expanded = acorde_core::expand_harmony(&chord).map_err(js_err)?;
+    serde_json::to_string(&expanded).map_err(js_err)
+}
+
+/// Select ordered voices from interval-wide bass/melody context and transition edges.
+#[wasm_bindgen]
+pub fn plan_harmony_voicings(request_json: &str) -> Result<String, JsValue> {
+    let request: acorde_core::HarmonyVoicingRequest =
+        parse_json(request_json, "harmony voicing request", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::plan_harmony_voicings(&request).map_err(js_err)?;
+    serde_json::to_string(&result).map_err(js_err)
+}
+
+/// Derive bass and melody context from a score and append spelled harmony voices.
+#[wasm_bindgen]
+pub fn arrange_harmony_voicings(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::HarmonyArrangementRequest =
+        parse_json(request_json, "harmony arrangement request", MAX_CHORD_PLAN_JSON_BYTES)?;
+    let result = acorde_core::arrange_harmony_voicings(&score, &request).map_err(js_err)?;
+    serde_json::to_string(&result).map_err(js_err)
+}
+
+/// Replay a source-bound spelled harmony arrangement.
+#[wasm_bindgen]
+pub fn replay_harmony_arrangement(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedHarmonyArrangement =
+        parse_json(resolved_json, "resolved harmony arrangement", MAX_HARMONY_REPLAY_JSON_BYTES)?;
+    let result = acorde_core::replay_harmony_arrangement(&score, &resolved).map_err(js_err)?;
+    serde_json::to_string(&result).map_err(js_err)
+}
+
+/// Select distinct plain, colored and rhythmic harmony arrangements.
+#[wasm_bindgen]
+pub fn suggest_harmony_groove_arrangements(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::HarmonyGrooveRequest =
+        parse_json(request_json, "harmony groove request", MAX_CHORD_PLAN_JSON_BYTES)?;
+    let result = acorde_core::suggest_harmony_groove_arrangements(&score, &request).map_err(js_err)?;
+    serde_json::to_string(&result).map_err(js_err)
+}
+
+/// Reproduce a selected groove after revalidating the saved permissions.
+#[wasm_bindgen]
+pub fn replay_harmony_groove_arrangement(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedHarmonyGrooveArrangement =
+        parse_json(resolved_json, "resolved harmony groove", MAX_HARMONY_REPLAY_JSON_BYTES)?;
+    let result = acorde_core::replay_harmony_groove_arrangement(&score, &resolved).map_err(js_err)?;
+    serde_json::to_string(&result).map_err(js_err)
+}
+
+/// Generate source-bound applied dominants and destination-key progressions.
+#[wasm_bindgen]
+pub fn suggest_phrase_harmony_targets(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::PhraseHarmonyTargetRequest =
+        parse_json(request_json, "phrase harmony target request", MAX_CHORD_PLAN_JSON_BYTES)?;
+    let result = acorde_core::suggest_phrase_harmony_targets(&score, &request).map_err(js_err)?;
+    serde_json::to_string(&result).map_err(js_err)
+}
+
+/// Replay the selected target-key progression after checking the original permissions.
+#[wasm_bindgen]
+pub fn replay_phrase_harmony_target(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedPhraseHarmonyTarget =
+        parse_json(resolved_json, "resolved phrase harmony target", MAX_HARMONY_REPLAY_JSON_BYTES)?;
+    let result = acorde_core::replay_phrase_harmony_target(&score, &resolved).map_err(js_err)?;
+    serde_json::to_string(&result).map_err(js_err)
+}
+
+/// Generate an exact shared kick/bass rhythm with saved approach targets.
+#[wasm_bindgen]
+pub fn arrange_rhythm_section(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::RhythmSectionRequest = parse_json(request_json, "rhythm section request", MAX_CHORD_PLAN_JSON_BYTES)?;
+    let result = acorde_core::arrange_rhythm_section(&score, &request).map_err(js_err)?;
+    serde_json::to_string(&result).map_err(js_err)
+}
+/// Rebuild a source-bound shared rhythm after verifying its saved choices.
+#[wasm_bindgen]
+pub fn replay_rhythm_section(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedRhythmSection = parse_json(resolved_json, "resolved rhythm section", MAX_HARMONY_REPLAY_JSON_BYTES)?;
+    let result = acorde_core::replay_rhythm_section(&score, &resolved).map_err(js_err)?;
+    serde_json::to_string(&result).map_err(js_err)
+}
+
+/// Compose independently scheduled harmony, bass and countermelody parts.
+#[wasm_bindgen]
+pub fn arrange_ensemble_roles(score_json: &str, options_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let options: acorde_core::EnsembleRoleOptions =
+        parse_json(options_json, "ensemble role options", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::arrange_ensemble_roles(&score, options))
+        .map_err(|error| js_err(format!("ensemble role serialization failed: {error}")))
+}
+
+/// Coordinate section textures, role entrances, phrase endings and dynamics.
+#[wasm_bindgen]
+pub fn arrange_ensemble_form(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::EnsembleFormRequest =
+        parse_json(request_json, "ensemble form", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::arrange_ensemble_form(&score, &request))
+        .map_err(|error| js_err(format!("ensemble form serialization failed: {error}")))
+}
+
+/// Replay the saved form against its original source and generator version.
+#[wasm_bindgen]
+pub fn replay_ensemble_form(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedEnsembleForm =
+        parse_json(resolved_json, "resolved ensemble form", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::replay_ensemble_form(&score, &resolved))
+        .map_err(|error| js_err(format!("ensemble form serialization failed: {error}")))
+}
+
+/// Assign named instruments to selected parts after playback-order screening.
+#[wasm_bindgen]
+pub fn plan_instruments(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::InstrumentPlanRequest =
+        parse_json(request_json, "instrument plan", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::plan_instruments(&score, &request)
+        .map_err(|error| js_err(format!("instrument plan failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("instrument plan serialization failed: {error}")))
+}
+
+/// Recheck a saved instrument plan against its exact source score.
+#[wasm_bindgen]
+pub fn replay_instrument_plan(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedInstrumentPlan =
+        parse_json(resolved_json, "resolved instrument plan", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::replay_instrument_plan(&score, &resolved)
+        .map_err(|error| js_err(format!("instrument plan replay failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("instrument plan replay serialization failed: {error}")))
+}
+
+/// Unfold a sectioned inner-voice form for playback and export.
+#[wasm_bindgen]
+pub fn arrange_form_inner_voices_performance(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::FormInnerVoicesRequest =
+        parse_json(request_json, "inner-voice form performance request", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::arrange_form_inner_voices_performance(&score, &request)
+        .map_err(|error| js_err(format!("inner-voice form performance failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("inner-voice form performance serialization failed: {error}")))
+}
+
+/// Replay a sectioned performance score against its original source.
+#[wasm_bindgen]
+pub fn replay_form_inner_voices_performance(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedFormInnerVoicesPerformance =
+        parse_json(resolved_json, "resolved inner-voice form performance", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::replay_form_inner_voices_performance(&score, &resolved)
+        .map_err(|error| js_err(format!("inner-voice form performance replay failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("inner-voice form performance replay serialization failed: {error}")))
+}
+
+/// Replace the chordal pad with two sectioned inner voices.
+#[wasm_bindgen]
+pub fn arrange_form_inner_voices(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::FormInnerVoicesRequest =
+        parse_json(request_json, "inner-voice form request", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::arrange_form_inner_voices(&score, &request)
+        .map_err(|error| js_err(format!("inner-voice form failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("inner-voice form serialization failed: {error}")))
+}
+
+/// Replay a sectioned inner-voice form against its saved source.
+#[wasm_bindgen]
+pub fn replay_form_inner_voices(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedFormInnerVoices =
+        parse_json(resolved_json, "resolved inner-voice form", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::replay_form_inner_voices(&score, &resolved)
+        .map_err(|error| js_err(format!("inner-voice form replay failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("inner-voice form replay serialization failed: {error}")))
+}
+
+/// Coordinate a source-rhythm countermelody with every written form section.
+#[wasm_bindgen]
+pub fn arrange_ensemble_form_development(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::EnsembleFormDevelopmentRequest =
+        parse_json(request_json, "ensemble form development", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::arrange_ensemble_form_development(&score, &request)
+        .map_err(|error| js_err(format!("ensemble form development failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("ensemble form development serialization failed: {error}")))
+}
+
+/// Develop the form while bounding each adjacent countermelody phrase entry.
+#[wasm_bindgen]
+pub fn arrange_ensemble_form_development_with_phrase_joins(
+    score_json: &str,
+    request_json: &str,
+    max_leap_semitones: u8,
+) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::EnsembleFormDevelopmentRequest =
+        parse_json(request_json, "ensemble form development", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::arrange_ensemble_form_development_with_phrase_joins(
+        &score,
+        &request,
+        max_leap_semitones,
+    )
+    .map_err(|error| js_err(format!("ensemble form phrase join failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("ensemble form phrase join serialization failed: {error}")))
+}
+
+/// Replay a form with rhythmic countermelody from its source-bound contract.
+#[wasm_bindgen]
+pub fn replay_ensemble_form_development(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedEnsembleFormDevelopment =
+        parse_json(resolved_json, "resolved ensemble form development", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::replay_ensemble_form_development(&score, &resolved)
+        .map_err(|error| js_err(format!("ensemble form development replay failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("ensemble form development replay serialization failed: {error}")))
+}
+
+/// Suggest distinct whole-piece treatments with section-specific entrances and textures.
+#[wasm_bindgen]
+pub fn suggest_ensemble_form_proposals(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::EnsembleFormProposalRequest =
+        parse_json(request_json, "ensemble form proposal request", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::suggest_ensemble_form_proposals(&score, &request)
+        .map_err(|error| js_err(format!("ensemble form proposal failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("ensemble form proposal serialization failed: {error}")))
+}
+
+/// Rebuild a selected section-specific proposal from its source-bound contract.
+#[wasm_bindgen]
+pub fn replay_ensemble_form_proposal(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedFormProposal =
+        parse_json(resolved_json, "resolved ensemble form proposal", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::replay_ensemble_form_proposal(&score, &resolved)
+        .map_err(|error| js_err(format!("ensemble form proposal replay failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("ensemble form proposal replay serialization failed: {error}")))
+}
+
+/// Select complete form variants with distinct source-rhythm treatments.
+#[wasm_bindgen]
+pub fn suggest_developed_form_proposals(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::EnsembleFormProposalRequest =
+        parse_json(request_json, "developed form proposal request", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::suggest_developed_form_proposals(&score, &request)
+        .map_err(|error| js_err(format!("developed form proposal failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("developed form proposal serialization failed: {error}")))
+}
+
+/// Rebuild a selected form and countermelody treatment from its saved contract.
+#[wasm_bindgen]
+pub fn replay_developed_form_proposal(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedDevelopedFormProposal =
+        parse_json(resolved_json, "resolved developed form proposal", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::replay_developed_form_proposal(&score, &resolved)
+        .map_err(|error| js_err(format!("developed form proposal replay failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("developed form proposal replay serialization failed: {error}")))
+}
+
+/// Select sectioned arrangements across different locked chord plans.
+#[wasm_bindgen]
+pub fn suggest_cross_plan_forms(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::CrossPlanFormRequest =
+        parse_json(request_json, "cross-plan form request", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::suggest_cross_plan_forms(&score, &request)
+        .map_err(|error| js_err(format!("cross-plan form search failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("cross-plan form serialization failed: {error}")))
+}
+
+/// Recheck a selected chord plan and form against the exact source score.
+#[wasm_bindgen]
+pub fn replay_cross_plan_form(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedCrossPlanForm =
+        parse_json(resolved_json, "resolved cross-plan form", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::replay_cross_plan_form(&score, &resolved)
+        .map_err(|error| js_err(format!("cross-plan form replay failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("cross-plan form replay serialization failed: {error}")))
+}
+
+/// Realize a later repeat visit with a different generated ensemble texture.
+#[wasm_bindgen]
+pub fn arrange_ensemble_form_visits(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::EnsembleFormVisitsRequest =
+        parse_json(request_json, "ensemble form visits", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::arrange_ensemble_form_visits(&score, &request))
+        .map_err(|error| js_err(format!("ensemble form visits serialization failed: {error}")))
+}
+
+/// Replay visit-specific generated events from a saved source-bound contract.
+#[wasm_bindgen]
+pub fn replay_ensemble_form_visits(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedFormVisits =
+        parse_json(resolved_json, "resolved form visits", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::replay_ensemble_form_visits(&score, &resolved))
+        .map_err(|error| js_err(format!("ensemble form visits serialization failed: {error}")))
+}
+
+/// Export a repeat-unfolded score for visit-specific generated performance.
+#[wasm_bindgen]
+pub fn arrange_ensemble_form_visits_score(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::EnsembleFormVisitsRequest =
+        parse_json(request_json, "ensemble form visits score", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::arrange_ensemble_form_visits_score(&score, &request))
+        .map_err(|error| js_err(format!("ensemble form visits score serialization failed: {error}")))
+}
+
+/// Rebuild an unfolded performance score from its source-bound contract.
+#[wasm_bindgen]
+pub fn replay_ensemble_form_visits_score(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedFormVisits =
+        parse_json(resolved_json, "resolved form visits score", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::replay_ensemble_form_visits_score(&score, &resolved))
+        .map_err(|error| js_err(format!("ensemble form visits score serialization failed: {error}")))
+}
+
+/// Build a performance copy with independently scheduled source-melody rests.
+#[wasm_bindgen]
+pub fn arrange_ensemble_with_melody(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::EnsembleMelodyRequest =
+        parse_json(request_json, "ensemble melody request", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::arrange_ensemble_with_melody(&score, request))
+        .map_err(|error| js_err(format!("ensemble melody serialization failed: {error}")))
+}
+
+/// Append a motif-derived countermelody part beneath a selected source melody.
+#[wasm_bindgen]
+pub fn arrange_countermelody(score_json: &str, options_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let options: acorde_core::CountermelodyOptions =
+        parse_json(options_json, "countermelody options", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::arrange_countermelody(&score, options))
+        .map_err(|error| js_err(format!("countermelody serialization failed: {error}")))
+}
+
+/// Develop source motif rhythm and contour as imitation, inversion, answer or time scaling.
+#[wasm_bindgen]
+pub fn arrange_countermelody_development(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::CountermelodyDevelopmentRequest =
+        parse_json(request_json, "countermelody development request", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::arrange_countermelody_development(&score, &request)
+        .map_err(|error| js_err(format!("countermelody development failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("countermelody development serialization failed: {error}")))
+}
+
+/// Rebuild a developed countermelody against the saved source-bound contract.
+#[wasm_bindgen]
+pub fn replay_countermelody_development(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedCountermelodyDevelopment =
+        parse_json(resolved_json, "resolved countermelody development", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::replay_countermelody_development(&score, &resolved)
+        .map_err(|error| js_err(format!("countermelody development replay failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("countermelody development replay serialization failed: {error}")))
+}
+
+/// Move only explicitly permitted melody notes into preceding rests and develop a countermelody.
+#[wasm_bindgen]
+pub fn arrange_phrase_melody(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::PhraseMelodyRequest =
+        parse_json(request_json, "phrase melody request", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::arrange_phrase_melody(&score, &request)
+        .map_err(|error| js_err(format!("phrase melody failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("phrase melody serialization failed: {error}")))
+}
+
+/// Rebuild a phrase melody from its saved source-bound settings.
+#[wasm_bindgen]
+pub fn replay_phrase_melody(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedPhraseMelody =
+        parse_json(resolved_json, "resolved phrase melody", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::replay_phrase_melody(&score, &resolved)
+        .map_err(|error| js_err(format!("phrase melody replay failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("phrase melody replay serialization failed: {error}")))
+}
+
+/// Select bounded, source-bound arrangements across harmony, rhythm and melody techniques.
+#[wasm_bindgen]
+pub fn suggest_integrated_arrangements(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::IntegratedArrangementRequest =
+        parse_json(request_json, "integrated arrangement request", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::suggest_integrated_arrangements(&score, &request)
+        .map_err(|error| js_err(format!("integrated arrangement failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("integrated arrangement serialization failed: {error}")))
+}
+
+/// Replay one selected integrated arrangement with all source and budget checks.
+#[wasm_bindgen]
+pub fn replay_integrated_arrangement(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedIntegratedArrangement =
+        parse_json(resolved_json, "resolved integrated arrangement", MAX_HARMONY_REPLAY_JSON_BYTES)?;
+    let score = acorde_core::replay_integrated_arrangement(&score, &resolved)
+        .map_err(|error| js_err(format!("integrated arrangement replay failed: {error}")))?;
+    serde_json::to_string(&score)
+        .map_err(|error| js_err(format!("integrated arrangement replay serialization failed: {error}")))
+}
+
+/// Return a bounded set of distinct, replayable whole-score arrangements.
+#[wasm_bindgen]
+pub fn suggest_arrangement_proposals(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::ArrangementProposalRequest =
+        parse_json(request_json, "arrangement proposal request", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::suggest_arrangement_proposals(&score, &request))
+        .map_err(|error| js_err(format!("arrangement proposal serialization failed: {error}")))
+}
+
+/// Rebuild one selected proposal from its resolved, source-bound contract.
+#[wasm_bindgen]
+pub fn replay_arrangement_proposal(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedArrangementProposal =
+        parse_json(resolved_json, "resolved arrangement proposal", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::replay_arrangement_proposal(&score, &resolved))
+        .map_err(|error| js_err(format!("arrangement proposal replay serialization failed: {error}")))
+}
+
+/// Replace selected generated measures while preserving source and locks.
+#[wasm_bindgen]
+pub fn regenerate_arrangement_region(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::ArrangementRegionRequest =
+        parse_json(request_json, "arrangement region request", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::regenerate_arrangement_region(&score, request))
+        .map_err(|error| js_err(format!("arrangement region serialization failed: {error}")))
+}
+
+/// Generate accompaniment sections and revoice only their free-bass block chords.
+#[wasm_bindgen]
+pub fn arrange_sections_with_voice_leading(score_json: &str, sections_json: &str, voicing_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let sections: acorde_core::SectionedAccordionOptions =
+        parse_json(sections_json, "sectioned arrangement options", MAX_OPTIONS_JSON_BYTES)?;
+    let voicing: acorde_core::AccordionVoicingOptions =
+        parse_json(voicing_json, "accompaniment voicing options", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::arrange_sections_with_voice_leading(&score, sections, voicing))
+        .map_err(|error| js_err(format!("voice-led sectioned arrangement serialization failed: {error}")))
+}
+
+/// Revoice free-bass block chords while preserving harmony, melody and rhythm.
+#[wasm_bindgen]
+pub fn arrange_with_voice_leading(score_json: &str, layers_json: &str, voicing_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let layers: acorde_core::LayeredAccordionOptions =
+        parse_json(layers_json, "layered arrangement options", MAX_OPTIONS_JSON_BYTES)?;
+    let voicing: acorde_core::AccordionVoicingOptions =
+        parse_json(voicing_json, "accompaniment voicing options", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::arrange_with_voice_leading(&score, layers, voicing))
+        .map_err(|error| js_err(format!("voice-led arrangement serialization failed: {error}")))
+}
+
 /// Sustain an explicitly selected bass note, with optional chord-based melodic layers.
 #[wasm_bindgen]
 pub fn arrange_with_drone(score_json: &str, options_json: &str) -> Result<String, JsValue> {
@@ -2144,6 +2771,39 @@ pub fn suggest_chord_plans(score_json: &str, request_json: &str) -> Result<Strin
         parse_json(request_json, "chord proposal", MAX_CHORD_PLAN_JSON_BYTES)?;
     serde_json::to_string(&acorde_core::suggest_chord_plans(&score, &request))
         .map_err(|error| js_err(format!("chord proposals serialization failed: {error}")))
+}
+
+/// Reharmonize while retaining selected zero-based source-plan entry indices.
+#[wasm_bindgen]
+pub fn suggest_chord_plans_at_positions(score_json: &str, request_json: &str, positions_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::ChordProposalRequest =
+        parse_json(request_json, "chord proposal", MAX_CHORD_PLAN_JSON_BYTES)?;
+    let positions: Vec<acorde_core::ChordPlanPosition> =
+        parse_json(positions_json, "harmonic positions", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::suggest_chord_plans_at_positions(&score, &request, &positions))
+        .map_err(|error| js_err(format!("positioned chord proposals serialization failed: {error}")))
+}
+
+/// Reharmonize while retaining selected zero-based source-plan entry indices.
+#[wasm_bindgen]
+pub fn suggest_chord_plans_with_locks(score_json: &str, request_json: &str, locks_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::ChordProposalRequest =
+        parse_json(request_json, "chord proposal", MAX_CHORD_PLAN_JSON_BYTES)?;
+    let locks: Vec<usize> = parse_json(locks_json, "chord locks", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::suggest_chord_plans_with_locks(&score, &request, &locks))
+        .map_err(|error| js_err(format!("locked chord proposals serialization failed: {error}")))
+}
+
+/// Build harmonic-change positions from caller-authored phrase pacing.
+#[wasm_bindgen]
+pub fn suggest_phrase_harmony(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::PhraseHarmonyRequest =
+        parse_json(request_json, "phrase harmony request", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::suggest_phrase_harmony(&score, &request))
+        .map_err(|error| js_err(format!("phrase harmony serialization failed: {error}")))
 }
 
 /// Assess each proposed harmony against the strict built-in preset engine.

@@ -149,7 +149,7 @@ jobs:
             --out-dir ../../target/wasm-profiles/viewer \
             --no-default-features --features viewer
           declarations=target/wasm-profiles/viewer/acorde_wasm.d.ts
-          for binding in parse_abc parse_mscz compute_beams detect_chord extract_chord_plan suggest_chord_plans assess_chord_presets arrange_from_chord_proposal arrange_accordion_plan arrange_from_resolved_plan shuffle_accordion_plan arrange_with_drone standard_bass_chord_candidates located_standard_bass_candidates arrange_standard_bass_located arrange_standard_bass_located_screened arrange_standard_bass_located_selected_screened find_located_standard_bass_path profile_chord_plan arrange_standard_bass_with_annotations arrange_standard_bass arrange_standard_bass_with_pitch_selection arrange_standard_bass_screened arrange_standard_bass_find_buttons arrange_standard_bass_find_voicings arrange_profiled_bass_pulse arrange_profiled_accompaniment profiled_accompaniment_capabilities render_score_svg render_print_page_svgs to_playback_events_ex serialize_mscz arrange_standard_bass_transposed evaluate_standard_bass_transpositions arrange_standard_bass_proposed_harmony arrange_standard_bass_with_phrases standard_bass_double_chord_candidates; do
+          for binding in arrange_rhythm_section replay_rhythm_section suggest_phrase_harmony_targets replay_phrase_harmony_target expand_harmony plan_harmony_voicings parse_abc parse_mscz compute_beams detect_chord extract_chord_plan suggest_chord_plans assess_chord_presets arrange_from_chord_proposal arrange_accordion_plan arrange_from_resolved_plan shuffle_accordion_plan arrange_with_drone standard_bass_chord_candidates located_standard_bass_candidates arrange_standard_bass_located arrange_standard_bass_located_screened arrange_standard_bass_located_selected_screened find_located_standard_bass_path profile_chord_plan arrange_standard_bass_with_annotations arrange_standard_bass arrange_standard_bass_with_pitch_selection arrange_standard_bass_screened arrange_standard_bass_find_buttons arrange_standard_bass_find_voicings arrange_profiled_bass_pulse arrange_profiled_accompaniment profiled_accompaniment_capabilities render_score_svg render_print_page_svgs to_playback_events_ex serialize_mscz arrange_standard_bass_transposed evaluate_standard_bass_transpositions arrange_standard_bass_proposed_harmony arrange_standard_bass_with_phrases standard_bass_double_chord_candidates suggest_chord_plans_at_positions suggest_chord_plans_with_locks suggest_phrase_harmony arrange_chordal_pad arrange_bass_line arrange_ensemble_form replay_ensemble_form arrange_ensemble_form_visits replay_ensemble_form_visits arrange_ensemble_form_visits_score replay_ensemble_form_visits_score arrange_with_voice_leading arrange_with_sections arrange_sections_with_dynamics arrange_sections_with_melodic_voices arrange_with_response_fills arrange_sections_with_voice_leading; do
             grep -q "^export function $binding(" "$declarations"
           done
           if grep -q '^export function parse_musicxml(' "$declarations"; then
@@ -291,7 +291,37 @@ jobs:
           # measured 7,130,353 bytes, +35,427 over the same-base #433 build.
           # The prior Linux #433 artifact was 7,169,359 bytes; this gate leaves
           # about 15 KB above its size plus the measured feature delta.
-          test "$size" -le 7220000
+          # Arrangement integration (PR #442) measured 8,046,523 bytes versus
+          # 7,198,793 at b12bf625: +847,730 bytes. Both are Linux CI builds
+          # with Rust 1.100.0, wasm-pack 0.15.0 and the same -Oz optimization.
+          # Keep approximately 23 KB headroom; receipts are in
+          # docs/harmony-groove-baseline.json.
+          # Spelled harmony expansion (PR #443) measured 8,085,336 bytes
+          # versus the current integration's 8,049,482 (+35,854), using
+          # the same Linux/Rust/wasm-pack/-Oz configuration. Keep 24.7 KB
+          # headroom; expansion_wasm_size in the baseline records both jobs.
+          # Score-connected voicing (PR #444) measured 8,170,504 bytes,
+          # +85,168 over stage 1 under the same Linux build conditions.
+          # Keep 29.5 KB headroom; voicing_wasm_size records the matched jobs.
+          # Anticipated comping and harmony/groove proposals (PR #445) measured
+          # 8,383,186 bytes, +212,682 over stage 2 under the same Linux/Rust
+          # 1.100/wasm-pack 0.15/-Oz conditions. Keep 36.8 KB headroom;
+          # groove_wasm_size records full/viewer and compressed measurements.
+          # Explicit harmony targets (PR #446) add 71,820 bytes over stage 3,
+          # measured on Linux with the same Rust 1.100.0 / wasm-pack 0.15 / -Oz.
+          # Full 8,455,010; keep 34,990 bytes. Matched receipts and all profiles
+          # are recorded in docs/harmony-targets-wasm-size.json.
+          # Shared kick/bass rhythms and explicit MSCX drum maps (PR #447)
+          # measure 8,564,264 bytes, +109,254 over stage 4 on matched Linux
+          # Rust 1.100.0 / wasm-pack 0.15 / -Oz builds. Keep 35,736 bytes;
+          # docs/rhythm-section-wasm-size.json records all three profiles.
+          # Stage 7 observed role and six-axis proposal distances (PR #449)
+          # measured 8,704,678 bytes on Linux/Rust 1.100/wasm-pack 0.15/-Oz,
+          # 61,126 above the preceding 8,643,552-byte balanced-selection build.
+          # The old 8,690,000-byte gate failed by 14,678 bytes. Set a measured
+          # 8,740,000-byte gate with 35,322 bytes of headroom; receipt in
+          # docs/arrangement-stage7-wasm-size.json.
+          test "$size" -le 8740000
 
   renderer-benchmark:
     name: Renderer performance budget
@@ -304,11 +334,23 @@ jobs:
         run: cargo run --release -p acorde-render-svg --example benchmark
 
   wasm-browser:
-    name: WASM browser contract
+    name: WASM browser contract (${{ matrix.profile }})
     runs-on: ubuntu-latest
-    # Each integration-test file costs about 16 s of browser start-up. The full run took
-    # 4 m 40 s, close to its step limit, before the transposition tests were added.
-    timeout-minutes: 15
+    # Run 43984805684 passed 24 binaries before the old 8-minute full-profile cap.
+    # Browser startup costs ~16 s per binary. Stage 6's full profile reached
+    # standard_bass_transition with passing tests at the old 20-minute command
+    # cap (run 44079917318, attempt 1); allow compilation plus the full suite.
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - profile: full
+            feature_args: ''
+          - profile: viewer
+            feature_args: '--no-default-features --features viewer'
+          - profile: playback-only
+            feature_args: '--no-default-features --features playback-only'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
@@ -319,11 +361,7 @@ jobs:
       - name: Install wasm-pack
         run: cargo install wasm-pack --version 0.15.0 --locked
       - name: wasm browser tests
-        run: timeout 8m wasm-pack test --headless --chrome crates/wasm
-      - name: Viewer browser tests
-        run: timeout 6m wasm-pack test --headless --chrome crates/wasm --no-default-features --features viewer
-      - name: Playback-only browser tests
-        run: timeout 5m wasm-pack test --headless --chrome crates/wasm --no-default-features --features playback-only
+        run: timeout 30m wasm-pack test --headless --chrome crates/wasm ${{ matrix.feature_args }}
 
   browser-matrix:
     name: Browser smoke (${{ matrix.browser }})

@@ -1,0 +1,222 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-17",
+  "stage": 0,
+  "state": "local-validation-passed-ci-pending",
+  "main_base": "b12bf625",
+  "development_base": "c6a47d4e62b23738f1f9549e40714b36be8e98c8",
+  "build_environment": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_BUILD_JOBS": "2",
+    "rustc": "1.97.0 (2d8144b78 2026-07-07)"
+  },
+  "checks": {
+    "tests": {
+      "log_sha256": "4cadfb340f05c10b006029153fbb18242bc595e7b87ac6cc532588bf514b87bc",
+      "passed_tests": 2528
+    },
+    "clippy": {
+      "log_sha256": "503d70d9fa512223b24d9ea0f5ecc17dc7ff01867e47ba3c352cda8f6e1938f0",
+      "passed_tests": 0
+    },
+    "full-wasm": {
+      "log_sha256": "acb654e331059a6bcebef50ef7e49b58e327250c5826066451565316ddad4e87",
+      "passed_tests": 107
+    },
+    "viewer-wasm": {
+      "log_sha256": "84a850bf2fc5e47ade96a5919c7bd22e38f3f7272435e511d0a5cdb57053b714",
+      "passed_tests": 104
+    }
+  },
+  "baseline_packs": {
+    "sources": {
+      "count": 12,
+      "comparison": "exact manifest match",
+      "pinned_manifest": "tests/fixtures/arrangement/development-v2-manifest.json",
+      "sha256": "0321a4be33aec3ffb32099316096ca21fdfa6ebb1effb44d3d4725ec71eaa521"
+    },
+    "proposals": {
+      "count": 36,
+      "comparison": "exact manifest match",
+      "pinned_manifest": "tests/fixtures/arrangement/development-v2-proposals-manifest.json",
+      "sha256": "f62ccedab0d117c89e84c1a25f31e043688c4935a3e81a138fd085927cf5480b"
+    },
+    "forms": {
+      "baseline_engine_version": "1.3.12+ensemble-form.1",
+      "baseline_manifest_sha256": "beab90959fbf8c2d834cdd8115eb579ab2c00cee5066292ef4a4919521849f27",
+      "candidates": 60,
+      "current_engine_version": "1.3.13+ensemble-form.1",
+      "generated_manifest_sha256": "d39e5ba01c9eeab6381370c8f6a0cd85895b5adf31829466dd727220621281bc",
+      "musicxml_and_wav": "exact-sha256-match",
+      "resolved_comparison": "only-form.engine_version-normalized",
+      "schema_version": 1
+    }
+  },
+  "audio": {
+    "sample_rate_hz": 22050,
+    "channels": 1,
+    "release_tail_millis": 500,
+    "program": 0,
+    "normalization": "none",
+    "renderer": "acorde-rustysynth-sf2-v1",
+    "soundfont_sha256": "cf2a98eb38a32c4954b4b6e2caae4112d62dd8e892eceefdd7942b0e7d01ac2f"
+  },
+  "remaining": [
+    "hosted macOS/Linux/Windows CI",
+    "new harmony-groove generation and listening comparison"
+  ],
+  "wasm_size": {
+    "platform": "Linux GitHub Actions ubuntu-latest",
+    "rustc": "1.100.0 (0ef1bc386 2026-11-09)",
+    "wasm_pack": "0.15.0",
+    "optimization": "release, wasm-opt -Oz",
+    "base_commit": "b12bf6252743323d50ad52abf9813879e900c8b5",
+    "base_job": "https://github.com/kent-tokyo/acorde/actions/runs/43710125411/job/132799659856",
+    "base_bytes": 7198793,
+    "integration_commit": "00cbaf56",
+    "integration_job": "https://github.com/kent-tokyo/acorde/actions/runs/43980019596/job/133693770454",
+    "integration_bytes": 8046523,
+    "increase_bytes": 847730,
+    "budget_bytes": 8070000,
+    "headroom_bytes": 23477
+  },
+  "ci_repairs": [
+    "MEI-only round-trip test gated on mei",
+    "range loops use iterators for Rust 1.100 Clippy",
+    "test request initialized in one expression",
+    "measured WASM budget recorded above"
+  ],
+  "ci_compatible_local_validation": {
+    "rustc": "1.100.0",
+    "clippy_command": "cargo +1.100.0 clippy --all-features --all-targets --keep-going --locked --offline -- -D warnings",
+    "clippy_log_sha256": "df08ea606a46499e24eb0f3805c8f930ddb6de655d0cbdd45d74d3bcd67cc3c4",
+    "focused_tests": [
+      "core:ensemble_melody",
+      "io:arrangement_melody_handoff",
+      "wasm:ensemble_roles (native)"
+    ],
+    "focused_tests_log_sha256": "5a868265d587bcc3c6882c798798bba1b32d007f923bb4995487a0c3e0ae2cd6"
+  },
+  "windows_fixture_checkout": {
+    "failure_job": "https://github.com/kent-tokyo/acorde/actions/runs/43983638187/job/133706117485",
+    "lf_corpus_sha256": "6755ff347c7d7565c691954e2742b5f523f2da15bcc8eeda55c677145ac2ab1f",
+    "crlf_corpus_sha256": "22d5e62b5b74ebc8be748d0cd1d99b30446788363a7ab3291aed9db6a088e39c",
+    "repair": "tests/fixtures/arrangement/.gitattributes forces *.json text eol=lf",
+    "local_checkout_probe": "git -c core.autocrlf=true checkout-index --prefix=<empty-directory>/ -- <all pinned JSON paths>",
+    "matching_json_files": 8,
+    "windows_ci": "rerun-required"
+  },
+  "expansion_wasm_size": {
+    "platform": "Linux GitHub Actions ubuntu-latest",
+    "rustc": "1.100.0 (0ef1bc386 2026-11-09)",
+    "wasm_pack": "0.15.0",
+    "optimization": "release, wasm-opt -Oz",
+    "integration_commit": "7b7ffbc4",
+    "integration_job": "https://github.com/kent-tokyo/acorde/actions/runs/43986850571/job/133717096993",
+    "integration_bytes": 8049482,
+    "expansion_commit": "689c2b38",
+    "expansion_job": "https://github.com/kent-tokyo/acorde/actions/runs/43987397646/job/133718986323",
+    "expansion_bytes": 8085336,
+    "increase_bytes": 35854,
+    "budget_bytes": 8110000,
+    "headroom_bytes": 24664
+  },
+  "voicing_wasm_size": {
+    "platform": "Linux GitHub Actions ubuntu-latest",
+    "rustc": "1.100.0 (0ef1bc386 2026-11-09)",
+    "wasm_pack": "0.15.0",
+    "optimization": "release, wasm-opt -Oz",
+    "base_commit": "844e92577596a77a6a564a654398cf6d1b85df28",
+    "base_job": "https://github.com/kent-tokyo/acorde/actions/runs/43988946134/job/133724265399",
+    "base_bytes": 8085336,
+    "voicing_commit": "feeecd5cd406256e5a154de0d6b63feefc907a7e",
+    "voicing_job": "https://github.com/kent-tokyo/acorde/actions/runs/43989378572/job/133725757124",
+    "voicing_bytes": 8170504,
+    "increase_bytes": 85168,
+    "budget_bytes": 8200000,
+    "headroom_bytes": 29496
+  },
+  "groove_wasm_size": {
+    "platform": "Linux GitHub Actions ubuntu-latest",
+    "rustc": "1.100.0 (0ef1bc386 2026-11-09)",
+    "wasm_pack": "0.15.0",
+    "optimization": "release, wasm-opt -Oz",
+    "base_commit": "feeecd5cd406256e5a154de0d6b63feefc907a7e",
+    "base_job": "https://github.com/kent-tokyo/acorde/actions/runs/43989378572/job/133725757124",
+    "groove_commit": "ff5e1c959c99211dd7e25397365a1e71334e8ce7",
+    "groove_job": "https://github.com/kent-tokyo/acorde/actions/runs/43999010994/job/133758108782",
+    "base_profiles": {
+      "full": {
+        "raw": 8170504,
+        "gzip": 2782394,
+        "brotli": 1861663
+      },
+      "viewer": {
+        "raw": 7109722,
+        "gzip": 2387388,
+        "brotli": 1585752
+      },
+      "playback-only": {
+        "raw": 1119051,
+        "gzip": 430105,
+        "brotli": 327172
+      }
+    },
+    "groove_profiles": {
+      "full": {
+        "raw": 8383190,
+        "gzip": 2849759,
+        "brotli": 1903531
+      },
+      "viewer": {
+        "raw": 7353131,
+        "gzip": 2468283,
+        "brotli": 1636047
+      },
+      "playback-only": {
+        "raw": 1118982,
+        "gzip": 430008,
+        "brotli": 327272
+      }
+    },
+    "raw_increase_bytes": {
+      "full": 212686,
+      "viewer": 243409,
+      "playback-only": -69
+    },
+    "budget_bytes": 8420000,
+    "headroom_bytes": 36810,
+    "log_sha256": "cd80d78c0bf53a1ff4f578fb81db59e9f0ecee2c203c78fc74478293cadd8ee4",
+    "final_recheck": "passed at ff5e1c95 after the WASM provenance JSON-bound fix",
+    "initial_measurement": {
+      "groove_commit": "f99e2003041eed2d525b29402f544ee23b102756",
+      "groove_job": "https://github.com/kent-tokyo/acorde/actions/runs/43996272514/job/133748990912",
+      "groove_profiles": {
+        "full": {
+          "raw": 8383186,
+          "gzip": 2849755,
+          "brotli": 1903364
+        },
+        "viewer": {
+          "raw": 7353127,
+          "gzip": 2468266,
+          "brotli": 1636666
+        },
+        "playback-only": {
+          "raw": 1118982,
+          "gzip": 430008,
+          "brotli": 327272
+        }
+      },
+      "raw_increase_bytes": {
+        "full": 212682,
+        "viewer": 243405,
+        "playback-only": -69
+      },
+      "headroom_bytes": 36814,
+      "log_sha256": "21b519a0024be8f83b0c755c2412cb967445baf0e6eaec92fe35a95c4888fc42"
+    }
+  }
+}

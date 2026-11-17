@@ -25,6 +25,16 @@ pub fn render_offline_wav(
     manifest: &OfflineRenderManifest,
     soundfont_bytes: &[u8],
 ) -> Result<Vec<u8>, Error> {
+    let (mix, _) = render_offline_pcm(manifest, soundfont_bytes, None)?;
+    encode_wav(&mix, manifest.sample_rate_hz, manifest.channels)
+}
+
+/// Optional split keeps a designated kick part outside accompaniment effects.
+pub(crate) fn render_offline_pcm(
+    manifest: &OfflineRenderManifest,
+    soundfont_bytes: &[u8],
+    split_part: Option<usize>,
+) -> Result<(Vec<f32>, Option<Vec<f32>>), Error> {
     manifest.validate().map_err(|_| Error::InvalidEvent)?;
     if manifest.format != OfflineRenderFormat::Wav {
         return Err(Error::UnsupportedOfflineFeature("audio format"));
@@ -66,6 +76,7 @@ pub fn render_offline_wav(
         return Err(Error::UnsupportedOfflineFeature("SF3 sample decoding"));
     }
     let mut mix = vec![0.0_f32; frame_count * channels];
+    let mut split_mix = split_part.map(|_| vec![0.0_f32; frame_count * channels]);
     let mut decoded = BTreeMap::<(u64, u32, u32, u8), DecodedSampleRegion>::new();
     let mut voice_id = 1_u64;
     for frame_event in &manifest.frame_events {
@@ -160,6 +171,11 @@ pub fn render_offline_wav(
             if available_frames < render_frames {
                 return Err(Error::InvalidEvent);
             }
+            let output_mix = if split_part == Some(event.part_index) {
+                split_mix.as_mut().ok_or(Error::InvalidConfig)?
+            } else {
+                &mut mix
+            };
             for local in 0..render_frames {
                 let output = (start + local) * channels;
                 let source = local * source_channels;
@@ -170,19 +186,19 @@ pub fn render_offline_wav(
                     } else {
                         (f32::from(rendered[source]) + f32::from(rendered[source + 1])) * 0.5
                     };
-                    mix[output] += value * envelope;
+                    output_mix[output] += value * envelope;
                 } else if source_channels == 1 {
                     let value = f32::from(rendered[source]);
-                    mix[output] += value * envelope;
-                    mix[output + 1] += value * envelope;
+                    output_mix[output] += value * envelope;
+                    output_mix[output + 1] += value * envelope;
                 } else {
-                    mix[output] += f32::from(rendered[source]) * envelope;
-                    mix[output + 1] += f32::from(rendered[source + 1]) * envelope;
+                    output_mix[output] += f32::from(rendered[source]) * envelope;
+                    output_mix[output + 1] += f32::from(rendered[source + 1]) * envelope;
                 }
             }
         }
     }
-    encode_wav(&mix, manifest.sample_rate_hz, manifest.channels)
+    Ok((mix, split_mix))
 }
 
 fn release_gain(frame: usize, release_start: usize, release_frames: usize) -> f32 {
@@ -235,7 +251,7 @@ pub(super) fn pedal_intervals(
     Ok(intervals)
 }
 
-fn encode_wav(mix: &[f32], sample_rate_hz: u32, channels: u8) -> Result<Vec<u8>, Error> {
+pub(crate) fn encode_wav(mix: &[f32], sample_rate_hz: u32, channels: u8) -> Result<Vec<u8>, Error> {
     let data_bytes = mix
         .len()
         .checked_mul(2)

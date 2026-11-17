@@ -40,6 +40,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
+ "sha2",
  "tokio",
 ]
 
@@ -122,6 +123,8 @@ dependencies = [
  "lewton",
  "rustysynth",
  "serde",
+ "serde_json",
+ "sha2",
  "thiserror",
 ]
 

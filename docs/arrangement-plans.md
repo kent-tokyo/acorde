@@ -1,5 +1,8 @@
 # Arrangement plans over written measures
 
+For planned harmony, voicing, groove and sound extensions, see the
+[implementation plan](arrangement-harmony-groove-plan.md) (Japanese; planned work).
+
 `arrange_accordion_plan` (Rust and full/viewer WASM) applies existing accompaniment
 and added melodic voices to explicit sections of one monophonic melody. It returns
 one `Score` for rendering, playback and export. The source is never sliced:

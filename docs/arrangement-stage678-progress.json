@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "plan": "arrangement-harmony-groove-plan.md",
+  "base_commit": "b4ac215b63c0c09a1a70038285f81a97da05f69b",
+  "stages": {
+    "6": {
+      "status": "complete",
+      "implemented": [
+        "explicitly permitted within-measure melody anticipation with unchanged pitch and note end",
+        "per-measure countermelody activity and phrase-entry leap limit",
+        "source note IDs and generated countermelody note origins",
+        "source-bound deterministic replay and typed rejection",
+        "MusicXML and MSCZ event round trips"
+      ],
+      "verified": [
+        "cargo test -p acorde-core --test phrase_melody --offline --locked",
+        "cargo test -p acorde-core --test countermelody_development --offline --locked",
+        "cargo test -p acorde-io --test phrase_melody --all-features --offline --locked",
+        "cargo test -p acorde-wasm --test phrase_melody --offline --locked",
+        "CARGO_INCREMENTAL=0 CARGO_PROFILE_TEST_DEBUG=0 cargo test --all --locked --offline",
+        "fixed four-bar phrase melody release timing and same-host matched legacy comparison in arrangement-stage678-performance.json",
+        "cargo clippy -p acorde-core -p acorde-io -p acorde-wasm --all-features --all-targets --offline --locked -- -D warnings",
+        "cargo fmt --all -- --check",
+        "PR #448: macOS, Linux, Windows, full/viewer Chrome WASM and other functional checks passed at bd525ac1",
+        "PR #448: complete CI passed at 9c8d059a, including macOS/Linux/Windows, full/viewer Chrome, and 8,596,329-byte full WASM size",
+        "Matched optimized full/viewer/playback-only WASM sizes and the 19/19 CI result are recorded in arrangement-stage678-wasm-size.json",
+        "User accepted the fixed 8/16-bar listening comparisons with 問題なし on 2026-11-17; case IDs and scope are in the pinned manifest"
+      ],
+      "environment_notes": [
+        "Default debug workspace/WASM test builds exceeded available disk space; the complete native suite passed with incremental compilation disabled and test debug information omitted.",
+        "Local wasm-pack Chrome execution stopped before tests because the cached wasm-bindgen CLI is 0.2.125, the crate needs 0.2.130, wasm-pack installation was denied by sandbox permissions, and offline cargo install lacked native-tls. Hosted full/viewer browser CI passed.",
+        "An earlier PR #448 dependency advisory job failed on transitive chrono advisory RUSTSEC-2026-0543. A narrow dated exception was added and the latest advisory job passed; stage 6 code did not introduce the dependency."
+      ],
+      "pending": []
+    },
+    "7": {
+      "status": "complete",
+      "implemented": [
+        "composed stage 4 harmony, stage 5 rhythm, and stage 6 melody candidate selection",
+        "per-technique budgets, shared locked measures, editable range, bounded search",
+        "3 to 5 distinct playback proposals with difference codes and source-bound replay",
+        "typed distinction between insufficient distinct outcomes and exhausted search",
+        "prefer an isolated harmony comparison when bounded search finds one",
+        "Observed playback role differences and six-axis distances for each proposal, distinct from requested technique codes"
+      ],
+      "verified": [
+        "CARGO_INCREMENTAL=0 CARGO_PROFILE_TEST_DEBUG=0 cargo test -p acorde-core --test integrated_arrangement_proposals --offline --locked",
+        "CARGO_INCREMENTAL=0 CARGO_PROFILE_TEST_DEBUG=0 cargo test -p acorde-io --all-features --test integrated_arrangement_proposals --offline --locked",
+        "CARGO_INCREMENTAL=0 CARGO_PROFILE_TEST_DEBUG=0 cargo test -p acorde-wasm --test integrated_arrangement_proposals --offline --locked",
+        "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 cargo clippy -p acorde-core -p acorde-io -p acorde-wasm --all-features --all-targets --offline --locked -- -D warnings",
+        "8 and 16 measure three-proposal structural generation",
+        "8 and 16 measure score generation; 4 measure replay, MusicXML/MSCZ and native WASM local parity tests",
+        "Earlier PR #449 artifact measured full WASM 8,643,030 bytes; the latest balanced-selection artifact and matched comparison are in arrangement-stage678-wasm-size.json",
+        "8/16-bar fixed inputs each return reference, harmony-only, and rhythm-plus-melody proposals after 12 bounded realizations",
+        "clean b1d3c64b pack pins native playback and resolved-choice receipts for full/viewer WASM comparison",
+        "fixed 8/16-bar native release timing with 12 realizations per case in arrangement-stage678-performance.json",
+        "cargo +1.100.0 test -p acorde-core --test integrated_listening --test integrated_arrangement_proposals --locked --offline",
+        "PR #449 at 56239567: 19/19 CI jobs passed, including macOS/Linux/Windows, full/viewer Chrome native parity, and the 8,643,552-byte full WASM budget check",
+        "Matched stage 6 to stage 7 raw WASM increase is 47,223 bytes; all profiles are recorded in arrangement-stage678-wasm-size.json",
+        "User accepted the fixed 8/16-bar listening comparisons with 問題なし on 2026-11-17; case IDs and scope are in the pinned manifest",
+        "PR #449 at 332daad4: 19/19 CI jobs passed across macOS/Linux/Windows and full/viewer Chrome; full WASM 8704678 bytes under the measured 8740000-byte gate",
+        "Observed playback-role and six-axis distances match the pinned native pack and the user accepted the fixed 8/16-bar comparisons"
+      ],
+      "pending": [],
+      "environment_notes": [
+        "The initial observed-metrics build e4d63342 exceeded the old 8690000-byte full WASM gate by 14678 bytes. A measured 8740000-byte gate retained 35322 bytes of headroom and passed at 332daad4."
+      ]
+    },
+    "8": {
+      "status": "complete",
+      "implemented": [
+        "GM Electric Piano 2 preset routing with an original FM-waveform SF2 sample",
+        "independently enabled detune, reverb, and explicit kick-frame sidechain volume control",
+        "separate score-independent settings and SF2/manifest/WAV SHA-256 identities",
+        "disabled-effects byte identity and clipping/cutoff reporting"
+      ],
+      "verified": [
+        "CARGO_INCREMENTAL=0 CARGO_PROFILE_TEST_DEBUG=0 cargo test -p acorde-soundfont --all-features --offline --locked",
+        "previous rhythm-audition.sf2 reproduction hash matches the committed fixture",
+        "six mixed examples reported no clipping and no tail cutoff",
+        "CARGO_INCREMENTAL=0 CARGO_PROFILE_TEST_DEBUG=0 cargo test --workspace --all-features --locked --offline",
+        "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 cargo clippy --workspace --all-features --all-targets --locked --offline -- -D warnings",
+        "clean b1d3c64b produced updated manifest and native replay receipt with isolated harmony alternatives",
+        "two clean b1d3c64b pack generations matched every dry, mixed, and peak-matched WAV hash; the six mixed renders report no clipping or cutoff",
+        "fixed 8/16-bar full-SF2 dry/mix release timing matches the updated listening manifest",
+        "PR #450 at d82c709e: 19/19 CI jobs passed, including macOS/Linux/Windows, full/viewer Chrome native parity, and the 8,643,552-byte full WASM budget check",
+        "Matched stage 7 to stage 8 raw WASM size increase is zero bytes for full/viewer/playback-only profiles; compressed sizes are recorded separately in arrangement-stage678-wasm-size.json",
+        "User accepted the fixed 8/16-bar listening comparisons with 問題なし on 2026-11-17; case IDs and scope are in the pinned manifest",
+        "PR #450 at b0a52215: 19/19 CI jobs passed across macOS/Linux/Windows and full/viewer Chrome, including the eight/sixteen-bar native event, choice, observed-role, and six-axis parity test",
+        "Full WASM 8704678 bytes under the measured 8740000-byte gate; full/viewer/playback-only sizes are recorded in arrangement-stage678-wasm-size.json",
+        "The accepted listening pack retains byte-identical WAVs to the previously presented updated pack (26 files)"
+      ],
+      "pending": []
+    }
+  }
+}
