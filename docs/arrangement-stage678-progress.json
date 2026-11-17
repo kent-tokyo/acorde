@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "plan": "arrangement-harmony-groove-plan.md",
+  "base_commit": "b4ac215b63c0c09a1a70038285f81a97da05f69b",
+  "stages": {
+    "6": {
+      "status": "in_progress",
+      "implemented": [
+        "explicitly permitted within-measure melody anticipation with unchanged pitch and note end",
+        "per-measure countermelody activity and phrase-entry leap limit",
+        "source note IDs and generated countermelody note origins",
+        "source-bound deterministic replay and typed rejection",
+        "MusicXML and MSCZ event round trips"
+      ],
+      "verified": [
+        "cargo test -p acorde-core --test phrase_melody --offline --locked",
+        "cargo test -p acorde-core --test countermelody_development --offline --locked",
+        "cargo test -p acorde-io --test phrase_melody --all-features --offline --locked",
+        "cargo test -p acorde-wasm --test phrase_melody --offline --locked"
+      ],
+      "pending": [
+        "8 and 16 measure listening comparisons",
+        "full and viewer Chrome WASM parity",
+        "full workspace tests and clippy",
+        "three OS CI and matched WASM size/performance measurements"
+      ]
+    },
+    "7": { "status": "pending", "pending": ["technique budgets and editable range in candidate selection", "3 to 5 distinct replayable local proposals", "full validation and audition"] },
+    "8": { "status": "pending", "pending": ["reproducible electric-piano preset routing", "independent detune, reverb, and kick-keyed sidechain", "disabled-effects bit identity and clipping/cutoff reporting", "full validation and audition"] }
+  }
+}

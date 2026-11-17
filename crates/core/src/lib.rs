@@ -121,8 +121,8 @@ pub use model::countermelody::{
 pub use model::countermelody_development::{
     COUNTERMELODY_DEVELOPMENT_CONTRACT_VERSION, CountermelodyDevelopmentError,
     CountermelodyDevelopmentKind, CountermelodyDevelopmentRequest, CountermelodyDevelopmentResult,
-    MotifRhythmCell, ResolvedCountermelodyDevelopment, arrange_countermelody_development,
-    replay_countermelody_development,
+    GeneratedMotifOrigin, MotifRhythmCell, ResolvedCountermelodyDevelopment,
+    arrange_countermelody_development, replay_countermelody_development,
 };
 pub use model::cross_plan_form_proposals::{
     CROSS_PLAN_FORM_CONTRACT_VERSION, CrossPlanFormCandidate, CrossPlanFormError,
@@ -266,6 +266,10 @@ pub use model::phrase_harmony::{
     PhraseHarmonyTargetResult, PhraseModulationTarget, ResolvedModulationChoice,
     ResolvedPhraseHarmonyTarget, SecondaryDominantTarget, TargetResolutionEvidence,
     replay_phrase_harmony_target, suggest_phrase_harmony, suggest_phrase_harmony_targets,
+};
+pub use model::phrase_melody::{
+    MelodyAnticipationEdit, PHRASE_MELODY_CONTRACT_VERSION, PhraseMelodyError, PhraseMelodyRequest,
+    PhraseMelodyResult, ResolvedPhraseMelody, arrange_phrase_melody, replay_phrase_melody,
 };
 pub use model::pitch::{Pitch, Step};
 pub use model::playback::{

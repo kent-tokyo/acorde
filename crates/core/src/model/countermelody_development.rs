@@ -41,6 +41,13 @@ pub struct MotifRhythmCell {
     pub sounding: bool,
 }
 
+/// A generated countermelody note and the source motif note whose rhythm it develops.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GeneratedMotifOrigin {
+    pub generated_note: NoteAddr,
+    pub source_note: NoteAddr,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ResolvedCountermelodyDevelopment {
@@ -58,6 +65,8 @@ pub struct CountermelodyDevelopmentResult {
     pub source_rhythm: Vec<MotifRhythmCell>,
     pub transformed_rhythm: Vec<MotifRhythmCell>,
     pub generated_notes: Vec<NoteAddr>,
+    #[serde(default)]
+    pub generated_note_origins: Vec<GeneratedMotifOrigin>,
     pub attack_count: usize,
 }
 
@@ -85,14 +94,18 @@ pub enum CountermelodyDevelopmentError {
     SourceMismatch,
 }
 
-fn source_rhythm(score: &Score, options: &CountermelodyOptions) -> Option<Vec<MotifRhythmCell>> {
+fn source_rhythm(
+    score: &Score,
+    options: &CountermelodyOptions,
+) -> Option<(Vec<MotifRhythmCell>, Vec<Option<NoteAddr>>)> {
     let staff = score.parts.get(options.melody_part_index)?.staves.first()?;
     let end = options.motif_end_measure_exclusive?;
     let mut cells = Vec::new();
+    let mut addresses = Vec::new();
     let mut sounding = 0;
     for measure_index in options.motif_start_measure..end {
         let measure = staff.measures.get(measure_index)?;
-        for note in measure.voices.first()? {
+        for (note_index, note) in measure.voices.first()?.iter().enumerate() {
             if note.is_grace || note.is_cue {
                 continue;
             }
@@ -118,6 +131,13 @@ fn source_rhythm(score: &Score, options: &CountermelodyOptions) -> Option<Vec<Mo
                 ticks,
                 sounding: !note.is_rest,
             });
+            addresses.push((!note.is_rest).then_some(NoteAddr {
+                part: options.melody_part_index,
+                staff: 0,
+                measure: measure_index,
+                voice: 0,
+                note: note_index,
+            }));
             if sounding == 8 {
                 break;
             }
@@ -126,7 +146,7 @@ fn source_rhythm(score: &Score, options: &CountermelodyOptions) -> Option<Vec<Mo
             break;
         }
     }
-    (sounding >= 3 && cells.iter().any(|cell| cell.sounding)).then_some(cells)
+    (sounding >= 3 && cells.iter().any(|cell| cell.sounding)).then_some((cells, addresses))
 }
 
 fn transformed_rhythm(
@@ -221,7 +241,7 @@ fn arrange_countermelody_development_internal(
         return Err(CountermelodyDevelopmentError::Base(problem.clone()));
     }
     let options = baseline.resolved_options;
-    let source_rhythm = source_rhythm(source, &options)
+    let (source_rhythm, source_addresses) = source_rhythm(source, &options)
         .ok_or(CountermelodyDevelopmentError::UnsupportedMotifRhythm)?;
     let transformed_rhythm = transformed_rhythm(&source_rhythm, request.kind)
         .ok_or(CountermelodyDevelopmentError::UnsupportedMotifRhythm)?;
@@ -250,6 +270,7 @@ fn arrange_countermelody_development_internal(
     let spans = melody_spans(source, options.melody_part_index, &bar_starts)
         .map_err(CountermelodyDevelopmentError::Unplayable)?;
     let mut generated_notes = Vec::new();
+    let mut generated_note_origins = Vec::new();
     let mut generated_events = 0usize;
     let mut attack_count = 0usize;
     let mut previous_pitch = None;
@@ -348,8 +369,26 @@ fn arrange_countermelody_development_internal(
                             CountermelodyDevelopmentError::Unplayable(measure)
                         }
                     })?;
+                    let first_generated = voice.len();
                     if !emit_span(&[pitch], to - from, &mut voice) {
                         return Err(CountermelodyDevelopmentError::UnsupportedMotifRhythm);
+                    }
+                    let source_note = source_addresses[cell_index % source_addresses.len()]
+                        .as_ref()
+                        .ok_or(CountermelodyDevelopmentError::UnsupportedMotifRhythm)?;
+                    for (note, generated) in voice.iter().enumerate().skip(first_generated) {
+                        if !generated.is_rest {
+                            generated_note_origins.push(GeneratedMotifOrigin {
+                                generated_note: NoteAddr {
+                                    part: added_part,
+                                    staff: 0,
+                                    measure,
+                                    voice: 0,
+                                    note,
+                                },
+                                source_note: source_note.clone(),
+                            });
+                        }
                     }
                     previous_pitch = Some(pitch);
                     phrase_attack += 1;
@@ -401,6 +440,7 @@ fn arrange_countermelody_development_internal(
         source_rhythm,
         transformed_rhythm,
         generated_notes,
+        generated_note_origins,
         attack_count,
     })
 }

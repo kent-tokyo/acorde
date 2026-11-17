@@ -2362,6 +2362,30 @@ pub fn replay_countermelody_development(score_json: &str, resolved_json: &str) -
         .map_err(|error| js_err(format!("countermelody development replay serialization failed: {error}")))
 }
 
+/// Move only explicitly permitted melody notes into preceding rests and develop a countermelody.
+#[wasm_bindgen]
+pub fn arrange_phrase_melody(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::PhraseMelodyRequest =
+        parse_json(request_json, "phrase melody request", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::arrange_phrase_melody(&score, &request)
+        .map_err(|error| js_err(format!("phrase melody failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("phrase melody serialization failed: {error}")))
+}
+
+/// Rebuild a phrase melody from its saved source-bound settings.
+#[wasm_bindgen]
+pub fn replay_phrase_melody(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedPhraseMelody =
+        parse_json(resolved_json, "resolved phrase melody", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::replay_phrase_melody(&score, &resolved)
+        .map_err(|error| js_err(format!("phrase melody replay failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("phrase melody replay serialization failed: {error}")))
+}
+
 /// Return a bounded set of distinct, replayable whole-score arrangements.
 #[wasm_bindgen]
 pub fn suggest_arrangement_proposals(score_json: &str, request_json: &str) -> Result<String, JsValue> {
