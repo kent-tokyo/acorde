@@ -29,3 +29,7 @@ full-sf2 = ["dep:rustysynth"]
 
 [lints]
 workspace = true
+
+[[example]]
+name = "stage8_mix_benchmark"
+required-features = ["full-sf2"]
