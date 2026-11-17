@@ -52,9 +52,9 @@
             "sha256": "ca2ea01920ad264ab1c854ed2752240e8862d2321ef96b2030e5bf864665011c"
           },
           "musicxml": {
-            "bytes": 93265,
+            "bytes": 93283,
             "file": "candidate-1.musicxml",
-            "sha256": "bac354718a8475cbc7458af74e243b03febd8c1c6f2d5bf6a58e072dfeb35936"
+            "sha256": "997d1a41a5bf8822cd2186c30191da4396a27646d9cf35af61808b01ba1bae8b"
           },
           "playback_events": [
             [
@@ -955,9 +955,9 @@
             "sha256": "b947df02da854e690bed5dce936a143d1b949531d5b27a7293835af1d2720838"
           },
           "musicxml": {
-            "bytes": 93660,
+            "bytes": 93666,
             "file": "candidate-2.musicxml",
-            "sha256": "e1665a6128dab788039576e065fd2fee3bd22eac02282d45b6e0f6d2a241c518"
+            "sha256": "5e1bf0ce8b016ccd6c5a8058e90138cea1441b68015c23b432444b81a9e2e0b5"
           },
           "playback_events": [
             [
@@ -1955,9 +1955,9 @@
             "sha256": "629e756c61d782da2d5961cb3723cda31e65f3efe08bef954224be4718d6ad96"
           },
           "musicxml": {
-            "bytes": 90703,
+            "bytes": 90715,
             "file": "candidate-3.musicxml",
-            "sha256": "bda42c809070b5b1a3e137d5dc434e3e89249b1116810f0809fd6301ffe8a585"
+            "sha256": "5826359763311ba7f64f04be9da1c62362a32a11d7c6ceded864a4d847470bf6"
           },
           "playback_events": [
             [
@@ -2882,7 +2882,7 @@
           "musicxml": {
             "bytes": 182216,
             "file": "candidate-1.musicxml",
-            "sha256": "a366a1572a6fb1129db7444e399eeec72fab342a33cae7ecf735f42bfe360c23"
+            "sha256": "dc8687aff8490086270e48aa6fa53b5cc5e92626d2ad1042727d3cc6ad7c01ad"
           },
           "playback_events": [
             [
@@ -4616,9 +4616,9 @@
             "sha256": "00087ecb631e008a929045b8e903e27c4b05c6364a82b12f90fd875cf617cea5"
           },
           "musicxml": {
-            "bytes": 183003,
+            "bytes": 183009,
             "file": "candidate-2.musicxml",
-            "sha256": "6960c70f0f264d6005c698c18b996f97f3d39468846ac264efd5a5cc1bb39bc7"
+            "sha256": "318133c7ee4217f0d8a60a59038e4f792fb0ca4bada5247df58fc2b2ee2d132c"
           },
           "playback_events": [
             [
@@ -6549,7 +6549,7 @@
           "musicxml": {
             "bytes": 177092,
             "file": "candidate-3.musicxml",
-            "sha256": "c3065606432c56891c2b28257dd051224919fd724ba668f182966b79822b0e45"
+            "sha256": "a48a3c748ed6019d4b9cb5e1812032b87b22da5a83eb36b33358a3c8d270efe5"
           },
           "playback_events": [
             [
@@ -8265,7 +8265,7 @@
   "sample_rate_hz": 22050,
   "schema_version": 1,
   "soundfont_sha256": "f7884c34012ffa2a000d1a310ede173149e8abc1cda1910c1531b7789d82a792",
-  "source_commit": "5d8d0bd0152bfae4c0017603dff6a24401397887",
+  "source_commit": "ea3459c3f923dec7b23e4b33d3b45b076324bcbd",
   "stages": [
     6,
     7,

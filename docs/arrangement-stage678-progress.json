@@ -50,7 +50,7 @@
         "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 cargo clippy -p acorde-core -p acorde-io -p acorde-wasm --all-features --all-targets --offline --locked -- -D warnings",
         "8 and 16 measure three-proposal structural generation",
         "8 and 16 measure score generation; 4 measure replay, MusicXML/MSCZ and native WASM local parity tests",
-        "8 and 16 measure native playback and resolved-choice receipt produced by clean commit 5d8d0bd0; host WASM binding parity test passes",
+        "8 and 16 measure native playback and resolved-choice receipt produced by clean commit ea3459c3; host WASM binding parity test passes",
         "fixed 8 and 16 measure release generation timing with six realizations per case in arrangement-stage678-performance.json"
       ],
       "pending": ["8 and 16 measure listening review", "full and viewer Chrome WASM parity", "three OS CI", "matched WASM size measurements"]
@@ -68,7 +68,7 @@
         "previous rhythm-audition.sf2 reproduction hash matches the committed fixture",
         "8 and 16 measure dry and mixed WAV packs generated twice with matching hashes for all six proposals",
         "six mixed examples reported no clipping and no tail cutoff",
-        "clean commit 5d8d0bd0 produced tests/fixtures/arrangement/integrated-stage678-listening-manifest.json and stage678-native-parity.json with source, SF2, WAV, resolved-choice, and playback-event receipts",
+        "clean commit ea3459c3 produced tests/fixtures/arrangement/integrated-stage678-listening-manifest.json and stage678-native-parity.json with source, SF2, WAV, resolved-choice, and playback-event receipts",
         "fixed 8 and 16 measure dry/mixed full-SF2 release timing with exact WAV SHA-256 agreement in arrangement-stage678-performance.json",
         "CARGO_INCREMENTAL=0 CARGO_PROFILE_TEST_DEBUG=0 cargo test --workspace --all-features --locked --offline",
         "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 cargo clippy --workspace --all-features --all-targets --locked --offline -- -D warnings"
