@@ -13,7 +13,7 @@ use super::{
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 pub const RHYTHM_SECTION_CONTRACT_VERSION: u16 = 1;
-const ENGINE: &str = concat!(env!("CARGO_PKG_VERSION"), "+rhythm-section.1");
+const ENGINE: &str = concat!(env!("CARGO_PKG_VERSION"), "+rhythm-section.2");
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -500,7 +500,10 @@ fn resolve(
             at,
             incoming.get(&at).map_or(&[], Vec::as_slice),
         )?;
-        center = pitch.to_midi();
+        // Decorative ghosts do not steer the register of the main bass line.
+        if !b.ghost {
+            center = pitch.to_midi();
+        }
         pitches.insert(at, pitch);
     }
     for (&at, &(_, b)) in &slots {

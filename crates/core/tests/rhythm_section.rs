@@ -173,8 +173,26 @@ fn fixed_eight_and_sixteen_bar_rhythm_comparisons_are_distinct_and_replayable() 
     for case in corpus.cases {
         let (source, requests) = listening::input(&case).unwrap();
         let mut sounds = std::collections::BTreeSet::new();
-        for (_, request) in requests {
+        let mut main_bass = None;
+        for (profile, request) in requests {
             let r = arrange_rhythm_section(&source, &request).unwrap();
+            let line = r
+                .resolved
+                .bass
+                .iter()
+                .filter(|b| b.at.slot != 3)
+                .map(|b| (b.at, b.pitch.clone()))
+                .collect::<std::collections::BTreeMap<_, _>>();
+            if profile == "coordinated" {
+                main_bass = Some(line.clone());
+            }
+            if profile.ends_with("ghosts") {
+                assert_eq!(
+                    main_bass.as_ref(),
+                    Some(&line),
+                    "ghosts changed ordinary bass attacks"
+                );
+            }
             assert!(sounds.insert(fixture::sound(&r.score)));
             assert_eq!(
                 fixture::sound(&r.score),

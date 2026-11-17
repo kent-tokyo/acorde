@@ -14,7 +14,7 @@ Source parts, note IDs and authored harmony stay intact. Omitted bars are filled
 
 ## Ghost sound
 
-Ghost notes have parenthesized noteheads, explicit `pp` velocity and at most eight ticks (one sixteenth note in 4/4). Accented ghosts are rejected. Normal attacks explicitly restore `mf`; a ghost cannot reduce the following normal note's level.
+Ghost notes have parenthesized noteheads, explicit `pp` velocity and at most eight ticks (one sixteenth note in 4/4). Accented ghosts are rejected. Ghost pitches do not steer the subsequent normal bass register. Normal attacks explicitly restore `mf`; a ghost cannot reduce the following normal note's level.
 
 - `ShortQuiet` retains the bass program and reports `ShortQuietGhostApproximation`. This is a short, quiet pitched approximation.
 - `MutedProgram` carries a caller-supplied program and sound identity. Ghosts use a separate part/channel so MusicXML and MSCZ preserve their routing. The report says `CallerSuppliedMutedSound`: the caller must know that the renderer has the requested muted patch. The core does not inspect an audio device or SoundFont.

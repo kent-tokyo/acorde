@@ -129,8 +129,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut candidates = Vec::new();
         let mut sounds = std::collections::BTreeSet::new();
         let mut wav_hashes = std::collections::BTreeSet::new();
+        let mut main_bass = None;
         for (profile, request) in requests {
             let mut candidate = arrange_rhythm_section(&source, &request)?;
+            let line = candidate
+                .resolved
+                .bass
+                .iter()
+                .filter(|b| b.at.slot != 3)
+                .map(|b| (b.at, b.pitch.clone()))
+                .collect::<std::collections::BTreeMap<_, _>>();
+            if profile == "coordinated" {
+                main_bass = Some(line.clone());
+            }
+            if profile.ends_with("ghosts") && main_bass.as_ref() != Some(&line) {
+                return Err("ghost comparison changed ordinary bass attacks".into());
+            }
             let replay = replay_rhythm_section(&source, &candidate.resolved)?;
             if events(&candidate.score) != events(&replay.score)
                 || !sounds.insert(events(&candidate.score))
