@@ -437,7 +437,8 @@
   "stage_3": {
     "state": "three-profiles-and-audio-generated-full-validation-and-listening-pending",
     "remaining": [
-      "complete native/browser/hosted CI and matched optimized WASM size on the completed stage",
+      "complete full/viewer browser suites on the final source",
+      "hosted CI and matched optimized WASM size on the completed stage",
       "listening review of the fixed eight and sixteen bar comparison"
     ],
     "branch": "codex/harmony-comping-20261117",
@@ -462,6 +463,18 @@
       "viewer-wasm": {
         "log_sha256": "5568c9916e09c158e2d3f7b070d97dcbf0e3e231a3830f60e8e7191e5c531b7b",
         "passed_tests": 6
+      },
+      "native-default": {
+        "log_sha256": "fa5f870c19f933176ca1b4d1c4b1dbd70a91414b7acfca390b59bc98dd62c4f8",
+        "passed_tests": 2581
+      },
+      "native-all": {
+        "log_sha256": "b8dc6ed995a9e59b5bf01af03ac02a4df3553a90a794e496680036c9acad6a6e",
+        "passed_tests": 2585
+      },
+      "clippy-all": {
+        "log_sha256": "618c739e635c969cfbfbebc11666a0d0f91cbdfb80f916f9cb771beae81fed12",
+        "passed_tests": 0
       }
     },
     "limitations": [
@@ -477,7 +490,9 @@
     "validation_retry": {
       "reason": "native linker errno 28: no space left on device",
       "recovery": "confirmed no active compiler or browser test, then cleaned 5.5 GiB of task-owned target artifacts",
-      "status": "default/all-feature workspace tests and Clippy rerunning"
-    }
+      "status": "default native 2581 and all-feature native 2585 passed; workspace Clippy passed after a CLI sample-chunk lint fix"
+    },
+    "source_commit": "f99e2003041eed2d525b29402f544ee23b102756",
+    "pull_request": "https://github.com/kent-tokyo/acorde/pull/445"
   }
 }
