@@ -65,10 +65,11 @@
         "previous rhythm-audition.sf2 reproduction hash matches the committed fixture",
         "8 and 16 measure dry and mixed WAV packs generated twice with matching hashes for all six proposals",
         "six mixed examples reported no clipping and no tail cutoff",
+        "clean commit f346d271 produced tests/fixtures/arrangement/integrated-stage678-listening-manifest.json with source and SF2 SHA-256 plus 8/16-bar dry, mixed, and peak-matched comparison WAV hashes",
         "CARGO_INCREMENTAL=0 CARGO_PROFILE_TEST_DEBUG=0 cargo test --workspace --all-features --locked --offline",
         "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 cargo clippy --workspace --all-features --all-targets --locked --offline -- -D warnings"
       ],
-      "pending": ["8 and 16 measure listening review", "three OS CI", "matched WASM size/performance measurements and final audio provenance"]
+      "pending": ["8 and 16 measure listening review", "three OS CI", "matched WASM size/performance measurements"]
     }
   }
 }
