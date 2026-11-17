@@ -75,3 +75,47 @@ Current acceptance and remaining work for stages 4 and 5 are recorded in
 `harmony-targets-rhythm-progress.json`. Full CI, matched optimized WASM sizes
 and the fixed eight/sixteen-bar listening review remain required.
 
+Native generation measurements are pinned in
+[`arrangement-stage45-performance.json`](arrangement-stage45-performance.json).
+The six fixed eight/sixteen-bar target cases each have 60 measured calls after
+warmup, with unchanged playback and work counters on every call. The largest
+observed p95 was 7.446 ms (sixteen-bar common-chord modulation). Applied/dominant
+cases attempted one realization; common-chord cases attempted four. Reported
+inner voicing-state counts cover selected candidates, not rejected candidates.
+These are development-input timings on one native host, not a worst-case bound
+or browser latency guarantee.
+
+Stage 0 did not record native generation timings. Its pinned source was rebuilt
+beside the current source with the same Rust 1.100.0, dependencies, release
+profile, harness and unchanged sixteen-bar legacy form input. The legacy median
+ratio was 0.9824 and p95 ratio 0.8133, with identical playback. New stage-4/5 APIs
+did not exist in stage 0; no cross-API speed ratio is inferred. Reproduce with:
+
+```sh
+python3 scripts/benchmark_arrangement_stages.py \
+  --baseline /path/to/clean-stage-0-checkout \
+  --output /new/measurement-directory
+```
+
+The report pins revisions, core trees, harness/fixture/dependency hashes, all
+timing samples and the balanced baseline/candidate/candidate/baseline run order.
+Input preparation, playback verification, serialization, rendering and result
+destruction are outside the measured API call. The script refuses changed
+library/fixture inputs and mismatched legacy outputs.
+
+The same native run emits `native-parity.json`. Its pinned copy is
+`tests/fixtures/arrangement/stage45-native-parity.json`: fourteen eight/sixteen-bar
+cases, four shared source scores, full native playback events and resolved
+contracts. `crates/wasm/tests/arrangement_native_parity.rs` compares these values
+directly with generation and replay through the bindings in native tests and
+Chrome full/viewer tests. It also checks original-part preservation. The expected
+values are not regenerated inside the browser. These checks complement the
+smaller binding-versus-core tests, whose core call runs within the same target.
+Regenerating the fixture is an explicit review step after an intentional musical
+contract change; timing variation alone does not justify replacing it.
+
+The observed legacy timing ratios vary between runs; this sample does not prove
+a performance improvement. The script's standalone wrapper allows Clippy's
+`duplicate_mod` lint only because both unchanged audition fixture graphs embed
+the same private helper. Product code and tests retain their normal lint rules.
+

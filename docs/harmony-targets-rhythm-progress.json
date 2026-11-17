@@ -12,6 +12,7 @@
       "source-bound replay and unchanged original parts",
       "MusicXML/MSCZ round trips and native/full/viewer WASM parity",
       "full native, Clippy, formatting, three-OS hosted CI and matched WASM size",
+      "generation work counters and matched native runtime measurement",
       "fixed eight/sixteen-bar listening comparison and recorded acceptance"
     ],
     "local_checks": {
@@ -194,6 +195,16 @@
       "job": "https://github.com/kent-tokyo/acorde/actions/runs/44041454827/job/133896768988",
       "raw_bytes": 8455010,
       "state": "passed"
+    },
+    "runtime_measurement": {
+      "report": "arrangement-stage45-performance.json",
+      "source_commit": "637b932c39602dd3e0bc215370931a8d9538e3fc",
+      "state": "measured-fixed-development-inputs",
+      "cases": 6,
+      "samples_per_case": 60,
+      "maximum_p95_ms": 7.446334,
+      "scope": "Native release API-call generation cost; excludes setup, serialization, playback verification, rendering and output destruction. Fixed development inputs, not a browser latency or general performance claim.",
+      "search_scope": "Outer realization counts include every attempted plan; inner voicing states describe selected candidates only."
     }
   },
   "stage_5": {
@@ -206,6 +217,7 @@
       "source-bound replay, locks, original-part preservation and valid measure lengths",
       "MusicXML/MSCZ round trips and native/full/viewer WASM parity",
       "full native, Clippy, formatting, three-OS hosted CI and matched WASM size",
+      "generation work counters and matched native runtime measurement",
       "fixed eight/sixteen-bar listening comparison and recorded acceptance"
     ],
     "branch": "codex/rhythm-section-20261117",
@@ -449,6 +461,76 @@
       "retry_log_sha256": "17fd07874d5da3e3462dfc00a3c4e6d7a1ee4835723fd002a61817cfa02e79bf",
       "conclusion": "All three smoke tests passed on the unchanged commit and test conditions. The initial Undo failure was not reproduced; its root cause remains undetermined."
     },
-    "validation_scope": "All 20 hosted checks passed for implementation and gate head 10b1aeb7; subsequent receipt-only edits do not change executable code, fixtures or workflow checks."
+    "validation_scope": "All 20 hosted checks passed for implementation and gate head 10b1aeb7; subsequent receipt-only edits do not change executable code, fixtures or workflow checks.",
+    "runtime_measurement": {
+      "report": "arrangement-stage45-performance.json",
+      "source_commit": "637b932c39602dd3e0bc215370931a8d9538e3fc",
+      "state": "measured-fixed-development-inputs",
+      "cases": 8,
+      "samples_per_case": 60,
+      "maximum_p95_ms": 0.804041,
+      "scope": "Native release API-call generation cost; excludes setup, serialization, playback verification, rendering and output destruction. Fixed development inputs, not a browser latency or general performance claim.",
+      "search_scope": "Deterministic construction; slot/attack counts are recorded, with no candidate-search count."
+    }
+  },
+  "completion_audit": {
+    "date": "2026-11-17",
+    "gaps_found_and_closed": [
+      "Native runtime and generation work counters were not recorded; rebuilt stage 0 and current core with matched release inputs and tools.",
+      "Previous binding-versus-core browser tests used a core compiled within WASM; added fixed native release playback and resolved-contract expectations."
+    ],
+    "native_parity": {
+      "fixture": "../tests/fixtures/arrangement/stage45-native-parity.json",
+      "fixture_sha256": "4dffb2c3cd4adf0d11bbf2f61e7741bee05b87a4f6c0590e75650de2b402b4fc",
+      "native_source_commit": "637b932c39602dd3e0bc215370931a8d9538e3fc",
+      "core_tree": "95791781fdababc2f5a6f69aef8ad46043b17ec2",
+      "target_cases": 6,
+      "rhythm_cases": 8,
+      "shared_sources": 4,
+      "scope": "Generation and replay, original-part preservation, every PlaybackEvent field and resolved contracts; native and Chrome full/viewer use the same recorded native expectations.",
+      "test_source_sha256": "32d753f7c01ebef8d91946e3447332d0e03e8e27cd5bc2dbaf6102f9e349481f"
+    },
+    "local_checks": {
+      "native": {
+        "passed_tests": 2,
+        "log_sha256": "254e6b4eda2ca8b58f5ede8ef21a8d28eeb538546a09d29a084105691f05ffab"
+      },
+      "full-chrome": {
+        "passed_tests": 2,
+        "log_sha256": "72a86e86e46fba0e8d869964e31ae075a1387367cba49a5bdfd27a116e913b5e"
+      },
+      "viewer-chrome": {
+        "passed_tests": 2,
+        "log_sha256": "f6edd828a35a3460b5444ce4f45f4a2ac1e5a88cb775675c9062c0ea8710310e"
+      },
+      "parity-clippy": {
+        "passed_tests": 0,
+        "log_sha256": "d487b6ce4454579650986fb05b2838b7656a1bbd3d916cec986552a86b0eb2e6"
+      },
+      "benchmark-baseline-clippy": {
+        "passed_tests": 0,
+        "log_sha256": "043f82d708d2051f37ea97f3d71d47bef8a2082bc6cb4d1cbbf0a17a9fe5bb5e"
+      },
+      "benchmark-candidate-clippy": {
+        "passed_tests": 0,
+        "log_sha256": "925f29291d0cb8484cf678fe9860fc584931963b31a4079fe953792688cb8063"
+      }
+    },
+    "tool_checks": [
+      "cargo fmt --all -- --check",
+      "rustfmt --edition 2024 --check scripts/arrangement_stage45_benchmark.rs",
+      "python3 -m py_compile scripts/benchmark_arrangement_stages.py",
+      "git diff --check"
+    ],
+    "benchmark_lint_scope": "The standalone generated wrapper intentionally allows duplicate_mod for unchanged private audition fixture graphs; product lint rules are unchanged.",
+    "prior_receipt_ci": {
+      "head": "637b932c39602dd3e0bc215370931a8d9538e3fc",
+      "ci_run": "https://github.com/kent-tokyo/acorde/actions/runs/44049475526",
+      "coverage_run": "https://github.com/kent-tokyo/acorde/actions/runs/44049475582",
+      "checks_passed": 20
+    },
+    "remaining": [
+      "New stage-4 and stage-5 eight/sixteen-bar listening acceptance."
+    ]
   }
 }

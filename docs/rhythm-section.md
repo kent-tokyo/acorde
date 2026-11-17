@@ -38,3 +38,23 @@ The fixed 8/16-bar corpus compares root pulse, coordinated attacks with approach
 `rhythm-audition.sf2` contains original synthetic keys, bass, muted bass and kick samples, authored by `scripts/build_rhythm_audition_font.py` under the repository license. They are audition sounds, not acoustic instrument models. All comparisons use the same font, tempo, gain and 22,050 Hz mono renderer, with no individual normalization. Run `python3 scripts/build_rhythm_audition_font.py tests/fixtures/arrangement/rhythm-audition.sf2` to rebuild the fixture.
 
 Passing structural/audio-render checks does not establish musical preference. New eight/sixteen-bar listening acceptance is recorded separately from the earlier harmony and comping acceptance.
+
+## Generation measurements
+
+[`arrangement-stage45-performance.json`](arrangement-stage45-performance.json)
+records 60 measured native release calls per variant for the fixed eight/sixteen-bar
+inputs, after warmup. The largest observed p95 was 0.804 ms (sixteen-bar muted
+ghosts). Each call preserved original parts and reproduced the same playback and
+slot/attack counts. Rhythm generation uses deterministic construction, so a
+candidate-search count does not apply. Preparing the harmonized source, playback
+verification, JSON, rendering and result destruction are outside the timing.
+This is a one-host development measurement, not a browser or maximum-input
+latency guarantee. The matched legacy baseline and reproduction command are
+described in [`harmony-targets.md`](harmony-targets.md).
+
+The eight rhythm variants in `stage45-native-parity.json` retain native release
+playback events, resolved bass pitches, approach targets, synchronized addresses
+and ghost diagnostics. The native and Chrome full/viewer parity tests compare
+both fresh generation and replay with these fixed values, including the original
+source parts. The expected events are produced by the native harness, rather
+than another core call compiled to WASM.
