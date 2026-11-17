@@ -16,6 +16,39 @@ fn eight_and_sixteen_bar_inputs_produce_three_playable_proposals() {
             "{}",
             case.id
         );
+        let harmony = &result.candidates[1];
+        for code in [
+            "harmony-events-changed",
+            "bass-events-changed",
+            "countermelody-events-changed",
+        ] {
+            assert!(
+                harmony
+                    .observed_difference_codes
+                    .iter()
+                    .any(|item| item == code),
+                "{}: missing observed {code}",
+                case.id
+            );
+        }
+        assert_eq!(harmony.axis_distance_from_first.rhythm, 0, "{}", case.id);
+        assert!(harmony.axis_distance_from_first.harmony > 0);
+        assert_eq!(harmony.axis_distance_from_first.form, 0);
+        assert!(
+            !harmony
+                .observed_difference_codes
+                .iter()
+                .any(|code| code == "source-melody-events-changed")
+        );
+        let rhythmic = &result.candidates[2];
+        assert!(
+            rhythmic
+                .observed_difference_codes
+                .iter()
+                .any(|code| code == "kick-events-changed")
+        );
+        assert!(rhythmic.axis_distance_from_first.rhythm > 0);
+        assert_eq!(rhythmic.axis_distance_from_first.form, 0);
         for axis in ["harmony-changed", "rhythm-changed", "melody-changed"] {
             assert!(
                 result.candidates.iter().any(|candidate| {

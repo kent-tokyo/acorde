@@ -1,9 +1,11 @@
 //! Bounded selection across explicit harmony, rhythm and melody techniques.
 
+use std::collections::{BTreeMap, BTreeSet};
+
 use serde::{Deserialize, Serialize};
 
 use super::arrange::AccordionBassMode;
-use super::chord_plan::chord_plan_to_preset_selection;
+use super::chord_plan::{ChordPlan, chord_plan_to_preset_selection};
 use super::chord_proposals::fingerprint;
 use super::phrase_harmony::{
     PhraseHarmonyTargetError, PhraseHarmonyTargetRequest, ResolvedPhraseHarmonyTarget,
@@ -51,10 +53,43 @@ pub struct ResolvedIntegratedArrangement {
 pub struct IntegratedArrangementCandidate {
     pub score: Score,
     pub resolved: ResolvedIntegratedArrangement,
+    /// Requested technique choices relative to the first proposal.
     pub difference_codes: Vec<String>,
+    /// Actual changed sounding roles and six observed arrangement axes.
+    #[serde(default)]
+    pub observed_difference_codes: Vec<String>,
+    #[serde(default)]
+    pub axis_distance_from_first: IntegratedArrangementAxisDistance,
+    #[serde(default)]
+    pub nearest_selected_distance: u32,
     pub changed_harmonies: usize,
     pub rhythm_attacks: usize,
     pub melody_anticipations: usize,
+}
+
+/// Jaccard distances in 0..=1000 on generated harmony pitch classes, attack
+/// shape, exact bass events, four-semitone register bands, sounding roles by
+/// measure, and written section boundaries. These are selection summaries,
+/// not listening scores. Form remains zero when local edits preserve sections.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct IntegratedArrangementAxisDistance {
+    pub harmony: u16,
+    pub rhythm: u16,
+    pub bass: u16,
+    pub register: u16,
+    pub roles: u16,
+    pub form: u16,
+}
+
+impl IntegratedArrangementAxisDistance {
+    fn total(self) -> u32 {
+        u32::from(self.harmony)
+            + u32::from(self.rhythm)
+            + u32::from(self.bass)
+            + u32::from(self.register)
+            + u32::from(self.roles)
+            + u32::from(self.form)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -91,6 +126,170 @@ pub enum IntegratedArrangementError {
     SourceMismatch,
     #[error("saved integrated arrangement choice changed")]
     SelectionMismatch,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum ObservedRole {
+    SourceMelody,
+    Harmony,
+    Bass,
+    Kick,
+    Ghost,
+    Countermelody,
+}
+
+type ObservedEvent = (usize, u64, u64, i32, u8);
+
+struct ObservedParts {
+    source_melody: usize,
+    harmony: usize,
+    bass: usize,
+    kick: usize,
+    ghost: Option<usize>,
+    countermelody: Option<usize>,
+}
+
+#[derive(Clone, Default)]
+struct ObservedAxes {
+    events: BTreeMap<ObservedRole, Vec<ObservedEvent>>,
+    harmony: BTreeSet<(usize, i32)>,
+    harmony_plan: BTreeSet<(usize, u64, String)>,
+    rhythm: BTreeSet<(ObservedRole, u64, u64)>,
+    bass: BTreeSet<(u64, u64, i32, u8)>,
+    register: BTreeSet<(ObservedRole, i32)>,
+    roles: BTreeSet<(usize, ObservedRole)>,
+    form: BTreeSet<(usize, bool)>,
+}
+
+fn ticks(beats: f64) -> u64 {
+    (beats * 480.0).round().max(0.0) as u64
+}
+
+fn jaccard<T: Ord>(left: &BTreeSet<T>, right: &BTreeSet<T>) -> u16 {
+    let union = left.union(right).count();
+    if union == 0 {
+        return 0;
+    }
+    let common = left.intersection(right).count();
+    (((union - common) * 1000 + union / 2) / union) as u16
+}
+
+impl ObservedAxes {
+    fn collect(score: &Score, plan: &ChordPlan, parts: ObservedParts) -> Self {
+        let mut axes = Self::default();
+        let mut role_by_part = BTreeMap::from([
+            (parts.source_melody, ObservedRole::SourceMelody),
+            (parts.harmony, ObservedRole::Harmony),
+            (parts.bass, ObservedRole::Bass),
+            (parts.kick, ObservedRole::Kick),
+        ]);
+        if let Some(part) = parts.ghost {
+            role_by_part.insert(part, ObservedRole::Ghost);
+        }
+        if let Some(part) = parts.countermelody {
+            role_by_part.insert(part, ObservedRole::Countermelody);
+        }
+        for event in to_playback_events(score, &Default::default()) {
+            let (Some(&role), Some(source)) = (role_by_part.get(&event.part_index), event.source)
+            else {
+                continue;
+            };
+            let onset = ticks(event.time_beats);
+            let duration = ticks(event.duration_beats);
+            let pitch = event.pitch_midi_cents;
+            axes.events.entry(role).or_default().push((
+                source.measure,
+                onset,
+                duration,
+                pitch,
+                event.velocity,
+            ));
+            axes.rhythm.insert((role, onset, duration));
+            axes.register.insert((role, pitch.div_euclid(400)));
+            axes.roles.insert((source.measure, role));
+            if role == ObservedRole::Harmony {
+                axes.harmony
+                    .insert((source.measure, pitch.rem_euclid(1200)));
+            } else if role == ObservedRole::Bass {
+                axes.bass.insert((onset, duration, pitch, event.velocity));
+            }
+        }
+        for events in axes.events.values_mut() {
+            events.sort_unstable();
+        }
+        axes.harmony_plan = plan
+            .entries
+            .iter()
+            .map(|entry| {
+                (
+                    entry.position.measure_index,
+                    ticks(entry.position.offset.beats()),
+                    serde_json::to_string(&entry.chord).unwrap_or_default(),
+                )
+            })
+            .collect();
+        if let Some(staff) = score
+            .parts
+            .get(parts.source_melody)
+            .and_then(|part| part.staves.first())
+        {
+            axes.form = staff
+                .measures
+                .iter()
+                .enumerate()
+                .map(|(measure, bar)| (measure, bar.section_break))
+                .collect();
+        }
+        axes
+    }
+
+    fn distance(&self, other: &Self) -> IntegratedArrangementAxisDistance {
+        IntegratedArrangementAxisDistance {
+            harmony: jaccard(&self.harmony, &other.harmony)
+                .max(jaccard(&self.harmony_plan, &other.harmony_plan)),
+            rhythm: jaccard(&self.rhythm, &other.rhythm),
+            bass: jaccard(&self.bass, &other.bass),
+            register: jaccard(&self.register, &other.register),
+            roles: jaccard(&self.roles, &other.roles),
+            form: jaccard(&self.form, &other.form),
+        }
+    }
+
+    fn difference_codes(&self, other: &Self) -> Vec<String> {
+        let mut codes = Vec::new();
+        for (role, code) in [
+            (ObservedRole::SourceMelody, "source-melody-events-changed"),
+            (ObservedRole::Harmony, "harmony-events-changed"),
+            (ObservedRole::Bass, "bass-events-changed"),
+            (ObservedRole::Kick, "kick-events-changed"),
+            (ObservedRole::Ghost, "ghost-events-changed"),
+            (ObservedRole::Countermelody, "countermelody-events-changed"),
+        ] {
+            if self.events.get(&role).map(Vec::as_slice).unwrap_or(&[])
+                != other.events.get(&role).map(Vec::as_slice).unwrap_or(&[])
+            {
+                codes.push(code.into());
+            }
+        }
+        let distance = self.distance(other);
+        for (value, code) in [
+            (distance.harmony, "harmony-pitch-classes-changed"),
+            (distance.rhythm, "generated-rhythm-changed"),
+            (distance.register, "generated-register-changed"),
+            (distance.roles, "role-activity-changed"),
+            (distance.form, "section-form-changed"),
+        ] {
+            if value > 0 {
+                codes.push(code.into());
+            }
+        }
+        codes
+    }
+}
+
+struct PoolEntry {
+    candidate: IntegratedArrangementCandidate,
+    observed: ObservedAxes,
 }
 
 fn valid_request(source: &Score, request: &IntegratedArrangementRequest) -> bool {
@@ -302,23 +501,45 @@ pub fn suggest_integrated_arrangements(
                     continue;
                 }
                 signatures.push(event_signature);
-                pool.push(IntegratedArrangementCandidate {
-                    score: melody.score,
-                    resolved: ResolvedIntegratedArrangement {
-                        contract_version: INTEGRATED_ARRANGEMENT_CONTRACT_VERSION,
-                        engine_version: env!("CARGO_PKG_VERSION").into(),
-                        source_fingerprint: source_fingerprint.clone(),
-                        request: request.clone(),
-                        harmony: harmony.resolved.clone(),
-                        rhythm: rhythm.resolved.clone(),
-                        melody: melody.resolved,
-                        rhythm_variant: ri,
-                        melody_variant: mi,
+                let observed = ObservedAxes::collect(
+                    &melody.score,
+                    plan,
+                    ObservedParts {
+                        source_melody: request.melodies[0].countermelody.base.melody_part_index,
+                        harmony: harmony.arrangement.added_part,
+                        bass: rhythm.bass_part,
+                        kick: rhythm.kick_part,
+                        ghost: rhythm.ghost_part,
+                        countermelody: melody
+                            .countermelody
+                            .generated_notes
+                            .first()
+                            .map(|note| note.part),
                     },
-                    difference_codes: Vec::new(),
-                    changed_harmonies: harmony.changed_chord_entries.len(),
-                    rhythm_attacks: attacks,
-                    melody_anticipations: melody_request.anticipations.len(),
+                );
+                pool.push(PoolEntry {
+                    candidate: IntegratedArrangementCandidate {
+                        score: melody.score,
+                        resolved: ResolvedIntegratedArrangement {
+                            contract_version: INTEGRATED_ARRANGEMENT_CONTRACT_VERSION,
+                            engine_version: env!("CARGO_PKG_VERSION").into(),
+                            source_fingerprint: source_fingerprint.clone(),
+                            request: request.clone(),
+                            harmony: harmony.resolved.clone(),
+                            rhythm: rhythm.resolved.clone(),
+                            melody: melody.resolved,
+                            rhythm_variant: ri,
+                            melody_variant: mi,
+                        },
+                        difference_codes: Vec::new(),
+                        observed_difference_codes: Vec::new(),
+                        axis_distance_from_first: IntegratedArrangementAxisDistance::default(),
+                        nearest_selected_distance: 0,
+                        changed_harmonies: harmony.changed_chord_entries.len(),
+                        rhythm_attacks: attacks,
+                        melody_anticipations: melody_request.anticipations.len(),
+                    },
+                    observed,
                 });
             }
         }
@@ -336,12 +557,12 @@ pub fn suggest_integrated_arrangements(
         // Keep a pure harmony comparison when the bounded search found one.
         // This lets the next proposal show the independent rhythm/melody axes.
         if selected.len() == 1 {
-            let reference = &selected[0].resolved;
-            if let Some(index) = pool.iter().position(|candidate| {
-                candidate.resolved.harmony.arrangement.request.chords
+            let reference = &selected[0].candidate.resolved;
+            if let Some(index) = pool.iter().position(|entry| {
+                entry.candidate.resolved.harmony.arrangement.request.chords
                     != reference.harmony.arrangement.request.chords
-                    && candidate.resolved.rhythm_variant == reference.rhythm_variant
-                    && candidate.resolved.melody_variant == reference.melody_variant
+                    && entry.candidate.resolved.rhythm_variant == reference.rhythm_variant
+                    && entry.candidate.resolved.melody_variant == reference.melody_variant
             }) {
                 selected.push(pool.remove(index));
                 continue;
@@ -350,21 +571,27 @@ pub fn suggest_integrated_arrangements(
         let index = pool
             .iter()
             .enumerate()
-            .max_by_key(|(index, candidate)| {
-                let harmony_new = !selected
-                    .iter()
-                    .any(|prior: &IntegratedArrangementCandidate| {
-                        prior.resolved.harmony.arrangement.request.chords
-                            == candidate.resolved.harmony.arrangement.request.chords
-                    });
+            .max_by_key(|(index, entry)| {
+                let harmony_new = !selected.iter().any(|prior: &PoolEntry| {
+                    prior.candidate.resolved.harmony.arrangement.request.chords
+                        == entry.candidate.resolved.harmony.arrangement.request.chords
+                });
                 let rhythm_new = !selected.iter().any(|prior| {
-                    prior.resolved.rhythm_variant == candidate.resolved.rhythm_variant
+                    prior.candidate.resolved.rhythm_variant
+                        == entry.candidate.resolved.rhythm_variant
                 });
                 let melody_new = !selected.iter().any(|prior| {
-                    prior.resolved.melody_variant == candidate.resolved.melody_variant
+                    prior.candidate.resolved.melody_variant
+                        == entry.candidate.resolved.melody_variant
                 });
+                let nearest = selected
+                    .iter()
+                    .map(|prior| entry.observed.distance(&prior.observed).total())
+                    .min()
+                    .unwrap_or(0);
                 (
                     u8::from(harmony_new) + u8::from(rhythm_new) + u8::from(melody_new),
+                    nearest,
                     std::cmp::Reverse(*index),
                 )
             })
@@ -372,8 +599,19 @@ pub fn suggest_integrated_arrangements(
             .ok_or(IntegratedArrangementError::SelectionMismatch)?;
         selected.push(pool.remove(index));
     }
-    let reference = selected[0].resolved.clone();
-    for candidate in &mut selected {
+    let reference = selected[0].candidate.resolved.clone();
+    let reference_observed = selected[0].observed.clone();
+    for index in 0..selected.len() {
+        let nearest = selected[..index]
+            .iter()
+            .map(|prior| selected[index].observed.distance(&prior.observed).total())
+            .min()
+            .unwrap_or(0);
+        let observed_codes = selected[index]
+            .observed
+            .difference_codes(&reference_observed);
+        let distance = selected[index].observed.distance(&reference_observed);
+        let candidate = &mut selected[index].candidate;
         let mut codes = Vec::new();
         if candidate.resolved.harmony.arrangement.request.chords
             != reference.harmony.arrangement.request.chords
@@ -390,9 +628,12 @@ pub fn suggest_integrated_arrangements(
             codes.push("reference".into());
         }
         candidate.difference_codes = codes;
+        candidate.observed_difference_codes = observed_codes;
+        candidate.axis_distance_from_first = distance;
+        candidate.nearest_selected_distance = nearest;
     }
     Ok(IntegratedArrangementResult {
-        candidates: selected,
+        candidates: selected.into_iter().map(|entry| entry.candidate).collect(),
         realizations,
         search_limited,
         rejections,
