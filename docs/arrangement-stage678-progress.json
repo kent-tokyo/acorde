@@ -34,7 +34,7 @@
       "pending": []
     },
     "7": {
-      "status": "in_progress",
+      "status": "complete",
       "implemented": [
         "composed stage 4 harmony, stage 5 rhythm, and stage 6 melody candidate selection",
         "per-technique budgets, shared locked measures, editable range, bounded search",
@@ -57,14 +57,17 @@
         "cargo +1.100.0 test -p acorde-core --test integrated_listening --test integrated_arrangement_proposals --locked --offline",
         "PR #449 at 56239567: 19/19 CI jobs passed, including macOS/Linux/Windows, full/viewer Chrome native parity, and the 8,643,552-byte full WASM budget check",
         "Matched stage 6 to stage 7 raw WASM increase is 47,223 bytes; all profiles are recorded in arrangement-stage678-wasm-size.json",
-        "User accepted the fixed 8/16-bar listening comparisons with 問題なし on 2026-11-17; case IDs and scope are in the pinned manifest"
+        "User accepted the fixed 8/16-bar listening comparisons with 問題なし on 2026-11-17; case IDs and scope are in the pinned manifest",
+        "PR #449 at 332daad4: 19/19 CI jobs passed across macOS/Linux/Windows and full/viewer Chrome; full WASM 8704678 bytes under the measured 8740000-byte gate",
+        "Observed playback-role and six-axis distances match the pinned native pack and the user accepted the fixed 8/16-bar comparisons"
       ],
-      "pending": [
-        "PR #449 CI for e4d63342, including three OS, full/viewer browser parity, and WASM budget"
+      "pending": [],
+      "environment_notes": [
+        "The initial observed-metrics build e4d63342 exceeded the old 8690000-byte full WASM gate by 14678 bytes. A measured 8740000-byte gate retained 35322 bytes of headroom and passed at 332daad4."
       ]
     },
     "8": {
-      "status": "in_progress",
+      "status": "complete",
       "implemented": [
         "GM Electric Piano 2 preset routing with an original FM-waveform SF2 sample",
         "independently enabled detune, reverb, and explicit kick-frame sidechain volume control",
@@ -82,11 +85,12 @@
         "fixed 8/16-bar full-SF2 dry/mix release timing matches the updated listening manifest",
         "PR #450 at d82c709e: 19/19 CI jobs passed, including macOS/Linux/Windows, full/viewer Chrome native parity, and the 8,643,552-byte full WASM budget check",
         "Matched stage 7 to stage 8 raw WASM size increase is zero bytes for full/viewer/playback-only profiles; compressed sizes are recorded separately in arrangement-stage678-wasm-size.json",
-        "User accepted the fixed 8/16-bar listening comparisons with 問題なし on 2026-11-17; case IDs and scope are in the pinned manifest"
+        "User accepted the fixed 8/16-bar listening comparisons with 問題なし on 2026-11-17; case IDs and scope are in the pinned manifest",
+        "PR #450 at b0a52215: 19/19 CI jobs passed across macOS/Linux/Windows and full/viewer Chrome, including the eight/sixteen-bar native event, choice, observed-role, and six-axis parity test",
+        "Full WASM 8704678 bytes under the measured 8740000-byte gate; full/viewer/playback-only sizes are recorded in arrangement-stage678-wasm-size.json",
+        "The accepted listening pack retains byte-identical WAVs to the previously presented updated pack (26 files)"
       ],
-      "pending": [
-        "PR #450 CI for the rebased observed-metrics receipt, including three OS, full/viewer browser parity, and WASM budget"
-      ]
+      "pending": []
     }
   }
 }
