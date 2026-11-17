@@ -132,7 +132,7 @@
     ]
   },
   "stage_1": {
-    "state": "measured-wasm-budget-adjusted-hosted-ci-rerun-pending",
+    "state": "hosted-ci-passed",
     "base": "69c9e815",
     "checks": {
       "native": {
@@ -154,11 +154,134 @@
     },
     "corpus": "../tests/fixtures/arrangement/harmony-expansion.json",
     "specification": "harmony-expansion.md",
-    "head": "844e9257",
-    "wasm_size": "harmony-groove-baseline.json#expansion_wasm_size"
+    "head": "844e92577596a77a6a564a654398cf6d1b85df28",
+    "wasm_size": "harmony-groove-baseline.json#expansion_wasm_size",
+    "hosted_checks": [
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43988946134/job/133724265516",
+        "name": "Test (ubuntu-latest)",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43988946134/job/133724265331",
+        "name": "Browser adapter typecheck",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43988946134/job/133724265559",
+        "name": "WASM browser contract (viewer)",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43988946134/job/133724265428",
+        "name": "WASM browser contract (full)",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43988946134/job/133724265399",
+        "name": "WASM build",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43988946134/job/133724265250",
+        "name": "WASM browser contract (playback-only)",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43988946134/job/133724265090",
+        "name": "Test (macos-latest)",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43988946134/job/133724265057",
+        "name": "Test (windows-latest)",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43988946134/job/133724265004",
+        "name": "IO feature contract",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43988945860/job/133724264268",
+        "name": "Rust coverage",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43988946134/job/133724265317",
+        "name": "Browser smoke (Chromium HiDPI)",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43988946134/job/133724265273",
+        "name": "Browser smoke (webkit)",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43988946134/job/133724265195",
+        "name": "External interoperability contract",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43988946134/job/133724265046",
+        "name": "Parser fuzz smoke",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43988946134/job/133724264632",
+        "name": "MSRV (Rust 1.89)",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43988946134/job/133724265322",
+        "name": "Browser smoke (chromium)",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43988946134/job/133724265209",
+        "name": "Browser smoke (firefox)",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43988946134/job/133724265222",
+        "name": "Renderer performance budget",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43988946134/job/133724264962",
+        "name": "Dependency security and license checks",
+        "state": "SUCCESS"
+      },
+      {
+        "bucket": "pass",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43988946134/job/133724265139",
+        "name": "Package workspace",
+        "state": "SUCCESS"
+      }
+    ],
+    "ci_run": "https://github.com/kent-tokyo/acorde/actions/runs/43988946134"
   },
   "stage_2": {
-    "state": "score-connected-held-voicings-locally-verified-hosted-ci-pending",
+    "state": "measured-wasm-budget-adjusted-hosted-ci-rerun-pending",
     "remaining": [
       "hosted macOS/Linux/Windows and full/viewer CI on the score-connected commit",
       "matched optimized WASM size measurement"
@@ -206,7 +329,10 @@
       "crates/io/tests/harmony_arrangement.rs": "e907c67810d1fa3ac11a8ec12760b16bb21d3ec27996381f3dd5381a33b1f265",
       "crates/wasm/tests/harmony_arrangement.rs": "3aa5b814ee35ffb378ee126fd13b3977378de33e41489ad63d6be94f4808d9c6",
       "tests/fixtures/arrangement/harmony_arrangement_source.rs": "c5f06f89cfa353a2734c8f4669f48ddc5edd1604027186c1cf0d20a803be0733"
-    }
+    },
+    "source_commit": "feeecd5cd406256e5a154de0d6b63feefc907a7e",
+    "pull_request": "https://github.com/kent-tokyo/acorde/pull/444",
+    "wasm_size": "harmony-groove-baseline.json#voicing_wasm_size"
   },
   "stage_3": {
     "state": "not-yet-implemented",

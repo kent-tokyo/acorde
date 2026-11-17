@@ -122,5 +122,20 @@
     "increase_bytes": 35854,
     "budget_bytes": 8110000,
     "headroom_bytes": 24664
+  },
+  "voicing_wasm_size": {
+    "platform": "Linux GitHub Actions ubuntu-latest",
+    "rustc": "1.100.0 (0ef1bc386 2026-11-09)",
+    "wasm_pack": "0.15.0",
+    "optimization": "release, wasm-opt -Oz",
+    "base_commit": "844e92577596a77a6a564a654398cf6d1b85df28",
+    "base_job": "https://github.com/kent-tokyo/acorde/actions/runs/43988946134/job/133724265399",
+    "base_bytes": 8085336,
+    "voicing_commit": "feeecd5cd406256e5a154de0d6b63feefc907a7e",
+    "voicing_job": "https://github.com/kent-tokyo/acorde/actions/runs/43989378572/job/133725757124",
+    "voicing_bytes": 8170504,
+    "increase_bytes": 85168,
+    "budget_bytes": 8200000,
+    "headroom_bytes": 29496
   }
 }
