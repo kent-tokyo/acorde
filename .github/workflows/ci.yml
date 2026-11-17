@@ -331,9 +331,10 @@ jobs:
     name: WASM browser contract (${{ matrix.profile }})
     runs-on: ubuntu-latest
     # Run 43984805684 passed 24 binaries before the old 8-minute full-profile cap.
-    # Browser startup costs ~16 s per binary; 42 integration binaries now need
-    # about 12 minutes plus compilation. Keep each profile independently bounded.
-    timeout-minutes: 25
+    # Browser startup costs ~16 s per binary. Stage 6's full profile reached
+    # standard_bass_transition with passing tests at the old 20-minute command
+    # cap (run 44079917318, attempt 1); allow compilation plus the full suite.
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
@@ -354,7 +355,7 @@ jobs:
       - name: Install wasm-pack
         run: cargo install wasm-pack --version 0.15.0 --locked
       - name: wasm browser tests
-        run: timeout 20m wasm-pack test --headless --chrome crates/wasm ${{ matrix.feature_args }}
+        run: timeout 30m wasm-pack test --headless --chrome crates/wasm ${{ matrix.feature_args }}
 
   browser-matrix:
     name: Browser smoke (${{ matrix.browser }})
