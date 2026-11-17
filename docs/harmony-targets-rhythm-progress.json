@@ -56,7 +56,8 @@
       "wav_files": 8,
       "clipped_samples": 0,
       "reproduction": "All eight WAV files byte-identical to the first generation"
-    }
+    },
+    "wasm_size": "harmony-targets-wasm-size.json"
   },
   "stage_5": {
     "state": "planned",

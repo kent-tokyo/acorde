@@ -307,7 +307,11 @@ jobs:
           # 8,383,186 bytes, +212,682 over stage 2 under the same Linux/Rust
           # 1.100/wasm-pack 0.15/-Oz conditions. Keep 36.8 KB headroom;
           # groove_wasm_size records full/viewer and compressed measurements.
-          test "$size" -le 8420000
+          # Explicit harmony targets (PR #446) add 71,820 bytes over stage 3,
+          # measured on Linux with the same Rust 1.100.0 / wasm-pack 0.15 / -Oz.
+          # Full 8,455,010; keep 34,990 bytes. Matched receipts and all profiles
+          # are recorded in docs/harmony-targets-wasm-size.json.
+          test "$size" -le 8490000
 
   renderer-benchmark:
     name: Renderer performance budget

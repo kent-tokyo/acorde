@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "platform": "Linux GitHub Actions ubuntu-latest",
+  "rustc": "1.100.0 (0ef1bc386 2026-11-09)",
+  "wasm_pack": "0.15.0",
+  "optimization": "release, wasm-opt -Oz",
+  "base_commit": "ff5e1c959c99211dd7e25397365a1e71334e8ce7",
+  "base_job": "https://github.com/kent-tokyo/acorde/actions/runs/43999010994/job/133758108782",
+  "base_profiles": {
+    "full": {
+      "raw": 8383190,
+      "gzip": 2849759,
+      "brotli": 1903531
+    },
+    "viewer": {
+      "raw": 7353131,
+      "gzip": 2468283,
+      "brotli": 1636047
+    },
+    "playback-only": {
+      "raw": 1118982,
+      "gzip": 430008,
+      "brotli": 327272
+    }
+  },
+  "target_commit": "7c8e5e32d57b1625bd7a1e006300c570735e88a8",
+  "target_job": "https://github.com/kent-tokyo/acorde/actions/runs/44039660443/job/133890877666",
+  "target_profiles": {
+    "full": {
+      "raw": 8455010,
+      "gzip": 2875185,
+      "brotli": 1922771
+    },
+    "viewer": {
+      "raw": 7399566,
+      "gzip": 2486184,
+      "brotli": 1649877
+    },
+    "playback-only": {
+      "raw": 1118769,
+      "gzip": 429781,
+      "brotli": 327180
+    }
+  },
+  "raw_increase_bytes": {
+    "full": 71820,
+    "viewer": 46435,
+    "playback-only": -213
+  },
+  "budget_bytes": 8490000,
+  "headroom_bytes": 34990,
+  "gate_note": "Initial build, viewer exports, profile comparisons and parity succeeded; the old 8420000-byte gate rejected the measured 8455010 bytes. The new gate retains 34990 bytes of headroom and must pass hosted CI."
+}
