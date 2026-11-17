@@ -24,8 +24,8 @@
       "brotli": 328624
     }
   },
-  "stage7_commit": "e4d6334207f60dd7efcf818c8f43051200f0bfe7",
-  "stage7_job": "https://github.com/kent-tokyo/acorde/actions/runs/44104042528/job/134111445323",
+  "stage7_commit": "332daad4fc1b701239a679402f9e01223ae25587",
+  "stage7_job": "https://github.com/kent-tokyo/acorde/actions/runs/44106356186/job/134119664083",
   "stage7_profiles": {
     "full": {
       "raw": 8704678,
@@ -50,11 +50,13 @@
   },
   "budget_bytes": 8740000,
   "headroom_bytes": 35322,
-  "gate_note": "The observed-role and six-axis metrics increase full WASM by 61126 bytes over the last passing balanced-selection build. The previous 8690000-byte gate failed by 14678 bytes on e4d63342. The revised 8740000-byte gate retains 35322 bytes of measured headroom; CI on the gate-change commit is pending.",
+  "gate_note": "Observed-role and six-axis metrics increased full WASM by 61126 bytes over the preceding balanced-selection build. The old 8690000-byte gate failed by 14678 bytes on e4d63342. The revised 8740000-byte gate leaves 35322 bytes of measured headroom and passed 19/19 CI jobs on 332daad4.",
   "previous_balanced_selection": {
     "commit": "5623956739c70464425fc69b4d65df1b0660973e",
     "full_raw": 8643552,
     "job": "https://github.com/kent-tokyo/acorde/actions/runs/44092813270/job/134072078013",
     "ci_result": "19/19 passed under the prior 8690000-byte budget"
-  }
+  },
+  "ci_run": "https://github.com/kent-tokyo/acorde/actions/runs/44106356186",
+  "ci_result": "19/19 passed"
 }
