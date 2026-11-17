@@ -145,8 +145,8 @@
     "optimization": "release, wasm-opt -Oz",
     "base_commit": "feeecd5cd406256e5a154de0d6b63feefc907a7e",
     "base_job": "https://github.com/kent-tokyo/acorde/actions/runs/43989378572/job/133725757124",
-    "groove_commit": "f99e2003041eed2d525b29402f544ee23b102756",
-    "groove_job": "https://github.com/kent-tokyo/acorde/actions/runs/43996272514/job/133748990912",
+    "groove_commit": "ff5e1c959c99211dd7e25397365a1e71334e8ce7",
+    "groove_job": "https://github.com/kent-tokyo/acorde/actions/runs/43999010994/job/133758108782",
     "base_profiles": {
       "full": {
         "raw": 8170504,
@@ -166,14 +166,14 @@
     },
     "groove_profiles": {
       "full": {
-        "raw": 8383186,
-        "gzip": 2849755,
-        "brotli": 1903364
+        "raw": 8383190,
+        "gzip": 2849759,
+        "brotli": 1903531
       },
       "viewer": {
-        "raw": 7353127,
-        "gzip": 2468266,
-        "brotli": 1636666
+        "raw": 7353131,
+        "gzip": 2468283,
+        "brotli": 1636047
       },
       "playback-only": {
         "raw": 1118982,
@@ -182,13 +182,41 @@
       }
     },
     "raw_increase_bytes": {
-      "full": 212682,
-      "viewer": 243405,
+      "full": 212686,
+      "viewer": 243409,
       "playback-only": -69
     },
     "budget_bytes": 8420000,
-    "headroom_bytes": 36814,
-    "log_sha256": "21b519a0024be8f83b0c755c2412cb967445baf0e6eaec92fe35a95c4888fc42",
-    "final_recheck": "required after the WASM provenance JSON-bound fix; native musical source unchanged"
+    "headroom_bytes": 36810,
+    "log_sha256": "cd80d78c0bf53a1ff4f578fb81db59e9f0ecee2c203c78fc74478293cadd8ee4",
+    "final_recheck": "passed at ff5e1c95 after the WASM provenance JSON-bound fix",
+    "initial_measurement": {
+      "groove_commit": "f99e2003041eed2d525b29402f544ee23b102756",
+      "groove_job": "https://github.com/kent-tokyo/acorde/actions/runs/43996272514/job/133748990912",
+      "groove_profiles": {
+        "full": {
+          "raw": 8383186,
+          "gzip": 2849755,
+          "brotli": 1903364
+        },
+        "viewer": {
+          "raw": 7353127,
+          "gzip": 2468266,
+          "brotli": 1636666
+        },
+        "playback-only": {
+          "raw": 1118982,
+          "gzip": 430008,
+          "brotli": 327272
+        }
+      },
+      "raw_increase_bytes": {
+        "full": 212682,
+        "viewer": 243405,
+        "playback-only": -69
+      },
+      "headroom_bytes": 36814,
+      "log_sha256": "21b519a0024be8f83b0c755c2412cb967445baf0e6eaec92fe35a95c4888fc42"
+    }
   }
 }

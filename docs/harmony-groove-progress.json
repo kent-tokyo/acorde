@@ -435,9 +435,8 @@
     ]
   },
   "stage_3": {
-    "state": "local-gates-and-provenance-replay-passed-final-hosted-ci-and-listening-pending",
+    "state": "hosted-ci-passed-listening-review-pending",
     "remaining": [
-      "hosted CI on final commit including measured WASM budget and full/viewer suites",
       "listening review of the fixed eight and sixteen bar comparison"
     ],
     "branch": "codex/harmony-comping-20261117",
@@ -521,6 +520,142 @@
     },
     "source_commit": "f99e2003041eed2d525b29402f544ee23b102756",
     "pull_request": "https://github.com/kent-tokyo/acorde/pull/445",
-    "wasm_size": "harmony-groove-baseline.json#groove_wasm_size"
+    "wasm_size": "harmony-groove-baseline.json#groove_wasm_size",
+    "head": "ff5e1c959c99211dd7e25397365a1e71334e8ce7",
+    "ci_run": "https://github.com/kent-tokyo/acorde/actions/runs/43999010994",
+    "hosted_test_logs": {
+      "ubuntu": {
+        "head": "ff5e1c959c99211dd7e25397365a1e71334e8ce7",
+        "passed_tests": 2586,
+        "log_sha256": "eaef08d3a0a104bb61e5bed102a62241b1db25854d416c62e975a768722b392d",
+        "job": "https://github.com/kent-tokyo/acorde/actions/runs/43999010994/job/133758108657"
+      },
+      "macos": {
+        "head": "ff5e1c959c99211dd7e25397365a1e71334e8ce7",
+        "passed_tests": 2586,
+        "log_sha256": "4fa6dec757230786879bbb5b36706555e6b03617a9a913782b18b0c93fcb1050",
+        "job": "https://github.com/kent-tokyo/acorde/actions/runs/43999010994/job/133758108601"
+      },
+      "windows": {
+        "head": "ff5e1c959c99211dd7e25397365a1e71334e8ce7",
+        "passed_tests": 2586,
+        "log_sha256": "35c246102883a2c7ff5b5664763c07841f34491c8da7923c4f6867199f5f7f25",
+        "job": "https://github.com/kent-tokyo/acorde/actions/runs/43999010994/job/133758108709"
+      },
+      "full-wasm": {
+        "head": "ff5e1c959c99211dd7e25397365a1e71334e8ce7",
+        "passed_tests": 119,
+        "log_sha256": "ef460f39a7642106048b12c9b516d295d1098f4d4518ee02c2a1b44ced254c0f",
+        "job": "https://github.com/kent-tokyo/acorde/actions/runs/43999010994/job/133758108697"
+      },
+      "viewer-wasm": {
+        "head": "ff5e1c959c99211dd7e25397365a1e71334e8ce7",
+        "passed_tests": 116,
+        "log_sha256": "c4232dff1658efe4b74e240aff9ff68bf2b942b02bc7b1055dce783077812f33",
+        "job": "https://github.com/kent-tokyo/acorde/actions/runs/43999010994/job/133758108815"
+      }
+    },
+    "hosted_checks": [
+      {
+        "name": "Dependency security and license checks",
+        "state": "SUCCESS",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43999010994/job/133758108572"
+      },
+      {
+        "name": "Rust coverage",
+        "state": "SUCCESS",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43999010999/job/133758108022"
+      },
+      {
+        "name": "Parser fuzz smoke",
+        "state": "SUCCESS",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43999010994/job/133758108646"
+      },
+      {
+        "name": "External interoperability contract",
+        "state": "SUCCESS",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43999010994/job/133758108949"
+      },
+      {
+        "name": "MSRV (Rust 1.89)",
+        "state": "SUCCESS",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43999010994/job/133758108259"
+      },
+      {
+        "name": "Test (ubuntu-latest)",
+        "state": "SUCCESS",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43999010994/job/133758108657"
+      },
+      {
+        "name": "Test (macos-latest)",
+        "state": "SUCCESS",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43999010994/job/133758108601"
+      },
+      {
+        "name": "Test (windows-latest)",
+        "state": "SUCCESS",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43999010994/job/133758108709"
+      },
+      {
+        "name": "IO feature contract",
+        "state": "SUCCESS",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43999010994/job/133758108683"
+      },
+      {
+        "name": "Package workspace",
+        "state": "SUCCESS",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43999010994/job/133758108622"
+      },
+      {
+        "name": "WASM build",
+        "state": "SUCCESS",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43999010994/job/133758108782"
+      },
+      {
+        "name": "Renderer performance budget",
+        "state": "SUCCESS",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43999010994/job/133758108763"
+      },
+      {
+        "name": "WASM browser contract (full)",
+        "state": "SUCCESS",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43999010994/job/133758108697"
+      },
+      {
+        "name": "WASM browser contract (viewer)",
+        "state": "SUCCESS",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43999010994/job/133758108815"
+      },
+      {
+        "name": "WASM browser contract (playback-only)",
+        "state": "SUCCESS",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43999010994/job/133758108643"
+      },
+      {
+        "name": "Browser smoke (chromium)",
+        "state": "SUCCESS",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43999010994/job/133758108725"
+      },
+      {
+        "name": "Browser smoke (firefox)",
+        "state": "SUCCESS",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43999010994/job/133758109081"
+      },
+      {
+        "name": "Browser smoke (webkit)",
+        "state": "SUCCESS",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43999010994/job/133758108712"
+      },
+      {
+        "name": "Browser smoke (Chromium HiDPI)",
+        "state": "SUCCESS",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43999010994/job/133758108716"
+      },
+      {
+        "name": "Browser adapter typecheck",
+        "state": "SUCCESS",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/43999010994/job/133758108820"
+      }
+    ]
   }
 }

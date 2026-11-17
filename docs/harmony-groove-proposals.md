@@ -4,8 +4,9 @@
 plain, colored and rhythmic scores, their resolved permissions, actual differences,
 and development costs. Both this API and `replay_harmony_groove_arrangement` are
 available in Rust and full/viewer WASM. Existing arrangement entry points are
-unchanged. The implementation is on the harmony development branch; listening
-acceptance and the completed stage's full validation remain pending.
+unchanged. The implementation is on the harmony development branch. The final code at
+`ff5e1c95` passed all 20 hosted checks; listening acceptance remains pending.
+See `harmony-groove-acceptance.md` for the tested contracts and evidence.
 
 The request's `base` is a concrete `HarmonyArrangementRequest`: root policy
 `include`, held comping, no anticipation or accent. This is the literal plain

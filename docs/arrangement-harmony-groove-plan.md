@@ -1,6 +1,6 @@
 # 和声・声部配置・先取りを組み合わせる編曲拡張計画
 
-2026-11-17 作成・更新。状態: 実装計画。開発ブランチには段階0〜2の処理と、段階3の先取り指定がある。段階3は自動選択と3案の生成、比較音声の書き出しまで実装した。次は全検証と試聴確認を完了させる。段階ごとの証跡は `harmony-groove-progress.json` に記録する。
+2026-11-17 作成・更新。状態: 段階0〜3の実装と自動検証は完了。8/16小節の原曲と3案を比較する音声も生成済み。段階3の試聴確認が残っている。段階ごとの証跡は `harmony-groove-progress.json` に記録する。
 
 最初の成果物は、同じ旋律から「素直」「彩りを加える」「リズムを強める」の3案を作り、同じ音色で比較できる編曲 API とする。テンションの選択、ベースを考慮したルートレス配置、声部の接続、伴奏の先取りを一組として実装する。その後、副属和音と転調、ベースとドラムの連動、旋律の変形、音色処理を追加する。
 
@@ -8,16 +8,16 @@
 
 ## 開発済みの処理を3案の自動生成へ接続する
 
-主作業ツリーは v1.3.13 の `b12bf625`。前回の編曲拡張 `c6a47d4e` と今回の追加処理は別の worktree にある。2026-11-17 にコード、ブランチ先端、開発側の `docs/harmony-groove-progress.json`、PRの状態を確認した。開発用worktreeは `/private/tmp/acorde-harmony-groove-20261117` で、先取り・アクセント・3案生成は `f99e2003` としてコミット済みである。
+主作業ツリーは v1.3.13 の `b12bf625`。前回の編曲拡張 `c6a47d4e` と今回の追加処理は別の worktree にある。2026-11-17 にコード、ブランチ先端、開発側の `docs/harmony-groove-progress.json`、PRの状態を確認した。開発用worktreeは `/private/tmp/acorde-harmony-groove-20261117` で、先取り・アクセント・3案生成は `f99e2003`、大きな再現設定のWASM読み戻しとサイズ上限の修正は `ff5e1c95` としてコミット・push済みである。
 
 | 段階 | 確認できた開発成果 | 完了までに必要なこと |
 | --- | --- | --- |
 | 0 | 統合ブランチ `7b7ffbc4`。旧出力と音源の比較条件、CI 20項目の通過を記録。[PR #442](https://github.com/kent-tokyo/acorde/pull/442) | 後続変更でも比較条件と既存APIの契約を維持 |
-| 1 | `844e9257` に和音展開 `expand_harmony`、Rust/full/viewer WASM、MusicXML・MSCZの対応。CI 20項目の通過を記録。[PR #443](https://github.com/kent-tokyo/acorde/pull/443) | 自動テンション選択から利用 |
+| 1 | `844e9257` に和音展開 `expand_harmony`、Rust/full/viewer WASM、MusicXML・MSCZの対応。CI 20項目の通過を記録。[PR #443](https://github.com/kent-tokyo/acorde/pull/443) | 段階3の自動テンション選択から利用済み |
 | 2 | `feeecd5c` に実楽譜の制約抽出、伴奏の音符出力、保存・再現。PR先端は `79d428d8`。[PR #444](https://github.com/kent-tokyo/acorde/pull/444) | 最新先端でCI 20項目通過。後続変更でも契約を維持 |
-| 3 | `f99e2003` に先取り、アクセント、テンションとリズムの自動選択、3案生成、固定8/16小節の音声生成。[PR #445](https://github.com/kent-tokyo/acorde/pull/445) | 完成版のブラウザー・CI・サイズ検証と、比較音声の試聴確認 |
+| 3 | `f99e2003` に先取り、アクセント、テンションとリズムの自動選択、3案生成、固定8/16小節の音声生成。[PR #445](https://github.com/kent-tokyo/acorde/pull/445) | `ff5e1c95` でCI 20項目とサイズ検証が通過。比較音声の試聴確認が残る |
 
-開発側の進捗記録では、段階2はnative 2,564件、full WASM 113件、viewer WASM 110件が通過している。段階3の記録は関連テストの通過であり、完成版の全検証ではない。ここに記した件数は段階2の記録であり、段階3の全検証とは分けて扱う。PR #444 の最新先端はCI 20項目が通過し、3件のPRはいずれもdraft・未マージだった。これらの開発成果をv1.3.13の提供機能とは扱わない。
+段階3の最終コード `ff5e1c95` は、macOS・Linux・Windowsで全機能のnativeテストが各2,586件、Chromeのfull WASMが119件・viewer WASMが116件通過した。Clippy、MSRV、パッケージングなどを含むCI 20項目がすべて通過している。最適化済みWASMはfull 8,383,190バイト、viewer 7,353,131バイト。fullは設定した8,420,000バイトの上限内である。既定機能のローカル検証は `f99e2003` で2,581件通過した。段階0〜3のPRはdraft・未マージであり、これらの開発成果をv1.3.13の提供機能とは扱わない。
 
 | 領域 | 再利用するもの | 追加するもの |
 | --- | --- | --- |
@@ -50,7 +50,7 @@
 
 ## 段階2・3をレビューできる単位に分ける
 
-2A〜2Cは実装とローカル検証が済んでいるため、最新CIと証跡を照合する。3A・3Bの実装を使い、3Cの試聴確認と全体検証へ進む。基礎APIの完成と、3案を聴き比べられる機能の完成を分けて記録する。
+2A〜2Cは実装とCI検証が済んでいる。3A・3Bの実装とCI検証、3Cの比較音声生成も完了した。3Cの試聴結果を記録して受け入れを判定する。基礎APIの完成と、3案を聴き比べられる機能の完成を分けて記録する。
 
 | 作業単位 | 主な変更先・成果物 | 合格条件 |
 | --- | --- | --- |
@@ -58,7 +58,7 @@
 | 2B. 配置を音符へ出力 | `harmony_voicing.rs` を接続し、伴奏パートと生成音の出典を返す。core・io・WASMに回帰テストを追加 | Dm9の低音Dと上声F–A–C–Eを実際の再生イベントで確認。綴り、拍数、タイ、対象外の音符が往復保存で維持される |
 | 2C. 保存と再現 | 入力の識別情報、契約・エンジン版、確定設定、配置と理由を保存 | 同じ音楽的入力から同じ発音を再現。内容変更、版不一致、不正な設定は型付きエラーで終了 |
 | 3A. 先取りの発音計画 | coreの `harmony_comping.rs`。実発音位置・音価・参照和声・打ち直し/タイを保持し、アクセント指定を追加 | 8分・16分の先取りで旧ベースとの重なりも評価。弱起・終端・ロック・反復分岐の各fixtureと、記譜・再生のアクセント比較が通る |
-| 3B. 異なる3案を選ぶ | `harmony_groove_proposals.rs`（仮称）。候補生成、差分説明、再現を公開APIへ接続 | 「素直」「彩り」「リズム」の発音が異なる。不足する場合は件数と理由を返し、重複で埋めない |
+| 3B. 異なる3案を選ぶ | `harmony_groove_proposals.rs`。候補生成、差分説明、再現を公開APIへ接続 | 「素直」「彩り」「リズム」の発音が異なる。不足する場合は件数と理由を返し、重複で埋めない |
 | 3C. 8/16小節の比較 | 固定fixture、生成例、Score・確定設定・MusicXML/MSCZ・WAV・比較manifest | 同一音源・テンポで3案を比較でき、試聴記録と全検証結果が揃う |
 
 処理順は、`入力検証 → 和声候補 → 実発音区間 → ベース・旋律の制約 → 声部配置 → 音符出力 → 検証・候補選択` とする。段階2では和声位置から発音区間を作る。段階3では先取り後の区間を使って制約を取り直すため、前の和声のベースに新しい和音が重なる場合も判定できる。
@@ -77,7 +77,7 @@
 
 入力には、元の `Score`、`ChordPlan`、対象小節、旋律・ベースの担当、楽器の音域、使用可能なテンション、先取り量、密度上限、ロックを渡す。初版の先取り量は四分音符の半分または4分の1、つまり8分音符または16分音符とする。拍子と実小節長に適合する位置だけを使う。
 
-出力は編曲済みの `Score`、再現用の確定設定、採用・不採用の理由、変更箇所、各声部の配置と発音計画を含む。入口名は `suggest_harmony_groove_arrangements`、再現入口は `replay_harmony_groove_arrangement` を仮称とし、Rust と full/viewer WASM に同じ意味の API を出す。
+出力は編曲済みの `Score`、再現用の確定設定、採用・不採用の理由、変更箇所、各声部の配置と発音計画を含む。入口は `suggest_harmony_groove_arrangements`、再現入口は `replay_harmony_groove_arrangement` とし、Rust と full/viewer WASM に同じ意味の API を公開した。
 
 比較案は次の3種類を初期設定とする。ラベルに対応する実際の音の違いを結果で確認する。
 
@@ -93,7 +93,7 @@
 
 ## 3案の自動選択には許可範囲と採否理由を持たせる
 
-3Bでは、完成済みの3組の設定を呼び出し側に要求せず、一つの入力から候補を組み立てる。要求型 `HarmonyGrooveRequest`（仮称）は、元の和声計画と共通制約に加え、和声位置ごとに追加可能な度数、許可する根音方針と声部数、先取りと発音密度の上限を持つ。個別指定用の `HarmonyArrangementRequest` は、選ばれた候補を実現するために内部で組み立てる。
+3Bでは、完成済みの3組の設定を呼び出し側に要求せず、一つの入力から候補を組み立てる。要求型 `HarmonyGrooveRequest` は、元の和声計画と共通制約に加え、和声位置ごとに追加可能な度数、許可する根音方針と声部数、先取りと発音密度の上限を持つ。個別指定用の `HarmonyArrangementRequest` は、選ばれた候補を実現するために内部で組み立てる。
 
 テンションは各和声位置で「追加なし」を含む小さな候補集合から選ぶ。入力コードの根音・種類・既存の変化音・省略を保持し、初版の自動追加は許可された9・11・13度に限定する。三和音への7度の追加は行わない。全テンションを一度に足すと声部数や旋律との間隔を満たせないため、追加数を制限して実際の配置を検査する。
 
@@ -181,7 +181,7 @@ MusicXML・MSCZ で保証するのは音符・奏法・対応する楽器情報�
 
 ## 実装時の検証と未達時の扱いを固定する
 
-実装worktreeの先端・差分とPR #444のCI結果を確認し、3Aの残作業を仕上げてから3Bに着手する。2A〜2Cを再実装せず、既存APIを使う。主作業ツリーの未コミット変更を巻き込まない。変更ごとに関連テストを通し、各段階の完了時に次を実行する。
+最終コード `ff5e1c95` とPR #445のCI通過を証跡に記録した。完了した段階0〜3の実装を使い、残る試聴確認を記録する。主作業ツリーの未コミット変更を巻き込まない。変更ごとに関連テストを通し、各段階の完了時に次を実行する。
 
 ```sh
 cargo fmt --all -- --check
@@ -207,6 +207,6 @@ macOS・Linux・WindowsのCIを照合し、full/viewerの最適化済みWASMサ�
 
 段階0〜3の完了は、上記の構造・再現・入出力・CI・8/16小節の試聴比較がすべて揃った時点とする。後続の6作品・3人以上の評価は全体計画の最終評価として管理する。
 
-参照したコード: 主作業ツリー `b12bf625` の `crates/core/src/model/{arrange,chord_plan,notation,playback}.rs` と `crates/soundfont/src/full_sf2.rs`。開発側 `79d428d8` の `harmony_expansion.rs`、`harmony_voicing.rs`、`harmony_arrangement.rs`、`cross_plan_form_proposals.rs` と、同先端に対する未コミットの `harmony_comping.rs` および関連変更。後続段階には、既存の `chordal_pad.rs`、`bass_line.rs`、`phrase_harmony.rs`、`countermelody_development.rs` を再利用する。計画中の新規モジュール名と公開API名は仮称。
+参照したコード: 主作業ツリー `b12bf625` の `crates/core/src/model/{arrange,chord_plan,notation,playback}.rs` と `crates/soundfont/src/full_sf2.rs`。開発側 `ff5e1c95` の `harmony_expansion.rs`、`harmony_voicing.rs`、`harmony_arrangement.rs`、`harmony_comping.rs`、`harmony_groove_proposals.rs`、`cross_plan_form_proposals.rs`。後続段階には、既存の `chordal_pad.rs`、`bass_line.rs`、`phrase_harmony.rs`、`countermelody_development.rs` を再利用する。段階4以降の新規モジュール名と公開API名は仮称。
 
 和音の追加・変化・省略の意味は [MusicXMLのdegree-alter仕様](https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/degree-alter/) に合わせる。13の和音が含む度数は [kind-value仕様](https://www.w3.org/2021/06/musicxml40/musicxml-reference/data-types/kind-value/) に従い、配置時に省略可能な音を選ぶ。声部の接続は [Berkleeの解説](https://online.berklee.edu/takenote/basic-piano-voicing-techniques/)、音声を検出するサイドチェインは [Abletonの説明](https://www.ableton.com/en/manual/live-audio-effect-reference/#sidechain-parameters) を設計の参考にする。これらは技法と仕様の背景資料であり、acordeの実装完了や音楽的な品質を示す証拠ではない。
