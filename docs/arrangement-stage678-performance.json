@@ -1,0 +1,292 @@
+{
+  "schema_version": 1,
+  "scope": "Native release API call timing on fixed development inputs; setup, verification, serialization, and audio rendering excluded from generation times. Audio times include full SF2 synthesis and WAV construction.",
+  "environment": {
+    "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+    "machine": "arm64",
+    "rustc": "rustc 1.100.0 (0ef1bc386 2026-11-09)\nbinary: rustc\ncommit-hash: 0ef1bc386059596dada8fb65b50425aab2ea637a\ncommit-date: 2026-11-09\nhost: aarch64-apple-darwin\nrelease: 1.100.0\nLLVM version: 23.1.5",
+    "profile": "release; incremental=0; debug=0; build_jobs=2; no custom RUSTFLAGS"
+  },
+  "revisions": {
+    "stage0_baseline": "7b7ffbc421b6764f0cbe86d354a565e39e7d7030",
+    "matched_candidate": "0500cab1cf34847ad101ca51a8f465d872fe212b",
+    "current": "d323e54562d8ae0e9762956e0393ff0cb61d2af0",
+    "current_core_tree": "fa23fe1cf9357934bbec2d0e09e51b48b4c0698b",
+    "native_audio_pack": "5d8d0bd0152bfae4c0017603dff6a24401397887"
+  },
+  "protocol": {
+    "generation_warmups": 5,
+    "generation_samples": 30,
+    "audio_warmups": 5,
+    "audio_samples": 10,
+    "p95": "nearest rank; one run for new APIs, two balanced runs for matched legacy",
+    "verification": "Each new API call reproduced the same playback and resolved choices. Each audio call reproduced the same WAV SHA-256; audio hashes match the committed listening manifest."
+  },
+  "matched_legacy": {
+    "same_input_and_playback": true,
+    "median_ratio_candidate_over_baseline": 0.9970363852655378,
+    "p95_ratio_candidate_over_baseline": 1.0457467075070972,
+    "baseline": {
+      "median_ms": 0.4568745,
+      "p95_ms": 0.749584,
+      "input_sha256": "6a9579180f785bdbb13adab7c0c678fe669be76cfef0bfe4d122188d04c67a20",
+      "playback_sha256": "c826c147acfc702cd577c498a4e2d8e24e5e2d9ee7bf4311a9be5b514563c0c8"
+    },
+    "candidate": {
+      "median_ms": 0.4555205,
+      "p95_ms": 0.783875,
+      "input_sha256": "6a9579180f785bdbb13adab7c0c678fe669be76cfef0bfe4d122188d04c67a20",
+      "playback_sha256": "c826c147acfc702cd577c498a4e2d8e24e5e2d9ee7bf4311a9be5b514563c0c8"
+    }
+  },
+  "generation_cases": [
+    {
+      "id": "legacy-form-sixteen",
+      "median_ns": 832542,
+      "p95_ns": 1229500,
+      "samples_ns_sorted": [
+        660792,
+        664167,
+        665250,
+        665375,
+        665833,
+        735458,
+        736417,
+        739042,
+        739541,
+        740666,
+        742416,
+        749375,
+        794916,
+        827166,
+        829875,
+        832542,
+        833167,
+        837500,
+        839292,
+        839416,
+        841833,
+        888375,
+        945125,
+        945917,
+        976208,
+        978375,
+        981208,
+        1170542,
+        1229500,
+        1355000
+      ],
+      "observed_sha256": "b6eab922d2e097f84da53ad5bc379776e0ede66ff626055c15628896f245a2bb"
+    },
+    {
+      "id": "stage6-melody-four",
+      "median_ns": 102042,
+      "p95_ns": 107917,
+      "samples_ns_sorted": [
+        101541,
+        101583,
+        101625,
+        101667,
+        101708,
+        101750,
+        101791,
+        101834,
+        101875,
+        101916,
+        101917,
+        101917,
+        101959,
+        102042,
+        102042,
+        102042,
+        102083,
+        102084,
+        102125,
+        102167,
+        102250,
+        102291,
+        102416,
+        102541,
+        102709,
+        103417,
+        104666,
+        106125,
+        107917,
+        109542
+      ],
+      "observed_sha256": "ceeb52dae7d5f617d66971b91ba14861a64f708adca0f6dd306098eab79c7e85"
+    },
+    {
+      "id": "stage7-integrated-rhythm-eight",
+      "median_ns": 8859833,
+      "p95_ns": 8914333,
+      "samples_ns_sorted": [
+        8660542,
+        8688708,
+        8703125,
+        8790917,
+        8800625,
+        8816792,
+        8830208,
+        8838292,
+        8839166,
+        8843584,
+        8844208,
+        8849375,
+        8851958,
+        8853834,
+        8859500,
+        8859833,
+        8862667,
+        8864959,
+        8866167,
+        8871458,
+        8876583,
+        8881708,
+        8881875,
+        8884458,
+        8887125,
+        8893334,
+        8899625,
+        8901458,
+        8914333,
+        8927042
+      ],
+      "observed_sha256": "d547a8d7ba4c710dcaba312ea4c1935dbdb5d762c9839281076adae9e467279b",
+      "realizations": 6,
+      "search_limited": true
+    },
+    {
+      "id": "stage7-integrated-rhythm-sixteen",
+      "median_ns": 18102500,
+      "p95_ns": 18188834,
+      "samples_ns_sorted": [
+        17747250,
+        17789625,
+        17819625,
+        17930125,
+        17932125,
+        17932500,
+        17945625,
+        17979375,
+        18013792,
+        18015084,
+        18044167,
+        18045375,
+        18060083,
+        18063125,
+        18077208,
+        18102500,
+        18103875,
+        18113209,
+        18129583,
+        18130375,
+        18138500,
+        18144500,
+        18150916,
+        18160459,
+        18162000,
+        18169875,
+        18185417,
+        18185833,
+        18188834,
+        18242500
+      ],
+      "observed_sha256": "793311822f3aa896941209a78f1d19565db7691d971e6bee00939bfa586590c1",
+      "realizations": 6,
+      "search_limited": true
+    }
+  ],
+  "audio_cases": [
+    {
+      "id": "rhythm-eight-dry",
+      "median_ns": 12865250,
+      "p95_ns": 12925625,
+      "samples_ns_sorted": [
+        12765083,
+        12807166,
+        12845875,
+        12852583,
+        12864583,
+        12865250,
+        12870667,
+        12875125,
+        12905791,
+        12925625
+      ],
+      "wav_sha256": "b54827770cd2d13ba58f238a7585b1175c9cb3c6c45cb0cec17a9df6a602e70b"
+    },
+    {
+      "id": "rhythm-eight-mix",
+      "median_ns": 20339125,
+      "p95_ns": 20654417,
+      "samples_ns_sorted": [
+        20152292,
+        20258166,
+        20287709,
+        20318958,
+        20328833,
+        20339125,
+        20347458,
+        20348583,
+        20356209,
+        20654417
+      ],
+      "wav_sha256": "b865d1e93a34a9576fab5c29854a9f2765ccd6d704e19ff757dc084ad0dcb4f4"
+    },
+    {
+      "id": "rhythm-sixteen-dry",
+      "median_ns": 23599167,
+      "p95_ns": 23649333,
+      "samples_ns_sorted": [
+        23482917,
+        23572084,
+        23580125,
+        23586459,
+        23597625,
+        23599167,
+        23614791,
+        23633875,
+        23636541,
+        23649333
+      ],
+      "wav_sha256": "756146d6d487eaca520016480afb3e45f921e22d258f3423d5be6a12edd49783"
+    },
+    {
+      "id": "rhythm-sixteen-mix",
+      "median_ns": 35942292,
+      "p95_ns": 35998042,
+      "samples_ns_sorted": [
+        35626916,
+        35866125,
+        35874417,
+        35907209,
+        35927958,
+        35942292,
+        35950166,
+        35954042,
+        35955292,
+        35998042
+      ],
+      "wav_sha256": "db6ed6c407ec2b2a398e34d511766e28fcb7ed208486e0bb138f1347cf7df221"
+    }
+  ],
+  "soundfont_sha256": "f7884c34012ffa2a000d1a310ede173149e8abc1cda1910c1531b7789d82a792",
+  "raw_sha256": {
+    "matched_report": "18e55e44c0a0202989b3205df895639eb2cffa73c61eca53f8f04523d05788eb",
+    "generation": "737b90d2c33f4041a5dc9150f75706438e43201647d3f56f43d09b463bf25a0a",
+    "audio": "4c18dbf27bbf42c092e735708bf06a07328fcaf4f638be5f73763145019c559c"
+  },
+  "harness_sha256": {
+    "matched": "a04037cda72b60b7d945cf4d26960798257e3aacc55ddf42126c91ab1259c779",
+    "generation": "318de86b23bdfa4bc966d74ba55cd95629d9608870777e4990c39b4486b6da83",
+    "audio": "9e8f6845ff5ce19d25e70cd75fd5bd9c4b3291e8e7f724b7ce8dd54aebbcf377"
+  },
+  "limitations": [
+    "One macOS arm64 host and development scores; no general latency or audio quality guarantee.",
+    "Stage 6 generation uses a four-bar fixture; stages 7 and 8 use eight and sixteen bars.",
+    "Stage 7 reached its configured six-realization cap after returning three candidates; search_limited is true.",
+    "Audio timing uses the first proposal only, the same 22,050 Hz stereo SF2 and settings as the listening pack.",
+    "The matched legacy ratio compares the pinned stage-0 code with the current core tree under one runner; it is not a cross-API speed ratio."
+  ]
+}

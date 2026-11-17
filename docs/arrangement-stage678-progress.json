@@ -18,6 +18,7 @@
         "cargo test -p acorde-io --test phrase_melody --all-features --offline --locked",
         "cargo test -p acorde-wasm --test phrase_melody --offline --locked",
         "CARGO_INCREMENTAL=0 CARGO_PROFILE_TEST_DEBUG=0 cargo test --all --locked --offline",
+        "fixed four-bar phrase melody release timing and same-host matched legacy comparison in arrangement-stage678-performance.json",
         "cargo clippy -p acorde-core -p acorde-io -p acorde-wasm --all-features --all-targets --offline --locked -- -D warnings",
         "cargo fmt --all -- --check",
         "PR #448: macOS, Linux, Windows, full/viewer Chrome WASM and other functional checks passed at bd525ac1"
@@ -31,7 +32,7 @@
         "8 and 16 measure listening comparisons",
         "new API native/browser parity receipt and matched WASM size measurements",
         "all-features workspace tests",
-        "three OS CI and matched WASM size/performance measurements"
+        "three OS CI and matched WASM size measurements"
       ]
     },
     "7": {
@@ -49,9 +50,10 @@
         "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 cargo clippy -p acorde-core -p acorde-io -p acorde-wasm --all-features --all-targets --offline --locked -- -D warnings",
         "8 and 16 measure three-proposal structural generation",
         "8 and 16 measure score generation; 4 measure replay, MusicXML/MSCZ and native WASM local parity tests",
-        "8 and 16 measure native playback and resolved-choice receipt produced by clean commit 5d8d0bd0; host WASM binding parity test passes"
+        "8 and 16 measure native playback and resolved-choice receipt produced by clean commit 5d8d0bd0; host WASM binding parity test passes",
+        "fixed 8 and 16 measure release generation timing with six realizations per case in arrangement-stage678-performance.json"
       ],
-      "pending": ["8 and 16 measure listening review", "full and viewer Chrome WASM parity", "three OS CI", "matched WASM size/performance measurements"]
+      "pending": ["8 and 16 measure listening review", "full and viewer Chrome WASM parity", "three OS CI", "matched WASM size measurements"]
     },
     "8": {
       "status": "in_progress",
@@ -67,10 +69,11 @@
         "8 and 16 measure dry and mixed WAV packs generated twice with matching hashes for all six proposals",
         "six mixed examples reported no clipping and no tail cutoff",
         "clean commit 5d8d0bd0 produced tests/fixtures/arrangement/integrated-stage678-listening-manifest.json and stage678-native-parity.json with source, SF2, WAV, resolved-choice, and playback-event receipts",
+        "fixed 8 and 16 measure dry/mixed full-SF2 release timing with exact WAV SHA-256 agreement in arrangement-stage678-performance.json",
         "CARGO_INCREMENTAL=0 CARGO_PROFILE_TEST_DEBUG=0 cargo test --workspace --all-features --locked --offline",
         "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 cargo clippy --workspace --all-features --all-targets --locked --offline -- -D warnings"
       ],
-      "pending": ["8 and 16 measure listening review", "three OS CI", "matched WASM size/performance measurements"]
+      "pending": ["8 and 16 measure listening review", "three OS CI", "matched WASM size measurements"]
     }
   }
 }
