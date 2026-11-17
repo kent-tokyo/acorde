@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::chord_proposals::fingerprint;
+use super::arrange_presets::input_fingerprint;
 use super::countermelody_development::{
     CountermelodyDevelopmentError, CountermelodyDevelopmentRequest, CountermelodyDevelopmentResult,
     arrange_countermelody_development, arrange_countermelody_development_with_activity,
@@ -251,7 +251,7 @@ pub fn arrange_phrase_melody(
     if !validate(&developed.score).is_valid() {
         return Err(PhraseMelodyError::InvalidOutput);
     }
-    let fingerprint = fingerprint(source).ok_or(PhraseMelodyError::InvalidSource)?;
+    let fingerprint = input_fingerprint(source).map_err(|_| PhraseMelodyError::InvalidSource)?;
     Ok(PhraseMelodyResult {
         score: developed.score.clone(),
         resolved: ResolvedPhraseMelody {
@@ -274,7 +274,7 @@ pub fn replay_phrase_melody(
     {
         return Err(PhraseMelodyError::UnsupportedContract);
     }
-    if fingerprint(source).as_deref() != Some(resolved.source_fingerprint.as_str()) {
+    if input_fingerprint(source).ok().as_deref() != Some(resolved.source_fingerprint.as_str()) {
         return Err(PhraseMelodyError::SourceMismatch);
     }
     let result = arrange_phrase_melody(source, &resolved.request)?;

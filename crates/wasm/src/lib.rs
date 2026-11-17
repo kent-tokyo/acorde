@@ -2386,6 +2386,30 @@ pub fn replay_phrase_melody(score_json: &str, resolved_json: &str) -> Result<Str
         .map_err(|error| js_err(format!("phrase melody replay serialization failed: {error}")))
 }
 
+/// Select bounded, source-bound arrangements across harmony, rhythm and melody techniques.
+#[wasm_bindgen]
+pub fn suggest_integrated_arrangements(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::IntegratedArrangementRequest =
+        parse_json(request_json, "integrated arrangement request", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::suggest_integrated_arrangements(&score, &request)
+        .map_err(|error| js_err(format!("integrated arrangement failed: {error}")))?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("integrated arrangement serialization failed: {error}")))
+}
+
+/// Replay one selected integrated arrangement with all source and budget checks.
+#[wasm_bindgen]
+pub fn replay_integrated_arrangement(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedIntegratedArrangement =
+        parse_json(resolved_json, "resolved integrated arrangement", MAX_OPTIONS_JSON_BYTES)?;
+    let score = acorde_core::replay_integrated_arrangement(&score, &resolved)
+        .map_err(|error| js_err(format!("integrated arrangement replay failed: {error}")))?;
+    serde_json::to_string(&score)
+        .map_err(|error| js_err(format!("integrated arrangement replay serialization failed: {error}")))
+}
+
 /// Return a bounded set of distinct, replayable whole-score arrangements.
 #[wasm_bindgen]
 pub fn suggest_arrangement_proposals(score_json: &str, request_json: &str) -> Result<String, JsValue> {

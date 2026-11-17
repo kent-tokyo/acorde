@@ -39,6 +39,7 @@ pub mod harmony_voicing;
 pub mod inner_voices;
 pub mod inner_voices_performance;
 pub mod instrument_plan;
+pub mod integrated_arrangement_proposals;
 pub mod interval;
 pub mod melodic_insert;
 pub mod musical_diff;

@@ -233,6 +233,12 @@ pub use model::instrument_plan::{
     InstrumentPartReport, InstrumentPlanError, InstrumentPlanRequest, InstrumentPlanResult,
     PartTechnique, ResolvedInstrumentPlan, plan_instruments, replay_instrument_plan,
 };
+pub use model::integrated_arrangement_proposals::{
+    INTEGRATED_ARRANGEMENT_CONTRACT_VERSION, IntegratedArrangementCandidate,
+    IntegratedArrangementError, IntegratedArrangementRejection, IntegratedArrangementRequest,
+    IntegratedArrangementResult, ResolvedIntegratedArrangement, replay_integrated_arrangement,
+    suggest_integrated_arrangements,
+};
 pub use model::interval::{Interval, IntervalQuality};
 pub use model::melodic_insert::{
     MelodicInsertion, MelodicInsertionCandidate, MelodicInsertionContext,
