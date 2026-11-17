@@ -383,15 +383,15 @@ fn pitches(signature: &Signature) -> Vec<(u64, u8)> {
 
 fn quality(
     result: &HarmonyArrangementResult,
-    request: &HarmonyGrooveRequest,
+    melody_ref: super::harmony_arrangement::HarmonyStaffRef,
     sound: &Signature,
 ) -> HarmonyGrooveQuality {
     let melody = to_playback_events(&result.score, &Default::default())
         .into_iter()
         .filter(|e| {
-            e.source.as_ref().is_some_and(|s| {
-                s.part == request.base.melody.part && s.staff == request.base.melody.staff
-            })
+            e.source
+                .as_ref()
+                .is_some_and(|s| s.part == melody_ref.part && s.staff == melody_ref.staff)
         })
         .map(|e| {
             (
@@ -432,6 +432,13 @@ fn quality(
     }
 }
 
+pub(super) fn arrangement_quality(
+    result: &HarmonyArrangementResult,
+    melody: super::harmony_arrangement::HarmonyStaffRef,
+) -> HarmonyGrooveQuality {
+    quality(result, melody, &signature(result))
+}
+
 fn candidate(
     source: &Score,
     request: &HarmonyGrooveRequest,
@@ -440,7 +447,7 @@ fn candidate(
     arrangement: HarmonyArrangementResult,
 ) -> Result<HarmonyGrooveCandidate, Error> {
     let sound = signature(&arrangement);
-    let quality = quality(&arrangement, request, &sound);
+    let quality = quality(&arrangement, request.base.melody, &sound);
     let unique = |values: Vec<usize>| {
         values
             .into_iter()

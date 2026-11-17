@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "objective": "stages 4 and 5 of arrangement-harmony-groove-plan.md",
+  "base_commit": "58f9fdf2faae9c794796bfda32438122faa863d4",
+  "stage_4": {
+    "state": "validation",
+    "branch": "codex/harmony-targets-20261117",
+    "required": [
+      "explicit secondary-dominant targets with spelled resolutions",
+      "destination-key regions with common-chord and dominant approaches and a verified cadence",
+      "melody fit, voice-motion evidence, locks and change limits",
+      "source-bound replay and unchanged original parts",
+      "MusicXML/MSCZ round trips and native/full/viewer WASM parity",
+      "full native, Clippy, formatting, three-OS hosted CI and matched WASM size",
+      "fixed eight/sixteen-bar listening comparison and recorded acceptance"
+    ],
+    "local_checks": {
+      "native": {
+        "log_sha256": "040d6a5edecbd494f9b202ce0709a9964fd5e7b1d4be27f3dd2004fafa140fc8",
+        "passed_tests": 2598
+      },
+      "all-features": {
+        "log_sha256": "d33a37d3d2fccfbc6697dbe5299e8c6fbe56ce138780a90a48ca791dee0b904c",
+        "passed_tests": 2602
+      },
+      "clippy-final": {
+        "log_sha256": "5fd8223a4b18c86f5892af0c4692a0d96ae74ba35c3a2ab10f54a0588079af49",
+        "passed_tests": 0
+      },
+      "full-wasm-focused": {
+        "log_sha256": "be4a7f77d2e5d275e0646ec1aaac442b2c2f1fa3811beee7862e5cbdd2709211",
+        "passed_tests": 3
+      },
+      "viewer-wasm-focused": {
+        "log_sha256": "e80f246f7ff2e957ae5238b5d44018542b64326c0cbf08dec5361c1f2a6026b4",
+        "passed_tests": 3
+      }
+    },
+    "listening_review": "pending new stage-4 eight/sixteen-bar comparison; earlier stage-3 acceptance does not apply"
+  },
+  "stage_5": {
+    "state": "planned",
+    "required": [
+      "shared exact rhythm plan for kick, bass, rests, accents and duration",
+      "selected kick/bass synchronized attacks with independent optional bass attacks",
+      "target-bound bass approach notes checked against actual playback order",
+      "audibly distinct ghost notes, muted-sound capability and explicit approximation reports",
+      "source-bound replay, locks, original-part preservation and valid measure lengths",
+      "MusicXML/MSCZ round trips and native/full/viewer WASM parity",
+      "full native, Clippy, formatting, three-OS hosted CI and matched WASM size",
+      "fixed eight/sixteen-bar listening comparison and recorded acceptance"
+    ]
+  }
+}

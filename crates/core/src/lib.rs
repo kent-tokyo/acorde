@@ -260,8 +260,12 @@ pub use model::omr::{
     OmrNoteTarget, OmrPage, OmrProposal, OmrRegion, OmrRhythmicEvent, OmrUnresolvedItem,
 };
 pub use model::phrase_harmony::{
-    PhraseHarmonicPace, PhraseHarmonyRequest, PhraseHarmonyResult, PhraseHarmonySection,
-    suggest_phrase_harmony,
+    ModulationApproach, PHRASE_HARMONY_TARGET_CONTRACT_VERSION, PhraseHarmonicPace,
+    PhraseHarmonyRequest, PhraseHarmonyResult, PhraseHarmonySection, PhraseHarmonyTargetCandidate,
+    PhraseHarmonyTargetError, PhraseHarmonyTargetRejection, PhraseHarmonyTargetRequest,
+    PhraseHarmonyTargetResult, PhraseModulationTarget, ResolvedModulationChoice,
+    ResolvedPhraseHarmonyTarget, SecondaryDominantTarget, TargetResolutionEvidence,
+    replay_phrase_harmony_target, suggest_phrase_harmony, suggest_phrase_harmony_targets,
 };
 pub use model::pitch::{Pitch, Step};
 pub use model::playback::{

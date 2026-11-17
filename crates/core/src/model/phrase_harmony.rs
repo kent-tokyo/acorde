@@ -18,6 +18,15 @@ use super::score::Score;
 const MAX_PHRASES: usize = 64;
 const MAX_POSITIONS: usize = 512;
 
+mod targets;
+pub use targets::{
+    ModulationApproach, PHRASE_HARMONY_TARGET_CONTRACT_VERSION, PhraseHarmonyTargetCandidate,
+    PhraseHarmonyTargetError, PhraseHarmonyTargetRejection, PhraseHarmonyTargetRequest,
+    PhraseHarmonyTargetResult, PhraseModulationTarget, ResolvedModulationChoice,
+    ResolvedPhraseHarmonyTarget, SecondaryDominantTarget, TargetResolutionEvidence,
+    replay_phrase_harmony_target, suggest_phrase_harmony_targets,
+};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum PhraseHarmonicPace {

@@ -2023,6 +2023,26 @@ pub fn replay_harmony_groove_arrangement(score_json: &str, resolved_json: &str) 
     serde_json::to_string(&result).map_err(js_err)
 }
 
+/// Generate source-bound applied dominants and destination-key progressions.
+#[wasm_bindgen]
+pub fn suggest_phrase_harmony_targets(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::PhraseHarmonyTargetRequest =
+        parse_json(request_json, "phrase harmony target request", MAX_CHORD_PLAN_JSON_BYTES)?;
+    let result = acorde_core::suggest_phrase_harmony_targets(&score, &request).map_err(js_err)?;
+    serde_json::to_string(&result).map_err(js_err)
+}
+
+/// Replay the selected target-key progression after checking the original permissions.
+#[wasm_bindgen]
+pub fn replay_phrase_harmony_target(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedPhraseHarmonyTarget =
+        parse_json(resolved_json, "resolved phrase harmony target", MAX_HARMONY_REPLAY_JSON_BYTES)?;
+    let result = acorde_core::replay_phrase_harmony_target(&score, &resolved).map_err(js_err)?;
+    serde_json::to_string(&result).map_err(js_err)
+}
+
 /// Compose independently scheduled harmony, bass and countermelody parts.
 #[wasm_bindgen]
 pub fn arrange_ensemble_roles(score_json: &str, options_json: &str) -> Result<String, JsValue> {

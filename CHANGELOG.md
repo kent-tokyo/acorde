@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+- Add explicit secondary-dominant and destination-key region targets with
+  common-chord or dominant approaches in Rust and full/viewer WASM. Candidates
+  retain spelled arrivals, report actual repeat-aware guide-tone resolutions,
+  respect locks and change limits, and replay from a source-bound contract.
+  Fixed 8/16-bar comparisons cover the original accompaniment and three routes.
+
 - Add score-derived harmony accompaniment and source-bound replay in Rust and
   full/viewer WASM. Spelled voices respect the actual bass and melody intervals,
   including eighth/sixteenth anticipations, cross-bar ties, reattacks and accents.
