@@ -162,6 +162,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 json!({"index":index+1,"difference_codes":candidate.difference_codes,
                 "resolved":resolved_file,"musicxml":xml_file,"mscz":mscz_file,
                 "dry_wav":dry_file,"mix_wav":mixed_file,"mix_report":settings_file,
+                "playback_events":events(&candidate.score),
                 "dry_peak_matched_wav":dry_matched_file,"mix_peak_matched_wav":mix_matched_file,
                 "dry_peak_level":{"input_peak":dry_level.input_peak,"output_peak":dry_level.output_peak,
                     "gain":dry_level.gain,"input_rail_samples":dry_level.input_rail_samples},
