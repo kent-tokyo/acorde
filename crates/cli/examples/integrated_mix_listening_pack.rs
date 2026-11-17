@@ -160,6 +160,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             )?;
             candidates.push(
                 json!({"index":index+1,"difference_codes":candidate.difference_codes,
+                "observed_difference_codes":candidate.observed_difference_codes,
+                "axis_distance_from_first":candidate.axis_distance_from_first,
+                "nearest_selected_distance":candidate.nearest_selected_distance,
                 "resolved":resolved_file,"musicxml":xml_file,"mscz":mscz_file,
                 "dry_wav":dry_file,"mix_wav":mixed_file,"mix_report":settings_file,
                 "playback_events":events(&candidate.score),

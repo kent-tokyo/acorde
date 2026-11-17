@@ -58,6 +58,24 @@ fn integrated_eight_and_sixteen_match_recorded_native_choices_and_events() {
                 native["difference_codes"]
             );
             assert_eq!(
+                json!(candidate.observed_difference_codes),
+                native["observed_difference_codes"],
+                "{}: observed role changes",
+                case["id"]
+            );
+            assert_eq!(
+                json!(candidate.axis_distance_from_first),
+                native["axis_distance_from_first"],
+                "{}: observed axes",
+                case["id"]
+            );
+            assert_eq!(
+                json!(candidate.nearest_selected_distance),
+                native["nearest_selected_distance"],
+                "{}: nearest selected distance",
+                case["id"]
+            );
+            assert_eq!(
                 playback_events(&candidate.score),
                 native["playback_events"],
                 "{}: generated playback",

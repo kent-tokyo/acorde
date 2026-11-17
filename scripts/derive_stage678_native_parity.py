@@ -23,6 +23,9 @@ def main() -> None:
             candidates.append({
                 "resolved": json.loads((directory / candidate["resolved"]["file"]).read_text()),
                 "difference_codes": candidate["difference_codes"],
+                "observed_difference_codes": candidate["observed_difference_codes"],
+                "axis_distance_from_first": candidate["axis_distance_from_first"],
+                "nearest_selected_distance": candidate["nearest_selected_distance"],
                 "playback_events": candidate["playback_events"],
             })
         cases.append({
