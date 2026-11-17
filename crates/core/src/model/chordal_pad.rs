@@ -531,7 +531,7 @@ fn optimize_global(
     true
 }
 
-fn duration_for_ticks(ticks: u32) -> Option<(Duration, u32)> {
+pub(super) fn duration_for_ticks(ticks: u32) -> Option<(Duration, u32)> {
     [
         (Duration::Whole, 128),
         (Duration::Half, 64),
@@ -607,6 +607,16 @@ pub(super) fn free_channel(score: &Score) -> Option<u8> {
             && let Some(slot) = occupied.get_mut(usize::from(instrument.midi_channel))
         {
             *slot = true;
+        }
+        for instrument in part
+            .staves
+            .iter()
+            .flat_map(|staff| &staff.measures)
+            .filter_map(|measure| measure.instrument_change.as_ref())
+        {
+            if let Some(slot) = occupied.get_mut(usize::from(instrument.midi_channel)) {
+                *slot = true;
+            }
         }
         for named in &part.named_channels {
             if let Some(slot) = occupied.get_mut(usize::from(named.midi_channel)) {

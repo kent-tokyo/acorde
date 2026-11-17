@@ -34,6 +34,9 @@ pub struct HarmonyVoicingNode {
     pub bass_midi: Option<u8>,
     /// Maximum upper-voice pitch after subtracting the desired melody gap.
     pub melody_ceiling_midi: Option<u8>,
+    /// Interval-wide lower limit after accounting for the bass clearance.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub accompaniment_floor_midi: Option<u8>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -171,9 +174,13 @@ fn candidates(
         node: index,
         source,
     })?;
+    let floor = node
+        .accompaniment_floor_midi
+        .unwrap_or(0)
+        .max(request.low_midi);
     let supported = node
         .bass_midi
-        .is_some_and(|bass| bass < request.low_midi && bass % 12 == harmony.root.pitch_class());
+        .is_some_and(|bass| bass < floor && bass % 12 == harmony.root.pitch_class());
     let has_root = harmony.tones.iter().any(|tone| tone.degree == 1);
     let (omit, decision) = if !has_root {
         (true, RootVoicingDecision::OmittedByChord)
@@ -242,9 +249,7 @@ fn candidates(
             .map(|octave| {
                 Pitch::with_alter(tone.spelling.step.clone(), octave, tone.spelling.alter)
             })
-            .filter(|pitch| {
-                (i16::from(request.low_midi)..=i16::from(ceiling)).contains(&pitch.to_midi())
-            })
+            .filter(|pitch| (i16::from(floor)..=i16::from(ceiling)).contains(&pitch.to_midi()))
             .map(|pitch| VoicedHarmonyTone {
                 pitch,
                 degree: tone.degree,
@@ -362,6 +367,7 @@ pub fn plan_harmony_voicings(
         || request.nodes.iter().any(|node| {
             node.bass_midi.is_some_and(|p| p > 127)
                 || node.melody_ceiling_midi.is_some_and(|p| p > 127)
+                || node.accompaniment_floor_midi.is_some_and(|p| p > 127)
         })
         || request
             .edges

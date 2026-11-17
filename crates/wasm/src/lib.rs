@@ -1981,6 +1981,26 @@ pub fn plan_harmony_voicings(request_json: &str) -> Result<String, JsValue> {
     serde_json::to_string(&result).map_err(js_err)
 }
 
+/// Derive bass and melody context from a score and append spelled harmony voices.
+#[wasm_bindgen]
+pub fn arrange_harmony_voicings(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::HarmonyArrangementRequest =
+        parse_json(request_json, "harmony arrangement request", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::arrange_harmony_voicings(&score, &request).map_err(js_err)?;
+    serde_json::to_string(&result).map_err(js_err)
+}
+
+/// Replay a source-bound spelled harmony arrangement.
+#[wasm_bindgen]
+pub fn replay_harmony_arrangement(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedHarmonyArrangement =
+        parse_json(resolved_json, "resolved harmony arrangement", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::replay_harmony_arrangement(&score, &resolved).map_err(js_err)?;
+    serde_json::to_string(&result).map_err(js_err)
+}
+
 /// Compose independently scheduled harmony, bass and countermelody parts.
 #[wasm_bindgen]
 pub fn arrange_ensemble_roles(score_json: &str, options_json: &str) -> Result<String, JsValue> {

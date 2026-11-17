@@ -188,6 +188,12 @@ pub use model::free_bass::{
 };
 pub use model::gm::{drum_name, program_name};
 pub use model::harmony::{detect_chord, roman_numeral, roman_numeral_figured};
+pub use model::harmony_arrangement::{
+    HARMONY_ARRANGEMENT_CONTRACT_VERSION, HarmonyArrangementError, HarmonyArrangementNote,
+    HarmonyArrangementRequest, HarmonyArrangementResult, HarmonyArrangementSpan,
+    HarmonyContextFeature, HarmonyStaffRef, ResolvedHarmonyArrangement, arrange_harmony_voicings,
+    replay_harmony_arrangement,
+};
 pub use model::harmony_expansion::{
     ExpandedHarmony, ExpandedHarmonyTone, HARMONY_EXPANSION_CONTRACT_VERSION,
     HARMONY_EXPANSION_MAX_DEGREES, HarmonyExpansionError, HarmonyPitchClass, HarmonyToneOrigin,

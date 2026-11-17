@@ -154,35 +154,33 @@
     },
     "corpus": "../tests/fixtures/arrangement/harmony-expansion.json",
     "specification": "harmony-expansion.md",
-    "head": "689c2b38",
+    "head": "844e9257",
     "wasm_size": "harmony-groove-baseline.json#expansion_wasm_size"
   },
   "stage_2": {
-    "state": "low-level-voicing-verified-score-integration-pending",
+    "state": "score-connected-held-voicings-locally-verified-hosted-ci-pending",
     "remaining": [
-      "derive interval-wide bass and melody context from the source score",
-      "connect all actual harmony and repeat transitions",
-      "write spelled notes and preserve notation/playback through IO",
-      "source-bound replay and complete stage validation"
+      "hosted macOS/Linux/Windows and full/viewer CI on the score-connected commit",
+      "matched optimized WASM size measurement"
     ],
     "branch": "codex/harmony-voicing-20261117",
-    "specification": "harmony-voicing.md",
+    "specification": "harmony-arrangement.md",
     "checks": {
-      "core": {
-        "log_sha256": "8fc8acd467daeb7cf7aa37535aa1e3361d62471b6635847a2591a1a8d543bae2",
-        "passed_tests": 7
+      "native-all": {
+        "log_sha256": "feba52d80e93aa5063d98c6c0b0f1dffd4dfbad69fa3a6a5644e0a849009d6c4",
+        "passed_tests": 2564
       },
-      "full-wasm-focused": {
-        "log_sha256": "744e53f36e02c2c42e2c2a04c37f5418d730b477cb267047444dc36fa468d8f2",
-        "passed_tests": 2
-      },
-      "viewer-wasm-focused": {
-        "log_sha256": "603076850b4a97d51692d3252d93cd2bf80806ba598893e9097d958e8a0ddac2",
-        "passed_tests": 2
-      },
-      "clippy-rust-1.100": {
-        "log_sha256": "57d00c7bafd7a779b4b6c0ca7d2f24c3ba7c1c62b0aa2d35d098ade2e022240a",
+      "clippy-all": {
+        "log_sha256": "faa6fcded5bc42bae538061f18810db54f468ed87f55e20ea12be898ab5a0b1e",
         "passed_tests": 0
+      },
+      "full-wasm-all": {
+        "log_sha256": "c70a9c1ac42d73e9a563862b5cd945b0fa1ef13b60a51fd819fe43975027b415",
+        "passed_tests": 113
+      },
+      "viewer-wasm-all": {
+        "log_sha256": "55f9bfac60de5ecf420dd6324b6c9dabb94b060b47865eaab3aa41b1924797c5",
+        "passed_tests": 110
       }
     },
     "stress_example": {
@@ -190,6 +188,24 @@
       "search_states": 128032,
       "native_debug_milliseconds": 184.572541,
       "interpretation": "one bounded development check, not a browser latency guarantee"
+    },
+    "limitations": [
+      "selected context staves currently reject pedal, grace, ornaments, pitch effects and microtones",
+      "held voicings reattack at bar boundaries; anticipatory comping belongs to stage 3"
+    ],
+    "tested_sources_sha256": {
+      "crates/core/src/model/harmony_arrangement.rs": "9d222bbff0ec58e4839844de5142df50e1d3037eb8a1122d09a489eaf811b44d",
+      "crates/core/src/model/harmony_voicing.rs": "76f0cee9ce11b669505bc6c4838f0ac825e5de0df90132314330ad3c0c645a98",
+      "crates/core/src/model/chord_plan.rs": "55f425e5d921071141504f9712d65ed35ac7da683b81376d926abb30a50eaa48",
+      "crates/core/src/model/chordal_pad.rs": "a39e36038e467a12ed94d79ab62f6db9051b13dfa03da17d43a745743c1f7ea5",
+      "crates/core/src/lib.rs": "37a326a805dfe98518bec4c32d1260f12bd122f6ae121e9d3ae1cf8a215abf29",
+      "crates/core/src/model/mod.rs": "18afe41a36168efae47fc480fe3d40c3662e55db59789fe00074b038a7bf4201",
+      "crates/wasm/src/lib.rs": "6124600f675fd31e35df18907faeac521a4f82ca06432a8b223f11380d02f64b",
+      "crates/core/tests/harmony_arrangement.rs": "3da15d1b12cc1b5eeb914f264249d9cd7674913cc2afdcc758635cafd452171d",
+      "crates/core/tests/harmony_voicing.rs": "2b4e1dfebf01987bf1c65273167530bdfd08c3e87ffd9788fabafc722055c8cd",
+      "crates/io/tests/harmony_arrangement.rs": "e907c67810d1fa3ac11a8ec12760b16bb21d3ec27996381f3dd5381a33b1f265",
+      "crates/wasm/tests/harmony_arrangement.rs": "3aa5b814ee35ffb378ee126fd13b3977378de33e41489ad63d6be94f4808d9c6",
+      "tests/fixtures/arrangement/harmony_arrangement_source.rs": "c5f06f89cfa353a2734c8f4669f48ddc5edd1604027186c1cf0d20a803be0733"
     }
   },
   "stage_3": {

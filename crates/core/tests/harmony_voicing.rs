@@ -8,6 +8,7 @@ fn node(root: &str, kind: &str, bass: Option<u8>) -> HarmonyVoicingNode {
         chord: serde_json::from_value(serde_json::json!({"root":root,"kind":kind})).unwrap(),
         bass_midi: bass,
         melody_ceiling_midi: Some(76),
+        accompaniment_floor_midi: None,
     }
 }
 fn request(nodes: Vec<HarmonyVoicingNode>) -> HarmonyVoicingRequest {
