@@ -197,7 +197,7 @@
     }
   },
   "stage_5": {
-    "state": "hosted-ci-and-listening-pending",
+    "state": "awaiting-listening",
     "required": [
       "shared exact rhythm plan for kick, bass, rests, accents and duration",
       "selected kick/bass synchronized attacks with independent optional bass attacks",
@@ -277,7 +277,7 @@
     ],
     "source_commit": "27bfa6d63cc9095879076938f80639dee859d3b6",
     "pull_request": "https://github.com/kent-tokyo/acorde/pull/447",
-    "ci_run": "https://github.com/kent-tokyo/acorde/actions/runs/44043631919",
+    "ci_run": "https://github.com/kent-tokyo/acorde/actions/runs/44046254419",
     "ghost_register_fix": "Engine rhythm-section.2 leaves ordinary bass pitches unchanged when decorative ghosts are added; fixed 8/16 corpus and generator enforce this.",
     "listening_pack": {
       "directory": "/private/tmp/acorde-hg-stage5-listening-v5",
@@ -292,28 +292,163 @@
     "local_checks_source_commit": "27bfa6d63cc9095879076938f80639dee859d3b6",
     "hosted_test_logs": {
       "ubuntu": {
-        "source_commit": "27bfa6d63cc9095879076938f80639dee859d3b6",
+        "source_commit": "10b1aeb7aeca7dc537ebeef88fb04ad2edfcebda",
         "passed_tests": 2615,
-        "log_sha256": "4712b89fa54d042c0dc28a5d6e5fe690e69daaedae148d799dc6e7a73f4a4252",
-        "job": "https://github.com/kent-tokyo/acorde/actions/runs/44043631919/job/133903902707"
+        "log_sha256": "690239fbd709f8a7ac3db7404fafaaca7a36b2939538b4a8029847878d06255f",
+        "job": "https://github.com/kent-tokyo/acorde/actions/runs/44046254419/job/133912557372"
       },
       "macos": {
-        "source_commit": "27bfa6d63cc9095879076938f80639dee859d3b6",
+        "source_commit": "10b1aeb7aeca7dc537ebeef88fb04ad2edfcebda",
         "passed_tests": 2615,
-        "log_sha256": "3c6ec364102fe1bd6e1ddc4c6699c8f6a2c3c0494768865f2a70bc87e9c4ab37",
-        "job": "https://github.com/kent-tokyo/acorde/actions/runs/44043631919/job/133903902810"
+        "log_sha256": "75bde26b63c9192707deadad693ce82adea20e4538fb5d869c796552114615b0",
+        "job": "https://github.com/kent-tokyo/acorde/actions/runs/44046254419/job/133912557452"
       },
       "windows": {
-        "source_commit": "27bfa6d63cc9095879076938f80639dee859d3b6",
+        "source_commit": "10b1aeb7aeca7dc537ebeef88fb04ad2edfcebda",
         "passed_tests": 2615,
-        "log_sha256": "9d96ce4507d546dcf017d955813307abfedd5f95bd1028868bd3041cb06d6765",
-        "job": "https://github.com/kent-tokyo/acorde/actions/runs/44043631919/job/133903902759"
+        "log_sha256": "2a91409d2357fd416bb4927c71119566e6fe275667168d8362b2ed9be4b5a1ba",
+        "job": "https://github.com/kent-tokyo/acorde/actions/runs/44046254419/job/133912557621"
+      },
+      "full-wasm": {
+        "source_commit": "10b1aeb7aeca7dc537ebeef88fb04ad2edfcebda",
+        "passed_tests": 124,
+        "log_sha256": "344e03cbc8d31b5217a3540a6410d2bef49aa5c8f4411d331a72b3380ca543a3",
+        "job": "https://github.com/kent-tokyo/acorde/actions/runs/44046254419/job/133912557927"
+      },
+      "viewer-wasm": {
+        "source_commit": "10b1aeb7aeca7dc537ebeef88fb04ad2edfcebda",
+        "passed_tests": 121,
+        "log_sha256": "94322230265126cde161f37dc8dbc672d2bd171d157fbf0f767f85226cf8b969",
+        "job": "https://github.com/kent-tokyo/acorde/actions/runs/44046254419/job/133912557566"
       }
     },
     "wasm_size": "rhythm-section-wasm-size.json",
     "required_remaining": [
-      "final hosted CI with the measured WASM gate",
       "new stage-4 and stage-5 listening acceptance"
-    ]
+    ],
+    "hosted_head": "10b1aeb7aeca7dc537ebeef88fb04ad2edfcebda",
+    "hosted_checks": [
+      {
+        "name": "External interoperability contract",
+        "state": "success",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/44046254419/job/133912557207"
+      },
+      {
+        "name": "WASM build",
+        "state": "success",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/44046254419/job/133912557276"
+      },
+      {
+        "name": "MSRV (Rust 1.89)",
+        "state": "success",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/44046254419/job/133912557290"
+      },
+      {
+        "name": "Package workspace",
+        "state": "success",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/44046254419/job/133912557339"
+      },
+      {
+        "name": "Test (ubuntu-latest)",
+        "state": "success",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/44046254419/job/133912557372"
+      },
+      {
+        "name": "Browser smoke (webkit)",
+        "state": "success",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/44046254419/job/133920098876"
+      },
+      {
+        "name": "Test (macos-latest)",
+        "state": "success",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/44046254419/job/133912557452"
+      },
+      {
+        "name": "Browser smoke (chromium)",
+        "state": "success",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/44046254419/job/133912557472"
+      },
+      {
+        "name": "Parser fuzz smoke",
+        "state": "success",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/44046254419/job/133912557548"
+      },
+      {
+        "name": "WASM browser contract (viewer)",
+        "state": "success",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/44046254419/job/133912557566"
+      },
+      {
+        "name": "Dependency security and license checks",
+        "state": "success",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/44046254419/job/133912557569"
+      },
+      {
+        "name": "WASM browser contract (playback-only)",
+        "state": "success",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/44046254419/job/133912557575"
+      },
+      {
+        "name": "Browser adapter typecheck",
+        "state": "success",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/44046254419/job/133912557584"
+      },
+      {
+        "name": "Browser smoke (Chromium HiDPI)",
+        "state": "success",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/44046254419/job/133912557618"
+      },
+      {
+        "name": "Test (windows-latest)",
+        "state": "success",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/44046254419/job/133912557621"
+      },
+      {
+        "name": "Renderer performance budget",
+        "state": "success",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/44046254419/job/133912557637"
+      },
+      {
+        "name": "Browser smoke (firefox)",
+        "state": "success",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/44046254419/job/133912557686"
+      },
+      {
+        "name": "IO feature contract",
+        "state": "success",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/44046254419/job/133912557691"
+      },
+      {
+        "name": "WASM browser contract (full)",
+        "state": "success",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/44046254419/job/133912557927"
+      },
+      {
+        "name": "Rust coverage",
+        "state": "success",
+        "link": "https://github.com/kent-tokyo/acorde/actions/runs/44046254400/job/133912556992"
+      }
+    ],
+    "wasm_gate_verification": {
+      "commit": "10b1aeb7aeca7dc537ebeef88fb04ad2edfcebda",
+      "job": "https://github.com/kent-tokyo/acorde/actions/runs/44046254419/job/133912557276",
+      "state": "passed",
+      "log_sha256": "609760e62085ffb98f753b6008ac8050db8f49567f2bf51cdba05c2a3fe8949e",
+      "profile_sizes_match": true
+    },
+    "browser_retry": {
+      "original_job": "https://github.com/kent-tokyo/acorde/actions/runs/44046254419/job/133912557441",
+      "original_log_sha256": "1f4745d22831b4953f7417d48f4a16adf803bd38bde072eda0660a9156ef076d",
+      "failure": "Undo remained disabled for the 5000 ms expectation after applying edited MusicXML; the other two WebKit smoke tests passed.",
+      "evidence_limit": "Failure screenshot and error context were not uploaded by the existing workflow; the cause is not established.",
+      "source_comparison": "27bfa6d6 passed the same browser tests. 10b1aeb7 changes only the WASM capacity gate, documentation and listening manifest, with no implementation changes.",
+      "retry_policy": "Re-run only the failed WebKit job with unchanged source and test conditions.",
+      "retry_state": "success",
+      "retry_job": "https://github.com/kent-tokyo/acorde/actions/runs/44046254419/job/133920098876",
+      "retry_passed_tests": 3,
+      "retry_log_sha256": "17fd07874d5da3e3462dfc00a3c4e6d7a1ee4835723fd002a61817cfa02e79bf",
+      "conclusion": "All three smoke tests passed on the unchanged commit and test conditions. The initial Undo failure was not reproduced; its root cause remains undetermined."
+    },
+    "validation_scope": "All 20 hosted checks passed for implementation and gate head 10b1aeb7; subsequent receipt-only edits do not change executable code, fixtures or workflow checks."
   }
 }

@@ -2,7 +2,7 @@
 
 2026-11-17 作成・更新。状態: 段階0〜3は完了。実装と自動検証に加え、8/16小節の比較音声についてユーザーから「両方とも問題なし」と試聴確認を得た。段階ごとの証跡は `harmony-groove-progress.json` に記録する。
 
-段階4は `cc852678` に実装され、3 OS・ブラウザー・WASM容量を含むCI 20項目が通過した。段階5は `27bfa6d6` に実装され、通常構成2,611件・全機能構成2,615件、Clippy、full/viewerの重点テストが通過し、最終CIを確認中である。両段階の8/16小節音源は生成・再現確認済みで、今回の試聴回答を待つ。段階0〜3の回答を段階4・5の評価として流用しない。証跡と残作業は [`harmony-targets-rhythm-progress.json`](harmony-targets-rhythm-progress.json)、API仕様は [`harmony-targets.md`](harmony-targets.md) と [`rhythm-section.md`](rhythm-section.md) に記録する。開発PRは [#446](https://github.com/kent-tokyo/acorde/pull/446) と [#447](https://github.com/kent-tokyo/acorde/pull/447)。
+段階4は `cc852678` に実装され、3 OS・ブラウザー・WASM容量を含むCI 20項目が通過した。段階5の実装は `27bfa6d6`、容量上限を含む検証対象は `10b1aeb7`。3 OSの全機能テスト各2,615件、Chrome full 124件・viewer 121件、WASM容量検査を含むCI 20項目が通過した。WebKitは初回にUndo操作で失敗し、同じコミット・条件での再実行は3件すべて通過した。原因は未特定として両方の記録を残す。両段階の8/16小節音源は生成・再現確認済みで、今回の試聴回答を待つ。段階0〜3の回答を段階4・5の評価として流用しない。証跡と残作業は [`harmony-targets-rhythm-progress.json`](harmony-targets-rhythm-progress.json)、API仕様は [`harmony-targets.md`](harmony-targets.md) と [`rhythm-section.md`](rhythm-section.md) に記録する。開発PRは [#446](https://github.com/kent-tokyo/acorde/pull/446) と [#447](https://github.com/kent-tokyo/acorde/pull/447)。
 
 最初の成果物は、同じ旋律から「素直」「彩りを加える」「リズムを強める」の3案を作り、同じ音色で比較できる編曲 API とする。テンションの選択、ベースを考慮したルートレス配置、声部の接続、伴奏の先取りを一組として実装する。その後、副属和音と転調、ベースとドラムの連動、旋律の変形、音色処理を追加する。
 
