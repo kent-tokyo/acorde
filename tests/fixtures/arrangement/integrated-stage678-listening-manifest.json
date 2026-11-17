@@ -3,6 +3,14 @@
     {
       "candidates": [
         {
+          "axis_distance_from_first": {
+            "bass": 0,
+            "form": 0,
+            "harmony": 0,
+            "register": 0,
+            "rhythm": 0,
+            "roles": 0
+          },
           "clipping_detected": false,
           "cutoff_detected": false,
           "difference_codes": [
@@ -54,8 +62,10 @@
           "musicxml": {
             "bytes": 93217,
             "file": "candidate-1.musicxml",
-            "sha256": "918a28225bb05d58479945a68997685eb81c5f66a48abf19d25516b286c34834"
+            "sha256": "8654e411098cceb3264c4abb87e8d028f60f7b8534c259397843a7504f572829"
           },
+          "nearest_selected_distance": 0,
+          "observed_difference_codes": [],
           "playback_events": [
             [
               0,
@@ -905,6 +915,14 @@
           }
         },
         {
+          "axis_distance_from_first": {
+            "bass": 222,
+            "form": 0,
+            "harmony": 222,
+            "register": 0,
+            "rhythm": 0,
+            "roles": 0
+          },
           "clipping_detected": false,
           "cutoff_detected": false,
           "difference_codes": [
@@ -956,8 +974,15 @@
           "musicxml": {
             "bytes": 93223,
             "file": "candidate-2.musicxml",
-            "sha256": "01130c2737cf0e4a3b5d1cb140e851e077c2bc16373b0ce21f5d703b3834852e"
+            "sha256": "e5c7dcd8e3ce5794eb147fd61c25e62614f21ba83bed3b036e9a5da9b38d6071"
           },
+          "nearest_selected_distance": 444,
+          "observed_difference_codes": [
+            "harmony-events-changed",
+            "bass-events-changed",
+            "countermelody-events-changed",
+            "harmony-pitch-classes-changed"
+          ],
           "playback_events": [
             [
               0,
@@ -1807,6 +1832,14 @@
           }
         },
         {
+          "axis_distance_from_first": {
+            "bass": 857,
+            "form": 0,
+            "harmony": 0,
+            "register": 211,
+            "rhythm": 415,
+            "roles": 0
+          },
           "clipping_detected": false,
           "cutoff_detected": false,
           "difference_codes": [
@@ -1859,8 +1892,16 @@
           "musicxml": {
             "bytes": 93579,
             "file": "candidate-3.musicxml",
-            "sha256": "26ddaa0b94ab637fa1d09685928a49430e0d11aa32e45e7a920b22e902d77f8b"
+            "sha256": "c1fabd96968d1655e8ae75f7c04b913a78aa1bee4fd9eb1c5c27dcce24fe3135"
           },
+          "nearest_selected_distance": 1483,
+          "observed_difference_codes": [
+            "bass-events-changed",
+            "kick-events-changed",
+            "countermelody-events-changed",
+            "generated-rhythm-changed",
+            "generated-register-changed"
+          ],
           "playback_events": [
             [
               0,
@@ -2831,6 +2872,14 @@
     {
       "candidates": [
         {
+          "axis_distance_from_first": {
+            "bass": 0,
+            "form": 0,
+            "harmony": 0,
+            "register": 0,
+            "rhythm": 0,
+            "roles": 0
+          },
           "clipping_detected": false,
           "cutoff_detected": false,
           "difference_codes": [
@@ -2882,8 +2931,10 @@
           "musicxml": {
             "bytes": 182162,
             "file": "candidate-1.musicxml",
-            "sha256": "44e62b647d3d3989779ebf5b6d2428f2668f67fba50a7b8d168ec3c446ba504a"
+            "sha256": "85905a0f78b70f3c980e941eba49f18adb4d022119c164a342ad5012edef16c2"
           },
+          "nearest_selected_distance": 0,
+          "observed_difference_codes": [],
           "playback_events": [
             [
               0,
@@ -4566,6 +4617,14 @@
           }
         },
         {
+          "axis_distance_from_first": {
+            "bass": 118,
+            "form": 0,
+            "harmony": 118,
+            "register": 0,
+            "rhythm": 0,
+            "roles": 0
+          },
           "clipping_detected": false,
           "cutoff_detected": false,
           "difference_codes": [
@@ -4617,8 +4676,15 @@
           "musicxml": {
             "bytes": 182162,
             "file": "candidate-2.musicxml",
-            "sha256": "2d10d542457614b1907e0c56d3c11988b7111a6d73273da384127017bac30482"
+            "sha256": "4a1749e0caeca6cf035d89f03ac94f3f8d370f13fb837beba07fa697b14a9098"
           },
+          "nearest_selected_distance": 236,
+          "observed_difference_codes": [
+            "harmony-events-changed",
+            "bass-events-changed",
+            "countermelody-events-changed",
+            "harmony-pitch-classes-changed"
+          ],
           "playback_events": [
             [
               0,
@@ -6301,6 +6367,14 @@
           }
         },
         {
+          "axis_distance_from_first": {
+            "bass": 897,
+            "form": 0,
+            "harmony": 0,
+            "register": 211,
+            "rhythm": 417,
+            "roles": 0
+          },
           "clipping_detected": false,
           "cutoff_detected": false,
           "difference_codes": [
@@ -6351,10 +6425,18 @@
             "sha256": "26be610937b194fe3c7787dea911c0132db2e29aa138bfbd4c0f82b17547e831"
           },
           "musicxml": {
-            "bytes": 182922,
+            "bytes": 182928,
             "file": "candidate-3.musicxml",
-            "sha256": "499ad701aebe3238ac30611848c0d94b0cd743bf8e05d2f03169f8b2c4975b08"
+            "sha256": "34a7f40c751f88a2ca425d67badbcbbd4d67bbc111fde730c8e54d122eb303e6"
           },
+          "nearest_selected_distance": 1525,
+          "observed_difference_codes": [
+            "bass-events-changed",
+            "kick-events-changed",
+            "countermelody-events-changed",
+            "generated-rhythm-changed",
+            "generated-register-changed"
+          ],
           "playback_events": [
             [
               0,
@@ -8257,15 +8339,28 @@
   "channels": 2,
   "comparison_leveling": "PCM16 peak normalization to 0.7 linear peak; not perceptual loudness matching",
   "listening_review": {
-    "observations": [],
-    "status": "pending"
+    "status": "accepted",
+    "reviewer": "user",
+    "recorded_at_utc": "2026-11-17T14:36:11Z",
+    "scope": "stage 6 to 8 fixed eight-bar and sixteen-bar three-proposal development comparisons, including dry and mixed audio, presented in the listening pack",
+    "observations": [
+      {
+        "case_ids": [
+          "rhythm-eight",
+          "rhythm-sixteen"
+        ],
+        "response": "問題なし",
+        "reported_issues": []
+      }
+    ],
+    "limitations": "Overall acceptance of the presented development comparisons only; no per-criterion numeric ratings or held-out multi-listener evaluation was supplied."
   },
   "provider": "acorde-rustysynth-sf2-v1",
   "release_tail_millis": 1000,
   "sample_rate_hz": 22050,
   "schema_version": 1,
   "soundfont_sha256": "f7884c34012ffa2a000d1a310ede173149e8abc1cda1910c1531b7789d82a792",
-  "source_commit": "b1d3c64b1187cb6ae2457f6aed0a0731c45548fb",
+  "source_commit": "e6b3618ba1e43b8bf611be424a7909e8ca200255",
   "stages": [
     6,
     7,

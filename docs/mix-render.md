@@ -13,7 +13,7 @@
 
 専用SF2は `scripts/build_rhythm_audition_font.py ... --fm` で生成した `tests/fixtures/arrangement/mix-audition.sf2`。従来音源の生成結果は同じ SHA-256 `303fdd51d36f1c96320bf82d0cea339ddf5794272864af8340ef912837d96342` を維持した。新音源の SHA-256 は `f7884c34012ffa2a000d1a310ede173149e8abc1cda1910c1531b7789d82a792`。
 
-比較用パックは `cargo run -p acorde-cli --example integrated_mix_listening_pack -- <新しい出力ディレクトリ>` で再生成する。固定した入力・設定・8/16小節の各3案の出力ハッシュは [`integrated-stage678-listening-manifest.json`](../tests/fixtures/arrangement/integrated-stage678-listening-manifest.json) に記録した。案1は基準、案2は和声のみ、案3はリズムと旋律を変える。再生イベントの一致を確認したMusicXML/MSCZと、乾いたWAV、処理後のWAV、ピークを揃えた比較WAVが出力される。生成UUIDが変わるため、書き出した楽譜ファイルのバイト一致は要求しない。
+比較用パックは `cargo run -p acorde-cli --example integrated_mix_listening_pack -- <新しい出力ディレクトリ>` で再生成する。固定した入力・設定・8/16小節の各3案の出力ハッシュは [`integrated-stage678-listening-manifest.json`](../tests/fixtures/arrangement/integrated-stage678-listening-manifest.json) に記録した。案1は基準。案2は和声設定のみを変更し、それに伴ってベースと対旋律の発音も変わる。案3はリズムと旋律の設定を変更する。各案の実際の発音差と6軸の距離も同じ記録に含める。再生イベントの一致を確認したMusicXML/MSCZと、乾いたWAV、処理後のWAV、ピークを揃えた比較WAVが出力される。生成UUIDが変わるため、書き出した楽譜ファイルのバイト一致は要求しない。
 
 同じパックから `python3 scripts/derive_stage678_native_parity.py <パックのディレクトリ> tests/fixtures/arrangement/stage678-native-parity.json` でネイティブ側の確定設定と発音イベントを固定する。WASMのfull/viewerテストは8/16小節の生成・再現をこの記録と照合する。
 

@@ -4,7 +4,7 @@
   "base_commit": "b4ac215b63c0c09a1a70038285f81a97da05f69b",
   "stages": {
     "6": {
-      "status": "in_progress",
+      "status": "complete",
       "implemented": [
         "explicitly permitted within-measure melody anticipation with unchanged pitch and note end",
         "per-measure countermelody activity and phrase-entry leap limit",
@@ -23,16 +23,15 @@
         "cargo fmt --all -- --check",
         "PR #448: macOS, Linux, Windows, full/viewer Chrome WASM and other functional checks passed at bd525ac1",
         "PR #448: complete CI passed at 9c8d059a, including macOS/Linux/Windows, full/viewer Chrome, and 8,596,329-byte full WASM size",
-        "Matched optimized full/viewer/playback-only WASM sizes and the 19/19 CI result are recorded in arrangement-stage678-wasm-size.json"
+        "Matched optimized full/viewer/playback-only WASM sizes and the 19/19 CI result are recorded in arrangement-stage678-wasm-size.json",
+        "User accepted the fixed 8/16-bar listening comparisons with 問題なし on 2026-11-17; case IDs and scope are in the pinned manifest"
       ],
       "environment_notes": [
         "Default debug workspace/WASM test builds exceeded available disk space; the complete native suite passed with incremental compilation disabled and test debug information omitted.",
         "Local wasm-pack Chrome execution stopped before tests because the cached wasm-bindgen CLI is 0.2.125, the crate needs 0.2.130, wasm-pack installation was denied by sandbox permissions, and offline cargo install lacked native-tls. Hosted full/viewer browser CI passed.",
         "An earlier PR #448 dependency advisory job failed on transitive chrono advisory RUSTSEC-2026-0543. A narrow dated exception was added and the latest advisory job passed; stage 6 code did not introduce the dependency."
       ],
-      "pending": [
-        "8 and 16 measure listening review"
-      ]
+      "pending": []
     },
     "7": {
       "status": "in_progress",
@@ -41,7 +40,8 @@
         "per-technique budgets, shared locked measures, editable range, bounded search",
         "3 to 5 distinct playback proposals with difference codes and source-bound replay",
         "typed distinction between insufficient distinct outcomes and exhausted search",
-        "prefer an isolated harmony comparison when bounded search finds one"
+        "prefer an isolated harmony comparison when bounded search finds one",
+        "Observed playback role differences and six-axis distances for each proposal, distinct from requested technique codes"
       ],
       "verified": [
         "CARGO_INCREMENTAL=0 CARGO_PROFILE_TEST_DEBUG=0 cargo test -p acorde-core --test integrated_arrangement_proposals --offline --locked",
@@ -56,10 +56,11 @@
         "fixed 8/16-bar native release timing with 12 realizations per case in arrangement-stage678-performance.json",
         "cargo +1.100.0 test -p acorde-core --test integrated_listening --test integrated_arrangement_proposals --locked --offline",
         "PR #449 at 56239567: 19/19 CI jobs passed, including macOS/Linux/Windows, full/viewer Chrome native parity, and the 8,643,552-byte full WASM budget check",
-        "Matched stage 6 to stage 7 raw WASM increase is 47,223 bytes; all profiles are recorded in arrangement-stage678-wasm-size.json"
+        "Matched stage 6 to stage 7 raw WASM increase is 47,223 bytes; all profiles are recorded in arrangement-stage678-wasm-size.json",
+        "User accepted the fixed 8/16-bar listening comparisons with 問題なし on 2026-11-17; case IDs and scope are in the pinned manifest"
       ],
       "pending": [
-        "8/16-bar listening review of the updated harmony-only and rhythm-plus-melody proposals"
+        "PR #449 CI for e4d63342, including three OS, full/viewer browser parity, and WASM budget"
       ]
     },
     "8": {
@@ -80,10 +81,11 @@
         "two clean b1d3c64b pack generations matched every dry, mixed, and peak-matched WAV hash; the six mixed renders report no clipping or cutoff",
         "fixed 8/16-bar full-SF2 dry/mix release timing matches the updated listening manifest",
         "PR #450 at d82c709e: 19/19 CI jobs passed, including macOS/Linux/Windows, full/viewer Chrome native parity, and the 8,643,552-byte full WASM budget check",
-        "Matched stage 7 to stage 8 raw WASM size increase is zero bytes for full/viewer/playback-only profiles; compressed sizes are recorded separately in arrangement-stage678-wasm-size.json"
+        "Matched stage 7 to stage 8 raw WASM size increase is zero bytes for full/viewer/playback-only profiles; compressed sizes are recorded separately in arrangement-stage678-wasm-size.json",
+        "User accepted the fixed 8/16-bar listening comparisons with 問題なし on 2026-11-17; case IDs and scope are in the pinned manifest"
       ],
       "pending": [
-        "8/16-bar listening review of the updated harmony-only and rhythm-plus-melody proposals and dry/mixed audio"
+        "PR #450 CI for the rebased observed-metrics receipt, including three OS, full/viewer browser parity, and WASM budget"
       ]
     }
   }
