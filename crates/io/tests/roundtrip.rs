@@ -8505,3 +8505,38 @@ mod kern_pae_tests {
         }
     }
 }
+
+#[cfg(feature = "mscz")]
+#[test]
+fn explicit_mscx_drum_map_roundtrip_preserves_key_and_display_position() {
+    use acorde_core::{PercussionInstrument, PlaybackOptions, to_playback_events};
+    let xml = include_str!("../../../tests/fixtures/arrangement/explicit-kick.mscx");
+    let score = acorde_io::parse_mscx(xml).unwrap();
+    let restored = acorde_io::parse_mscz(&acorde_io::serialize_mscz(&score).unwrap()).unwrap();
+    for s in [&score, &restored] {
+        let part = &s.parts[0];
+        assert_eq!(part.percussion_instruments[0].midi_unpitched, Some(36));
+        let notes = part.staves[0].measures[0].voices[0]
+            .iter()
+            .filter(|n| !n.is_rest)
+            .collect::<Vec<_>>();
+        assert_eq!(notes.len(), 2);
+        assert!(
+            notes
+                .iter()
+                .all(|n| n.is_unpitched
+                    && PercussionInstrument::display_position(&n.pitches[0]) == -3)
+        );
+        assert!(notes[1].is_parenthesized(0));
+        let events = to_playback_events(s, &PlaybackOptions::default());
+        assert_eq!(events.len(), 2);
+        assert!(events.iter().all(|e| e.channel == 9 && e.pitch_midi == 36));
+    }
+    for bad in [
+        xml.replace("pitch=\"36\"", "pitch=\"128\""),
+        xml.replace("<line>7</line>", "<line>65535</line>"),
+        xml.replace("<voice>0</voice>", "<voice>4</voice>"),
+    ] {
+        assert!(acorde_io::parse_mscx(&bad).is_err());
+    }
+}

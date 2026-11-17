@@ -49,6 +49,7 @@ pub mod pitch;
 pub mod playback;
 pub mod profiled_chord_plan;
 pub mod repeat;
+pub mod rhythm_section;
 pub mod scale;
 pub mod score;
 pub mod standard_bass;

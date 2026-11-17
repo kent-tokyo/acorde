@@ -60,7 +60,7 @@
     "wasm_size": "harmony-targets-wasm-size.json"
   },
   "stage_5": {
-    "state": "planned",
+    "state": "validation",
     "required": [
       "shared exact rhythm plan for kick, bass, rests, accents and duration",
       "selected kick/bass synchronized attacks with independent optional bass attacks",
@@ -70,6 +70,68 @@
       "MusicXML/MSCZ round trips and native/full/viewer WASM parity",
       "full native, Clippy, formatting, three-OS hosted CI and matched WASM size",
       "fixed eight/sixteen-bar listening comparison and recorded acceptance"
+    ],
+    "branch": "codex/rhythm-section-20261117",
+    "base_commit": "cc852678",
+    "local_checks": {
+      "core-final-focused": {
+        "log_sha256": "6bdd5e01bdeff11168aec6093d541263bbfca88d211f97e2567a5bd3b1129f34",
+        "passed_tests": 9
+      },
+      "focused": {
+        "log_sha256": "730eb8760126fbc129c2a89a423084d66cfb36e0587b9da0cc23b5b168acfa91",
+        "passed_tests": 7
+      },
+      "drum-roundtrip": {
+        "log_sha256": "639dd6dfee85a0b3c2a92eb531dc1dc324f3aff9ad17be0a582313a4fe8ae21e",
+        "passed_tests": 1
+      },
+      "clippy-final3": {
+        "log_sha256": "2d1832003e2122778578148ba874d56d45fec518e2f23c91ed1fdbb2659eb321",
+        "passed_tests": 0
+      },
+      "full-wasm-focused": {
+        "log_sha256": "2ae801fcd4dc1c83ea7120b76a5dd61a922849e4e7a4370e2f8e691ed0674dbc",
+        "passed_tests": 2
+      },
+      "viewer-wasm-focused": {
+        "log_sha256": "5d4be46d80d6cb2e2d34a3e305fa3cb6eb7db369bc52e8b1e8a27f66a56eea3e",
+        "passed_tests": 2
+      }
+    },
+    "listening_review": "pending new stage-5 eight/sixteen-bar comparison",
+    "pcm_differences": {
+      "rhythm-eight": {
+        "coordinated to short-quiet-ghosts": {
+          "different_pcm_samples": 47245,
+          "peak_delta_pcm16": 1166,
+          "rms_delta_pcm16": 141.788
+        },
+        "short-quiet-ghosts to muted-ghosts": {
+          "different_pcm_samples": 26847,
+          "peak_delta_pcm16": 196,
+          "rms_delta_pcm16": 22.644
+        }
+      },
+      "rhythm-sixteen": {
+        "coordinated to short-quiet-ghosts": {
+          "different_pcm_samples": 88128,
+          "peak_delta_pcm16": 1166,
+          "rms_delta_pcm16": 143.673
+        },
+        "short-quiet-ghosts to muted-ghosts": {
+          "different_pcm_samples": 50019,
+          "peak_delta_pcm16": 195,
+          "rms_delta_pcm16": 22.213
+        }
+      }
+    },
+    "pcm_difference_scope": "Objective waveform differences only; not a listener acceptance or acoustic-instrument claim.",
+    "limits": [
+      "Explicit single-kick part; existing percussion-channel use rejected",
+      "Holds remain within their exact slots",
+      "Muted capability is declared by the caller; fallback is explicitly approximate",
+      "Explicit monophonic MSCX drum maps retain key/display information; instrument IDs and named techniques are not lossless"
     ]
   }
 }

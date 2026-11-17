@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+- Add source-bound shared kick/bass rhythm generation and replay in Rust and
+  full/viewer WASM. Exact slots retain rests, accents, holding lengths and
+  selected synchronization points; approach targets are checked over repeats.
+  Ghost notes use an explicit short/quiet approximation or a separately routed
+  caller-supplied muted patch. Preserve explicit monophonic MSCX drum maps and
+  their MIDI keys during import/export. Fixed 8/16-bar auditions accompany the API.
+
 - Add explicit secondary-dominant and destination-key region targets with
   common-chord or dominant approaches in Rust and full/viewer WASM. Candidates
   retain spelled arrivals, report actual repeat-aware guide-tone resolutions,

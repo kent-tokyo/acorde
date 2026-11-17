@@ -2043,6 +2043,23 @@ pub fn replay_phrase_harmony_target(score_json: &str, resolved_json: &str) -> Re
     serde_json::to_string(&result).map_err(js_err)
 }
 
+/// Generate an exact shared kick/bass rhythm with saved approach targets.
+#[wasm_bindgen]
+pub fn arrange_rhythm_section(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request: acorde_core::RhythmSectionRequest = parse_json(request_json, "rhythm section request", MAX_CHORD_PLAN_JSON_BYTES)?;
+    let result = acorde_core::arrange_rhythm_section(&score, &request).map_err(js_err)?;
+    serde_json::to_string(&result).map_err(js_err)
+}
+/// Rebuild a source-bound shared rhythm after verifying its saved choices.
+#[wasm_bindgen]
+pub fn replay_rhythm_section(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedRhythmSection = parse_json(resolved_json, "resolved rhythm section", MAX_HARMONY_REPLAY_JSON_BYTES)?;
+    let result = acorde_core::replay_rhythm_section(&score, &resolved).map_err(js_err)?;
+    serde_json::to_string(&result).map_err(js_err)
+}
+
 /// Compose independently scheduled harmony, bass and countermelody parts.
 #[wasm_bindgen]
 pub fn arrange_ensemble_roles(score_json: &str, options_json: &str) -> Result<String, JsValue> {

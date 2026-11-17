@@ -367,3 +367,11 @@ pub enum Error {
     #[error("tablature round-trip serialization failed: {0}")]
     TabRoundTripSerialization(String),
 }
+
+pub use model::rhythm_section::{
+    BassApproachDirection, BassGhostSound, RHYTHM_SECTION_CONTRACT_VERSION, ResolvedBassApproach,
+    ResolvedRhythmBass, ResolvedRhythmSection, RhythmAttackRef, RhythmBassAttack, RhythmBassTone,
+    RhythmKickAttack, RhythmSectionAttack, RhythmSectionBar, RhythmSectionDiagnostic,
+    RhythmSectionError, RhythmSectionRequest, RhythmSectionResult, RhythmSectionSlot,
+    arrange_rhythm_section, replay_rhythm_section,
+};
