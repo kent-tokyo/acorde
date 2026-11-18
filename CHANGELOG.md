@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## 1.3.14 - 2026-11-18
+
+- **Migration:** `ChordProposalRequest` and `ResolvedChordProposal` add
+  `max_changed_spans` and `contextual_nonchord_tones`; complete Rust literals
+  need both fields. Generated chord proposal IDs move to the v2 styles.
+  Versioned arrangement replay configs from 1.3.13 must be recreated from
+  their source and options before replay under 1.3.14. Rust 1.89 remains the
+  minimum. See the [migration notes](docs/migrations.md).
+
 - Add source-bound shared kick/bass rhythm generation and replay in Rust and
   full/viewer WASM. Exact slots retain rests, accents, holding lengths and
   selected synchronization points; approach targets are checked over repeats.

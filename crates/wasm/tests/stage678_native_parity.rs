@@ -7,6 +7,8 @@
 use acorde_core::{Score, to_playback_events};
 use serde_json::{Value, json};
 
+mod support;
+
 #[cfg(target_arch = "wasm32")]
 wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
@@ -47,9 +49,10 @@ fn integrated_eight_and_sixteen_match_recorded_native_choices_and_events() {
         let expected = case["candidates"].as_array().unwrap();
         assert_eq!(result.candidates.len(), expected.len(), "{}", case["id"]);
         for (candidate, native) in result.candidates.iter().zip(expected) {
-            assert_eq!(
-                serde_json::to_value(&candidate.resolved).unwrap(),
-                native["resolved"],
+            let mut expected_resolved = native["resolved"].clone();
+            assert!(support::retarget_engine_versions(&mut expected_resolved) > 0);
+            assert!(
+                serde_json::to_value(&candidate.resolved).unwrap() == expected_resolved,
                 "{}: resolved choice",
                 case["id"]
             );
