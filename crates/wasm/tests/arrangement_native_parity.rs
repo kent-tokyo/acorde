@@ -7,6 +7,8 @@
 
 use serde_json::{Value, json};
 
+mod support;
+
 #[cfg(target_arch = "wasm32")]
 wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
@@ -72,8 +74,10 @@ fn target_eight_sixteen_match_recorded_native_events_and_choices() {
             case["contracts"].as_array().unwrap().len()
         );
         for (i, candidate) in candidates.iter().enumerate() {
+            let mut expected_contract = case["contracts"][i].clone();
+            assert!(support::retarget_engine_versions(&mut expected_contract) > 0);
             compare(
-                &case["contracts"][i],
+                &expected_contract,
                 &target_contract(candidate),
                 id,
                 "choice",
@@ -86,10 +90,10 @@ fn target_eight_sixteen_match_recorded_native_events_and_choices() {
             );
             let replay = decoded(acorde_wasm::replay_phrase_harmony_target(
                 &source_json,
-                &case["contracts"][i]["resolved"].to_string(),
+                &expected_contract["resolved"].to_string(),
             ));
             compare(
-                &case["contracts"][i],
+                &expected_contract,
                 &target_contract(&replay),
                 id,
                 "replay choice",
@@ -126,14 +130,16 @@ fn rhythm_eight_sixteen_match_recorded_native_events_and_choices() {
             &source_json,
             &case["request"].to_string(),
         ));
-        compare(&case["contracts"], &rhythm_contract(&result), id, "choice");
+        let mut expected_contract = case["contracts"].clone();
+        assert!(support::retarget_engine_versions(&mut expected_contract) > 0);
+        compare(&expected_contract, &rhythm_contract(&result), id, "choice");
         check_score(source, &result["score"], &case["playback"], id);
         let replay = decoded(acorde_wasm::replay_rhythm_section(
             &source_json,
-            &case["contracts"]["resolved"].to_string(),
+            &expected_contract["resolved"].to_string(),
         ));
         compare(
-            &case["contracts"],
+            &expected_contract,
             &rhythm_contract(&replay),
             id,
             "replay choice",

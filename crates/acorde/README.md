@@ -12,8 +12,8 @@ import/export diagnostics instead of silently normalizing malformed source value
 
 ~~~toml
 [dependencies]
-acorde = "=1.3.13"
-acorde-render-svg = "=1.3.13"
+acorde = "=1.3.14"
+acorde-render-svg = "=1.3.14"
 ~~~
 
 [API documentation](https://docs.rs/acorde) · [Repository](https://github.com/kent-tokyo/acorde)

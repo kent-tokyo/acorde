@@ -6,17 +6,34 @@ This page lists changes that can require consumer action. Release history is in
 otherwise, so stored score JSON remains readable. Rust consumers that use exhaustive `match` or
 struct literals must still update for added variants and fields.
 
-## Unreleased: opt-in accompaniment voicing
+## v1.3.14: chord proposals and versioned arrangement replay
 
-The new `AccordionVoicingOptions` type now includes optional
-`min_melody_gap_semitones`. Rust callers using a complete literal must add
-`min_melody_gap_semitones: None` or use `..Default::default()`; JSON callers can
-continue omitting it. `AccordionVoicing` reports an optional
+The minimum supported Rust version remains 1.89. `ChordProposalRequest` and
+`ResolvedChordProposal` add `max_changed_spans: Option<u8>` and
+`contextual_nonchord_tones: bool`. Complete Rust struct literals must supply
+both fields (or use `..Default::default()` for `ChordProposalRequest`). Old
+stored JSON gets defaults, and default-valued fields remain omitted when
+serialized. This JSON behavior does not preserve Rust source compatibility.
+
+Preset, free-layer, explicit-plan and other versioned arrangement replay
+configs carry the workspace version in their engine markers. A 1.3.13 config
+can be rejected by 1.3.14 even if its source score is unchanged. Recreate the
+config from the original source and saved options, then review the new result
+before saving it. Do not change an `engine_version` string by hand: proposal
+selection and generated music can differ between releases.
+
+### Opt-in accompaniment voicing
+
+The new `AccordionVoicingOptions` type includes optional
+`min_melody_gap_semitones`. Callers of a pre-release main snapshot using a
+complete literal must add `min_melody_gap_semitones: None` or use
+`..Default::default()`; this type was not in v1.3.13. JSON callers can omit
+it. `AccordionVoicing` reports an optional
 `melody_ceiling_midi` with a serde default for old stored reports. Both fields
 are omitted when `None`, so disabled melody clearance preserves the previous
 JSON shape. See the [melody gap contract](accordion-layered-arrangement.md#keeping-block-chords-below-the-melody).
 
-## Unreleased: chord proposal generation v2
+### Chord proposal generation v2
 
 New generated chord proposals use `conservative-v2`, `simplified-v2` and
 `jazz-color-v2` IDs and can differ musically from v1. Update host code that
