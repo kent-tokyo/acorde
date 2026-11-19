@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+- Add opt-in source-bound standard-bass screening for harmony/groove candidates
+  in Rust and full/viewer WASM. Report exact playback pitches, bass/chord button
+  combinations and location-aware failures for the supplied instrument profile.
+  The unrestricted arrangement path remains available. See
+  [standard-bass screening](docs/harmony-groove-standard-bass.md).
+
 ## 1.3.14 - 2026-11-18
 
 - **Migration:** `ChordProposalRequest` and `ResolvedChordProposal` add

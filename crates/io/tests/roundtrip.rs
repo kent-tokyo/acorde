@@ -7,6 +7,26 @@ use acorde_core::{
 /// that key musical properties are preserved across the round-trip.
 use acorde_io::{parse_midi, parse_musicxml, serialize_musicxml};
 
+#[path = "../../../tests/fixtures/arrangement/harmony_groove_source.rs"]
+mod groove_fixture;
+
+#[test]
+fn harmony_groove_export_preserves_actual_playback_pitches() {
+    let source = groove_fixture::source();
+    let candidate =
+        acorde_core::suggest_harmony_groove_arrangements(&source, &groove_fixture::request())
+            .unwrap()
+            .candidates
+            .remove(0);
+    let xml = serialize_musicxml(&candidate.arrangement.score).unwrap();
+    let parsed = parse_musicxml(&xml).unwrap();
+    let mut expected = groove_fixture::sound(&candidate.arrangement.score);
+    let mut actual = groove_fixture::sound(&parsed);
+    expected.sort_unstable();
+    actual.sort_unstable();
+    assert_eq!(actual, expected);
+}
+
 #[cfg(feature = "abc")]
 #[test]
 fn abc_midbar_chord_plan_uses_source_onsets_and_arranges_without_snapping() {

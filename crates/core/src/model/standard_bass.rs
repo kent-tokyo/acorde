@@ -136,28 +136,10 @@ pub fn standard_bass_request_for_chord(
     })
 }
 
-/// Find combinations from the supplied inventory, without changing a score.
-///
-/// This models simultaneous sound only. It does not imply that an alternating
-/// accompaniment realizes the same harmony or that the reach is comfortable.
-/// Invalid input is rejected; an empty result means no candidate was found.
-pub fn standard_bass_candidates(
-    profile: &StandardBassProfile,
-    request: &StandardBassRequest,
-) -> Result<Vec<StandardBassCandidate>, String> {
+pub(crate) fn validate_standard_bass_profile(profile: &StandardBassProfile) -> Result<(), String> {
     if profile.bass_buttons.len() > 128 || profile.chord_buttons.len() > 128 {
         return Err("a profile may contain at most 128 buttons per row".into());
     }
-    if request.pitch_classes.is_empty()
-        || request.pitch_classes.len() > 12
-        || request.pitch_classes.iter().any(|&pitch| pitch >= 12)
-        || request.bass_pitch_class >= 12
-    {
-        return Err(
-            "pitch classes must be between 0 and 11 and the target must not be empty".into(),
-        );
-    }
-    let target: BTreeSet<u8> = request.pitch_classes.iter().copied().collect();
     let mut ids = BTreeSet::new();
     for button in &profile.bass_buttons {
         if button.id.is_empty()
@@ -183,6 +165,29 @@ pub fn standard_bass_candidates(
             );
         }
     }
+    Ok(())
+}
+
+/// Find combinations from the supplied inventory, without changing a score.
+///
+/// This models simultaneous sound only. It does not imply that an alternating
+/// accompaniment realizes the same harmony or that the reach is comfortable.
+/// Invalid input is rejected; an empty result means no candidate was found.
+pub fn standard_bass_candidates(
+    profile: &StandardBassProfile,
+    request: &StandardBassRequest,
+) -> Result<Vec<StandardBassCandidate>, String> {
+    validate_standard_bass_profile(profile)?;
+    if request.pitch_classes.is_empty()
+        || request.pitch_classes.len() > 12
+        || request.pitch_classes.iter().any(|&pitch| pitch >= 12)
+        || request.bass_pitch_class >= 12
+    {
+        return Err(
+            "pitch classes must be between 0 and 11 and the target must not be empty".into(),
+        );
+    }
+    let target: BTreeSet<u8> = request.pitch_classes.iter().copied().collect();
     let mut candidates = Vec::new();
     for bass in &profile.bass_buttons {
         if bass.midi % 12 != request.bass_pitch_class {

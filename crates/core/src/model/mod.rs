@@ -35,6 +35,7 @@ pub mod harmony_arrangement;
 pub mod harmony_comping;
 pub mod harmony_expansion;
 pub mod harmony_groove_proposals;
+pub mod harmony_groove_standard_bass;
 pub mod harmony_voicing;
 pub mod inner_voices;
 pub mod inner_voices_performance;
