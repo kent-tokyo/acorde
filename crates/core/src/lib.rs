@@ -211,6 +211,11 @@ pub use model::harmony_groove_proposals::{
     ResolvedHarmonyGrooveArrangement, replay_harmony_groove_arrangement,
     suggest_harmony_groove_arrangements,
 };
+pub use model::harmony_groove_standard_bass::{
+    HarmonyGrooveButtonDiagnostic, HarmonyGrooveButtonFailure, HarmonyGrooveButtonState,
+    HarmonyGrooveStandardBassError, HarmonyGrooveStandardBassReport,
+    screen_harmony_groove_standard_bass,
+};
 pub use model::harmony_voicing::{
     HARMONY_VOICING_CONTRACT_VERSION, HarmonyRootPolicy, HarmonyVoiceMotion, HarmonyVoicingEdge,
     HarmonyVoicingError, HarmonyVoicingNode, HarmonyVoicingRequest, HarmonyVoicingResult,

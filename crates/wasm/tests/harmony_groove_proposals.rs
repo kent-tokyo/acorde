@@ -4,6 +4,61 @@
 )))]
 #[path = "../../../tests/fixtures/arrangement/harmony_groove_source.rs"]
 mod fixture;
+
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
+#[cfg_attr(not(target_arch = "wasm32"), test)]
+fn standard_bass_button_screen_matches_native_and_rechecks_source() {
+    use acorde_core::model::standard_bass::{
+        StandardBassChordButton, StandardBassNoteButton, StandardBassProfile,
+    };
+    let source = fixture::source();
+    let candidate = acorde_core::suggest_harmony_groove_arrangements(&source, &fixture::request())
+        .unwrap()
+        .candidates
+        .remove(0);
+    let profile = StandardBassProfile {
+        bass_buttons: vec![StandardBassNoteButton {
+            id: "D counterbass".into(),
+            position: 0,
+            midi: 38,
+        }],
+        chord_buttons: vec![StandardBassChordButton {
+            id: "D minor".into(),
+            position: 0,
+            midi: vec![62, 65, 69],
+        }],
+        max_distance: 2,
+    };
+    let native =
+        acorde_core::screen_harmony_groove_standard_bass(&source, &candidate.resolved, &profile)
+            .unwrap();
+    let source_json = serde_json::to_string(&source).unwrap();
+    let resolved_json = serde_json::to_string(&candidate.resolved).unwrap();
+    let profile_json = serde_json::to_string(&profile).unwrap();
+    let wasm: acorde_core::HarmonyGrooveStandardBassReport = serde_json::from_str(
+        &acorde_wasm::screen_harmony_groove_standard_bass(
+            &source_json,
+            &resolved_json,
+            &profile_json,
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(wasm, native);
+    #[cfg(target_arch = "wasm32")]
+    {
+        let mut changed = source;
+        changed.parts[0].staves[0].measures[0].voices[0][0].pitches[0].alter = 1;
+        assert!(
+            acorde_wasm::screen_harmony_groove_standard_bass(
+                &serde_json::to_string(&changed).unwrap(),
+                &resolved_json,
+                &profile_json
+            )
+            .is_err()
+        );
+    }
+}
 #[cfg(target_arch = "wasm32")]
 wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 

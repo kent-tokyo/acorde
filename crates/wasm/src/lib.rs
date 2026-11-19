@@ -2023,6 +2023,24 @@ pub fn replay_harmony_groove_arrangement(score_json: &str, resolved_json: &str) 
     serde_json::to_string(&result).map_err(js_err)
 }
 
+/// Replay a harmony/groove candidate and screen its actual left-hand playback
+/// against caller-supplied standard-bass button pitches.
+#[wasm_bindgen]
+pub fn screen_harmony_groove_standard_bass(
+    score_json: &str,
+    resolved_json: &str,
+    profile_json: &str,
+) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved: acorde_core::ResolvedHarmonyGrooveArrangement =
+        parse_json(resolved_json, "resolved harmony groove", MAX_HARMONY_REPLAY_JSON_BYTES)?;
+    let profile: acorde_core::model::standard_bass::StandardBassProfile =
+        parse_json(profile_json, "standard bass profile", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::screen_harmony_groove_standard_bass(&score, &resolved, &profile)
+        .map_err(js_err)?;
+    serde_json::to_string(&result).map_err(js_err)
+}
+
 /// Generate source-bound applied dominants and destination-key progressions.
 #[wasm_bindgen]
 pub fn suggest_phrase_harmony_targets(score_json: &str, request_json: &str) -> Result<String, JsValue> {
