@@ -99,96 +99,47 @@ fn tick(beats: f64) -> Result<i64, HarmonyGrooveStandardBassError> {
     Ok((beats * TICKS_PER_BEAT).round() as i64)
 }
 
-#[derive(Clone)]
-struct ButtonChoice {
-    bass_id: Option<String>,
-    chord_id: Option<String>,
-    pitches: Vec<u8>,
-    kind: u8,
-    distance: u32,
-}
-
-impl ButtonChoice {
-    fn rank(&self) -> (u8, u32, &str, &str) {
-        (
-            self.kind,
-            self.distance,
-            self.bass_id.as_deref().unwrap_or(""),
-            self.chord_id.as_deref().unwrap_or(""),
-        )
-    }
-}
-
-struct ButtonMatcher {
-    by_pitches: BTreeMap<Vec<u8>, ButtonChoice>,
-}
-
-impl ButtonMatcher {
-    fn insert(&mut self, choice: ButtonChoice) {
-        let key = choice.pitches.clone();
-        match self.by_pitches.entry(key) {
-            std::collections::btree_map::Entry::Vacant(entry) => {
-                entry.insert(choice);
-            }
-            std::collections::btree_map::Entry::Occupied(mut entry) => {
-                if choice.rank() < entry.get().rank() {
-                    entry.insert(choice);
-                }
-            }
-        }
-    }
-
-    fn new(profile: &StandardBassProfile) -> Self {
-        let mut matcher = Self {
-            by_pitches: BTreeMap::new(),
-        };
+fn matched_buttons<'a>(
+    profile: &'a StandardBassProfile,
+    sounding: &[u8],
+) -> Option<(Option<&'a str>, Option<&'a str>)> {
+    if sounding.len() == 1 {
         for bass in &profile.bass_buttons {
-            matcher.insert(ButtonChoice {
-                bass_id: Some(bass.id.clone()),
-                chord_id: None,
-                pitches: vec![bass.midi],
-                kind: 0,
-                distance: 0,
-            });
+            if sounding[0] == bass.midi {
+                return Some((Some(&bass.id), None));
+            }
         }
+    }
+    for chord in &profile.chord_buttons {
+        if chord.midi.len() != sounding.len() {
+            continue;
+        }
+        let mut pitches = chord.midi.clone();
+        pitches.sort_unstable();
+        if pitches == sounding {
+            return Some((None, Some(&chord.id)));
+        }
+    }
+    for bass in &profile.bass_buttons {
         for chord in &profile.chord_buttons {
+            if chord.midi.len() + 1 != sounding.len() {
+                continue;
+            }
+            let distance = (i32::from(bass.position) - i32::from(chord.position)).unsigned_abs();
+            if distance > u32::from(profile.max_distance)
+                || chord.midi.iter().any(|&pitch| pitch < bass.midi)
+            {
+                continue;
+            }
             let mut pitches = chord.midi.clone();
+            pitches.push(bass.midi);
             pitches.sort_unstable();
-            matcher.insert(ButtonChoice {
-                bass_id: None,
-                chord_id: Some(chord.id.clone()),
-                pitches,
-                kind: 1,
-                distance: 0,
-            });
-        }
-        for bass in &profile.bass_buttons {
-            for chord in &profile.chord_buttons {
-                let distance =
-                    (i32::from(bass.position) - i32::from(chord.position)).unsigned_abs();
-                if distance > u32::from(profile.max_distance)
-                    || chord.midi.iter().any(|&pitch| pitch < bass.midi)
-                {
-                    continue;
-                }
-                let mut pitches = chord.midi.clone();
-                pitches.push(bass.midi);
-                pitches.sort_unstable();
-                matcher.insert(ButtonChoice {
-                    bass_id: Some(bass.id.clone()),
-                    chord_id: Some(chord.id.clone()),
-                    pitches,
-                    kind: 2,
-                    distance,
-                });
+            if pitches == sounding {
+                return Some((Some(&bass.id), Some(&chord.id)));
             }
         }
-        matcher
     }
-
-    fn find(&self, sounding: &[u8]) -> Option<ButtonChoice> {
-        self.by_pitches.get(sounding).cloned()
-    }
+    None
 }
 
 /// Replay a saved candidate from its original source and check every left-hand
@@ -203,7 +154,11 @@ pub fn screen_harmony_groove_standard_bass(
     profile: &StandardBassProfile,
 ) -> Result<HarmonyGrooveStandardBassReport, HarmonyGrooveStandardBassError> {
     validate_standard_bass_profile(profile).map_err(HarmonyGrooveStandardBassError::Profile)?;
-    let matcher = ButtonMatcher::new(profile);
+    if profile.bass_buttons.len() * profile.chord_buttons.len() > 8_192 {
+        return Err(HarmonyGrooveStandardBassError::Profile(
+            "the exact two-button screen permits at most 8192 bass/chord pairs".into(),
+        ));
+    }
     let candidate = replay_harmony_groove_arrangement(source, resolved)?;
     let added = candidate.arrangement.added_part;
     let bass = resolved.request.base.bass;
@@ -265,10 +220,10 @@ pub fn screen_harmony_groove_standard_bass(
         ));
         boundaries.entry(end).or_default().ends.push(index);
     }
-    let mut active = BTreeMap::<usize, Sound>::new();
+    let mut active = Vec::<(usize, Sound)>::new();
     for (at, boundary) in boundaries {
         for index in boundary.ends {
-            active.remove(&index);
+            active.retain(|(active_index, _)| *active_index != index);
         }
         let new_attack = !boundary.starts.is_empty();
         let attack_measure = boundary
@@ -276,16 +231,19 @@ pub fn screen_harmony_groove_standard_bass(
             .first()
             .map(|(_, sound)| sound.source.measure);
         for (index, sound) in boundary.starts {
-            active.insert(index, sound);
+            active.push((index, sound));
         }
         if active.is_empty() {
             continue;
         }
-        let mut notes = active.values().map(|sound| sound.midi).collect::<Vec<_>>();
+        let mut notes = active
+            .iter()
+            .map(|(_, sound)| sound.midi)
+            .collect::<Vec<_>>();
         notes.sort_unstable();
         let mut addresses = active
-            .values()
-            .map(|sound| sound.source.clone())
+            .iter()
+            .map(|(_, sound)| sound.source.clone())
             .collect::<Vec<_>>();
         addresses.sort_by_key(|a| (a.part, a.staff, a.measure, a.voice, a.note));
         addresses.dedup();
@@ -294,9 +252,11 @@ pub fn screen_harmony_groove_standard_bass(
             .ok_or(HarmonyGrooveStandardBassError::InvalidPlaybackAddress)?;
         let at_beats = at as f64 / TICKS_PER_BEAT;
         let unsupported_pitch = active
-            .values()
-            .any(|sound| sound.has_bend || sound.cents != i32::from(sound.midi) * 100);
-        let buttons = (!unsupported_pitch).then(|| matcher.find(&notes)).flatten();
+            .iter()
+            .any(|(_, sound)| sound.has_bend || sound.cents != i32::from(sound.midi) * 100);
+        let buttons = (!unsupported_pitch)
+            .then(|| matched_buttons(profile, &notes))
+            .flatten();
         let reason = if unsupported_pitch {
             Some(HarmonyGrooveButtonFailure::UnsupportedMicrotoneOrBend)
         } else if buttons.is_none() {
@@ -312,16 +272,16 @@ pub fn screen_harmony_groove_standard_bass(
                 source_notes: addresses,
                 sounding_midi: notes,
             });
-        } else if let Some(buttons) = buttons {
+        } else if let Some((bass_button_id, chord_button_id)) = buttons {
             report.button_states.push(HarmonyGrooveButtonState {
                 measure,
                 time_beats: at_beats,
                 new_attack,
                 source_notes: addresses,
+                button_midi: notes.clone(),
                 sounding_midi: notes,
-                bass_button_id: buttons.bass_id,
-                chord_button_id: buttons.chord_id,
-                button_midi: buttons.pitches,
+                bass_button_id: bass_button_id.map(str::to_owned),
+                chord_button_id: chord_button_id.map(str::to_owned),
             });
         }
     }
@@ -349,28 +309,13 @@ mod tests {
             }],
             max_distance: 1,
         };
-        let action = ButtonMatcher::new(&profile)
-            .find(&[43, 59, 62, 65])
-            .unwrap();
-        assert_eq!(action.bass_id.as_deref(), Some("G counterbass"));
-        assert_eq!(action.chord_id.as_deref(), Some("B diminished"));
-        assert_eq!(action.pitches, vec![43, 59, 62, 65]);
-        assert!(
-            ButtonMatcher::new(&profile)
-                .find(&[55, 59, 62, 65])
-                .is_none()
-        );
-        assert!(
-            ButtonMatcher::new(&profile)
-                .find(&[43, 59, 62, 65, 67])
-                .is_none()
-        );
+        let action = matched_buttons(&profile, &[43, 59, 62, 65]).unwrap();
+        assert_eq!(action.0, Some("G counterbass"));
+        assert_eq!(action.1, Some("B diminished"));
+        assert!(matched_buttons(&profile, &[55, 59, 62, 65]).is_none());
+        assert!(matched_buttons(&profile, &[43, 59, 62, 65, 67]).is_none());
         let mut too_far = profile;
         too_far.max_distance = 0;
-        assert!(
-            ButtonMatcher::new(&too_far)
-                .find(&[43, 59, 62, 65])
-                .is_none()
-        );
+        assert!(matched_buttons(&too_far, &[43, 59, 62, 65]).is_none());
     }
 }
