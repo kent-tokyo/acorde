@@ -11,9 +11,8 @@
 
 プラットフォーム非依存の Rust / WebAssembly 楽譜基盤ライブラリです。
 
-> **リリース注意:** v1.2.19 と v1.2.20 は `SvgRenderOptions` の公開フィールド追加により、
-> 完全な構造体リテラルを使う Rust 利用側をコンパイル不能にする場合があります。レンダラー設定 API を
-> 導入する前に、互換性を回復した v1.3.0 へ更新してください。詳細は[移行メモ](docs/migrations.md)です。
+更新時は、Rust のソース互換性と保存済み編曲設定の変更を[移行メモ](docs/migrations.md)で確認してください。
+過去の `SvgRenderOptions` の互換性についても同じページに記録しています。
 
 シリアライズ可能なスコアモデル、Undo/Redo が可能な編集、範囲を明示した記譜入出力、論理レイアウト、
 決定的な SVG、再生イベント、分析、WASM バインディングを提供します。
@@ -49,14 +48,14 @@ SVG が必要な場合は `acorde-render-svg` を直接依存に追加します�
 
 ```toml
 [dependencies]
-acorde = "=1.3.14"
-acorde-render-svg = "=1.3.14"
+acorde = "=1.3.15"
+acorde-render-svg = "=1.3.15"
 ```
 
 標準では MusicXML と MIDI が有効です。ABC、MEI、MSCZ/MSCX、Guitar Pro 3〜8入力は明示的に有効化します。
 
 ```toml
-acorde = { version = "=1.3.14", features = ["abc", "mei", "mscz", "gp"] }
+acorde = { version = "=1.3.15", features = ["abc", "mei", "mscz", "gp"] }
 ```
 
 ```rust

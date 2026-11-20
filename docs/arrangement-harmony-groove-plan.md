@@ -1,5 +1,9 @@
 # 和声・声部配置・先取りを組み合わせる編曲拡張計画
 
+> これは2026-11-18時点の開発記録です。以下の draft・未マージという記述は当時の状態です。
+> 実装の一部は後に v1.3.14 で公開されました。現在の提供範囲は[変更履歴](../CHANGELOG.md)、
+> 残る評価課題は[ロードマップ](../ROADMAP.md)を参照してください。
+
 2026-11-18 更新。状態: 段階0〜8の開発用実装と固定例の検証・試聴は完了。段階0〜3の記録は `harmony-groove-progress.json`、段階4・5は `harmony-targets-rhythm-progress.json`、段階6〜8は `arrangement-stage678-progress.json` に残す。未使用6作品と3人以上の聴き手による最終評価、公開、各draft PRのマージは別に扱う。
 
 段階4は `cc852678`、段階4・5を統合した検証版は `7c8b340c`。統合版は3 OSの全機能テスト各2,617件、Chrome full 126件・viewer 123件、WASM容量検査を含むCI 20項目が通過した。以前のWebKitのUndo失敗は同条件の再実行で通過し、最新の実行でも通過している。初回失敗の原因が未特定であることも記録に残す。両段階の8/16小節音源は生成・再現確認済みで、試聴の受け入れも完了した。証跡は [`harmony-targets-rhythm-progress.json`](harmony-targets-rhythm-progress.json)、API仕様は [`harmony-targets.md`](harmony-targets.md) と [`rhythm-section.md`](rhythm-section.md) に記録する。開発PRは [#446](https://github.com/kent-tokyo/acorde/pull/446) と [#447](https://github.com/kent-tokyo/acorde/pull/447)。いずれもdraft・未マージ。

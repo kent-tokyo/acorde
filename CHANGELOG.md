@@ -2,10 +2,14 @@
 
 ## [Unreleased]
 
+## 1.3.15 - 2026-11-20
+
 - Write new standard-bass preset and layer arrangements on separate treble
   chord and bass staves. Preserve playback and MusicXML round trips, and
-  return generated note addresses for both accompaniment staves. See the
-  [migration notes](docs/migrations.md#unreleased-standard-bass-accompaniment-staves).
+  return generated note addresses for both accompaniment staves. Existing
+  v1.3.14 resolved configs still replay their two-staff layout; regenerate
+  them to adopt the new layout. See the
+  [migration notes](docs/migrations.md#v1315-standard-bass-accompaniment-staves).
 - Add opt-in source-bound standard-bass screening for harmony/groove candidates
   in Rust and full/viewer WASM. Report exact playback pitches, bass/chord button
   combinations and location-aware failures for the supplied instrument profile.

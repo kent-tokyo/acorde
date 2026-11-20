@@ -37,7 +37,7 @@ The fixed 8/16-bar corpus compares root pulse, coordinated attacks with approach
 
 `rhythm-audition.sf2` contains original synthetic keys, bass, muted bass and kick samples, authored by `scripts/build_rhythm_audition_font.py` under the repository license. They are audition sounds, not acoustic instrument models. All comparisons use the same font, tempo, gain and 22,050 Hz mono renderer, with no individual normalization. Run `python3 scripts/build_rhythm_audition_font.py tests/fixtures/arrangement/rhythm-audition.sf2` to rebuild the fixture.
 
-The user accepted all presented stage-5 eight/sixteen-bar comparisons on 2026-11-17 with "問題なし". Together with the structural, replay, I/O, native/full/viewer and hosted checks, this completes stage-5 development acceptance. The pinned listening manifest and `harmony-targets-rhythm-progress.json` record the scope. No per-criterion numeric ratings or held-out multi-listener result is inferred; the draft PR remains unmerged.
+The user accepted all presented stage-5 eight/sixteen-bar comparisons on 2026-11-17 with "問題なし". Together with the structural, replay, I/O, native/full/viewer and hosted checks, this completes stage-5 development acceptance. The pinned listening manifest and `harmony-targets-rhythm-progress.json` record the scope. No per-criterion numeric ratings or held-out multi-listener result is inferred. The PR was still a draft at that time; consult the [changelog](../CHANGELOG.md) for later release status.
 
 ## Generation measurements
 

@@ -3,7 +3,9 @@
 Stages 0–3 are accepted as of 2026-11-17. All rows below have passing evidence,
 including the user’s acceptance of both listening comparisons: “両方とも問題なし”.
 The later six-work/three-listener final evaluation is outside this initial MVP.
-This records development acceptance; the stacked PRs remain unmerged and unreleased.
+This records development acceptance as of 2026-11-17. The stacked PRs were
+unmerged at that time; consult the [changelog](../CHANGELOG.md) for later
+release status.
 
 | Requirement | Evidence | Status |
 | --- | --- | --- |

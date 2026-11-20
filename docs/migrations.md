@@ -6,7 +6,7 @@ This page lists changes that can require consumer action. Release history is in
 otherwise, so stored score JSON remains readable. Rust consumers that use exhaustive `match` or
 struct literals must still update for added variants and fields.
 
-## Unreleased: standard-bass accompaniment staves
+## v1.3.15: standard-bass accompaniment staves
 
 New standard-bass scores from `arrange_accordion_preset` and
 `arrange_accordion_layers` (including their shuffle APIs) use staff 0 for the
@@ -24,11 +24,14 @@ updating its WASM package. The same filter covers free bass and the old
 two-staff layout. Use the new score's addresses after regenerating an
 arrangement.
 
-The replay APIs accept the v1.3.14 preset and layer configurations and
-reproduce their two-staff layout. New configurations identify the three-staff
-layout through the preset and layer engine markers. Free-bass results and
-the explicit-chord and physical button/profile APIs retain their documented
-layouts.
+New preset configs use `1.3.15+arrangement-presets.3`; new free-layer configs
+use `1.3.15+arrangement-layers.2`. The replay APIs still accept the v1.3.14
+`arrangement-presets.2` and `arrangement-layers.1` configs and reproduce their
+two-staff layout. To adopt the new three-staff layout, regenerate a config
+from the original source and saved selection or options, then update any
+address-based highlighting and accompaniment filters. Do not change an engine
+marker by hand. Free-bass results and the explicit-chord and physical
+button/profile APIs retain their documented layouts.
 
 ## v1.3.14: chord proposals and versioned arrangement replay
 

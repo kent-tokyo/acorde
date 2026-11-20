@@ -11,9 +11,8 @@
 
 面向 Rust 和 WebAssembly 的跨平台乐谱基础库。
 
-> **版本提示：**v1.2.19 和 v1.2.20 为公开的 `SvgRenderOptions` 增加了字段，
-> 使用完整结构体字面量的 Rust 代码可能因此无法编译。使用渲染器配置 API 前，
-> 请升级至恢复兼容性的 v1.3.0 或更新版本。详情见[迁移说明](docs/migrations.md)。
+升级时请查阅[迁移说明](docs/migrations.md)，确认 Rust 源码及已保存编曲回放配置的变化。
+过去的 `SvgRenderOptions` 兼容性问题也记录在该页面。
 
 acorde 提供可序列化的乐谱模型、支持撤销和重做的编辑命令、明确限定支持范围的记谱格式读写、
 逻辑排版、确定性的 SVG 输出、播放事件生成、分析基础功能和 WASM 绑定。
@@ -49,14 +48,14 @@ acorde 提供可序列化的乐谱模型、支持撤销和重做的编辑命令�
 
 ```toml
 [dependencies]
-acorde = "=1.3.14"
-acorde-render-svg = "=1.3.14"
+acorde = "=1.3.15"
+acorde-render-svg = "=1.3.15"
 ```
 
 默认启用的输入输出格式为 MusicXML 和 MIDI。其他格式需要显式启用对应功能：
 
 ```toml
-acorde = { version = "=1.3.14", features = ["abc", "mei", "mscz", "gp"] }
+acorde = { version = "=1.3.15", features = ["abc", "mei", "mscz", "gp"] }
 ```
 
 ```rust

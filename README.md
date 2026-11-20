@@ -11,9 +11,8 @@
 
 Platform-neutral Rust and WebAssembly score infrastructure.
 
-> **Release notice:** v1.2.19 and v1.2.20 added a public `SvgRenderOptions` field and can break
-> Rust code that uses a complete struct literal. Upgrade to the compatible v1.3.0 release before
-> adopting the renderer configuration API. See the [migration notes](docs/migrations.md).
+For upgrades, check the [migration notes](docs/migrations.md) for Rust source and saved
+arrangement replay changes. Earlier `SvgRenderOptions` compatibility history remains there.
 
 acorde provides a serializable score model, undoable edits, bounded notation I/O, logical layout,
 deterministic SVG, playback-event projection, analysis primitives, and WASM bindings. Library
@@ -50,14 +49,14 @@ rendering SVG.
 
 ```toml
 [dependencies]
-acorde = "=1.3.14"
-acorde-render-svg = "=1.3.14"
+acorde = "=1.3.15"
+acorde-render-svg = "=1.3.15"
 ```
 
 Default I/O features are MusicXML and MIDI. Enable optional formats explicitly:
 
 ```toml
-acorde = { version = "=1.3.14", features = ["abc", "mei", "mscz", "gp"] }
+acorde = { version = "=1.3.15", features = ["abc", "mei", "mscz", "gp"] }
 ```
 
 ```rust
