@@ -161,6 +161,8 @@ struct RealizedAccordionChord {
     chord_midi: Vec<u8>,
 }
 
+pub(super) const ACCORDION_CHORD_BASE_MIDI: u8 = 60;
+
 fn realize_accordion_chord(symbol: &ChordSymbol) -> Option<RealizedAccordionChord> {
     if !symbol.degrees.is_empty() {
         return None;
@@ -191,7 +193,7 @@ fn realize_accordion_chord(symbol: &ChordSymbol) -> Option<RealizedAccordionChor
         bass_midi: 36 + bass,
         chord_midi: intervals
             .iter()
-            .map(|interval| 60 + root + interval)
+            .map(|interval| ACCORDION_CHORD_BASE_MIDI + root + interval)
             .collect(),
     })
 }

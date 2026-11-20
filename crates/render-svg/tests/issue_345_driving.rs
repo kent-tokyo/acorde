@@ -39,10 +39,14 @@ fn driving_expression_and_timing_survive_mscz_and_svg() {
             },
         )
         .unwrap();
-        let notes = &output.parts[0].staves[1].measures[0].voices[0];
-        let x = (0..notes.len())
-            .map(|index| {
-                let marker = format!("data-note-addr=\"0:1:0:0:{index}\"");
+        let x = result
+            .generated_notes
+            .iter()
+            .map(|address| {
+                let marker = format!(
+                    "data-note-addr=\"0:{}:0:0:{}\"",
+                    address.staff, address.note
+                );
                 svg.split(&marker)
                     .nth(1)
                     .expect("note address")

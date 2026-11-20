@@ -5205,6 +5205,46 @@ mod wasm_tests {
             source.parts[0].staves[0].measures[0].voices[0][0].pitches);
     }
 
+    mod standard_bass_staves_fixture {
+        include!("../../../tests/fixtures/arrangement/standard_bass_staves.rs");
+    }
+
+    #[wasm_bindgen_test]
+    fn browser_standard_bass_presets_preserve_playback_and_render_three_staves() {
+        let baseline: std::collections::BTreeMap<String, Vec<(f64, f64, u8)>> =
+            serde_json::from_str(include_str!(
+                "../../../tests/fixtures/arrangement/standard-bass-staves-events.json"
+            )).unwrap();
+        let selection = serde_json::to_string(&standard_bass_staves_fixture::selection()).unwrap();
+        let events = |score: &str| {
+            let mut tuples: Vec<_> = serde_json::from_str::<Vec<acorde_core::PlaybackEvent>>(
+                &to_playback_events_ex(score, "{}").unwrap(),
+            ).unwrap().into_iter()
+                .map(|event| (event.time_beats, event.duration_beats, event.pitch_midi))
+                .collect();
+            tuples.sort_by(|a, b| a.0.total_cmp(&b.0).then(a.1.total_cmp(&b.1)).then(a.2.cmp(&b.2)));
+            tuples
+        };
+        for (preset, abc) in standard_bass_staves_fixture::EXAMPLES {
+            let source = parse_abc(abc).unwrap();
+            let result: acorde_core::AccordionPresetResult = serde_json::from_str(
+                &arrange_accordion_preset(&source, &selection, preset).unwrap(),
+            ).unwrap();
+            let score = result.score.unwrap();
+            assert_eq!(score.parts[0].staves.len(), 3, "{preset}");
+            let json = score_to_json(&score).unwrap();
+            let svg = render_score_svg(&json, r#"{"interactive":true}"#).unwrap();
+            assert!(svg.contains("data-note-addr=\"0:1:") && svg.contains("data-note-addr=\"0:2:"));
+            assert_eq!(events(&json), baseline[preset], "{preset}");
+            #[cfg(feature = "musicxml")]
+            assert_eq!(
+                events(&parse_musicxml(&serialize_musicxml(&json).unwrap()).unwrap()),
+                baseline[preset],
+                "{preset} MusicXML"
+            );
+        }
+    }
+
     #[wasm_bindgen_test]
     fn browser_nine_eight_preset_writes_bass_staff_and_playback() {
         let source = parse_abc("X:1\nM:9/8\nL:1/8\nK:C\nC3 C3 C3 |]").unwrap();
@@ -5215,7 +5255,8 @@ mod wasm_tests {
             )
             .unwrap();
             assert!(result.diagnostics.is_empty(), "{preset}: {:?}", result.diagnostics);
-            assert!(result.generated_notes.iter().all(|address| address.staff == 1));
+            assert_eq!(result.score.as_ref().unwrap().parts[0].staves.len(), 3);
+            assert!(result.generated_notes.iter().all(|address| address.staff > 0));
             let arranged = score_to_json(result.score.as_ref().unwrap()).unwrap();
             let svg = render_score_svg(&arranged, "{}").unwrap();
             assert!(svg.contains("<svg"));

@@ -67,7 +67,8 @@ fn generated_svg_positions_follow_notated_two_four_rhythm() {
         .unwrap();
         let x = (0..4)
             .map(|index| {
-                let marker = format!("data-note-addr=\"0:1:0:0:{index}\"");
+                let staff = if index % 2 == 0 { 2 } else { 1 };
+                let marker = format!("data-note-addr=\"0:{staff}:0:0:{index}\"");
                 let element = svg.split(&marker).nth(1).expect("interactive note address");
                 element
                     .split("class=\"acorde-notehead\" cx=\"")

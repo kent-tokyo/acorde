@@ -35,7 +35,15 @@ fn selection(chords: Vec<PositionedAccordionChord>) -> AccordionPresetSelection 
 fn bar_pitches(score: &Score, bar: usize) -> Vec<Vec<i16>> {
     score.parts[0].staves[1].measures[bar].voices[0]
         .iter()
-        .map(|note| note.pitches.iter().map(|pitch| pitch.to_midi()).collect())
+        .enumerate()
+        .map(|(index, chord)| {
+            let bass = &score.parts[0].staves[2].measures[bar].voices[0][index];
+            bass.pitches
+                .iter()
+                .chain(&chord.pitches)
+                .map(|pitch| pitch.to_midi())
+                .collect()
+        })
         .collect()
 }
 
