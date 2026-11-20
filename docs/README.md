@@ -1,8 +1,8 @@
 # Documentation guide
 
-The latest published release is [v1.3.14](https://github.com/kent-tokyo/acorde/releases/tag/v1.3.14).
-These documents generally describe the repository's current `main`; features listed under
-[Unreleased](../CHANGELOG.md#unreleased) require a build from that revision or a later release.
+Find the latest published tag in [GitHub Releases](https://github.com/kent-tokyo/acorde/releases).
+These documents generally describe the repository's current `main`; the
+[changelog](../CHANGELOG.md) separates released features from work still in progress.
 For a release claim, check its tag, CI, registry, and artifacts separately.
 
 ## Choose a task
@@ -16,6 +16,8 @@ For a release claim, check its tag, CI, registry, and artifacts separately.
 | Schedule playback or render audio | [Playback evidence](playback-evidence.md), [soundfont crate](../crates/soundfont/README.md) |
 | Work with written or proposed chords | [Authored chords](authored-chords.md), [chord plans](chord-plans.md), [musical position comparison](musical-position-diff.md) |
 | Arrange for accordion | [Reduction](accordion-reduction.md), [guided arrangement](accordion-guided-arrangement.md), [layers](accordion-layered-arrangement.md), [preset contract](accordion-preset-contract.md), [measure-range plans](arrangement-plans.md) |
+| Check standard-bass playability | [Exact harmony/groove screen](harmony-groove-standard-bass.md), [button profiles](standard-bass-simplified-arrangement.md), [three-staff migration](migrations.md#v1315-standard-bass-accompaniment-staves) |
+| Generate harmony and groove proposals | [Proposal contract](harmony-groove-proposals.md), [phrase harmony](phrase-harmony.md), [rhythm sections](rhythm-section.md) |
 | Insert passing or neighbor notes | [Melodic insertion contract](melodic-insertion.md) |
 | Review an OMR proposal | [Proposal contract](omr-proposal-contract.md), [provider matrix](omr-license-matrix.md), [validation boundary](omr-validation.md) |
 | Evaluate music analysis against music21 | [Analysis roadmap](../ROADMAP.md#3-music-analysis-music21-1052), [source-positioned evaluation](analysis-evaluation.md), [external evidence](external-analysis-evidence.md) |
@@ -36,3 +38,7 @@ into [archive files](archive/) and linked from their original headings.
 reproducible checks and their boundaries. Keep the changelog for releases, migration notes for
 consumer actions, and evidence files for measurements. A local check does not establish browser,
 audio, publication, or external-format compatibility on its own.
+
+The [arrangement development](arrangement-development-v2.md) and
+[harmony/groove plan](arrangement-harmony-groove-plan.md) are dated development records.
+Use the linked API contracts above for current behavior and the roadmap for remaining work.

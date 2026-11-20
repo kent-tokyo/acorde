@@ -1,8 +1,8 @@
 # Notation coverage matrix
 
-This matrix describes the v1.3.14 public capability boundary. Changes on `main` after that
+This matrix describes the v1.3.15 public capability boundary. Changes on `main` after that
 release are recorded under [Unreleased](../CHANGELOG.md#unreleased); they are not included in
-the v1.3.14 artifacts. **Yes** means the value is modelled
+the v1.3.15 artifacts. **Yes** means the value is modelled
 and covered by a focused test; **partial** means a documented common subset; **no** means that
 format path does not carry it. “Model/SVG/export” distinguishes the canonical score from visible
 rendering and the broadest implemented export route. It is not a lossless-interchange claim.
@@ -35,6 +35,9 @@ rendering and the broadest implemented export route. It is not a lossless-interc
 - JSON is the complete serialization of fields currently in `Score`. New model fields are
   serde-defaulted for old JSON, but consumers with exhaustive Rust matches or struct literals can
   still need source changes; see [migration notes](migrations.md).
+- New standard-bass preset/layer scores place chords and bass on separate accompaniment staves.
+  Hosts that filter generated note addresses by staff must follow the
+  [v1.3.15 migration](migrations.md#v1315-standard-bass-accompaniment-staves).
 - MusicXML/MXL is the broadest interchange path. MIDI is an event projection, not a notation
   round-trip; Guitar Pro is import-only; all other formats are bounded subsets.
 - The SVG renderer retains typed source addresses and deterministic geometry. Font shaping,

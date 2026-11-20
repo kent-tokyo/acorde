@@ -7,13 +7,16 @@ This roadmap tracks work still needing evidence or implementation. The
 
 ## Current baseline
 
-Version 1.3.14 includes a Rust score model with undoable commands, bounded notation I/O,
+Version 1.3.15 includes a Rust score model with undoable commands, bounded notation I/O,
 SVG and print-page rendering, playback scheduling, analysis primitives, WASM bindings,
 and the file-based CLI. MusicXML/MXL is the broadest interchange path; Humdrum `**kern` and
 Plaine & Easie import are opt-in subsets. Import and export reports identify known losses,
 but broad real-score round-trip compatibility remains an evidence question.
-An opt-in standard-bass arrangement API labels simultaneous attacks with
-caller-supplied button IDs; it does not infer fingering or physical reach.
+The opt-in [standard-bass screen](docs/harmony-groove-standard-bass.md) checks
+the exact sounding pitches of a harmony/groove candidate against a supplied
+button profile. New standard-bass preset and layer scores separate the treble
+accompaniment chords from the bass staff. The screen does not infer fingering,
+bellows, or hand transitions, so performer review remains necessary.
 
 [Explicit arrangement plans](docs/arrangement-plans.md) select existing
 accompaniment and melodic layers by written-measure range (#433), with source-checked

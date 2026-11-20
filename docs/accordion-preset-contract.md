@@ -43,14 +43,14 @@ New v1.3.6 preset configs use engine `1.3.6+arrangement-presets.2`. The engine
 marker changes with the workspace release; select the saved chords and preset
 again to create a v1.3.6 config before replaying a v1.3.5 result.
 
-New v1.3.10 preset configs use engine `1.3.10+arrangement-presets.2`.
-For v1.3.11 the marker is `1.3.11+arrangement-presets.2`; v1.3.12 uses
-`1.3.12+arrangement-presets.2`, v1.3.13 uses
-`1.3.13+arrangement-presets.2`, and v1.3.14 uses
-`1.3.14+arrangement-presets.2`. Reselect the saved
-chords and preset before replaying an earlier configuration. Generated score
-and note IDs can differ between runs; note addresses, pitches, durations and
-musical timing are reproducible.
+New v1.3.15 preset configs use `1.3.15+arrangement-presets.3` and write
+standard-bass chords and bass on separate staves. The replay API also accepts
+`1.3.14+arrangement-presets.2` and keeps that config's two-staff layout.
+Reselect the saved chords and preset to adopt the new layout; update generated
+note addresses in the host. Earlier versioned configs require their own
+compatible engine or regeneration from the original source and selection.
+Generated score and note IDs can differ between runs; note addresses, pitches,
+durations and musical timing are reproducible for a given accepted config.
 
 The fixed 2:1 swing preset writes triplets into the score and sets
 `notated_swing`. When that flag is true, pass `{}` to `to_playback_events_ex`
@@ -236,14 +236,11 @@ combinations that do not have a built-in preset ID. The direct call accepts
 source and generated note addresses, and a versioned `resolved_config`.
 Save that config as JSON and pass it with the same source after re-parsing to
 `arrange_from_resolved_layers`. Its `v2:` fingerprint, contract version, and
-`arrangement-layers.1` engine version are validated before generation.
-For v1.3.6 the full marker is `1.3.6+arrangement-layers.1`. Reselect the saved
-free-layer options to create a v1.3.14 config with marker
-`1.3.14+arrangement-layers.1`. Older 1.3.13 configs use
-`1.3.13+arrangement-layers.1`, 1.3.12 configs use
-`1.3.12+arrangement-layers.1`, 1.3.11 configs use
-`1.3.11+arrangement-layers.1`, and 1.3.10 configs use
-`1.3.10+arrangement-layers.1`.
+engine marker are validated before generation. New v1.3.15 configs use
+`1.3.15+arrangement-layers.2`. The replay API accepts
+`1.3.14+arrangement-layers.1` and reproduces its two-staff layout. Reselect
+the saved free-layer options with the original source to adopt the new
+three-staff layout. See the [migration notes](migrations.md#v1315-standard-bass-accompaniment-staves).
 Built-in preset configs continue to use `arrange_from_resolved_preset`; changing
 their options still returns `invalid-configuration`.
 
