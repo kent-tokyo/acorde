@@ -6,6 +6,30 @@ This page lists changes that can require consumer action. Release history is in
 otherwise, so stored score JSON remains readable. Rust consumers that use exhaustive `match` or
 struct literals must still update for added variants and fields.
 
+## Unreleased: standard-bass accompaniment staves
+
+New standard-bass scores from `arrange_accordion_preset` and
+`arrange_accordion_layers` (including their shuffle APIs) use staff 0 for the
+melody and any added melody voice, staff 1 for the treble-clef accompaniment
+chords, and staff 2 for the bass-clef accompaniment bass. A held bass and chord
+produce two written notes and two addresses at the same beat. The staff
+placement preserves the original sounding pitches and durations.
+
+For highlighting, resolve `generated_notes` against the score returned in the
+same result. For accompaniment-only playback in these accordion results,
+collect generated addresses on every staff after the melody staff
+(`address.part === 0 && address.staff > 0` in JavaScript). In particular,
+replace filters such as `address.staff === 1` in the Composer Playground when
+updating its WASM package. The same filter covers free bass and the old
+two-staff layout. Use the new score's addresses after regenerating an
+arrangement.
+
+The replay APIs accept the v1.3.14 preset and layer configurations and
+reproduce their two-staff layout. New configurations identify the three-staff
+layout through the preset and layer engine markers. Free-bass results and
+the explicit-chord and physical button/profile APIs retain their documented
+layouts.
+
 ## v1.3.14: chord proposals and versioned arrangement replay
 
 The minimum supported Rust version remains 1.89. `ChordProposalRequest` and

@@ -38,7 +38,12 @@ fn selection(
 fn left_rhythm(score: &Score, measure: usize) -> Vec<(bool, Vec<i16>, f64)> {
     score.parts[0].staves[1].measures[measure].voices[0]
         .iter()
-        .map(|note| {
+        .enumerate()
+        .map(|(index, chord)| {
+            let note = match score.parts[0].staves.get(2) {
+                Some(bass) if chord.is_rest => &bass.measures[measure].voices[0][index],
+                _ => chord,
+            };
             (
                 note.is_rest,
                 note.pitches.iter().map(|pitch| pitch.to_midi()).collect(),
@@ -78,7 +83,7 @@ fn nine_eight_presets_write_three_dotted_quarter_pulses_in_both_bass_modes() {
                 result
                     .generated_notes
                     .iter()
-                    .all(|address| address.part == 0 && address.staff == 1 && address.measure == 0)
+                    .all(|address| address.part == 0 && address.staff > 0 && address.measure == 0)
             );
             let replay = arrange_from_resolved_preset(&source, result.resolved_config.unwrap());
             assert!(replay.diagnostics.is_empty(), "{:?}", replay.diagnostics);

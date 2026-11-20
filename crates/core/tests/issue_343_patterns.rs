@@ -42,7 +42,7 @@ fn full_bar_preset_patterns_have_expected_roles_and_playback() {
                 output.parts[0].staves[0].measures[0].voices[0][0].id,
                 score.parts[0].staves[0].measures[0].voices[0][0].id
             );
-            let notes = &output.parts[0].staves[1].measures[0].voices[0];
+            let notes = accompaniment_slots(&output);
             assert_eq!(
                 notes.iter().map(|n| n.beats()).collect::<Vec<_>>(),
                 durations
@@ -57,7 +57,7 @@ fn full_bar_preset_patterns_have_expected_roles_and_playback() {
             let events = to_playback_events(&output, &Default::default());
             let left = events
                 .iter()
-                .filter(|e| e.source.as_ref().is_some_and(|a| a.staff == 1))
+                .filter(|e| e.source.as_ref().is_some_and(|a| a.staff > 0))
                 .collect::<Vec<_>>();
             assert_eq!(left.len(), 8);
             assert_eq!(left[0].time_beats, 0.0);
@@ -290,4 +290,20 @@ fn tuplets_in_melody_are_preserved() {
             before
         );
     }
+}
+
+// Each of these patterns sounds at most one accompaniment staff at a time.
+fn accompaniment_slots(score: &Score) -> Vec<&Note> {
+    let staves = &score.parts[0].staves;
+    staves[1].measures[0].voices[0]
+        .iter()
+        .enumerate()
+        .map(|(index, chord)| {
+            if chord.is_rest && staves.len() == 3 {
+                &staves[2].measures[0].voices[0][index]
+            } else {
+                chord
+            }
+        })
+        .collect()
 }

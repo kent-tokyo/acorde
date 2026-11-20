@@ -5,14 +5,16 @@ use std::collections::BTreeMap;
 use uuid::Uuid;
 
 use super::arrange::{
-    AccordionBassMode, AccordionInversion, AccordionMelodicVoice, AccordionPattern,
-    AccordionSwingPolicy, GuidedArrangeDiagnostic, LayeredAccordionOptions,
-    PositionedAccordionChord, arrange_with_layers,
+    ACCORDION_CHORD_BASE_MIDI, AccordionBassMode, AccordionInversion, AccordionMelodicVoice,
+    AccordionPattern, AccordionSwingPolicy, GuidedArrangeDiagnostic, LayeredAccordionOptions,
+    LayeredAccordionResult, PositionedAccordionChord, arrange_with_layers,
 };
-use super::score::{NoteAddr, Score};
+use super::notation::Clef;
+use super::score::{Note, NoteAddr, Score, Staff};
 
 const CONTRACT_VERSION: u16 = 1;
-const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "+arrangement-presets.2");
+const ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "+arrangement-presets.3");
+const TWO_STAFF_ENGINE_VERSION: &str = "1.3.14+arrangement-presets.2";
 const LEGACY_ENGINE_VERSION: &str = "1.3.4+arrangement-presets.1";
 const LEGACY_FINGERPRINT_VERSION: u16 = 1;
 const CONTENT_FINGERPRINT_VERSION: u16 = 2;
@@ -23,7 +25,8 @@ const MAX_SHUFFLE_POOL: usize = 32;
 const MAX_SHUFFLE_NOTES: usize = 8192;
 const MAX_SHUFFLE_SELECTIONS: usize = 4;
 const LAYER_CONTRACT_VERSION: u16 = 1;
-const LAYER_ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "+arrangement-layers.1");
+const LAYER_ENGINE_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "+arrangement-layers.2");
+const TWO_STAFF_LAYER_ENGINE_VERSION: &str = "1.3.14+arrangement-layers.1";
 const MAX_LAYER_SHUFFLE_COMBINATIONS: usize = 64;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -391,7 +394,10 @@ fn fingerprint_for_version(
 fn engine_matches_config(config: &AccordionPresetConfig) -> bool {
     match fingerprint_version(&config.input_fingerprint) {
         Some(LEGACY_FINGERPRINT_VERSION) => config.engine_version == LEGACY_ENGINE_VERSION,
-        Some(CONTENT_FINGERPRINT_VERSION) => config.engine_version == ENGINE_VERSION,
+        Some(CONTENT_FINGERPRINT_VERSION) => {
+            config.engine_version == ENGINE_VERSION
+                || config.engine_version == TWO_STAFF_ENGINE_VERSION
+        }
         _ => false,
     }
 }
@@ -434,12 +440,102 @@ fn options_for(id: &str, selection: AccordionPresetSelection) -> Option<LayeredA
     })
 }
 
+fn accompaniment_rest(note: &Note) -> Note {
+    let mut rest = Note::rest(note.duration.clone());
+    rest.dot_count = note.dot_count;
+    rest.tuplet = note.tuplet.clone();
+    rest.tuplet_boundary = note.tuplet_boundary;
+    rest
+}
+
+/// Project the generated left hand onto two written staves. Standard-bass
+/// generation uses disjoint registers for bass buttons and chord tones, even
+/// with alternating fifths or slash chords. The free-bass templates used by
+/// the profiled APIs can contain other voicings and do not enter this path.
+fn split_standard_bass_staves(result: &mut LayeredAccordionResult) {
+    if result.resolved_options.bass_mode != AccordionBassMode::StandardBass
+        || result.resolved_options.accompaniment.is_none()
+    {
+        return;
+    }
+    let Some(part) = result
+        .score
+        .as_mut()
+        .and_then(|score| score.parts.first_mut())
+    else {
+        return;
+    };
+    let Some(bass) = part.staves.get_mut(1) else {
+        return;
+    };
+    let mut chords = Staff::new(Clef::Treble);
+    chords.measures.reserve(bass.measures.len());
+    // Both voices keep one slot for every original event. Generated notes on
+    // the melody staff retain their original addresses and order.
+    let mut addresses = Vec::with_capacity(result.generated_notes.len());
+    for (measure, bass_bar) in bass.measures.iter_mut().enumerate() {
+        let notes = std::mem::take(&mut bass_bar.voices[0]);
+        let mut chord_bar = bass_bar.clone();
+        for (index, mut note) in notes.into_iter().enumerate() {
+            if note.is_rest {
+                chord_bar.voices[0].push(accompaniment_rest(&note));
+                bass_bar.voices[0].push(note);
+                continue;
+            }
+            let is_bass =
+                |pitch: &crate::Pitch| pitch.to_midi() < i16::from(ACCORDION_CHORD_BASE_MIDI);
+            let has_bass = note.pitches.iter().any(is_bass);
+            let has_chord = note.pitches.iter().any(|pitch| !is_bass(pitch));
+            let (bass_note, chord_note) = match (has_bass, has_chord) {
+                (true, true) => {
+                    let mut chord = note.clone();
+                    chord.id = Uuid::new_v4().to_string();
+                    chord.chord_symbol = None;
+                    chord.pitches.retain(|pitch| !is_bass(pitch));
+                    note.pitches.retain(is_bass);
+                    (note, chord)
+                }
+                (true, false) => {
+                    let rest = accompaniment_rest(&note);
+                    (note, rest)
+                }
+                _ => (accompaniment_rest(&note), note),
+            };
+            for (staff, sounding) in [(1, has_chord), (2, has_bass)] {
+                if sounding {
+                    addresses.push(NoteAddr {
+                        part: 0,
+                        staff,
+                        measure,
+                        voice: 0,
+                        note: index,
+                    });
+                }
+            }
+            bass_bar.voices[0].push(bass_note);
+            chord_bar.voices[0].push(chord_note);
+        }
+        chords.measures.push(chord_bar);
+    }
+    part.staves.insert(1, chords);
+    addresses.extend(
+        result
+            .generated_notes
+            .drain(..)
+            .filter(|addr| addr.staff == 0),
+    );
+    result.generated_notes = addresses;
+}
+
 fn run(
     score: &Score,
     config: AccordionPresetConfig,
     seed: Option<String>,
 ) -> AccordionPresetResult {
-    let result = arrange_with_layers(score, config.options.clone());
+    let mut result = arrange_with_layers(score, config.options.clone());
+    if config.engine_version == ENGINE_VERSION {
+        split_standard_bass_staves(&mut result);
+    }
     AccordionPresetResult {
         score: result.score,
         resolved_config: Some(config.clone()),
@@ -551,7 +647,7 @@ fn splitmix64(mut value: u64) -> u64 {
 type PlaybackSignature = Vec<(u8, u64, u64)>;
 
 fn event_signature(score: &Score) -> PlaybackSignature {
-    crate::to_playback_events(score, &Default::default())
+    let mut signature: PlaybackSignature = crate::to_playback_events(score, &Default::default())
         .into_iter()
         .map(|event| {
             (
@@ -560,7 +656,9 @@ fn event_signature(score: &Score) -> PlaybackSignature {
                 event.duration_beats.to_bits(),
             )
         })
-        .collect()
+        .collect();
+    signature.sort_unstable();
+    signature
 }
 
 /// Sample a bounded, compatible preset pool. An exhausted pool returns a diagnostic promptly.
@@ -751,7 +849,10 @@ fn run_layers(
     config: AccordionLayerConfig,
     seed: Option<String>,
 ) -> AccordionLayerResult {
-    let result = arrange_with_layers(score, config.options.clone());
+    let mut result = arrange_with_layers(score, config.options.clone());
+    if config.engine_version == LAYER_ENGINE_VERSION {
+        split_standard_bass_staves(&mut result);
+    }
     AccordionLayerResult {
         score: result.score,
         resolved_config: Some(config.clone()),
@@ -806,7 +907,8 @@ pub fn arrange_from_resolved_layers(
         );
     };
     if config.contract_version != LAYER_CONTRACT_VERSION
-        || config.engine_version != LAYER_ENGINE_VERSION
+        || (config.engine_version != LAYER_ENGINE_VERSION
+            && config.engine_version != TWO_STAFF_LAYER_ENGINE_VERSION)
         || fingerprint_version(&config.input_fingerprint) != Some(CONTENT_FINGERPRINT_VERSION)
     {
         return layer_error(

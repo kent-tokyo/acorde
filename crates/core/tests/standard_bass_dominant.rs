@@ -67,9 +67,10 @@ fn default_standard_preset_and_chord_plan_distinguish_real_button_kinds() {
         let result = arrange_accordion_preset(&score, selection(symbol), "bass-pulse");
         assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
         let output = result.score.unwrap();
-        let notes = &output.parts[0].staves[1].measures[0].voices[0];
+        let chord_staff = &output.parts[0].staves[1].measures[0].voices[0];
+        let bass_staff = &output.parts[0].staves[2].measures[0].voices[0];
         assert_eq!(
-            notes[0]
+            bass_staff[0]
                 .pitches
                 .iter()
                 .map(|p| p.to_midi())
@@ -77,14 +78,17 @@ fn default_standard_preset_and_chord_plan_distinguish_real_button_kinds() {
             [bass]
         );
         assert_eq!(
-            notes[1]
+            chord_staff[1]
                 .pitches
                 .iter()
                 .map(|p| p.to_midi())
                 .collect::<Vec<_>>(),
             chord_notes
         );
-        assert_eq!(notes[0].chord_symbol.as_ref().unwrap().kind, "dominant");
+        assert_eq!(
+            bass_staff[0].chord_symbol.as_ref().unwrap().kind,
+            "dominant"
+        );
         let events = to_playback_events(&output, &Default::default());
         assert!(
             events

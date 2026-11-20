@@ -61,7 +61,7 @@ fn driving_and_light_patterns_have_expected_rhythm_expression_and_harmony() {
             serde_json::to_value(&output.parts[0].staves[0]).unwrap(),
             serde_json::to_value(&score.parts[0].staves[0]).unwrap()
         );
-        let notes = &output.parts[0].staves[1].measures[0].voices[0];
+        let notes = accompaniment_slots(&output);
         assert_eq!(notes.len(), 8);
         assert!(notes.iter().all(|n| n.beats() == 0.5));
         assert_eq!(
@@ -87,7 +87,7 @@ fn driving_and_light_patterns_have_expected_rhythm_expression_and_harmony() {
         let events = to_playback_events(&output, &Default::default());
         let bass = events
             .iter()
-            .filter(|e| e.source.as_ref().is_some_and(|a| a.staff == 1))
+            .filter(|e| e.source.as_ref().is_some_and(|a| a.staff > 0))
             .collect::<Vec<_>>();
         assert_eq!(bass.len(), 16);
         assert!(
@@ -301,4 +301,20 @@ fn standard_bass_rejects_major_sevenths_while_free_bass_accepts_them() {
     selection.bass_mode = AccordionBassMode::FreeBass;
     let free = arrange_accordion_preset(&score, selection, "driving-bass-chord");
     assert!(free.score.is_some(), "{:?}", free.diagnostics);
+}
+
+// Each of these patterns sounds at most one accompaniment staff at a time.
+fn accompaniment_slots(score: &Score) -> Vec<&Note> {
+    let staves = &score.parts[0].staves;
+    staves[1].measures[0].voices[0]
+        .iter()
+        .enumerate()
+        .map(|(index, chord)| {
+            if chord.is_rest && staves.len() == 3 {
+                &staves[2].measures[0].voices[0][index]
+            } else {
+                chord
+            }
+        })
+        .collect()
 }
