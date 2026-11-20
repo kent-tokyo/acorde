@@ -3,7 +3,9 @@
 //! accidentals, and span (hairpin/ottava/pedal/slur) resolution for score renderers (e.g. VexFlow).
 
 mod engine;
+mod page_turns;
 mod print;
+pub use page_turns::{PartPageTurn, PartPageTurnPlan, plan_part_page_turns};
 
 pub use acorde_core::NoteAddr;
 pub use engine::{

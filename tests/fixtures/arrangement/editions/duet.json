@@ -1,0 +1,112 @@
+{
+  "accompaniment": {
+    "pattern": "bass-pulse",
+    "selection": {
+      "chords": [],
+      "alternative_chords": null,
+      "inversion": null,
+      "bass_mode": "standard-bass"
+    },
+    "profile": {
+      "max_distance": 0,
+      "bass_buttons": [
+        {
+          "id": "F bass",
+          "position": 0,
+          "midi": 41
+        },
+        {
+          "id": "C bass",
+          "position": 1,
+          "midi": 48
+        },
+        {
+          "id": "G bass",
+          "position": 2,
+          "midi": 43
+        },
+        {
+          "id": "Dm bass",
+          "position": 3,
+          "midi": 50
+        },
+        {
+          "id": "Am bass",
+          "position": 4,
+          "midi": 45
+        }
+      ],
+      "chord_buttons": [
+        {
+          "id": "F chord",
+          "position": 0,
+          "midi": [
+            53,
+            57,
+            60
+          ]
+        },
+        {
+          "id": "C chord",
+          "position": 1,
+          "midi": [
+            52,
+            55,
+            60
+          ]
+        },
+        {
+          "id": "G chord",
+          "position": 2,
+          "midi": [
+            55,
+            59,
+            62
+          ]
+        },
+        {
+          "id": "Dm chord",
+          "position": 3,
+          "midi": [
+            53,
+            57,
+            62
+          ]
+        },
+        {
+          "id": "Am chord",
+          "position": 4,
+          "midi": [
+            52,
+            57,
+            60
+          ]
+        }
+      ]
+    },
+    "allow_chord_omissions": false,
+    "allow_chord_additions": false,
+    "transition_policy": {
+      "max_position_delta": 4,
+      "min_attack_interval_ms": 200
+    }
+  },
+  "edition": {
+    "ensemble": "duet",
+    "partner_measures": [
+      4,
+      5,
+      6,
+      7
+    ],
+    "answer_measures": [
+      3,
+      11
+    ],
+    "partner_program": 0,
+    "partner_range": [
+      60,
+      84
+    ]
+  }
+}

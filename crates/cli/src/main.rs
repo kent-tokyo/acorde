@@ -363,6 +363,20 @@ enum Commands {
         #[arg(long)]
         cpu_label: Option<String>,
     },
+    /// Engrave beat groups and offbeat ties on a performance copy
+    EngraveRhythm {
+        input: PathBuf,
+        output: PathBuf,
+        /// Group 5/8 as 3+2 (default 2+3)
+        #[arg(long)]
+        three_two: bool,
+    },
+    /// Arrange a melody for standard-bass accordion solo or duet using a JSON request
+    PerformerEdition {
+        input: PathBuf,
+        request: PathBuf,
+        output: PathBuf,
+    },
     /// Extract a single part from a score
     Extract {
         /// Input file (.musicxml, .mxl, .mid, .midi)
@@ -734,6 +748,22 @@ fn run(cli: &Cli) -> Result<(), String> {
             *timing_repetitions,
             cpu_label.as_deref(),
         ),
+        Commands::EngraveRhythm {
+            input,
+            output,
+            three_two,
+        } => {
+            let score = parse_score(input)?;
+            let grouping = if *three_two { [3, 2] } else { [2, 3] };
+            let engraved = acorde_core::model::rhythm_engraving::engrave_rhythm(&score, grouping)
+                .map_err(|e| e.to_string())?;
+            write_score(&engraved, output)
+        }
+        Commands::PerformerEdition {
+            input,
+            request,
+            output,
+        } => cmd_performer_edition(input, request, output),
         Commands::Extract {
             input,
             output,
@@ -2659,6 +2689,23 @@ fn cmd_fingering_report(input: &Path, policy: &str) -> Result<(), String> {
             .map_err(|e| format!("fingering report serialization failed: {e}"))?
     );
     Ok(())
+}
+
+fn cmd_performer_edition(input: &Path, request: &Path, output: &Path) -> Result<(), String> {
+    use acorde_core::model::performer_edition::arrange_performer_edition;
+    let score = parse_score(input)?;
+    let config =
+        std::fs::read(request).map_err(|e| format!("cannot read {}: {e}", request.display()))?;
+    let options = serde_json::from_slice(&config)
+        .map_err(|e| format!("invalid performer edition request: {e}"))?;
+    let edition = arrange_performer_edition(&score, &options).map_err(|e| {
+        let location = e
+            .measure_index
+            .map(|m| format!(" at measure {}", m.saturating_add(1)))
+            .unwrap_or_default();
+        format!("{}{location}: {}", e.code, e.message)
+    })?;
+    write_score(&edition.score, output)
 }
 
 fn cmd_extract(input: &Path, output: &Path, part_index: usize) -> Result<(), String> {

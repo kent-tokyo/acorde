@@ -1873,6 +1873,8 @@ impl PrintLayoutResult {
 
 #[derive(Debug, thiserror::Error, PartialEq)]
 pub enum PrintLayoutError {
+    #[error("page turn tempo and minimum silence must be positive")]
+    InvalidPageTurnTiming,
     #[error("unsupported page render tree contract version {found}")]
     UnsupportedPageRenderTreeContractVersion { found: u16 },
     #[error("page render tree node {node_index} has invalid ownership or address")]
@@ -2257,7 +2259,7 @@ fn volta_ranges(score: &Score) -> Vec<KeepTogetherRange> {
     ranges
 }
 
-fn repeat_ranges(score: &Score) -> Vec<KeepTogetherRange> {
+pub(crate) fn repeat_ranges(score: &Score) -> Vec<KeepTogetherRange> {
     let Some(staff) = score.parts.first().and_then(|part| part.staves.first()) else {
         return Vec::new();
     };
@@ -2636,9 +2638,13 @@ fn justify_page_systems(
     if !pitch.is_finite() || pitch <= height {
         return systems;
     }
-    for (index, system) in systems.iter_mut().enumerate() {
-        system.top_mm = first_top + index as f32 * pitch;
-        system.height_mm = pitch;
+    // Use the previous stored bottom as the next top. Independent multiplication
+    // and addition can round to opposite sides of the same physical boundary.
+    let mut top = first_top;
+    for system in &mut systems {
+        system.top_mm = top;
+        system.height_mm = pitch.min(bottom - top);
+        top = system.top_mm + system.height_mm;
     }
     systems
 }

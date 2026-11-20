@@ -725,6 +725,15 @@ pub fn compute_print_layout(score_json: &str, config_json: &str) -> Result<Strin
         .map_err(|e| js_err(format!("print layout serialization failed: {e}")))
 }
 
+/// Reflow an extracted part around written rests and report short page turns.
+#[wasm_bindgen]
+pub fn plan_part_page_turns(score_json: &str, config_json: &str, bpm: u16, minimum_ms: u32) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let config = parse_json(config_json, "print config", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_layout::plan_part_page_turns(&score, &config, bpm, minimum_ms).map_err(js_err)?;
+    serde_json::to_string(&result).map_err(js_err)
+}
+
 /// Compute the host-neutral physical print layout for one named linked score view.
 ///
 /// View-local measure capacity and explicit system/page boundaries are applied without
@@ -1664,6 +1673,24 @@ pub fn arrange_profiled_accompaniment(score_json: &str, options_json: &str) -> R
         .map_err(|error| js_err(format!("profiled accompaniment serialization failed: {error}")))
 }
 
+/// Realize an accordion solo or a phrase-sharing duet on the supplied buttons.
+#[wasm_bindgen]
+pub fn arrange_performer_edition(score_json: &str, options_json: &str) -> Result<String, JsValue> {
+    use acorde_core::model::performer_edition::{arrange_performer_edition, PerformerEditionRequest};
+    let score = score_from_json(score_json)?;
+    let options: PerformerEditionRequest = parse_json(options_json, "performer edition request", MAX_OPTIONS_JSON_BYTES)?;
+    let result = arrange_performer_edition(&score, &options);
+    serde_json::to_string(&result).map_err(|e| js_err(format!("performer edition serialization failed: {e}")))
+}
+
+/// Apply opt-in display beams, metric ties and polyphonic stem decisions to a score copy.
+#[wasm_bindgen]
+pub fn engrave_rhythm(score_json: &str, three_two: bool) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let engraved = acorde_core::model::rhythm_engraving::engrave_rhythm(&score, if three_two { [3, 2] } else { [2, 3] }).map_err(js_err)?;
+    serde_json::to_string(&engraved).map_err(js_err)
+}
+
 /// Patterns, meters and melody layers supported with explicit standard-bass buttons.
 #[wasm_bindgen]
 pub fn profiled_accompaniment_capabilities() -> Result<String, JsValue> {
@@ -2106,6 +2133,17 @@ pub fn replay_ensemble_form(score_json: &str, resolved_json: &str) -> Result<Str
         parse_json(resolved_json, "resolved ensemble form", MAX_OPTIONS_JSON_BYTES)?;
     serde_json::to_string(&acorde_core::replay_ensemble_form(&score, &resolved))
         .map_err(|error| js_err(format!("ensemble form serialization failed: {error}")))
+}
+
+/// Regenerate a region in a source-bound form, keeping specified measures fixed.
+#[wasm_bindgen]
+pub fn regenerate_ensemble_form_region(score_json: &str, resolved_json: &str, treatment_json: &str, locks_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved = parse_json(resolved_json, "resolved ensemble form", MAX_OPTIONS_JSON_BYTES)?;
+    let treatment = parse_json(treatment_json, "form section", MAX_OPTIONS_JSON_BYTES)?;
+    let locks: Vec<usize> = parse_json(locks_json, "locked measures", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::model::ensemble_form::regenerate_ensemble_form_region(&score, &resolved, &treatment, &locks);
+    serde_json::to_string(&result).map_err(js_err)
 }
 
 /// Assign named instruments to selected parts after playback-order screening.

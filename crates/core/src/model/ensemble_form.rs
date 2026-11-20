@@ -445,3 +445,120 @@ pub fn replay_ensemble_form(score: &Score, resolved: &ResolvedEnsembleForm) -> E
     }
     arrange_ensemble_form(score, &resolved.request)
 }
+
+/// Change the treatment of a written region while preserving protected measures.
+/// The replacement supplies the role treatment and the extent of the edit.
+/// The source-bound result can be replayed using the ordinary form API.
+pub fn regenerate_ensemble_form_region(
+    score: &Score,
+    original: &ResolvedEnsembleForm,
+    treatment: &EnsembleFormSection,
+    locked_measures: &[usize],
+) -> EnsembleFormResult {
+    let base = replay_ensemble_form(score, original);
+    let Some(before) = base.score.as_ref() else {
+        return base;
+    };
+    let extent = treatment.start_measure..treatment.end_measure_exclusive;
+    let count = base.measures.len();
+    if extent.is_empty()
+        || extent.end > count
+        || locked_measures.len() > count
+        || locked_measures.iter().any(|&i| i >= count)
+    {
+        return failure(diagnostic(
+            "invalid-form-edit-region",
+            None,
+            Some(extent.start),
+        ));
+    }
+    let locked: std::collections::BTreeSet<_> = locked_measures.iter().copied().collect();
+    let editable = |i| extent.contains(&i) && !locked.contains(&i);
+    let mut request = original.request.clone();
+    request.sections.clear();
+    for section in &original.request.sections {
+        let mut first = section.start_measure;
+        while first < section.end_measure_exclusive {
+            let replace = editable(first);
+            let mut end = first + 1;
+            while end < section.end_measure_exclusive && replace == editable(end) {
+                end += 1;
+            }
+            let mut next = if replace { treatment } else { section }.clone();
+            next.start_measure = first;
+            next.end_measure_exclusive = end;
+            request.sections.push(next);
+            first = end;
+        }
+    }
+    let mut candidate = arrange_ensemble_form(score, &request);
+    let Some(after) = candidate.score.as_mut() else {
+        return candidate;
+    };
+    if before.parts.len() != after.parts.len() {
+        return failure(diagnostic("form-edit-changes-instruments", None, None));
+    }
+    for (left, right) in before
+        .parts
+        .iter()
+        .zip(&mut after.parts)
+        .skip(score.parts.len())
+    {
+        if left.midi_channel != right.midi_channel
+            || left.midi_program != right.midi_program
+            || left.staves.len() != right.staves.len()
+        {
+            return failure(diagnostic("form-edit-changes-instruments", None, None));
+        }
+        for (old, new) in left.staves.iter().zip(&mut right.staves) {
+            for (index, (a, b)) in old.measures.iter().zip(&mut new.measures).enumerate() {
+                if editable(index) {
+                    continue;
+                }
+                for (voice_a, voice_b) in a.voices.iter().zip(&mut b.voices) {
+                    for (note_a, note_b) in voice_a.iter().zip(voice_b) {
+                        note_b.id.clone_from(&note_a.id);
+                    }
+                }
+                if !matches!((serde_json::to_vec(a),serde_json::to_vec(b)),(Ok(a),Ok(b)) if a == b)
+                {
+                    return failure(diagnostic(
+                        "form-edit-changes-protected-notation",
+                        None,
+                        Some(index),
+                    ));
+                }
+            }
+        }
+    }
+    let protected = |edition: &Score| {
+        let mut notes: Vec<_> = crate::to_playback_events_bounded(edition, &Default::default())?
+            .into_iter()
+            .filter_map(|e| {
+                let a = e.source?;
+                (!editable(a.measure)).then_some((
+                    a.part,
+                    a.staff,
+                    a.measure,
+                    a.voice,
+                    e.time_beats.to_bits(),
+                    e.duration_beats.to_bits(),
+                    e.pitch_midi_cents,
+                    e.velocity,
+                    e.channel,
+                    e.program,
+                ))
+            })
+            .collect();
+        notes.sort_unstable();
+        Ok::<_, crate::Error>(notes)
+    };
+    match (protected(before), protected(after)) {
+        (Ok(left), Ok(right)) if left == right => candidate,
+        _ => failure(diagnostic(
+            "form-edit-changes-protected-playback",
+            None,
+            None,
+        )),
+    }
+}
