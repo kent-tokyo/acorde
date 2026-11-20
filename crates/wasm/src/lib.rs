@@ -5216,7 +5216,7 @@ mod wasm_tests {
                 "../../../tests/fixtures/arrangement/standard-bass-staves-events.json"
             )).unwrap();
         let selection = serde_json::to_string(&standard_bass_staves_fixture::selection()).unwrap();
-        let events = |score| {
+        let events = |score: &str| {
             let mut tuples: Vec<_> = serde_json::from_str::<Vec<acorde_core::PlaybackEvent>>(
                 &to_playback_events_ex(score, "{}").unwrap(),
             ).unwrap().into_iter()
