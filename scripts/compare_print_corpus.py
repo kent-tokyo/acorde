@@ -35,6 +35,7 @@ screening numbers on a small corpus; they are not a quality ranking.
 
 import collections
 import hashlib
+import html
 import json
 import os
 import pathlib
@@ -93,7 +94,7 @@ for (const svg of document.querySelectorAll('body > div > svg')) {
   for (const k of ['noteheads','rests','slurs','ties','lyrics','dynamics','hairpins','articulations'])
     counts[k] = svg.querySelectorAll(SEL[k]).length;
   let pastEdge = 0, pastMargin = 0;
-  const edgeCandidates = [];
+  const edgeCandidates = [], marginCandidates = [];
   for (const el of svg.querySelectorAll('path, use, line, polyline, polygon, rect, ellipse, circle, text')) {
     if (el.closest('defs, symbol')) continue;
     const b = box(el); if (!real(b)) continue;
@@ -101,9 +102,12 @@ for (const svg of document.querySelectorAll('body > div > svg')) {
       pastEdge++;
       edgeCandidates.push({box:b, className:el.getAttribute('class') || el.parentElement?.getAttribute('class'), text:el.closest('[data-text]')?.getAttribute('data-text') || el.textContent});
     }
-    else if (b.x0 < 14 - 0.5 || b.x1 > W - 14 + 0.5 || b.y0 < 16 - 0.5 || b.y1 > H - 16 + 0.5) pastMargin++;
+    else if (b.x0 < 14 - 0.5 || b.x1 > W - 14 + 0.5 || b.y0 < 16 - 0.5 || b.y1 > H - 16 + 0.5) {
+      pastMargin++;
+      marginCandidates.push({box:b, className:el.getAttribute('class') || el.parentElement?.getAttribute('class'), text:el.closest('[data-text]')?.getAttribute('data-text') || el.textContent});
+    }
   }
-  const texts = [...svg.querySelectorAll('text, [data-acorde-outlined-text]')].filter(t => t.textContent.trim() && !t.closest('defs'))
+  const texts = [...svg.querySelectorAll('text, [data-acorde-outlined-text]')].filter(t => (t.getAttribute('data-text') || t.textContent).trim() && !t.closest('defs'))
     .map(t => ({el: t, b: box(t), label: t.getAttribute('data-text') || t.textContent.trim(), className: t.getAttribute('class') || '',
                 lyric: !!t.closest(SEL.lyrics),
                 font: t.hasAttribute('data-font-size') ? parseFloat(t.getAttribute('data-font-size')) * t.getScreenCTM().d * mm : Math.max(...[t, ...t.querySelectorAll('tspan')].map(e =>
@@ -175,7 +179,7 @@ for (const svg of document.querySelectorAll('body > div > svg')) {
   }
   const med = a => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
   out.pages.push({counts, past_page_edge: pastEdge, past_margins: pastMargin,
-    edge_candidates: edgeCandidates, text_text_candidates: textTextCandidates,
+    edge_candidates: edgeCandidates, margin_candidates: marginCandidates, text_text_candidates: textTextCandidates,
     text_over_notation: textMark, text_over_text: textText,
     text_notation_candidates: textMarkCandidates,
     lyric_staff_candidates: lyricStaffCandidates,
@@ -236,7 +240,7 @@ def measure(svgs, selectors, html_path, page_width_mm=210, page_height_mm=297):
         f"</style></head><body>{body}<pre id='out'></pre><script>{MEASURE_JS % json.dumps(selectors)}</script></body></html>")
     dom = run(CHROME, "--headless=new", "--disable-gpu", "--virtual-time-budget=10000",
               "--dump-dom", html_path.as_uri()).stdout
-    pages = json.loads(re.search(r"<pre id=\"out\">(.*?)</pre>", dom, re.S).group(1).replace("&amp;", "&"))["pages"]
+    pages = json.loads(html.unescape(re.search(r"<pre id=\"out\">(.*?)</pre>", dom, re.S).group(1)))["pages"]
     total = collections.Counter()
     for p in pages:
         total.update(p["counts"])
@@ -252,6 +256,9 @@ def measure(svgs, selectors, html_path, page_width_mm=210, page_height_mm=297):
         "edge_candidates": [dict(page=index + 1, **candidate)
                             for index, page in enumerate(pages)
                             for candidate in page["edge_candidates"]],
+        "margin_candidates": [dict(page=index + 1, **candidate)
+                              for index, page in enumerate(pages)
+                              for candidate in page["margin_candidates"]],
         "text_text_candidates": [dict(page=index + 1, **candidate)
                                  for index, page in enumerate(pages)
                                  for candidate in page["text_text_candidates"]],

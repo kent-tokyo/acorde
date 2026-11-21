@@ -838,6 +838,35 @@ the geometry tested. Three focused IO tests, 264 round-trip tests, an
 import-to-measured-pagination test, and scoped all-feature IO library Clippy
 passed on macOS. All final parity gates remain pending.
 
+### Outlined text in collision screening
+
+The comparison screen previously selected outlined text but then discarded it
+unless it contained a text node. Measured print represents that text as paths
+with a `data-text` attribute, so older text-collision and typography results
+could miss it. The screen now uses that attribute, decodes HTML entities in
+its result, and records the positions and classes of elements in page margins.
+A Chrome regression uses outlined lyric ink with no text node and verifies
+notehead, staff-line and stem intersections, font measurement, text decoding,
+and an element inside a margin. Older zero-candidate text screens must not be
+treated as evidence about outlined text.
+
+The [rerun](archive/print-parity-outlined-text-screen-20261122.json) used the
+same 34 inputs and 303 pages as the preceding break-boundary screen. Within
+its selected element classes and thresholds, it reports zero text/notehead,
+text/text, lyric/staff-line, dynamic/staff-line and text/curve candidates,
+and zero elements beyond the paper edge. These are automated screens, not a
+complete collision audit or an all-page visual review. It records 1,229
+individual margin-crossing shapes: 922 part-label shapes, 303 page-number
+shapes and four title shapes. Part labels reach 3.06 mm from the paper edge,
+page numbers reach 5.96 mm from the bottom, and title ink reaches 6.99 mm
+from the top. They are inside the nominal margins by design; physical printer
+clearance remains unverified. The screen script SHA-256 is
+`f45396ccb76c2e2bb7458cd0aa56883e15238d8b5a1ef1624545aaa946787cdf`, and
+the release printer SHA-256 is
+`3da64e778ce2c903653414676652f73b1d6e9faf301e0915aba8857ebdd6afd3`.
+This printer predates the diagnostic-only addition described above. The
+corpus remains development evidence and all final gates remain pending.
+
 ### Reuse of measured row geometry
 
 Profiling the 643-measure chamber input showed repeated pagination attempts:
