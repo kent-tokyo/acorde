@@ -511,10 +511,13 @@
       }
       $("file").onchange = async () => {
         stop();
+        const savedBoundaryCandidates = state.boundaryCandidates;
+        const expectedHash = state.expectedRecordingHash;
         if (state.url) URL.revokeObjectURL(state.url);
         state.url = null;
         state.recordingHash = null;
         state.boundaryCandidates = [];
+        const clearedBoundaryCandidates = state.boundaryCandidates;
         state.undo.forEach((snapshot) => (snapshot.boundaryCandidates = []));
         $("audio").removeAttribute("src");
         $("analyze").disabled = true;
@@ -543,6 +546,12 @@
           state.recordingHash = Array.from(new Uint8Array(digest), (byte) =>
             byte.toString(16).padStart(2, "0"),
           ).join("");
+          if (expectedHash && state.recordingHash === expectedHash &&
+              state.expectedRecordingHash === expectedHash &&
+              state.boundaryCandidates === clearedBoundaryCandidates) {
+            state.boundaryCandidates = savedBoundaryCandidates;
+            renderBoundaryCandidates();
+          }
           if (!state.expectedRecordingHash && state.notes.length === 0) {
             state.expectedRecordingHash = state.recordingHash;
           }
@@ -969,6 +978,7 @@
         let project = {
           version: 1,
           notes: state.notes,
+          boundaryCandidates: state.boundaryCandidates,
           tempo: value("tempo"),
           numerator: value("numerator"),
           denominator: value("denominator"),
@@ -1006,6 +1016,16 @@
                 n.end > n.start &&
                 ["left", "right"].includes(n.hand),
             ) ||
+            (project.boundaryCandidates !== undefined &&
+              (!Array.isArray(project.boundaryCandidates) ||
+                project.boundaryCandidates.length > 10000 ||
+                !project.boundaryCandidates.every((candidate) => {
+                  const n = candidate?.note;
+                  return n && Number.isInteger(n.pitch) && n.pitch >= 0 && n.pitch <= 127 &&
+                    Number.isFinite(n.start) && Number.isFinite(n.end) && n.start >= 0 &&
+                    n.end > n.start && ["left", "right"].includes(n.hand) &&
+                    typeof n.context_limited === "boolean" && typeof candidate.added === "boolean";
+                }))) ||
             !Number.isFinite(project.tempo) ||
             project.tempo < 20 ||
             project.tempo > 400 ||
@@ -1026,7 +1046,7 @@
             throw Error("編集内容の形式を確認してください。");
           $("pickupSteps").value = project.pickupSteps ?? 0;
           state.notes = project.notes;
-          state.boundaryCandidates = [];
+          state.boundaryCandidates = project.boundaryCandidates ?? [];
           state.expectedRecordingHash = project.recordingSha256 ?? null;
           updateRecordingStatus();
           clearCandidates();

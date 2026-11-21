@@ -145,6 +145,36 @@ async function main() {
     let boundaryUndone = "";
     for await (const chunk of await (await downloadPromise).createReadStream()) boundaryUndone += chunk;
     assert.equal(JSON.parse(boundaryUndone).notes.filter((note) => note.pitch === 62).length, 1);
+    const restoredBoundaryPage = await browser.newPage();
+    await restoredBoundaryPage.goto(process.env.TRANSCRIPTION_URL || "http://127.0.0.1:8765/");
+    const boundaryProject = { ...JSON.parse(boundaryUndone), recordingSha256: createHash("sha256").update(wav).digest("hex") };
+    await restoredBoundaryPage.locator("#openProject").setInputFiles({
+      name: "boundary.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(boundaryProject)),
+    });
+    await restoredBoundaryPage.locator("#boundaryPanel button").waitFor();
+    await restoredBoundaryPage.locator("#file").setInputFiles({ name: "audio.wav", mimeType: "audio/wav", buffer: wav });
+    await restoredBoundaryPage.getByText("録音が編集内容と一致しています。").waitFor();
+    assert.equal(await restoredBoundaryPage.locator("#boundaryPanel button").innerText(), "追加");
+    await restoredBoundaryPage.locator("#boundaryPanel button").click();
+    assert.equal(await restoredBoundaryPage.locator("#boundaryPanel button").innerText(), "追加済み");
+    const changedWav = Buffer.from(wav);
+    changedWav[changedWav.length - 1] = 1;
+    await restoredBoundaryPage.locator("#file").setInputFiles({ name: "other.wav", mimeType: "audio/wav", buffer: changedWav });
+    await restoredBoundaryPage.getByText(/選択した録音は編集内容の録音と異なります/).waitFor();
+    assert.equal(await restoredBoundaryPage.locator("#boundaryPanel").isHidden(), true);
+    await restoredBoundaryPage.locator("#openProject").setInputFiles({
+      name: "added.json", mimeType: "application/json", buffer: Buffer.from(boundarySaved),
+    });
+    assert.equal(await restoredBoundaryPage.locator("#boundaryPanel button").innerText(), "追加済み");
+    assert.equal(await restoredBoundaryPage.locator("#boundaryPanel button").isDisabled(), true);
+    await restoredBoundaryPage.locator("#openProject").setInputFiles({
+      name: "invalid.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify({
+        ...boundaryProject, boundaryCandidates: [{ note: { pitch: 60 }, added: false }],
+      })),
+    });
+    await restoredBoundaryPage.getByText("編集内容の形式を確認してください。").waitFor();
+    assert.equal(await restoredBoundaryPage.locator("#boundaryPanel button").innerText(), "追加済み");
+    await restoredBoundaryPage.close();
     await page.unroute("**/transcribe");
     await page.route("**/transcribe", (route) => route.fulfill({
       json: { notes: [{ start: 0.2, end: 1, pitch: 64, hand: "right" }] },
