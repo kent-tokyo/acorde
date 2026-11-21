@@ -41,6 +41,12 @@ fn serialize_musicxml_inner(
     xml.push_str("<score-partwise version=\"4.0\">\n");
 
     xml.push_str("  <work>\n");
+    if !score.metadata.work_number.is_empty() {
+        xml.push_str(&format!(
+            "    <work-number>{}</work-number>\n",
+            escape_xml(&score.metadata.work_number)
+        ));
+    }
     xml.push_str(&format!(
         "    <work-title>{}</work-title>\n",
         escape_xml(&score.metadata.title)
@@ -77,6 +83,15 @@ fn serialize_musicxml_inner(
             ));
         }
         xml.push_str("  </identification>\n");
+    }
+
+    for (kind, text) in [
+        ("title", &score.metadata.print_title),
+        ("subtitle", &score.metadata.print_subtitle),
+    ] {
+        if !text.is_empty() {
+            xml.push_str(&format!("  <credit page=\"1\"><credit-type>{kind}</credit-type><credit-words>{}</credit-words></credit>\n", escape_xml(text)));
+        }
     }
 
     xml.push_str("  <part-list>\n");

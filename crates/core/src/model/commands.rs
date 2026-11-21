@@ -356,6 +356,10 @@ pub struct SetMetadataCmd {
     pub copyright: Option<String>,
     pub work_number: Option<String>,
     pub movement_title: Option<String>,
+    #[serde(default)]
+    pub print_title: Option<String>,
+    #[serde(default)]
+    pub print_subtitle: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -3651,6 +3655,12 @@ fn apply_set_metadata(cmd: &SetMetadataCmd, score: &mut Score) -> Result<(), Err
     if let Some(v) = &cmd.movement_title {
         score.metadata.movement_title = v.clone();
     }
+    if let Some(v) = &cmd.print_title {
+        score.metadata.print_title = v.clone();
+    }
+    if let Some(v) = &cmd.print_subtitle {
+        score.metadata.print_subtitle = v.clone();
+    }
     Ok(())
 }
 
@@ -6253,6 +6263,22 @@ mod tests {
         )
         .unwrap();
         assert_eq!(score.metadata.title, "New Title");
+    }
+
+    #[test]
+    fn set_metadata_updates_print_title_and_subtitle() {
+        let mut score = default_engine_score();
+        apply_command(
+            &Command::SetMetadata(SetMetadataCmd {
+                print_title: Some("Printed title".into()),
+                print_subtitle: Some("Printed subtitle".into()),
+                ..Default::default()
+            }),
+            &mut score,
+        )
+        .unwrap();
+        assert_eq!(score.metadata.print_title, "Printed title");
+        assert_eq!(score.metadata.print_subtitle, "Printed subtitle");
     }
 
     #[test]

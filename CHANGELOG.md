@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+- Preserve the first-page MusicXML title and subtitle credit text separately from
+  work and movement metadata, and retain work numbers. Score JSON gains
+  serde-defaulted `ScoreMetadata::print_title` and `print_subtitle` fields;
+  Rust struct-literal consumers need a semver review. Credit styling, positioning,
+  additional credits and later-page titles are not yet preserved.
+
 - Preserve MusicXML text enclosure values in `StyledText::enclosure`; older Score JSON defaults to no enclosure. Adding this public field requires a semver release review for Rust struct-literal consumers.
 
 - Add the optional `Measure::timed_dynamics` score-time representation and

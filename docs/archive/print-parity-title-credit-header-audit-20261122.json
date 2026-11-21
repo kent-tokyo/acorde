@@ -1,0 +1,1087 @@
+{
+  "source_commit": "5d8c62001120e9d66da0aa23c441721929781304",
+  "source_diff_sha256": "ef565053e483f9154fa1a84ef4bf2c287b39670058ff30e165049f0cea877bf7",
+  "printer_sha256": "9e1f8ec71c05de21b35800c549e43ec529d5fdff74144d4724de3e1df4719955",
+  "font_sha256": "b97cd5005278b24aabb69b8b6ead98860955599558f6e8119483b575a5fdce98",
+  "classification": "First-page title/subtitle/composer bounding boxes; paper-edge and mutual intersections only",
+  "rows": [
+    {
+      "score": "piano-wq117n11",
+      "input_sha256": "9cd06c88841fd1c3c5d5d454b5acd6a54f94aefd4c36f9f74746fb3dc215f50f",
+      "items": [
+        {
+          "role": "acorde-print-title",
+          "text": "Fantasia in G Major, Wq.117/11",
+          "box": [
+            68.75,
+            22.85,
+            140.51,
+            28.21
+          ]
+        },
+        {
+          "role": "acorde-print-composer",
+          "text": "Carl Philipp Emanuel Bach",
+          "box": [
+            153,
+            24.08,
+            195.79,
+            27.84
+          ]
+        }
+      ],
+      "candidates": []
+    },
+    {
+      "score": "piano-wq117n12",
+      "input_sha256": "8268f3fcb357b9e9a41d4b313af73d04252ed19ea510b2f48878bb054b54a112",
+      "items": [
+        {
+          "role": "acorde-print-title",
+          "text": "Fantasia in D Minor, Wq.117/12",
+          "box": [
+            68.9,
+            22.85,
+            141.1,
+            28.21
+          ]
+        },
+        {
+          "role": "acorde-print-composer",
+          "text": "Carl Philipp Emanuel Bach",
+          "box": [
+            153,
+            24.08,
+            195.79,
+            27.84
+          ]
+        }
+      ],
+      "candidates": []
+    },
+    {
+      "score": "piano-BI105-1op30-1",
+      "input_sha256": "81487126e95363cab3f1db2f5c072b938de80a808dfb6385d13cd1bdc900c3e4",
+      "items": [
+        {
+          "role": "acorde-print-title",
+          "text": "Mazurkas, Op. 30",
+          "box": [
+            85.45,
+            21.48,
+            124.64,
+            26.65
+          ]
+        },
+        {
+          "role": "acorde-print-movement-title",
+          "text": "Mazurka in c, Op. 30, no. 1",
+          "box": [
+            82.96,
+            28.58,
+            126.51,
+            32.34
+          ]
+        },
+        {
+          "role": "acorde-print-composer",
+          "text": "Fr\u00c3\u00a9d\u00c3\u00a9ric Chopin",
+          "box": [
+            169.88,
+            28.38,
+            195.79,
+            32.34
+          ]
+        }
+      ],
+      "candidates": []
+    },
+    {
+      "score": "piano-BI115-1op33-1",
+      "input_sha256": "a2ab4a9d004b2a838f54bdedfcde966d7085c34000cedc935f664267178428cc",
+      "items": [
+        {
+          "role": "acorde-print-title",
+          "text": "Mazurkas, Op. 33",
+          "box": [
+            85.47,
+            21.48,
+            124.62,
+            26.65
+          ]
+        },
+        {
+          "role": "acorde-print-movement-title",
+          "text": "Mazurka in g#, Op. 33, no. 1",
+          "box": [
+            81.32,
+            28.58,
+            128.15,
+            32.38
+          ]
+        },
+        {
+          "role": "acorde-print-composer",
+          "text": "Fr\u00e9d\u00e9ric Chopin",
+          "box": [
+            169.88,
+            28.38,
+            195.79,
+            32.34
+          ]
+        }
+      ],
+      "candidates": []
+    },
+    {
+      "score": "piano-n02",
+      "input_sha256": "492e24f79c11caf247817efaf3ab243cf1b8990ac0a68e461b857d93eabbf4af",
+      "items": [
+        {
+          "role": "acorde-print-title",
+          "text": "Kuriose Geschichte",
+          "box": [
+            83.26,
+            22.99,
+            126.82,
+            27.08
+          ]
+        },
+        {
+          "role": "acorde-print-title",
+          "text": "(A Funny Story)",
+          "box": [
+            86.85,
+            28.84,
+            123.18,
+            34.21
+          ]
+        },
+        {
+          "role": "acorde-print-composer",
+          "text": "Robert Schumann",
+          "box": [
+            166.96,
+            30.08,
+            195.79,
+            33.06
+          ]
+        }
+      ],
+      "candidates": []
+    },
+    {
+      "score": "piano-n07",
+      "input_sha256": "88e680bee8d72008ef6b35d9b73e30c4ebed3984d70367ab4ad545400325607c",
+      "items": [
+        {
+          "role": "acorde-print-title",
+          "text": "Tr\u00e4umerei",
+          "box": [
+            93.6,
+            23.09,
+            116.33,
+            27.08
+          ]
+        },
+        {
+          "role": "acorde-print-title",
+          "text": "(Daydreaming)",
+          "box": [
+            88.86,
+            28.84,
+            121.17,
+            34.21
+          ]
+        },
+        {
+          "role": "acorde-print-composer",
+          "text": "Robert Schumann",
+          "box": [
+            166.96,
+            30.08,
+            195.79,
+            33.06
+          ]
+        }
+      ],
+      "candidates": []
+    },
+    {
+      "score": "vocal-lc6212179",
+      "input_sha256": "3c44f41c6a243b1f558766969170a5821812425bddff1841070ccc52293c0938",
+      "items": [
+        {
+          "role": "acorde-print-title",
+          "text": "3 Browning Songs, Op. 44",
+          "box": [
+            75.69,
+            21.48,
+            134.39,
+            26.71
+          ]
+        },
+        {
+          "role": "acorde-print-movement-title",
+          "text": "The Year's at the Spring",
+          "box": [
+            84.91,
+            28.49,
+            125.06,
+            32.38
+          ]
+        },
+        {
+          "role": "acorde-print-composer",
+          "text": "Amy Marcy Beach",
+          "box": [
+            165.81,
+            28.66,
+            195.79,
+            32.38
+          ]
+        }
+      ],
+      "candidates": []
+    },
+    {
+      "score": "vocal-lc6302395",
+      "input_sha256": "bc77093a7c07cde40b940f65ce339c986ac4c338a9a7fe7ea50be0ec06218537",
+      "items": [
+        {
+          "role": "acorde-print-title",
+          "text": "2 Ges\u00e4nge, Op.91",
+          "box": [
+            84.81,
+            21.49,
+            124.41,
+            26.71
+          ]
+        },
+        {
+          "role": "acorde-print-movement-title",
+          "text": "Gestillte Sehnsucht",
+          "box": [
+            89.09,
+            28.58,
+            120.9,
+            31.56
+          ]
+        },
+        {
+          "role": "acorde-print-composer",
+          "text": "Johannes Brahms (1833-1897)",
+          "box": [
+            143.61,
+            28.47,
+            195.94,
+            31.66
+          ]
+        }
+      ],
+      "candidates": []
+    },
+    {
+      "score": "vocal-lc6260992",
+      "input_sha256": "79bdc7f6aa23a66c913763c4c8cd01ff3e0b9ef97f9860e0d70e4d566df24550",
+      "items": [
+        {
+          "role": "acorde-print-title",
+          "text": "Alleluia",
+          "box": [
+            97.01,
+            23.09,
+            112.84,
+            27.08
+          ]
+        },
+        {
+          "role": "acorde-print-composer",
+          "text": "C\u00e9cile Chaminade",
+          "box": [
+            166.84,
+            23.88,
+            195.83,
+            27.06
+          ]
+        }
+      ],
+      "candidates": []
+    },
+    {
+      "score": "vocal-lc6810863",
+      "input_sha256": "966e3e7bd43fe758daa1a522b805ac9f17515d73f0e0a019f9a1341aebb5705b",
+      "items": [
+        {
+          "role": "acorde-print-title",
+          "text": "Trois m\u00e9lodies, Op.7",
+          "box": [
+            81.93,
+            21.21,
+            128.15,
+            26.65
+          ]
+        },
+        {
+          "role": "acorde-print-movement-title",
+          "text": "Apr\u00e8s un r\u00eave",
+          "box": [
+            93.35,
+            28.38,
+            116.62,
+            32.34
+          ]
+        },
+        {
+          "role": "acorde-print-composer",
+          "text": "Gabriel Faur\u00e9",
+          "box": [
+            173.71,
+            28.38,
+            195.78,
+            31.56
+          ]
+        }
+      ],
+      "candidates": []
+    },
+    {
+      "score": "vocal-lc5093434",
+      "input_sha256": "8e7683a186f4feee42dd12749bd81536dfeac4cdbb0bc61f36d8c653bae530b6",
+      "items": [
+        {
+          "role": "acorde-print-title",
+          "text": "Vier Ges\u00e4nge aus 'Wilhelm Meister' (D.877), Op.62",
+          "box": [
+            48,
+            21.34,
+            161.89,
+            26.71
+          ]
+        },
+        {
+          "role": "acorde-print-movement-title",
+          "text": "Mignon und der Harfner",
+          "box": [
+            85.46,
+            28.61,
+            124.87,
+            32.38
+          ]
+        },
+        {
+          "role": "acorde-print-composer",
+          "text": "Franz Schubert",
+          "box": [
+            170.78,
+            28.58,
+            195.8,
+            31.56
+          ]
+        }
+      ],
+      "candidates": []
+    },
+    {
+      "score": "vocal-lc5133602",
+      "input_sha256": "528c5cfc52ac477ec2c8290a110beb54a4a1050bf4094794259e5073611b761e",
+      "items": [
+        {
+          "role": "acorde-print-title",
+          "text": "6 Lieder, Op.13",
+          "box": [
+            87.75,
+            21.48,
+            122.35,
+            26.65
+          ]
+        },
+        {
+          "role": "acorde-print-movement-title",
+          "text": "Ich stand in dunklen Tr\u00e4umen",
+          "box": [
+            80.53,
+            28.66,
+            129.56,
+            31.56
+          ]
+        },
+        {
+          "role": "acorde-print-composer",
+          "text": "Clara Schumann",
+          "box": [
+            169.4,
+            28.58,
+            195.79,
+            31.56
+          ]
+        }
+      ],
+      "candidates": []
+    },
+    {
+      "score": "chamber-sq14387632",
+      "input_sha256": "924ce674731e2c15c613019051b3a7a6a8612ec3b86efffe824d936d5494f21f",
+      "items": [
+        {
+          "role": "acorde-print-title",
+          "text": "Quartet for Strings",
+          "box": [
+            83.75,
+            21.49,
+            126.28,
+            26.71
+          ]
+        },
+        {
+          "role": "acorde-print-movement-title",
+          "text": "In one movement. Op. 89",
+          "box": [
+            84.31,
+            28.58,
+            125.8,
+            32.34
+          ]
+        },
+        {
+          "role": "acorde-print-composer",
+          "text": "Amy Beach",
+          "box": [
+            177.22,
+            28.66,
+            195.79,
+            32.38
+          ]
+        }
+      ],
+      "candidates": []
+    },
+    {
+      "score": "chamber-sq27571393",
+      "input_sha256": "d4d71c44198c1343b537411c95488273297fd01752a1f1fe96a7334bd8ff8467",
+      "items": [
+        {
+          "role": "acorde-print-title",
+          "text": "String Quartet in C minor",
+          "box": [
+            76.4,
+            21.49,
+            133.85,
+            26.71
+          ]
+        },
+        {
+          "role": "acorde-print-movement-title",
+          "text": "RH 189",
+          "box": [
+            99.06,
+            28.58,
+            110.99,
+            31.56
+          ]
+        },
+        {
+          "role": "acorde-print-composer",
+          "text": "Fran\u00e7ois Joseph Gossec",
+          "box": [
+            155.29,
+            28.58,
+            195.91,
+            32.34
+          ]
+        }
+      ],
+      "candidates": []
+    },
+    {
+      "score": "chamber-sq7551068",
+      "input_sha256": "de11bdad52c1a6fc6cec1389ea5dda7a1204cb8c323208abbb90332637a7593d",
+      "items": [
+        {
+          "role": "acorde-print-title",
+          "text": "String Quartet in A major",
+          "box": [
+            76.34,
+            22.99,
+            133.92,
+            28.21
+          ]
+        },
+        {
+          "role": "acorde-print-composer",
+          "text": "Amanda Maier",
+          "box": [
+            172.26,
+            24.16,
+            196.1,
+            27.06
+          ]
+        }
+      ],
+      "candidates": []
+    },
+    {
+      "score": "chamber-sq8437358",
+      "input_sha256": "c91e2e3778980b42ae6adf6a8655f06ced82cf32d7dabd30190d1d5b5097848c",
+      "items": [
+        {
+          "role": "acorde-print-title",
+          "text": "String Quartet in C major",
+          "box": [
+            76.45,
+            21.49,
+            133.81,
+            26.71
+          ]
+        },
+        {
+          "role": "acorde-print-movement-title",
+          "text": "Op.1 No.1",
+          "box": [
+            96.98,
+            28.58,
+            112.43,
+            32.34
+          ]
+        },
+        {
+          "role": "acorde-print-composer",
+          "text": "Joseph Bologne Saint-Georges",
+          "box": [
+            144.5,
+            28.58,
+            195.84,
+            32.38
+          ]
+        }
+      ],
+      "candidates": []
+    },
+    {
+      "score": "chamber-sq7648382",
+      "input_sha256": "dbac0c7e10cac61f67452209fecbdbbe10ad4be49defd221360ed51f548190df",
+      "items": [
+        {
+          "role": "acorde-print-title",
+          "text": "String Quartet in C minor",
+          "box": [
+            76.4,
+            21.49,
+            133.85,
+            26.71
+          ]
+        },
+        {
+          "role": "acorde-print-movement-title",
+          "text": "D.703, No.12 (\u201cQuartettsatz\u201d)",
+          "box": [
+            80.99,
+            28.47,
+            129.19,
+            31.93
+          ]
+        },
+        {
+          "role": "acorde-print-composer",
+          "text": "Franz Schubert",
+          "box": [
+            170.78,
+            28.58,
+            195.8,
+            31.56
+          ]
+        }
+      ],
+      "candidates": []
+    },
+    {
+      "score": "chamber-sq8812200",
+      "input_sha256": "9c1a19ede6f1eba3bb12760aa4f5f3639d677c84f4eeb52e7a745ed5b79bf3ad",
+      "items": [
+        {
+          "role": "acorde-print-title",
+          "text": "Italian Serenade",
+          "box": [
+            87.25,
+            22.99,
+            122.93,
+            27.08
+          ]
+        },
+        {
+          "role": "acorde-print-composer",
+          "text": "Hugo Wolf",
+          "box": [
+            179.19,
+            24.11,
+            196.01,
+            27.88
+          ]
+        }
+      ],
+      "candidates": []
+    },
+    {
+      "score": "part-sq27449398",
+      "input_sha256": "ec4d14e1a23513c374b2bdbd373db2f72b5183dd09219c122fcc8da8bd4ade5e",
+      "items": [
+        {
+          "role": "acorde-print-title",
+          "text": "String Quartet in D major",
+          "box": [
+            76.45,
+            21.49,
+            133.81,
+            26.71
+          ]
+        },
+        {
+          "role": "acorde-print-movement-title",
+          "text": "Kr.191",
+          "box": [
+            99.63,
+            28.59,
+            109.83,
+            31.53
+          ]
+        },
+        {
+          "role": "acorde-print-composer",
+          "text": "Carl Ditters von Dittersdorf",
+          "box": [
+            150.99,
+            28.58,
+            196.01,
+            31.56
+          ]
+        }
+      ],
+      "candidates": []
+    },
+    {
+      "score": "part-sq12701461",
+      "input_sha256": "9ce5da4f9ccc81b48c60b5b7153b9ad56c484e9e544f8937c7c1d46f3899e192",
+      "items": [
+        {
+          "role": "acorde-print-title",
+          "text": "String Quartet No.9 in D major",
+          "box": [
+            70.43,
+            22.99,
+            139.83,
+            28.21
+          ]
+        },
+        {
+          "role": "acorde-print-composer",
+          "text": "Franz Anton Hoffmeister",
+          "box": [
+            154.75,
+            24.11,
+            196.1,
+            27.06
+          ]
+        }
+      ],
+      "candidates": []
+    },
+    {
+      "score": "part-sq15230467",
+      "input_sha256": "1d47323fa8a2fd3b2b6c5d278f9541f8b505618a1caaa3a3b733c42513f74a82",
+      "items": [
+        {
+          "role": "acorde-print-title",
+          "text": "String Quartet No.1 in G major",
+          "box": [
+            70.24,
+            21.49,
+            140.02,
+            26.71
+          ]
+        },
+        {
+          "role": "acorde-print-movement-title",
+          "text": "K.80/73f",
+          "box": [
+            97.71,
+            28.48,
+            112.54,
+            31.56
+          ]
+        },
+        {
+          "role": "acorde-print-composer",
+          "text": "Wolfgang Amadeus Mozart",
+          "box": [
+            151.38,
+            28.61,
+            195.8,
+            32.38
+          ]
+        }
+      ],
+      "candidates": []
+    },
+    {
+      "score": "part-sq9146376",
+      "input_sha256": "600f51257d0200cfc5f26ba8abcbe9505cdda3396484dbf2a8d8227ac768833b",
+      "items": [
+        {
+          "role": "acorde-print-title",
+          "text": "String Quartet in A major",
+          "box": [
+            76.34,
+            21.49,
+            133.92,
+            26.71
+          ]
+        },
+        {
+          "role": "acorde-print-movement-title",
+          "text": "Hob.III:24, Op.9 No.6",
+          "box": [
+            88.5,
+            28.58,
+            121.53,
+            32.34
+          ]
+        },
+        {
+          "role": "acorde-print-composer",
+          "text": "Joseph Haydn",
+          "box": [
+            172.36,
+            28.66,
+            195.79,
+            32.38
+          ]
+        }
+      ],
+      "candidates": []
+    },
+    {
+      "score": "part-sq7070319",
+      "input_sha256": "7cb5fd55f8318b69457ffd173e82632f9583402327f7a9cd7e4a5b994381b6ef",
+      "items": [
+        {
+          "role": "acorde-print-title",
+          "text": "String Quartet in G minor, Op.14",
+          "box": [
+            68.06,
+            21.49,
+            141.83,
+            26.71
+          ]
+        },
+        {
+          "role": "acorde-print-movement-title",
+          "text": "II. Scherzo",
+          "box": [
+            96.82,
+            28.58,
+            113.33,
+            31.56
+          ]
+        },
+        {
+          "role": "acorde-print-composer",
+          "text": "Emilie Mayer",
+          "box": [
+            174.92,
+            28.66,
+            196.1,
+            32.38
+          ]
+        }
+      ],
+      "candidates": []
+    },
+    {
+      "score": "part-sq24409123",
+      "input_sha256": "671d6a77a6f9c19fe6e943d47a05686b929f9ffc951d1627c070658f219e72db",
+      "items": [
+        {
+          "role": "acorde-print-title",
+          "text": "Echo of Songs",
+          "box": [
+            88.78,
+            21.49,
+            121.33,
+            26.71
+          ]
+        },
+        {
+          "role": "acorde-print-movement-title",
+          "text": "B.152",
+          "box": [
+            100.36,
+            28.58,
+            109.64,
+            31.56
+          ]
+        },
+        {
+          "role": "acorde-print-composer",
+          "text": "Anton\u00edn Dvo\u0159\u00e1k",
+          "box": [
+            170.35,
+            28.38,
+            195.99,
+            31.56
+          ]
+        }
+      ],
+      "candidates": []
+    },
+    {
+      "score": "openscore_lieder_aloha_oe",
+      "input_sha256": "9e79bc1ed711b586f0b3ab4535544b3d77d9f0633c26c7eb395d4e3671e6d921",
+      "items": [
+        {
+          "role": "acorde-print-title",
+          "text": "Aloha Oe",
+          "box": [
+            94.71,
+            22.99,
+            115.24,
+            27.08
+          ]
+        },
+        {
+          "role": "acorde-print-composer",
+          "text": "Queen of the Hawaiian Islands Liliuokalani",
+          "box": [
+            126.25,
+            24.08,
+            195.78,
+            27.06
+          ]
+        }
+      ],
+      "candidates": []
+    },
+    {
+      "score": "openscore_lieder_just_for_today",
+      "input_sha256": "82e5bb47853858c554a31b38030306152b955795a3394bf6c8e05fd8957b2ef2",
+      "items": [
+        {
+          "role": "acorde-print-title",
+          "text": "Just for Today",
+          "box": [
+            88.03,
+            23.02,
+            121.96,
+            28.21
+          ]
+        },
+        {
+          "role": "acorde-print-composer",
+          "text": "Jane Bingham Abbott",
+          "box": [
+            159.97,
+            24.16,
+            195.8,
+            27.88
+          ]
+        }
+      ],
+      "candidates": []
+    },
+    {
+      "score": "openscore_lieder_quilter_prelude",
+      "input_sha256": "ef2d90f34e931b98f67fa669304b2b11efab7bd40eaa7b948f339b30e65a0991",
+      "items": [
+        {
+          "role": "acorde-print-title",
+          "text": "To Julia, Op.8",
+          "box": [
+            89.25,
+            21.48,
+            120.81,
+            26.65
+          ]
+        },
+        {
+          "role": "acorde-print-movement-title",
+          "text": "1. Prelude",
+          "box": [
+            97.56,
+            28.66,
+            113.09,
+            31.56
+          ]
+        },
+        {
+          "role": "acorde-print-composer",
+          "text": "Roger Quilter",
+          "box": [
+            174.4,
+            28.58,
+            196.1,
+            32.38
+          ]
+        }
+      ],
+      "candidates": []
+    },
+    {
+      "score": "openscore_lieder_webern_so_ich_traurig_bin",
+      "input_sha256": "611e3c0233c7d4ada95c6923fbb7db31fcb986babb25dec2196d45e3cc6e7263",
+      "items": [
+        {
+          "role": "acorde-print-title",
+          "text": "5 Lieder nach Gedichten von Stefan George, Op.4",
+          "box": [
+            48.32,
+            21.49,
+            161.82,
+            26.71
+          ]
+        },
+        {
+          "role": "acorde-print-movement-title",
+          "text": "So ich traurig bin",
+          "box": [
+            90.92,
+            28.58,
+            118.96,
+            32.38
+          ]
+        },
+        {
+          "role": "acorde-print-composer",
+          "text": "Anton Webern",
+          "box": [
+            172.38,
+            28.66,
+            195.79,
+            31.56
+          ]
+        }
+      ],
+      "candidates": []
+    },
+    {
+      "score": "openscore_omr_score_1003",
+      "input_sha256": "c3310136d683d4837ab165e4446bddd6848bcc3436c063286c5af78e7144a274",
+      "items": [
+        {
+          "role": "acorde-print-title",
+          "text": "F\u00fcr Elise",
+          "box": [
+            95.32,
+            21.59,
+            114.76,
+            25.58
+          ]
+        },
+        {
+          "role": "acorde-print-movement-title",
+          "text": "Humoresque",
+          "box": [
+            94.93,
+            28.66,
+            115.13,
+            32.38
+          ]
+        }
+      ],
+      "candidates": []
+    },
+    {
+      "score": "openscore_omr_score_1016",
+      "input_sha256": "6a876bd11e029ca6fac36765be8e8583959bc95c397f9dece5cbb0e49a03a46c",
+      "items": [
+        {
+          "role": "acorde-print-title",
+          "text": "Fur Elise",
+          "box": [
+            95.32,
+            7.09,
+            114.76,
+            11.08
+          ]
+        }
+      ],
+      "candidates": []
+    },
+    {
+      "score": "openscore_omr_score_1033",
+      "input_sha256": "3aca9241be50c459ff897fec07e0d63fabf9d39dad9c4a642863eb8ff9b98552",
+      "items": [
+        {
+          "role": "acorde-print-title",
+          "text": "Para Elisa",
+          "box": [
+            94.18,
+            7.09,
+            115.81,
+            11.08
+          ]
+        }
+      ],
+      "candidates": []
+    },
+    {
+      "score": "openscore_omr_score_1035",
+      "input_sha256": "b03fdc01685ccb14e640150368bb4bd90c1620ad8014e4d0417cf545e695ff5a",
+      "items": [
+        {
+          "role": "acorde-print-title",
+          "text": "Untitled Score",
+          "box": [
+            89.26,
+            6.99,
+            120.83,
+            11.08
+          ]
+        }
+      ],
+      "candidates": []
+    },
+    {
+      "score": "openscore_omr_score_1036",
+      "input_sha256": "a0ee7ed61b32ed2da8466703f8819521727085a414facb574a78d49ab690e525",
+      "items": [
+        {
+          "role": "acorde-print-title",
+          "text": "Fur Elise-Beethoven",
+          "box": [
+            81.99,
+            7.09,
+            128.05,
+            11.08
+          ]
+        }
+      ],
+      "candidates": []
+    },
+    {
+      "score": "freilachs_no_17",
+      "input_sha256": "a9242135a3b9e9a6a4cd56b1d07a0abfd4e9b951b12a3ae1a4b107440c214d3e",
+      "items": [
+        {
+          "role": "acorde-print-title",
+          "text": "Freilachs.",
+          "box": [
+            94.63,
+            23.09,
+            115.47,
+            27.08
+          ]
+        },
+        {
+          "role": "acorde-print-composer",
+          "text": "Music21",
+          "box": [
+            182.23,
+            24.08,
+            195.22,
+            27.06
+          ]
+        }
+      ],
+      "candidates": []
+    }
+  ]
+}

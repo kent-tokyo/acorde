@@ -9,6 +9,37 @@ use acorde_render_svg::{
 const FONT: &[u8] = include_bytes!("fixtures/Tuffy.ttf");
 
 #[test]
+fn authored_multiline_print_title_and_subtitle_are_rendered_as_lines() {
+    let mut score = Score::new("Work title", 120, 4, 4, 0, 1);
+    score.metadata.movement_title = "Metadata movement".into();
+    score.metadata.print_title = "Fantasia\nWq.117/11".into();
+    score.metadata.print_subtitle = "Allegro".into();
+    score.metadata.composer = "Bach".into();
+    let output = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    let doc = roxmltree::Document::parse(&output.pages[0]).unwrap();
+    let content: Vec<_> = doc
+        .descendants()
+        .filter_map(|n| n.attribute("data-text"))
+        .collect();
+    assert!(content.contains(&"Fantasia"));
+    assert!(content.contains(&"Wq.117/11"));
+    assert!(content.contains(&"Allegro"));
+    assert!(!content.contains(&"Work title"));
+    assert!(!content.contains(&"Metadata movement"));
+    let mut config = PrintConfig::default();
+    config.publication.title_page = true;
+    let title_page = engrave_print_pages(&score, &config, FONT).unwrap();
+    let doc = roxmltree::Document::parse(&title_page.pages[0]).unwrap();
+    let content: Vec<_> = doc
+        .descendants()
+        .filter_map(|n| n.attribute("data-text"))
+        .collect();
+    assert!(content.contains(&"Fantasia"));
+    assert!(content.contains(&"Wq.117/11"));
+    assert!(content.contains(&"Allegro"));
+}
+
+#[test]
 fn lower_staff_direction_stays_between_the_two_staves() {
     let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Harpsichord</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><staves>2</staves><clef number="1"><sign>G</sign><line>2</line></clef><clef number="2"><sign>F</sign><line>4</line></clef></attributes><direction placement="above"><direction-type><words>upper</words></direction-type><staff>1</staff></direction><direction placement="above"><direction-type><words>lower</words></direction-type><staff>2</staff></direction><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><staff>1</staff></note><backup><duration>1</duration></backup><note><pitch><step>C</step><octave>3</octave></pitch><duration>1</duration><voice>2</voice><type>quarter</type><staff>2</staff></note></measure></part></score-partwise>"#;
     let parsed = acorde_io::parse_musicxml(xml).unwrap();

@@ -2474,10 +2474,10 @@ fn page_publication(
             - config.safe_left_mm
             - config.safe_right_mm;
         let title_y = config.margin_top_mm + config.safe_top_mm + content_height * 0.30;
-        if !metadata.title.trim().is_empty() {
+        if !metadata.display_title().trim().is_empty() {
             text_blocks.push(PublicationTextBlock {
                 role: PublicationTextRole::Title,
-                text: metadata.title.clone(),
+                text: metadata.display_title().to_owned(),
                 x_mm: title_x,
                 y_mm: title_y,
                 width_mm: title_width,
@@ -2485,12 +2485,14 @@ fn page_publication(
                 alignment: config.publication.title_alignment,
             });
         }
-        if !metadata.movement_title.trim().is_empty() {
+        if !metadata.display_subtitle().trim().is_empty() {
             text_blocks.push(PublicationTextBlock {
                 role: PublicationTextRole::Subtitle,
-                text: metadata.movement_title.clone(),
+                text: metadata.display_subtitle().to_owned(),
                 x_mm: title_x,
-                y_mm: title_y + config.publication.line_height_mm * 2.5,
+                y_mm: title_y
+                    + config.publication.line_height_mm
+                        * (2.5 + metadata.display_title().lines().count().saturating_sub(1) as f32),
                 width_mm: title_width,
                 height_mm: config.publication.line_height_mm,
                 alignment: config.publication.title_alignment,
@@ -2508,7 +2510,15 @@ fn page_publication(
                 role: PublicationTextRole::Credit,
                 text: credit,
                 x_mm: title_x,
-                y_mm: title_y + config.publication.line_height_mm * 5.0,
+                y_mm: title_y
+                    + config.publication.line_height_mm
+                        * (5.0
+                            + metadata.display_title().lines().count().saturating_sub(1) as f32
+                            + metadata
+                                .display_subtitle()
+                                .lines()
+                                .count()
+                                .saturating_sub(1) as f32),
                 width_mm: title_width,
                 height_mm: config.publication.line_height_mm,
                 alignment: config.publication.title_alignment,
@@ -2594,8 +2604,8 @@ fn page_publication(
         .collect();
     PagePublication {
         is_title_page,
-        title: metadata.title.clone(),
-        movement_title: metadata.movement_title.clone(),
+        title: metadata.display_title().to_owned(),
+        movement_title: metadata.display_subtitle().to_owned(),
         composer: metadata.composer.clone(),
         lyricist: metadata.lyricist.clone(),
         copyright: metadata.copyright.clone(),
@@ -3540,15 +3550,31 @@ fn compute_print_layout_with_rows(
     // the opening system. Keep the reservation in the layout so page SVGs and PDF
     // use the same physical coordinates, and leave room for one full system.
     let has_opening_credits = !config.publication.title_page
-        && !score.metadata.title.trim().is_empty()
-        && (!score.metadata.movement_title.trim().is_empty()
-            || !score.metadata.composer.trim().is_empty());
+        && !score.metadata.display_title().trim().is_empty()
+        && (!score.metadata.display_subtitle().trim().is_empty()
+            || !score.metadata.composer.trim().is_empty()
+            || score.metadata.display_title().lines().count() > 1);
     let first_system_height = measured_heights
         .and_then(|h| h.first())
         .copied()
         .unwrap_or(scaled_system_height_mm);
     let opening_credit_reserve_mm = if has_opening_credits {
-        16.0_f32.min((content_height_mm - first_system_height).max(0.0))
+        let title_extra = score
+            .metadata
+            .display_title()
+            .lines()
+            .count()
+            .saturating_sub(1) as f32
+            * 6.0;
+        let subtitle_extra = score
+            .metadata
+            .display_subtitle()
+            .lines()
+            .count()
+            .saturating_sub(1) as f32
+            * 5.0;
+        (16.0 + title_extra + subtitle_extra)
+            .min((content_height_mm - first_system_height).max(0.0))
     } else {
         0.0
     };

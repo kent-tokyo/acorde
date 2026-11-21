@@ -604,6 +604,44 @@ establish general readability. Twelve focused MusicXML tests, all 37 measured
 print tests and targeted IO/render-SVG Clippy passed on macOS. Complete page
 review, the reserved corpus and cross-platform/WASM gates remain pending.
 
+### First-page title credits
+
+MusicXML work and movement metadata do not necessarily match the text printed
+on the first page. The prepared 34-input set includes 19 scores with typed
+first-page title or subtitle credits differing from the work title. The score
+model now retains the first title/subtitle credit text separately, retains work
+numbers, and serializes those values back to MusicXML. Score JSON supplies
+empty defaults for old data; metadata diff/patch and the metadata editing
+command include the new fields. This is a public Rust schema change and needs
+semver review. For first-page and title-page output, authored credit text takes
+precedence over inferred work/movement headings, with multiline credits split
+into separate lines and extra vertical reservation.
+
+This is not full MusicXML credit support: individual credit-word formatting,
+coordinates and style runs are lost with a diagnostic; extra title credits and
+later-page titles are also diagnosed and not preserved. Other credit roles are
+unchanged. The assistant inspected the first page of `piano-wq117n11` and
+`piano-n07`. The former now includes `Wq.117/11`; the latter shows `Träumerei`
+and `(Daydreaming)` on separate lines. Their raster SHA-256 hashes are
+`363cdfde01e878d54cab2d260ac6bd37d7cb156d1406bdd82b7b9081781761fd` and
+`29d8fa06c8db4fb120efea76897f5a5ef1a41fd338018bdca07265c5dd31d7c3`.
+This is a review of those page headings, not a full comparison of the scores.
+
+The [34-input rerender](archive/print-parity-title-credit-corpus-20261122.json)
+completed with 225 Acorde pages, unchanged in aggregate relative to the earlier
+baseline. Twenty-four outputs differ from that baseline, which also precedes
+the harpsichord and staff-direction changes. Verovio was not rerun. Focused
+old-JSON, metadata patch/command, MusicXML and multiline print/title-page tests
+passed; 38 measured-print tests, 142 layout tests and scoped library Clippy
+passed on macOS. The corpus receipt pins the production diff and executable;
+the newly added IO test file, not included by `git diff` before staging, has
+SHA-256 `68d7d1f1cb33fee5f62d2fc02c04250ae7b754c4abe56bc38a7c08ad62e5df45`.
+Full visual review, additional credit fidelity, cross-platform and reserved
+corpus gates remain open. A [first-page header screen](archive/print-parity-title-credit-header-audit-20261122.json)
+measured 84 title, subtitle and composer items across 34 inputs, finding no
+paper-edge or mutual bounding-box intersections. It does not compare headings
+against notation or establish physical print quality.
+
 ### Reuse of measured row geometry
 
 Profiling the 643-measure chamber input showed repeated pagination attempts:

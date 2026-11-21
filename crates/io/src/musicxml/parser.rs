@@ -729,6 +729,12 @@ pub(crate) fn parse_musicxml_collecting(
     let mut harp_pedal_step = Step::C;
     let mut harp_pedal_alter = 0i8;
     let mut in_work = false;
+    let mut in_credit = false;
+    let mut credit_page = 1u32;
+    let mut credit_types: Vec<String> = Vec::new();
+    let mut credit_text = String::new();
+    let mut credit_formatting_lost = false;
+    let mut credit_word_count = 0usize;
     let mut in_identification = false;
     let mut creator_type = String::new();
     let mut in_backup = false;
@@ -988,6 +994,22 @@ pub(crate) fn parse_musicxml_collecting(
                     "degree-alter" if in_harmony_degree => {}
                     "degree-type" if in_harmony_degree => {}
                     "work" => in_work = true,
+                    "credit" => {
+                        in_credit = true;
+                        credit_page = attr_str(e, b"page")
+                            .and_then(|v| v.parse().ok())
+                            .unwrap_or(1);
+                        credit_types.clear();
+                        credit_text.clear();
+                        credit_formatting_lost = false;
+                        credit_word_count = 0;
+                    }
+                    "credit-words" if in_credit => {
+                        credit_word_count += 1;
+                        credit_formatting_lost |=
+                            e.attributes().next().is_some() || credit_word_count > 1;
+                        reader.config_mut().trim_text(false);
+                    }
                     // An ending with its printed text (`<ending …>1.</ending>`) is not empty.
                     "ending" if in_barline => apply_musicxml_ending(
                         &mut score,
@@ -2762,6 +2784,53 @@ pub(crate) fn parse_musicxml_collecting(
                     }
                     "work-title" if in_work => {
                         score.metadata.title = current_text.clone();
+                    }
+                    "work-number" if in_work => {
+                        score.metadata.work_number = current_text.clone();
+                    }
+                    "credit-type" if in_credit => credit_types.push(current_text.trim().to_owned()),
+                    "credit-words" if in_credit => {
+                        reader.config_mut().trim_text(true);
+                        credit_text.push_str(&current_text);
+                    }
+                    "credit" if in_credit => {
+                        let title_kind = credit_types
+                            .iter()
+                            .any(|kind| kind == "title" || kind == "subtitle");
+                        if title_kind
+                            && !credit_text.trim().is_empty()
+                            && (credit_page != 1
+                                || (credit_types.iter().any(|kind| kind == "title")
+                                    && !score.metadata.print_title.is_empty())
+                                || (credit_types.iter().any(|kind| kind == "subtitle")
+                                    && !score.metadata.print_subtitle.is_empty()))
+                        {
+                            let mut diagnostic = crate::Diagnostic::warning(
+                                "musicxml.additional-title-credit-not-preserved",
+                                "additional or later-page title credit is not preserved",
+                            );
+                            diagnostic.source_location = Some("/score-partwise/credit".to_string());
+                            tolerated.push(diagnostic);
+                        }
+                        if credit_page == 1 && !credit_text.trim().is_empty() {
+                            let is_title = credit_types.iter().any(|kind| kind == "title");
+                            let is_subtitle = credit_types.iter().any(|kind| kind == "subtitle");
+                            if credit_formatting_lost && (is_title || is_subtitle) {
+                                let mut diagnostic = crate::Diagnostic::warning(
+                                    "musicxml.credit-formatting-not-preserved",
+                                    "title credit text is retained, but individual formatting and positions are not preserved",
+                                );
+                                diagnostic.source_location =
+                                    Some("/score-partwise/credit/credit-words".to_string());
+                                tolerated.push(diagnostic);
+                            }
+                            if is_title && score.metadata.print_title.is_empty() {
+                                score.metadata.print_title = credit_text.trim().to_owned();
+                            } else if is_subtitle && score.metadata.print_subtitle.is_empty() {
+                                score.metadata.print_subtitle = credit_text.trim().to_owned();
+                            }
+                        }
+                        in_credit = false;
                     }
                     "movement-title" => {
                         score.metadata.movement_title = current_text.clone();

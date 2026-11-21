@@ -20,6 +20,12 @@ pub struct ScoreMetadata {
     pub copyright: String,
     pub work_number: String,
     pub movement_title: String,
+    /// Authored first-page title credit, distinct from the work title.
+    #[serde(default)]
+    pub print_title: String,
+    /// Authored first-page subtitle credit, when a print title is supplied.
+    #[serde(default)]
+    pub print_subtitle: String,
 }
 
 impl Default for ScoreMetadata {
@@ -31,6 +37,30 @@ impl Default for ScoreMetadata {
             copyright: String::new(),
             work_number: String::new(),
             movement_title: String::new(),
+            print_title: String::new(),
+            print_subtitle: String::new(),
+        }
+    }
+}
+
+impl ScoreMetadata {
+    /// First-page title, falling back to the work title when no credit was authored.
+    pub fn display_title(&self) -> &str {
+        if self.print_title.trim().is_empty() {
+            &self.title
+        } else {
+            &self.print_title
+        }
+    }
+
+    /// First-page subtitle, falling back to the movement title only without a title credit.
+    pub fn display_subtitle(&self) -> &str {
+        if !self.print_subtitle.trim().is_empty() {
+            &self.print_subtitle
+        } else if self.print_title.trim().is_empty() {
+            &self.movement_title
+        } else {
+            &self.print_subtitle
         }
     }
 }
@@ -3622,6 +3652,8 @@ pub fn diff(a: &Score, b: &Score) -> Vec<ScoreChange> {
     meta!(copyright, "copyright");
     meta!(work_number, "work_number");
     meta!(movement_title, "movement_title");
+    meta!(print_title, "print_title");
+    meta!(print_subtitle, "print_subtitle");
 
     if a.settings.tempo_bpm != b.settings.tempo_bpm {
         changes.push(ScoreChange::TempoChanged {
@@ -4336,6 +4368,8 @@ pub fn score_patch(a: &Score, b: &Score) -> Vec<ScorePatch> {
     meta!(copyright, "copyright");
     meta!(work_number, "work_number");
     meta!(movement_title, "movement_title");
+    meta!(print_title, "print_title");
+    meta!(print_subtitle, "print_subtitle");
 
     if a.settings.tempo_bpm != b.settings.tempo_bpm {
         patches.push(ScorePatch::SetTempo {
@@ -4909,6 +4943,8 @@ pub fn apply_patch(score: &Score, patches: &[ScorePatch]) -> Result<Score, Error
                 "copyright" => s.metadata.copyright = value.clone(),
                 "work_number" => s.metadata.work_number = value.clone(),
                 "movement_title" => s.metadata.movement_title = value.clone(),
+                "print_title" => s.metadata.print_title = value.clone(),
+                "print_subtitle" => s.metadata.print_subtitle = value.clone(),
                 other => {
                     return Err(Error::InvalidPatch(format!(
                         "unknown metadata field: {other}"
@@ -7035,6 +7071,32 @@ mod tests {
             }
         }
         assert_eq!(serde_json::to_value(&score).unwrap(), original);
+    }
+
+    #[test]
+    fn print_credits_survive_metadata_patches_and_old_json() {
+        let before = Score::new("Work", 120, 4, 4, 0, 1);
+        let mut after = before.clone();
+        after.metadata.print_title = "Printed title".into();
+        after.metadata.print_subtitle = "Printed subtitle".into();
+        let patched = apply_patch(&before, &score_patch(&before, &after)).unwrap();
+        assert_eq!(patched.metadata.print_title, after.metadata.print_title);
+        assert_eq!(
+            patched.metadata.print_subtitle,
+            after.metadata.print_subtitle
+        );
+        let mut old = serde_json::to_value(&before).unwrap();
+        old["metadata"]
+            .as_object_mut()
+            .unwrap()
+            .remove("print_title");
+        old["metadata"]
+            .as_object_mut()
+            .unwrap()
+            .remove("print_subtitle");
+        let decoded: Score = serde_json::from_value(old).unwrap();
+        assert_eq!(decoded.metadata.display_title(), "Work");
+        assert!(decoded.metadata.print_title.is_empty());
     }
 
     #[test]

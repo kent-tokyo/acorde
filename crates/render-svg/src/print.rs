@@ -420,10 +420,22 @@ pub(crate) fn render_print_page_svgs_with_geometry(
         if page.page_index == 0
             && !page.publication.is_title_page
             && (!page.publication.title.is_empty() || has_movement_title)
-            && page
-                .systems
-                .first()
-                .is_some_and(|system| system.top_mm < if has_movement_title { 16.0 } else { 10.0 })
+            && page.systems.first().is_some_and(|system| {
+                let extra_title =
+                    page.publication.title.lines().count().saturating_sub(1) as f32 * 6.0;
+                let extra_subtitle = if has_movement_title {
+                    page.publication
+                        .movement_title
+                        .lines()
+                        .count()
+                        .saturating_sub(1) as f32
+                        * 5.0
+                } else {
+                    0.0
+                };
+                system.top_mm
+                    < (if has_movement_title { 16.0 } else { 10.0 }) + extra_title + extra_subtitle
+            })
         {
             return Err(PrintRenderError::UnsupportedResource {
                 page_index: 0,
@@ -583,15 +595,30 @@ fn write_publication(
     {
         let has_movement_title = !page.publication.movement_title.trim().is_empty()
             && page.publication.movement_title != page.publication.title;
+        let title_extra_mm = page.publication.title.lines().count().saturating_sub(1) as f32 * 6.0;
+        let subtitle_extra_mm = if has_movement_title {
+            page.publication
+                .movement_title
+                .lines()
+                .count()
+                .saturating_sub(1) as f32
+                * 5.0
+        } else {
+            0.0
+        };
         // Keep the title inside the top print margin. The former 7.5 mm
         // baseline on a default A4 page placed most of its capitals only
         // 2.5 mm from the paper edge in the pinned Verovio comparison.
         #[allow(unused_mut)] // Mutated by the optional measured-font path below.
-        let mut title_y = (system.top_mm - if has_movement_title { 6.5 } else { 5.0 }) * scale;
+        let mut title_y = (system.top_mm
+            - if has_movement_title { 6.5 } else { 5.0 }
+            - title_extra_mm
+            - subtitle_extra_mm)
+            * scale;
         #[allow(unused_mut)]
         let mut credit_y = (system.top_mm - if has_movement_title { 0.5 } else { 5.0 }) * scale;
         #[allow(unused_mut)]
-        let mut movement_y = credit_y;
+        let mut movement_y = credit_y - subtitle_extra_mm * scale;
         #[cfg(feature = "font-metrics")]
         if render::measured_print_active() {
             let center_text = if has_movement_title {
@@ -601,7 +628,11 @@ fn write_publication(
             };
             let center_size = if has_movement_title { 4.0 } else { 5.5 };
             if let (Some(center_width), Some(composer_width)) = (
-                crate::font_metrics::print_text_width(center_text, center_size),
+                center_text
+                    .lines()
+                    .map(|line| crate::font_metrics::print_text_width(line, center_size))
+                    .collect::<Option<Vec<_>>>()
+                    .map(|widths| widths.into_iter().fold(0.0_f32, f32::max)),
                 crate::font_metrics::print_text_width(&page.publication.composer, 4.0),
             ) && !page.publication.composer.is_empty()
                 && page.width_mm / 2.0 + center_width / 2.0 + 2.0
@@ -609,28 +640,34 @@ fn write_publication(
             {
                 credit_y = (system.top_mm - 0.5) * scale;
                 if has_movement_title {
-                    movement_y = (system.top_mm - 5.5) * scale;
-                    title_y = (system.top_mm - 11.5) * scale;
+                    movement_y = (system.top_mm - 5.5 - subtitle_extra_mm) * scale;
+                    title_y = (system.top_mm - 11.5 - subtitle_extra_mm - title_extra_mm) * scale;
                 }
             }
         }
         if !page.publication.title.is_empty() {
-            let _ = write!(
-                svg,
-                "<text class=\"acorde-print-title\" x=\"{:.3}\" y=\"{title_y:.3}\" text-anchor=\"middle\" font-family=\"serif\" font-weight=\"bold\" font-size=\"{:.3}\">{}</text>",
-                page.width_mm * scale / 2.0,
-                5.5 * scale,
-                escape_xml(&page.publication.title)
-            );
+            for (line_index, line) in page.publication.title.lines().enumerate() {
+                let y = title_y + line_index as f32 * 6.0 * scale;
+                let _ = write!(
+                    svg,
+                    "<text class=\"acorde-print-title\" x=\"{:.3}\" y=\"{y:.3}\" text-anchor=\"middle\" font-family=\"serif\" font-weight=\"bold\" font-size=\"{:.3}\">{}</text>",
+                    page.width_mm * scale / 2.0,
+                    5.5 * scale,
+                    escape_xml(line)
+                );
+            }
         }
         if has_movement_title {
-            let _ = write!(
-                svg,
-                "<text class=\"acorde-print-movement-title\" x=\"{:.3}\" y=\"{movement_y:.3}\" text-anchor=\"middle\" font-family=\"serif\" font-size=\"{:.3}\">{}</text>",
-                page.width_mm * scale / 2.0,
-                4.0 * scale,
-                escape_xml(&page.publication.movement_title)
-            );
+            for (line_index, line) in page.publication.movement_title.lines().enumerate() {
+                let y = movement_y + line_index as f32 * 5.0 * scale;
+                let _ = write!(
+                    svg,
+                    "<text class=\"acorde-print-movement-title\" x=\"{:.3}\" y=\"{y:.3}\" text-anchor=\"middle\" font-family=\"serif\" font-size=\"{:.3}\">{}</text>",
+                    page.width_mm * scale / 2.0,
+                    4.0 * scale,
+                    escape_xml(line)
+                );
+            }
         }
         if !page.publication.composer.is_empty() {
             let _ = write!(
@@ -740,13 +777,15 @@ fn write_publication(
             "normal"
         };
         let size = block.height_mm * 0.75 * scale;
-        let _ = write!(
-            svg,
-            "<text class=\"acorde-publication\" x=\"{:.3}\" y=\"{:.3}\" text-anchor=\"{anchor}\" font-family=\"serif\" font-weight=\"{weight}\" font-size=\"{size:.3}\">{}</text>",
-            x * scale,
-            (block.y_mm + block.height_mm * 0.8) * scale,
-            escape_xml(&block.text)
-        );
+        for (line_index, line) in block.text.lines().enumerate() {
+            let _ = write!(
+                svg,
+                "<text class=\"acorde-publication\" x=\"{:.3}\" y=\"{:.3}\" text-anchor=\"{anchor}\" font-family=\"serif\" font-weight=\"{weight}\" font-size=\"{size:.3}\">{}</text>",
+                x * scale,
+                (block.y_mm + block.height_mm * (0.8 + line_index as f32)) * scale,
+                escape_xml(line)
+            );
+        }
     }
     if let Some(number) = page.page_number
         && !page
