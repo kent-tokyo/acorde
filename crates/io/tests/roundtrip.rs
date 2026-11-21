@@ -2373,16 +2373,19 @@ fn arranged_extended_harmony_kinds_survive_musicxml_roundtrip() {
                 .kind,
             kind
         );
-        let mscz = acorde_io::serialize_mscz(&score).unwrap();
-        let restored = acorde_io::parse_mscz(&mscz).unwrap();
-        assert_eq!(
-            restored.parts[0].staves[0].measures[0].voices[0][0]
-                .chord_symbol
-                .as_ref()
-                .unwrap()
-                .kind,
-            kind
-        );
+        #[cfg(feature = "mscz")]
+        {
+            let mscz = acorde_io::serialize_mscz(&score).unwrap();
+            let restored = acorde_io::parse_mscz(&mscz).unwrap();
+            assert_eq!(
+                restored.parts[0].staves[0].measures[0].voices[0][0]
+                    .chord_symbol
+                    .as_ref()
+                    .unwrap()
+                    .kind,
+                kind
+            );
+        }
     }
 }
 
@@ -4492,6 +4495,7 @@ fn mscz_export_preserves_cross_voice_slur_without_loss_warning() {
     }
 }
 
+#[cfg(feature = "mscz")]
 #[test]
 fn mscz_export_preserves_cross_staff_slur_without_loss_warning() {
     let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>2</beats><beat-type>4</beat-type></time><staves>2</staves><clef number="1"><sign>G</sign><line>2</line></clef><clef number="2"><sign>F</sign><line>4</line></clef></attributes><note><pitch><step>G</step><octave>3</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><staff>2</staff><notations><slur type="start" number="1"/></notations></note><note><pitch><step>A</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><staff>1</staff><notations><slur type="stop" number="1"/></notations></note></measure></part></score-partwise>"#;
@@ -4539,6 +4543,7 @@ fn musicxml_triplet_forward_gap_keeps_voice_entry_time() {
     assert!((voice[0].beats() - 1.0 / 6.0).abs() < 1e-9);
 }
 
+#[cfg(feature = "mscz")]
 #[test]
 fn musescore4_generated_mscz_preserves_inverted_mordent() {
     let bytes =
@@ -6631,6 +6636,7 @@ fn musicxml_reads_final_double_dashed_and_invisible_barlines() {
     }
 }
 
+#[cfg(feature = "mscz")]
 #[test]
 fn mscx_keeps_invisible_barlines_and_a_volta_that_runs_to_the_last_bar() {
     use acorde_core::{Barline, Duration, Note, Pitch, Score, Step, VoltaBracket};
@@ -6670,6 +6676,7 @@ fn mscx_keeps_invisible_barlines_and_a_volta_that_runs_to_the_last_bar() {
     );
 }
 
+#[cfg(feature = "mscz")]
 #[test]
 fn mscx_round_trips_cross_staff_chords_as_staff_moves() {
     use acorde_core::{CrossStaff, Duration, Note, Pitch, Score, Step};
@@ -6710,6 +6717,7 @@ fn mscx_round_trips_cross_staff_chords_as_staff_moves() {
     );
 }
 
+#[cfg(feature = "mscz")]
 #[test]
 fn mscx_wraps_every_voice_so_second_voices_stay_apart() {
     use acorde_core::{Barline, Duration, Note, Pitch, Score, Step};
@@ -6939,6 +6947,7 @@ fn musicxml_reads_double_dots_and_notes_without_a_type() {
     );
 }
 
+#[cfg(feature = "abc")]
 #[test]
 fn abc_reads_and_writes_multi_line_tunes_with_chords_dynamics_voices_and_key_changes() {
     use acorde_core::{Clef, HairpinKind};
@@ -7000,6 +7009,7 @@ fn abc_reads_and_writes_multi_line_tunes_with_chords_dynamics_voices_and_key_cha
     );
 }
 
+#[cfg(feature = "abc")]
 #[test]
 fn abc_keeps_pickups_line_opening_repeats_double_dots_empty_bars_and_final_barlines() {
     use acorde_core::{Barline, Duration};
@@ -7042,6 +7052,7 @@ fn abc_keeps_pickups_line_opening_repeats_double_dots_empty_bars_and_final_barli
     );
 }
 
+#[cfg(feature = "abc")]
 #[test]
 fn abc_voice_overlays_keep_second_voices() {
     let abc = "X:1\nM:4/4\nL:1/4\nK:C\ne f g a & c4|b4 & x2 G2|\n";
@@ -7119,6 +7130,7 @@ fn midi_places_every_bar_at_its_own_start_and_writes_key_signatures() {
     assert_eq!(keys, vec![(0, 0), (1440, 2)]);
 }
 
+#[cfg(feature = "abc")]
 #[test]
 fn abc_tempo_changes_round_trip() {
     let abc = "X:1\nM:4/4\nL:1/4\nQ:1/4=100\nK:C\nc4|[Q:3/8=40]d4|\nQ:\"Presto\" 1/2=90\ne4|\n";
@@ -7193,6 +7205,7 @@ fn midi_import_splits_overlapping_notes_into_voices_and_ties_notes_across_barlin
     assert!(bar3[1].is_rest);
 }
 
+#[cfg(feature = "abc")]
 #[test]
 fn abc_verses_follow_their_music_lines() {
     let abc = "X:1\nM:3/4\nL:1/4\nK:C\nC D E|\nw: hel-lo there\nw: sec-ond verse\nF G A|\nw: three four five\n";
@@ -7581,13 +7594,16 @@ fn chord_member_fingerings_stay_on_their_notes() {
         &parse_musicxml(&written).expect("reparses"),
         "MusicXML again",
     );
-    let mscx = acorde_io::serialize_mscx(&score).expect("MSCX");
-    assert!(mscx.contains("<Fingering><text>5</text></Fingering>"));
-    assert_eq!(mscx.matches("<Fingering>").count(), 2);
-    check(
-        &acorde_io::parse_mscx(&mscx).expect("MSCX reparses"),
-        "MSCX",
-    );
+    #[cfg(feature = "mscz")]
+    {
+        let mscx = acorde_io::serialize_mscx(&score).expect("MSCX");
+        assert!(mscx.contains("<Fingering><text>5</text></Fingering>"));
+        assert_eq!(mscx.matches("<Fingering>").count(), 2);
+        check(
+            &acorde_io::parse_mscx(&mscx).expect("MSCX reparses"),
+            "MSCX",
+        );
+    }
 }
 
 #[cfg(feature = "mei")]
