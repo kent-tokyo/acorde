@@ -3337,9 +3337,9 @@ pub fn compute_print_layout(
     compute_print_layout_with_rows(score, config, None, None)
 }
 
-/// Minimize the largest occupied height without adding pages or moving music out
-/// of order. A monotone greedy feasibility scan makes this O(40 * system_count),
-/// including highly variable heights, rather than a quadratic page-break search.
+/// Balance measured pages without adding pages or changing system order. Prefer
+/// eliminating a one-system final page when a chain of legal moves permits it;
+/// otherwise retain the result minimizing the largest occupied height.
 fn balanced_measured_capacities(
     heights: &[f32],
     available: f32,
@@ -3384,7 +3384,49 @@ fn balanced_measured_capacities(
             low = middle;
         }
     }
-    capacities((high + 0.0001).min(f64::from(available))).unwrap_or(original)
+    let balanced = capacities((high + 0.0001).min(f64::from(available))).unwrap_or(original);
+    rebalance_final_single_system(heights, available, max_count, &balanced).unwrap_or(balanced)
+}
+
+/// Move a boundary backward through consecutive two-system pages until a page
+/// with a spare system is reached. Apply the whole chain or none of it.
+fn rebalance_final_single_system(
+    heights: &[f32],
+    available: f32,
+    max_count: usize,
+    capacities: &[usize],
+) -> Option<Vec<usize>> {
+    if capacities.len() < 2 || capacities.last() != Some(&1) {
+        return None;
+    }
+    let mut candidate = capacities.to_vec();
+    let mut starts = Vec::with_capacity(candidate.len() + 1);
+    starts.push(0_usize);
+    for &count in &candidate {
+        starts.push(starts.last().copied()? + count);
+    }
+    for page in (1..candidate.len()).rev() {
+        let donor = candidate[page - 1];
+        if donor < 2 || candidate[page] >= max_count {
+            return None;
+        }
+        let moved_index = starts[page].checked_sub(1)?;
+        let used = heights
+            .get(moved_index..starts[page + 1])?
+            .iter()
+            .map(|&h| f64::from(h))
+            .sum::<f64>();
+        if used > f64::from(available) {
+            return None;
+        }
+        candidate[page - 1] -= 1;
+        candidate[page] += 1;
+        starts[page] -= 1;
+        if donor > 2 {
+            return Some(candidate);
+        }
+    }
+    None
 }
 
 fn compute_print_layout_with_rows(
@@ -3999,6 +4041,72 @@ mod tests {
             },
         ];
         assert!(paginate_measured_systems(&score, &config, &bad, &[40.0; 3]).is_err());
+    }
+
+    #[test]
+    fn measured_balance_moves_systems_across_pages_to_avoid_a_lone_final_system() {
+        let score = score_with_measures(6);
+        let rows = (0..6)
+            .map(|i| crate::RowLayout {
+                measure_indices: vec![i],
+            })
+            .collect::<Vec<_>>();
+        let config = PrintConfig {
+            final_page_policy: FinalPagePolicy::Balance,
+            system_spacing: SystemSpacing::Packed,
+            ..Default::default()
+        };
+        let result = paginate_measured_systems(
+            &score,
+            &config,
+            &rows,
+            &[80.0, 80.0, 80.0, 120.0, 120.0, 120.0],
+        )
+        .unwrap();
+        assert_eq!(
+            result
+                .pages
+                .iter()
+                .map(|p| p.systems.len())
+                .collect::<Vec<_>>(),
+            [2, 2, 2]
+        );
+        assert_eq!(
+            result
+                .pages
+                .iter()
+                .flat_map(|p| &p.systems)
+                .flat_map(|s| s.measure_indices.iter().copied())
+                .collect::<Vec<_>>(),
+            (0..6).collect::<Vec<_>>()
+        );
+        result.validate().unwrap();
+    }
+
+    #[test]
+    fn measured_balance_keeps_single_final_system_when_it_cannot_fit_another() {
+        let score = score_with_measures(3);
+        let rows = (0..3)
+            .map(|i| crate::RowLayout {
+                measure_indices: vec![i],
+            })
+            .collect::<Vec<_>>();
+        let config = PrintConfig {
+            final_page_policy: FinalPagePolicy::Balance,
+            system_spacing: SystemSpacing::Packed,
+            ..Default::default()
+        };
+        let result =
+            paginate_measured_systems(&score, &config, &rows, &[90.0, 90.0, 180.0]).unwrap();
+        assert_eq!(
+            result
+                .pages
+                .iter()
+                .map(|p| p.systems.len())
+                .collect::<Vec<_>>(),
+            [2, 1]
+        );
+        result.validate().unwrap();
     }
 
     #[test]

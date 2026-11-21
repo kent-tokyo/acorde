@@ -277,6 +277,40 @@ visual or source-fidelity review, and physical printer clearance remains
 unverified. The render report records the candidate source diff at render time;
 a subsequently added regression test does not alter the rendering code.
 
+### Balancing a one-system final page
+
+The final page of `chamber-sq8812200` in the preceding default run had one
+system. An experiment removing the initial two-sided timed-dynamic margin
+reservation retained the 36-page and 20-page results for the two chamber
+inputs and was reverted; the changed ink positions were not otherwise
+validated. With the existing opt-in `FinalPagePolicy::Balance`, the 36-page
+input also ended with one system. Its measured final-page heights showed
+that a chain of legal boundary shifts could move a system onto the final page.
+
+For measured layouts using `Balance`, pagination now tries that chain when
+the last page has one system. It commits the chain only if the recipient pages
+all fit their available heights and the chain ends at a page with a spare
+system. Otherwise it retains the previous result. The default
+`AllowSingleSystem` policy is unchanged; this does not remove the one-system
+final page in the default run or prove a general solution for every possible
+partition. Layout tests cover a feasible multi-page chain and an infeasible
+move.
+
+A same-input A4 trial with `Balance` retained 36 pages and changed the last
+four page system counts from 3, 2, 2, 1 to 2, 2, 2, 2. Input MusicXML SHA-256
+`9c1a19ede6f1eba3bb12760aa4f5f3639d677c84f4eeb52e7a745ed5b79bf3ad`,
+configuration SHA-256
+`7dbd1fa0544b38656baa3fa541d69aba37f7fee979826b266c2776fe0d0743e3`,
+PDF SHA-256
+`9c5f4c588d6643b66ccba82969f59ebf7d3b2749b68492153e21a97dc62e6d29`.
+The assistant inspected the final-page raster SHA-256
+`e011038c5f6ea5707428d14197333e1eed769183653bcfb568dcf9e146aa7867`:
+it contains two systems, with no apparent overlap between them. The `pizz.`
+mark near the second system's opening barline appears to touch the line; a
+similar placement is visible in the earlier default rendering, but exact ink
+bounds and original-source intent have not yet been assessed. This one-page
+review is not a corpus-wide or original-to-output fidelity audit.
+
 This program targets conventional keyboard, vocal, chamber-score, and extracted-part
 engraving against **Verovio 6.4.1**. The starting source is Acorde
 `f48944024039cce2abb404af60d9ffc9dedc1502`, not a newly released artifact.
