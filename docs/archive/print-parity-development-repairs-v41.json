@@ -1,0 +1,32 @@
+{
+  "classification": "development; all four parity gates pending",
+  "recorded_at_utc": "2026-11-15T04:10:32.846359+00:00",
+  "base_commit": "a1051f2f59ccd1ab46d9eebab51ece99448322ee",
+  "changes_uncommitted": true,
+  "tests": {
+    "v37": {
+      "command": "cargo test --release -p acorde-io -p acorde-render-svg -p acorde-pdf --all-features",
+      "suites": 45,
+      "passed": 1166,
+      "ignored": 0,
+      "log_sha256": "72df7eace5526434f559f8947320de697cf8bafebfe02dd2412cdbd9b372eeac"
+    },
+    "v41": {
+      "command": "cargo test --release -p acorde-render-svg --features font-metrics --test measured_print",
+      "passed": 13,
+      "log_sha256": "2ba411a208f07e885be5de94ba635b854e9239120c3f616d6154e873fff719da"
+    }
+  },
+  "visual_review": {
+    "v37_brahms_page_1": "hidden rests and unwanted tuplet numbers removed; visible tuplet number touched slur and shared unison heads were offset; failed",
+    "v37_piano_n07_page_1": "Roman labels restored; cross-staff stems still crossed some labels; failed",
+    "v41": "rerender and full review pending"
+  },
+  "source_audit_v37_brahms": {
+    "pitched_events": 1785,
+    "missing": 0,
+    "extra": 0,
+    "scope": "spelling, physical staff, source voice, onset, duration, grace, cue, hidden and per-pitch ties; not all notation or rests"
+  },
+  "retired_reserved_cohort": "v1, all 24 files; no unseen claim"
+}

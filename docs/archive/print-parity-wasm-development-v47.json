@@ -1,0 +1,292 @@
+{
+  "classification": "native/WASM geometric agreement on development inputs, not source or visual fidelity",
+  "candidate": "v47",
+  "retired24": {
+    "status": "pass",
+    "tolerance": 0.0001,
+    "maximum_delta": 7.32421875682121e-06,
+    "font_sha256": "b97cd5005278b24aabb69b8b6ead98860955599558f6e8119483b575a5fdce98",
+    "cases": [
+      {
+        "path": "/private/tmp/acorde-print-parity-development-v47-combined/piano-wq117n11-native.json",
+        "sha256": "3b6208850480e03d45e52ac7c017beb9e9ddc44f057053f3a362e9b1f1ac006c",
+        "stored_sha256": "3b6208850480e03d45e52ac7c017beb9e9ddc44f057053f3a362e9b1f1ac006c",
+        "compressed": false,
+        "pages": 1,
+        "elapsed_ms": 87.3685
+      },
+      {
+        "path": "/private/tmp/acorde-print-parity-development-v47-combined/piano-wq117n12-native.json",
+        "sha256": "8c9daabe12575d0a65e8640d150142b746739090b64f6d823370bcd656ce752d",
+        "stored_sha256": "8c9daabe12575d0a65e8640d150142b746739090b64f6d823370bcd656ce752d",
+        "compressed": false,
+        "pages": 1,
+        "elapsed_ms": 26.120915999999994
+      },
+      {
+        "path": "/private/tmp/acorde-print-parity-development-v47-combined/piano-BI105-1op30-1-native.json.gz",
+        "sha256": "6ff50599982f8686f36ee3693f4de9b912fb1e187c76db1bb0161c48b5bd8391",
+        "stored_sha256": "469751c92fba544893bd3cf436a60e1b7d45b9359db0030cde3e160f3a1e7d5c",
+        "compressed": true,
+        "pages": 2,
+        "elapsed_ms": 50.60724999999999
+      },
+      {
+        "path": "/private/tmp/acorde-print-parity-development-v47-combined/piano-BI115-1op33-1-native.json.gz",
+        "sha256": "19f07005c05fa5c34668a2f4c0f53cebe8a653ac4aa548608979f85e0cb048b4",
+        "stored_sha256": "c02395eb8d82a8b5fa42aed91a1620a0acabe17129422c8fc8be885da28da073",
+        "compressed": true,
+        "pages": 2,
+        "elapsed_ms": 31.44712499999997
+      },
+      {
+        "path": "/private/tmp/acorde-print-parity-development-v47-combined/piano-n02-native.json.gz",
+        "sha256": "027a8defb99f01b03e1546d4cd5973244e323bb5539eb1ad85369a90476ff30a",
+        "stored_sha256": "85dcc15343fc29d00dd0cd1c063e6579ea0dec929f45a515668cd03516fa9cb2",
+        "compressed": true,
+        "pages": 3,
+        "elapsed_ms": 48.42025000000001
+      },
+      {
+        "path": "/private/tmp/acorde-print-parity-development-v47-combined/piano-n07-native.json",
+        "sha256": "b185d98cb6050da779e1cef641822032875cf2ce7f87e142f1a3e7edc947bd9d",
+        "stored_sha256": "b185d98cb6050da779e1cef641822032875cf2ce7f87e142f1a3e7edc947bd9d",
+        "compressed": false,
+        "pages": 2,
+        "elapsed_ms": 108.45212500000002
+      },
+      {
+        "path": "/private/tmp/acorde-print-parity-development-v47-combined/vocal-lc6212179-native.json.gz",
+        "sha256": "ed400b1f44811518f7bec47fee392da6e3f936f96b46d52322ca96a0f9d0c254",
+        "stored_sha256": "5187350cee3f4057a427d05bd2a01675734baa5e88ce4c8fae8e411ad4ec7016",
+        "compressed": true,
+        "pages": 3,
+        "elapsed_ms": 45.793290999999954
+      },
+      {
+        "path": "/private/tmp/acorde-print-parity-development-v47-combined/vocal-lc6302395-native.json.gz",
+        "sha256": "590785fa8ebd5211b23f6b1da65c8ffde3bf11fd71f70515716002781e06cb31",
+        "stored_sha256": "5c96b59289f415913ef9144c5566f790761742ad10a50132719432627a9bb831",
+        "compressed": true,
+        "pages": 12,
+        "elapsed_ms": 658.104583
+      },
+      {
+        "path": "/private/tmp/acorde-print-parity-development-v47-combined/vocal-lc6260992-native.json.gz",
+        "sha256": "26a44614dd887d64ff8fc678b2d714221e02ed4fb9f6cc883eb547a1b26e43ce",
+        "stored_sha256": "88a477d31c66140f9781d22ab02f6466bdea3ebe5b843aff04a1b7317c03330c",
+        "compressed": true,
+        "pages": 4,
+        "elapsed_ms": 46.323249999999916
+      },
+      {
+        "path": "/private/tmp/acorde-print-parity-development-v47-combined/vocal-lc6810863-native.json.gz",
+        "sha256": "247ed5a211929b9803ab7fb45ca518b35bda072330af1b53a32ea4136b82574b",
+        "stored_sha256": "985e49a63c287ea3be3aa9779ce28a5e0a76c655282f9b40af5580c3537afdff",
+        "compressed": true,
+        "pages": 4,
+        "elapsed_ms": 61.156375000000025
+      },
+      {
+        "path": "/private/tmp/acorde-print-parity-development-v47-combined/vocal-lc5093434-native.json.gz",
+        "sha256": "5336f48af96a7ff8b2a215b3e4fc64039f4949de5a176e4dbec53fd9ddcce074",
+        "stored_sha256": "18b4ac755b0b23ea0bdf363019804269520b00cdf75414f82de3a5816e40a7df",
+        "compressed": true,
+        "pages": 7,
+        "elapsed_ms": 105.60133299999984
+      },
+      {
+        "path": "/private/tmp/acorde-print-parity-development-v47-combined/vocal-lc5133602-native.json.gz",
+        "sha256": "6313823e9d04d3b77f1bc81f563973c15dcb8737ed8feae4045a2f91a562bb94",
+        "stored_sha256": "565493ce4af303e0832607dcb18f4d4ca41e64360ab2d8f4cbb2ef7a2d1d0c35",
+        "compressed": true,
+        "pages": 3,
+        "elapsed_ms": 38.715791999999965
+      },
+      {
+        "path": "/private/tmp/acorde-print-parity-development-v47-combined/chamber-sq14387632-native.json.gz",
+        "sha256": "9e29f742bad48c30999261921202cd6ec2032a1e72162854810ec1c6900b6040",
+        "stored_sha256": "f9fc93f658e132f5df9b3148a73a265e0266937de1a0dd831d1df04b09f0a6d5",
+        "compressed": true,
+        "pages": 28,
+        "elapsed_ms": 1464.9591670000002
+      },
+      {
+        "path": "/private/tmp/acorde-print-parity-development-v47-combined/chamber-sq27571393-native.json.gz",
+        "sha256": "61664478408aa42a26c23ec95c3d5f29e104b4843e9cf0006714ddaf22bfadf4",
+        "stored_sha256": "0534c05e30fff315cbb9caf8e89f558337476028c00920f67e878a11b1d2f9ff",
+        "compressed": true,
+        "pages": 18,
+        "elapsed_ms": 632.6296670000002
+      },
+      {
+        "path": "/private/tmp/acorde-print-parity-development-v47-combined/chamber-sq7551068-native.json.gz",
+        "sha256": "c7dfefce4bce500fbd5049651f550240cfc3763db39bea704ffb016668d4c932",
+        "stored_sha256": "ea009e3aa76dec0d1ac9ca15f71dc82f08ecdf28c680d4ff68a74dc345c23d11",
+        "compressed": true,
+        "pages": 20,
+        "elapsed_ms": 626.534334
+      },
+      {
+        "path": "/private/tmp/acorde-print-parity-development-v47-combined/chamber-sq8437358-native.json.gz",
+        "sha256": "786c949763ca3b693acc7280e83cb1521a7bd5f79eb67ac9b17f3231a1b40d56",
+        "stored_sha256": "b817dd2671e212b60873bda1f92853c18af2cb3bd1879f75a91558b74d8c9a60",
+        "compressed": true,
+        "pages": 16,
+        "elapsed_ms": 381.94083299999966
+      },
+      {
+        "path": "/private/tmp/acorde-print-parity-development-v47-combined/chamber-sq7648382-native.json.gz",
+        "sha256": "d2ef5071fb9cd09b8dd45a5252b07f157f9f34423684c0aa7694239b20a0183e",
+        "stored_sha256": "8b560de940ca2e0aeea29077e4e6357260bd2904dde2079a206f935b0208a3a1",
+        "compressed": true,
+        "pages": 23,
+        "elapsed_ms": 399.4032500000003
+      },
+      {
+        "path": "/private/tmp/acorde-print-parity-development-v47-combined/chamber-sq8812200-native.json",
+        "sha256": "004fafba6216bf640dc9b76af5043e69bb03182e6493371326dc4df3a2be9c73",
+        "stored_sha256": "004fafba6216bf640dc9b76af5043e69bb03182e6493371326dc4df3a2be9c73",
+        "compressed": false,
+        "pages": 36,
+        "elapsed_ms": 835.0443329999998
+      },
+      {
+        "path": "/private/tmp/acorde-print-parity-development-v47-combined/part-sq27449398-native.json",
+        "sha256": "22a05c5247e3f8359834a94ce96c00be9b511e54564f907add2da20eee283c07",
+        "stored_sha256": "22a05c5247e3f8359834a94ce96c00be9b511e54564f907add2da20eee283c07",
+        "compressed": false,
+        "pages": 6,
+        "elapsed_ms": 87.70641700000033
+      },
+      {
+        "path": "/private/tmp/acorde-print-parity-development-v47-combined/part-sq12701461-native.json",
+        "sha256": "710609e1448eb4a495cf406be90a34145f892c5fe9433879d0c16895492b173c",
+        "stored_sha256": "710609e1448eb4a495cf406be90a34145f892c5fe9433879d0c16895492b173c",
+        "compressed": false,
+        "pages": 5,
+        "elapsed_ms": 89.125583
+      },
+      {
+        "path": "/private/tmp/acorde-print-parity-development-v47-combined/part-sq15230467-native.json",
+        "sha256": "f51e70523831b0d0f0f012289cb394c1e52050c9038366733a0d05ae37c70ad5",
+        "stored_sha256": "f51e70523831b0d0f0f012289cb394c1e52050c9038366733a0d05ae37c70ad5",
+        "compressed": false,
+        "pages": 5,
+        "elapsed_ms": 82.37720900000022
+      },
+      {
+        "path": "/private/tmp/acorde-print-parity-development-v47-combined/part-sq9146376-native.json",
+        "sha256": "e8e0cbc7566d14e3eccfed673ab51bb40ae199d9397b179bf6a5b749f8686c8f",
+        "stored_sha256": "e8e0cbc7566d14e3eccfed673ab51bb40ae199d9397b179bf6a5b749f8686c8f",
+        "compressed": false,
+        "pages": 5,
+        "elapsed_ms": 94.79312500000015
+      },
+      {
+        "path": "/private/tmp/acorde-print-parity-development-v47-combined/part-sq7070319-native.json",
+        "sha256": "54b5376a94ee999a4e425704175a9e8489264e33eb0f4641e95d7c04141a556e",
+        "stored_sha256": "54b5376a94ee999a4e425704175a9e8489264e33eb0f4641e95d7c04141a556e",
+        "compressed": false,
+        "pages": 2,
+        "elapsed_ms": 24.473957999999584
+      },
+      {
+        "path": "/private/tmp/acorde-print-parity-development-v47-combined/part-sq24409123-native.json",
+        "sha256": "a900445f72d784dd7828c46e18fd860abdbc8329c10afbd7ad75555eabd89649",
+        "stored_sha256": "a900445f72d784dd7828c46e18fd860abdbc8329c10afbd7ad75555eabd89649",
+        "compressed": false,
+        "pages": 2,
+        "elapsed_ms": 25.755541999999878
+      }
+    ]
+  },
+  "original10": {
+    "status": "pass",
+    "tolerance": 0.0001,
+    "maximum_delta": 4.8144531206162355e-06,
+    "font_sha256": "b97cd5005278b24aabb69b8b6ead98860955599558f6e8119483b575a5fdce98",
+    "cases": [
+      {
+        "path": "/private/tmp/acorde-print-parity-original-development-v47-retry/aloha-native.json",
+        "sha256": "45451d2646e0d219f6ab5f3234a764eefa495809ea6e1fb2097e69594f78626b",
+        "stored_sha256": "45451d2646e0d219f6ab5f3234a764eefa495809ea6e1fb2097e69594f78626b",
+        "compressed": false,
+        "pages": 3,
+        "elapsed_ms": 152.685791
+      },
+      {
+        "path": "/private/tmp/acorde-print-parity-original-development-v47-retry/just-for-today-native.json",
+        "sha256": "57dfe8b0f548a4f91a726e4b60ac34430a981c5add6392baafed2f6e7dca5b2f",
+        "stored_sha256": "57dfe8b0f548a4f91a726e4b60ac34430a981c5add6392baafed2f6e7dca5b2f",
+        "compressed": false,
+        "pages": 3,
+        "elapsed_ms": 62.268125000000026
+      },
+      {
+        "path": "/private/tmp/acorde-print-parity-original-development-v47-retry/quilter-native.json",
+        "sha256": "60fabeca168c2e0ffbd1b7264051b840f34dd81da76ad68db3f6b6572f0b8dfd",
+        "stored_sha256": "60fabeca168c2e0ffbd1b7264051b840f34dd81da76ad68db3f6b6572f0b8dfd",
+        "compressed": false,
+        "pages": 1,
+        "elapsed_ms": 23.80174999999997
+      },
+      {
+        "path": "/private/tmp/acorde-print-parity-original-development-v47-retry/webern-native.json",
+        "sha256": "af7e08d3094bad54106b5a711ce33bbde4ee6dd026e05f7f3a681be5b25aa366",
+        "stored_sha256": "af7e08d3094bad54106b5a711ce33bbde4ee6dd026e05f7f3a681be5b25aa366",
+        "compressed": false,
+        "pages": 2,
+        "elapsed_ms": 26.62933399999997
+      },
+      {
+        "path": "/private/tmp/acorde-print-parity-original-development-v47-retry/omr-1003-native.json",
+        "sha256": "229f1936d4d530be029f8999d6dbf8be6df841549928d0234299111f4271938b",
+        "stored_sha256": "229f1936d4d530be029f8999d6dbf8be6df841549928d0234299111f4271938b",
+        "compressed": false,
+        "pages": 1,
+        "elapsed_ms": 3.9147080000000187
+      },
+      {
+        "path": "/private/tmp/acorde-print-parity-original-development-v47-retry/omr-1016-native.json",
+        "sha256": "7de4ea65a7c98fa70669c2348248d82c58d541bb0cde3ce552649a885e4f66bc",
+        "stored_sha256": "7de4ea65a7c98fa70669c2348248d82c58d541bb0cde3ce552649a885e4f66bc",
+        "compressed": false,
+        "pages": 1,
+        "elapsed_ms": 12.612250000000017
+      },
+      {
+        "path": "/private/tmp/acorde-print-parity-original-development-v47-retry/omr-1033-native.json",
+        "sha256": "f7901dc7a4ebc075bbaaba09bf29e5cc3990ec1a40d2b5f8a53d31f8d17ace96",
+        "stored_sha256": "f7901dc7a4ebc075bbaaba09bf29e5cc3990ec1a40d2b5f8a53d31f8d17ace96",
+        "compressed": false,
+        "pages": 1,
+        "elapsed_ms": 8.742792000000009
+      },
+      {
+        "path": "/private/tmp/acorde-print-parity-original-development-v47-retry/omr-1035-native.json",
+        "sha256": "b4b1bb9ff7c8c806c4b60f179ed907c60bc14dfda14b08d4fcb43d5d64ddd5a9",
+        "stored_sha256": "b4b1bb9ff7c8c806c4b60f179ed907c60bc14dfda14b08d4fcb43d5d64ddd5a9",
+        "compressed": false,
+        "pages": 1,
+        "elapsed_ms": 6.7419159999999465
+      },
+      {
+        "path": "/private/tmp/acorde-print-parity-original-development-v47-retry/omr-1036-native.json",
+        "sha256": "fecff1bc3272eeda257c826a4a8ac56577a8e2bf8e066d7a774ec7ff3b3a7533",
+        "stored_sha256": "fecff1bc3272eeda257c826a4a8ac56577a8e2bf8e066d7a774ec7ff3b3a7533",
+        "compressed": false,
+        "pages": 2,
+        "elapsed_ms": 6.9683749999999804
+      },
+      {
+        "path": "/private/tmp/acorde-print-parity-original-development-v47-retry/freilachs-native.json",
+        "sha256": "3284cee71adc30aeaf0838233f3fe200eefd890f7e7cd3a1a70787e9d77b0f6d",
+        "stored_sha256": "3284cee71adc30aeaf0838233f3fe200eefd890f7e7cd3a1a70787e9d77b0f6d",
+        "compressed": false,
+        "pages": 1,
+        "elapsed_ms": 6.541334000000006
+      }
+    ]
+  }
+}

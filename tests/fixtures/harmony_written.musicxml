@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Original focused fixture: authored analysis and hidden harmony roots. -->
+<score-partwise version="4.0">
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1"><measure number="1">
+    <attributes><divisions>1</divisions><key><fifths>0</fifths><mode>minor</mode></key><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+    <harmony><root><root-step text="">C</root-step></root><kind text="|PAC">none</kind></harmony>
+    <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+    <harmony><numeral><numeral-root text="i">1</numeral-root></numeral><kind>minor</kind><inversion>1</inversion></harmony>
+    <note><pitch><step>E</step><alter>-1</alter><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+    <harmony><numeral><numeral-root text="vii">7</numeral-root><numeral-alter>1</numeral-alter><numeral-key><numeral-fifths>-2</numeral-fifths><numeral-mode>minor</numeral-mode></numeral-key></numeral><kind>diminished</kind></harmony>
+    <note><pitch><step>B</step><octave>3</octave></pitch><duration>1</duration><type>quarter</type></note>
+    <harmony><root><root-step>F</root-step><root-alter>1</root-alter></root><kind text="sus">suspended-fourth</kind></harmony>
+    <note><pitch><step>F</step><alter>1</alter><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+  </measure></part>
+</score-partwise>

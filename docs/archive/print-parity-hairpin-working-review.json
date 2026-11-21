@@ -1,0 +1,14 @@
+{
+  "status": "development-screen-only",
+  "verovio_version": "6.4.1",
+  "configuration": "A4, 1.8 mm staff space, 8 measure limit, measured print, Tuffy.ttf",
+  "font_sha256": "b97cd5005278b24aabb69b8b6ead98860955599558f6e8119483b575a5fdce98",
+  "binary_sha256": "2c91590ae8f71350efba77a895c63ffca5634701d72e48784657480ebe7852cd",
+  "scores": [
+    {"id":"piano-BI105-1op30-1","input_sha256":"e225fb2986e7af7fea741eaa9de80ee8c86c195468152d157a7a08e48416f9ef","pdf_sha256":"7c3d55b40f0b72c4efc764f85cd46d3c1368f47f5de3480049992d6a14aa0c99","pages":2,"source_wedge_starts":11,"previous_acorde_paths":10,"current_acorde_paths":11,"part_measure_shortfalls":0},
+    {"id":"vocal-lc6302395","input_sha256":"bc77093a7c07cde40b940f65ce339c986ac4c338a9a7fe7ea50be0ec06218537","pdf_sha256":"ace6505b6fe7ca549a8ab33e1c15ee2faf4cfc826b1f6144846867bc77e9db7d","pages":13,"source_wedge_starts":105,"previous_acorde_paths":102,"current_acorde_paths":110,"part_measure_shortfalls":0,"additional_split_paths":5,"shared_start_note_with_distinct_ends":"1:0:48:0:0"},
+    {"id":"chamber-sq7551068","input_sha256":"de11bdad52c1a6fc6cec1389ea5dda7a1204cb8c323208abbb90332637a7593d","pdf_sha256":"35239320f1f7cfb1f7b611ff3efceb898463016c6be05e1521ee65c8c0fca667","pages":20,"source_wedge_starts":139,"previous_acorde_paths":127,"current_acorde_paths":139,"part_measure_shortfalls":0}
+  ],
+  "assistant_physical_review": {"score":"vocal-lc6302395","page":3,"png_sha256":"d43189cb95a879fb7139678b49ecb6b79eae2cdc1a4a9638990bf170880763ee","observation":"Both cross-staff short wedges in source measures 21 and 22 are visible. The adjacent wedge baselines differ, and the lower page has substantial white space. Verovio comparison and remaining-page review pending."},
+  "limitations": ["Counts are grouped only by source part and measure, not unique wedge identity or exact timing.","PDF visual inspection covers one changed page, not all pages.","No default/Letter, native/WASM or final reserved rerun for this candidate."]
+}

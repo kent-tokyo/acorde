@@ -581,6 +581,25 @@ pub enum TupletBoundary {
     StartStop,
 }
 
+/// Authored display of a tuplet start, independent of its timing ratio.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TupletDisplay {
+    #[serde(default)]
+    pub bracket: Option<bool>,
+    #[serde(default)]
+    pub number: TupletNumberDisplay,
+    #[serde(default)]
+    pub above: Option<bool>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum TupletNumberDisplay {
+    #[default]
+    Actual,
+    Both,
+    None,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
 pub enum BeamState {
     #[default]
@@ -791,6 +810,36 @@ pub struct ChordSymbol {
     /// Structured chord extensions such as add9, alter5, or omit3.
     #[serde(default)]
     pub degrees: Vec<ChordDegree>,
+    /// Authored MusicXML spelling and Roman/Nashville analysis, independent of pitch roots.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub written: Option<Box<WrittenHarmony>>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct WrittenHarmony {
+    /// `Some("")` intentionally hides the root step.
+    #[serde(default)]
+    pub root_text: Option<String>,
+    #[serde(default)]
+    pub kind_text: Option<String>,
+    #[serde(default)]
+    pub numeral: Option<HarmonyNumeral>,
+    #[serde(default)]
+    pub inversion: Option<u8>,
+    #[serde(default)]
+    pub inversion_text: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HarmonyNumeral {
+    /// One-based scale degree, as encoded by MusicXML numeral-root.
+    pub root: u8,
+    #[serde(default)]
+    pub text: Option<String>,
+    #[serde(default)]
+    pub alter: f32,
+    #[serde(default)]
+    pub key: Option<KeySignature>,
 }
 
 /// A reusable MEI chord/tablature definition referenced by `harm@chordref`.
@@ -964,6 +1013,73 @@ impl ChordSymbol {
     }
 
     pub fn display_text(&self) -> String {
+        if let Some(written) = &self.written {
+            let mut root = if let Some(numeral) = &written.numeral {
+                let prefix = match numeral.alter {
+                    -2.0 => "bb".to_string(),
+                    -1.0 => "b".to_string(),
+                    0.0 => String::new(),
+                    1.0 => "#".to_string(),
+                    2.0 => "##".to_string(),
+                    value => format!("({value:+})"),
+                };
+                format!(
+                    "{prefix}{}",
+                    numeral
+                        .text
+                        .clone()
+                        .unwrap_or_else(|| numeral.root.to_string())
+                )
+            } else if let Some(text) = &written.root_text {
+                format!("{text}{}", self.root.chars().skip(1).collect::<String>())
+            } else {
+                self.root.clone()
+            };
+            let kind = written.kind_text.as_deref().unwrap_or_else(|| {
+                if written.numeral.is_some() {
+                    match self.kind.as_str() {
+                        "major" | "minor" | "none" => "",
+                        "dominant" | "minor-seventh" => "7",
+                        "diminished" => "°",
+                        _ => CHORD_KIND_SUFFIXES
+                            .iter()
+                            .find(|(k, _)| *k == self.kind)
+                            .map_or(self.kind.as_str(), |(_, s)| *s),
+                    }
+                } else if self.kind == "none" {
+                    ""
+                } else {
+                    CHORD_KIND_SUFFIXES
+                        .iter()
+                        .find(|(k, _)| *k == self.kind)
+                        .map_or(self.kind.as_str(), |(_, s)| *s)
+                }
+            });
+            if written.numeral.is_some() && written.inversion.is_some_and(|i| i > 0) {
+                let figure = written.inversion_text.as_deref().unwrap_or_else(|| {
+                    match (kind.ends_with('7'), written.inversion) {
+                        (false, Some(1)) => "6",
+                        (false, Some(2)) => "6/4",
+                        (true, Some(1)) => "6/5",
+                        (true, Some(2)) => "4/3",
+                        (true, Some(3)) => "4/2",
+                        _ => "",
+                    }
+                });
+                root.push_str(kind.trim_end_matches('7'));
+                root.push_str(figure);
+            } else {
+                root.push_str(kind);
+            }
+            for degree in &self.degrees {
+                root.push_str(&degree.display_text());
+            }
+            if let Some(bass) = &self.bass {
+                root.push('/');
+                root.push_str(bass);
+            }
+            return root;
+        }
         let kind_str = CHORD_KIND_SUFFIXES
             .iter()
             .find(|(kind, _)| *kind == self.kind)
@@ -1111,6 +1227,7 @@ mod tests {
             harmony_function: None,
             harmony_type: None,
             chord_ref: None,
+            written: None,
             range_end: None,
             degrees: Vec::new(),
         };
@@ -1129,6 +1246,7 @@ mod tests {
             harmony_function: None,
             harmony_type: None,
             chord_ref: None,
+            written: None,
             range_end: None,
             degrees: Vec::new(),
         };
@@ -1147,6 +1265,7 @@ mod tests {
             harmony_function: None,
             harmony_type: None,
             chord_ref: None,
+            written: None,
             range_end: None,
             degrees: vec![
                 ChordDegree {

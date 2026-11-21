@@ -1027,15 +1027,35 @@ pub(crate) fn dynamic_mark(
     if letters.is_empty() {
         return None;
     }
+    let total: f32 = letters.iter().map(|(_, advance)| advance).sum();
+    let mut cursor = -total / 2.0;
+    let (mut left, mut right, mut top, mut bottom) = (
+        f32::INFINITY,
+        f32::NEG_INFINITY,
+        f32::INFINITY,
+        f32::NEG_INFINITY,
+    );
+    for (strokes, advance) in &letters {
+        for &(x, y) in strokes.iter().flat_map(|(_, points)| points) {
+            left = left.min(cursor + x);
+            right = right.max(cursor + x);
+            top = top.min(y);
+            bottom = bottom.max(y);
+        }
+        cursor += advance;
+    }
     let open = format!(
-        r#"<g class="{class}" data-text="{text}" data-x="{}" data-baseline="{}">"#,
+        r#"<g class="{class}" data-text="{text}" data-x="{}" data-baseline="{}" data-print-left="{}" data-print-right="{}" data-print-top="{}" data-print-bottom="{}">"#,
         f(cx),
-        f(baseline)
+        f(baseline),
+        f(cx + (left - 0.1) * space),
+        f(cx + (right + 0.1) * space),
+        f(baseline + (top - 0.1) * space),
+        f(baseline + (bottom + 0.1) * space)
     );
     if let Some(glyphs) = smufl::dynamic_letters(text, cx, baseline, space) {
         return Some(format!("{open}{glyphs}</g>"));
     }
-    let total: f32 = letters.iter().map(|(_, advance)| advance).sum();
     let mut x = cx - total * space / 2.0;
     let mut out = open;
     for (strokes, advance) in &letters {

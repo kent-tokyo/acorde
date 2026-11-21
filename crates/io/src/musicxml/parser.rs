@@ -122,6 +122,10 @@ struct OpenSpanner {
 /// A hairpin start whose stop is resolved by time at the end of its part.
 struct HairpinRecord {
     start: NoteAddr,
+    end: Option<NoteAddr>,
+    kind: HairpinKind,
+    number: u16,
+    above: Option<bool>,
     /// (measure index, quarter-note offset) of the stop, when it is placed by time.
     stop: Option<(usize, f64)>,
 }
@@ -142,10 +146,12 @@ fn note_at_mut<'a>(part: &'a mut acorde_core::Part, address: &NoteAddr) -> Optio
 /// before the stop; among notes starting together, the one whose end is nearest the stop.
 /// A hairpin lasts to the end of its end note, as in playback; layout pairs hairpin starts and
 /// ends per staff in time order.
-fn end_hairpin_by_time(part: &mut acorde_core::Part, start: &NoteAddr, stop: (usize, f64)) {
-    let Some(staff) = part.staves.get(start.staff) else {
-        return;
-    };
+fn end_hairpin_by_time(
+    part: &mut acorde_core::Part,
+    start: &NoteAddr,
+    stop: (usize, f64),
+) -> Option<NoteAddr> {
+    let staff = part.staves.get(start.staff)?;
     let mut best: Option<((usize, f64), f64, NoteAddr)> = None;
     let mut start_position = None;
     for (mi, measure) in staff.measures.iter().enumerate().skip(start.measure) {
@@ -194,6 +200,9 @@ fn end_hairpin_by_time(part: &mut acorde_core::Part, start: &NoteAddr, stop: (us
     };
     if let Some(note) = note_at_mut(part, &end) {
         note.hairpin_end = true;
+        Some(end)
+    } else {
+        None
     }
 }
 
@@ -332,11 +341,44 @@ fn add_tuplet_boundary(boundary: &mut Option<TupletBoundary>, kind: Option<&str>
     };
 }
 
+fn tuplet_display(
+    e: &quick_xml::events::BytesStart<'_>,
+    hidden: bool,
+) -> Option<acorde_core::TupletDisplay> {
+    (attr_str(e, b"type").as_deref() == Some("start")).then(|| acorde_core::TupletDisplay {
+        bracket: if hidden {
+            Some(false)
+        } else {
+            attr_str(e, b"bracket").and_then(|v| match v.as_str() {
+                "yes" => Some(true),
+                "no" => Some(false),
+                _ => None,
+            })
+        },
+        number: match (hidden, attr_str(e, b"show-number").as_deref()) {
+            (true, _) => acorde_core::TupletNumberDisplay::None,
+            (_, Some("none")) => acorde_core::TupletNumberDisplay::None,
+            (_, Some("both")) => acorde_core::TupletNumberDisplay::Both,
+            _ => acorde_core::TupletNumberDisplay::Actual,
+        },
+        above: attr_str(e, b"placement").and_then(|v| match v.as_str() {
+            "above" => Some(true),
+            "below" => Some(false),
+            _ => None,
+        }),
+    })
+}
+
 // Resolve after all voices are known: MusicXML directions may precede their target in
 // document order, or use a negative offset after a backup. Dynamics remain staff scoped.
+struct PlacedDynamic {
+    value: Dynamic,
+    above: Option<bool>,
+}
+
 fn resolve_direction_dynamics(
     score: &mut Score,
-    events: Vec<(usize, usize, usize, f64, Dynamic)>,
+    events: Vec<(usize, usize, usize, f64, PlacedDynamic)>,
     tolerated: &mut Vec<crate::Diagnostic>,
 ) {
     let max_bars = score
@@ -354,13 +396,14 @@ fn resolve_direction_dynamics(
     let mut candidates: HashMap<(usize, usize), Vec<(f64, NoteAddr)>> = HashMap::new();
     for (pi, part) in score.parts.iter().enumerate() {
         for (si, staff) in part.staves.iter().enumerate() {
-            let list = candidates.entry((pi, si)).or_default();
             for (mi, measure) in staff.measures.iter().enumerate() {
                 for (vi, voice) in measure.voices.iter().enumerate() {
                     let mut beat = starts[mi];
                     for (ni, note) in voice.iter().enumerate() {
                         if !note.is_rest && !note.is_grace && !note.is_cue {
-                            list.push((
+                            let physical_staff =
+                                note.cross_staff.as_ref().map_or(si, |c| c.target_staff);
+                            candidates.entry((pi, physical_staff)).or_default().push((
                                 beat,
                                 NoteAddr {
                                     part: pi,
@@ -375,8 +418,10 @@ fn resolve_direction_dynamics(
                     }
                 }
             }
-            list.sort_by(|a, b| a.0.total_cmp(&b.0));
         }
+    }
+    for list in candidates.values_mut() {
+        list.sort_by(|a, b| a.0.total_cmp(&b.0));
     }
     let mut ordered: Vec<_> = events
         .into_iter()
@@ -392,14 +437,17 @@ fn resolve_direction_dynamics(
         })
         .collect();
     ordered.sort_by(|a, b| a.0.total_cmp(&b.0).then(a.1.cmp(&b.1)));
-    let mut assigned: HashMap<(usize, usize, usize, usize, usize), Dynamic> = HashMap::new();
+    let mut assigned: HashMap<(usize, usize, usize, usize, usize), PlacedDynamic> = HashMap::new();
     for (beat, _, pi, si, dynamic) in ordered {
         let target = candidates.get(&(pi, si)).and_then(|list| {
             let index = list.partition_point(|(onset, _)| *onset < beat - 1e-9);
             list.get(index)
         });
         if let Some((_, addr)) = target {
-            assigned.insert((pi, si, addr.measure, addr.voice, addr.note), dynamic);
+            assigned.insert(
+                (addr.part, addr.staff, addr.measure, addr.voice, addr.note),
+                dynamic,
+            );
         } else {
             tolerated.push(crate::Diagnostic::warning(
                 "musicxml.unattached-dynamic",
@@ -410,7 +458,8 @@ fn resolve_direction_dynamics(
     for ((pi, si, mi, vi, ni), dynamic) in assigned {
         let note = &mut score.parts[pi].staves[si].measures[mi].voices[vi][ni];
         if note.dynamic.is_none() {
-            note.dynamic = Some(dynamic);
+            note.dynamic = Some(dynamic.value);
+            note.dynamic_above = dynamic.above;
         }
     }
 }
@@ -468,6 +517,8 @@ pub(crate) fn parse_musicxml_collecting(
     let mut slur_events: Vec<(NoteAddr, f64, ParsedSpannerEvent)> = Vec::new();
     let mut open_ottava_types: HashMap<u16, String> = HashMap::new();
     let mut in_notations = false;
+    let mut notations_hidden = false;
+    let mut notations_articulation_start = 0usize;
     let mut in_artic_block = false;
     let mut in_ornament_block = false;
     let mut in_technical_block = false;
@@ -476,9 +527,11 @@ pub(crate) fn parse_musicxml_collecting(
     let mut pending_fret: Option<u8> = None;
     let mut pending_technique_text: Option<String> = None;
     let mut pending_articulations: Vec<Articulation> = Vec::new();
+    let mut pending_hidden_articulations: Vec<usize> = Vec::new();
     let mut pending_tremolo = false;
     let mut pending_tremolo_pair: Option<String> = None;
     let mut note_arpeggiate: Option<bool> = None;
+    let mut note_arpeggio_number: Option<u16> = None;
     let mut pending_note_head: Option<NoteHead> = None;
     let mut in_pitch = false;
     let mut note_step = Step::C;
@@ -511,6 +564,7 @@ pub(crate) fn parse_musicxml_collecting(
     let mut note_tuplet_actual: Option<u8> = None;
     let mut note_tuplet_normal: Option<u8> = None;
     let mut note_tuplet_boundary: Option<TupletBoundary> = None;
+    let mut note_tuplet_display: Option<acorde_core::TupletDisplay> = None;
     let mut in_time_modification = false;
     let mut note_trill_line_start = false;
     let mut note_trill_line_end = false;
@@ -541,6 +595,9 @@ pub(crate) fn parse_musicxml_collecting(
     let mut harmony_root_step = String::new();
     let mut harmony_root_alter: i8 = 0;
     let mut harmony_kind = String::new();
+    let mut harmony_written = acorde_core::WrittenHarmony::default();
+    let mut in_harmony_numeral = false;
+    let mut in_numeral_key = false;
     let mut harmony_kind_text: Option<String> = None;
     let mut harmony_function: Option<String> = None;
     let mut harmony_bass_step = String::new();
@@ -608,8 +665,9 @@ pub(crate) fn parse_musicxml_collecting(
     let mut in_dynamics = false;
     let mut pending_direction_dynamic: Option<Dynamic> = None;
     let mut pending_direction_staff = 0usize;
-    let mut direction_dynamics: Vec<(usize, usize, usize, f64, Dynamic)> = Vec::new();
+    let mut direction_dynamics: Vec<(usize, usize, usize, f64, PlacedDynamic)> = Vec::new();
     let mut note_inline_dynamic: Option<Dynamic> = None;
+    let mut note_inline_dynamic_above: Option<bool> = None;
     let mut pending_tempo_text: Option<String> = None;
     let mut pending_expression_text: Option<String> = None;
     let mut pending_rehearsal: Option<String> = None;
@@ -619,7 +677,8 @@ pub(crate) fn parse_musicxml_collecting(
     let mut in_metronome = false;
     let mut metronome_beat_unit: Option<Duration> = None;
     let mut metronome_dots = 0u8;
-    let mut metronome_per_minute: Option<u16> = None;
+    let mut metronome_per_minute: Option<String> = None;
+    let mut metronome_words_before = String::new();
     let mut metronome_parentheses = false;
     let mut pending_metronome: Option<MetronomeMark> = None;
     let mut pending_direction_placement: Option<String> = None;
@@ -726,6 +785,15 @@ pub(crate) fn parse_musicxml_collecting(
                     }
                     // Paired and self-closing fermata elements have the same XML meaning.
                     "fermata" if in_notations => pending_articulations.push(Articulation::Fermata),
+                    // MusicXML breath marks commonly carry a glyph name such as `comma`.
+                    // The text does not change our articulation kind, but the paired element
+                    // must be imported just like `<breath-mark/>`.
+                    "breath-mark" if in_artic_block => {
+                        pending_articulations.push(Articulation::BreathMark)
+                    }
+                    "caesura" if in_artic_block => {
+                        pending_articulations.push(Articulation::Caesura)
+                    }
                     // `<tap>T</tap>`: tapping with its displayed text.
                     "tap" if in_technical_block => pending_articulations.push(
                         if attr_str(e, b"hand").as_deref() == Some("left") {
@@ -807,6 +875,9 @@ pub(crate) fn parse_musicxml_collecting(
                         harmony_root_step.clear();
                         harmony_root_alter = 0;
                         harmony_kind.clear();
+                        harmony_written = acorde_core::WrittenHarmony::default();
+                        in_harmony_numeral = false;
+                        in_numeral_key = false;
                         harmony_kind_text = None;
                         harmony_function = None;
                         harmony_bass_step.clear();
@@ -843,8 +914,35 @@ pub(crate) fn parse_musicxml_collecting(
                         );
                     }
                     "root" if in_harmony => in_harmony_root = true,
+                    "root-step" if in_harmony_root => {
+                        harmony_written.root_text = attr_str(e, b"text")
+                    }
+                    "kind" if in_harmony => {
+                        harmony_written.kind_text = attr_str(e, b"text");
+                        harmony_kind_text = harmony_written.kind_text.clone();
+                    }
+                    "inversion" if in_harmony => {
+                        harmony_written.inversion_text = attr_str(e, b"text")
+                    }
+                    "numeral" if in_harmony => in_harmony_numeral = true,
+                    "numeral-root" if in_harmony_numeral => {
+                        harmony_written.numeral = Some(acorde_core::HarmonyNumeral {
+                            root: 1,
+                            text: attr_str(e, b"text"),
+                            alter: 0.0,
+                            key: None,
+                        });
+                    }
+                    "numeral-key" if in_harmony_numeral => {
+                        in_numeral_key = true;
+                        if let Some(numeral) = &mut harmony_written.numeral {
+                            numeral.key = Some(KeySignature {
+                                fifths: 0,
+                                mode: "major".into(),
+                            });
+                        }
+                    }
                     "bass" if in_harmony => in_harmony_bass = true,
-                    "kind" if in_harmony => harmony_kind_text = attr_str(e, b"text"),
                     "degree" if in_harmony => {
                         in_harmony_degree = true;
                         harmony_degree_value.clear();
@@ -901,12 +999,23 @@ pub(crate) fn parse_musicxml_collecting(
                         metronome_beat_unit = None;
                         metronome_dots = 0;
                         metronome_per_minute = None;
+                        metronome_words_before =
+                            pending_expression_text.clone().unwrap_or_default();
                         metronome_parentheses = attr_is_yes(e, b"parentheses");
                     }
                     "beat-unit-dot" if in_metronome => {
                         metronome_dots = metronome_dots.saturating_add(1).min(4);
                     }
-                    "dynamics" if in_direction_type || in_notations => in_dynamics = true,
+                    "dynamics" if in_direction_type || in_notations => {
+                        in_dynamics = true;
+                        if in_notations && in_note {
+                            note_inline_dynamic_above = match attr_str(e, b"placement").as_deref() {
+                                Some("above") => Some(true),
+                                Some("below") => Some(false),
+                                _ => None,
+                            };
+                        }
+                    }
                     // Print-style position attributes belong on the text element; they take
                     // precedence over the legacy acorde placement on <direction>.
                     "words" | "rehearsal" if in_direction_type => {
@@ -965,11 +1074,20 @@ pub(crate) fn parse_musicxml_collecting(
                         Some("stop") => measure_repeat_active = None,
                         _ => measure_repeat_start_pending = true,
                     },
-                    "notations" if in_note => in_notations = true,
-                    "tuplet" if in_notations => add_tuplet_boundary(
-                        &mut note_tuplet_boundary,
-                        attr_str(e, b"type").as_deref(),
-                    ),
+                    "notations" if in_note => {
+                        in_notations = true;
+                        notations_hidden = attr_str(e, b"print-object").as_deref() == Some("no");
+                        notations_articulation_start = pending_articulations.len();
+                    }
+                    "tuplet" if in_notations => {
+                        add_tuplet_boundary(
+                            &mut note_tuplet_boundary,
+                            attr_str(e, b"type").as_deref(),
+                        );
+                        if let Some(display) = tuplet_display(e, notations_hidden) {
+                            note_tuplet_display = Some(display);
+                        }
+                    }
                     "articulations" if in_notations => in_artic_block = true,
                     "ornaments" if in_notations => in_ornament_block = true,
                     "technical" if in_notations => in_technical_block = true,
@@ -1033,6 +1151,7 @@ pub(crate) fn parse_musicxml_collecting(
                         note_hidden = attr_str(e, b"print-object").as_deref() == Some("no");
                         note_lyrics.clear();
                         note_inline_dynamic = None;
+                        note_inline_dynamic_above = None;
                         // A note's default-x/default-y are absolute positions in the source
                         // engraver's layout (from the measure's left barline and the staff's top
                         // line). acorde lays measures out itself, and `offset_x`/`offset_y` are
@@ -1066,6 +1185,7 @@ pub(crate) fn parse_musicxml_collecting(
                         note_tuplet_actual = None;
                         note_tuplet_normal = None;
                         note_tuplet_boundary = None;
+                        note_tuplet_display = None;
                         in_time_modification = false;
                         note_trill_line_start = false;
                         note_trill_line_end = false;
@@ -1080,9 +1200,11 @@ pub(crate) fn parse_musicxml_collecting(
                         note_glissando_end = false;
                         note_spanner_events.clear();
                         pending_articulations.clear();
+                        pending_hidden_articulations.clear();
                         pending_tremolo = false;
                         pending_tremolo_pair = None;
                         note_arpeggiate = None;
+                        note_arpeggio_number = None;
                         pending_fingerings.clear();
                         pending_string_number = None;
                         pending_fret = None;
@@ -1209,6 +1331,9 @@ pub(crate) fn parse_musicxml_collecting(
                     }
                 }
                 match tag.as_str() {
+                    "per-minute" if in_metronome => {
+                        metronome_per_minute = Some(String::new());
+                    }
                     "extend" if in_figured_figure => {
                         figured_extend_type = Some(attr_str(e, b"type").unwrap_or_default());
                         figured_figure_extender = matches!(
@@ -1250,10 +1375,15 @@ pub(crate) fn parse_musicxml_collecting(
                         metronome_dots = metronome_dots.saturating_add(1).min(4);
                     }
                     "chord" if in_note => note_chord = true,
-                    "tuplet" if in_notations => add_tuplet_boundary(
-                        &mut note_tuplet_boundary,
-                        attr_str(e, b"type").as_deref(),
-                    ),
+                    "tuplet" if in_notations => {
+                        add_tuplet_boundary(
+                            &mut note_tuplet_boundary,
+                            attr_str(e, b"type").as_deref(),
+                        );
+                        if let Some(display) = tuplet_display(e, notations_hidden) {
+                            note_tuplet_display = Some(display);
+                        }
+                    }
                     "slur" if in_note => match attr_str(e, b"type").as_deref() {
                         Some("start") => {
                             note_slur_start = true;
@@ -1362,6 +1492,9 @@ pub(crate) fn parse_musicxml_collecting(
                     "arpeggiate" if in_notations => {
                         let dir = attr_str(e, b"direction");
                         note_arpeggiate = Some(!matches!(dir.as_deref(), Some("down")));
+                        note_arpeggio_number = attr_str(e, b"number")
+                            .and_then(|n| n.parse().ok())
+                            .filter(|n| *n > 0);
                     }
                     "grace" if in_note => {
                         note_is_grace = true;
@@ -1747,8 +1880,37 @@ pub(crate) fn parse_musicxml_collecting(
                     "part" => {
                         if let Some(pi) = part_index {
                             for record in hairpin_records.drain(..) {
-                                if let Some(stop) = record.stop {
-                                    end_hairpin_by_time(&mut score.parts[pi], &record.start, stop);
+                                let end = record.end.or_else(|| {
+                                    record.stop.and_then(|stop| {
+                                        end_hairpin_by_time(
+                                            &mut score.parts[pi],
+                                            &record.start,
+                                            stop,
+                                        )
+                                    })
+                                });
+                                if let Some(end) = end {
+                                    score.spanners.push(NotationSpanner {
+                                        id: format!("musicxml-hairpin-{}", score.spanners.len()),
+                                        kind: match record.kind {
+                                            HairpinKind::Crescendo => {
+                                                NotationSpannerKind::HairpinCrescendo
+                                            }
+                                            HairpinKind::Decrescendo => {
+                                                NotationSpannerKind::HairpinDecrescendo
+                                            }
+                                        },
+                                        start: record.start,
+                                        end,
+                                        number: Some(record.number),
+                                        line_type: None,
+                                        text: None,
+                                        placement: record.above.map(|above| {
+                                            if above { "above" } else { "below" }.to_string()
+                                        }),
+                                        ottava_size: None,
+                                        ottava_type: None,
+                                    });
                                 }
                             }
                         }
@@ -1932,6 +2094,44 @@ pub(crate) fn parse_musicxml_collecting(
                         pending_midi_pan = pan_to_cc(current_text.trim());
                     }
                     "root" if in_harmony => in_harmony_root = false,
+                    "numeral" if in_harmony => in_harmony_numeral = false,
+                    "numeral-key" if in_harmony_numeral => in_numeral_key = false,
+                    "numeral-root" if in_harmony_numeral => {
+                        if let Some(numeral) = &mut harmony_written.numeral {
+                            numeral.root = current_text.trim().parse().unwrap_or(1);
+                        }
+                    }
+                    "numeral-alter" if in_harmony_numeral => {
+                        if let Some(numeral) = &mut harmony_written.numeral {
+                            numeral.alter = current_text
+                                .trim()
+                                .parse::<f32>()
+                                .ok()
+                                .filter(|v| v.is_finite())
+                                .unwrap_or(0.0);
+                        }
+                    }
+                    "numeral-fifths" if in_numeral_key => {
+                        if let Some(key) = harmony_written
+                            .numeral
+                            .as_mut()
+                            .and_then(|n| n.key.as_mut())
+                        {
+                            key.fifths = current_text.trim().parse().unwrap_or(0);
+                        }
+                    }
+                    "numeral-mode" if in_numeral_key => {
+                        if let Some(key) = harmony_written
+                            .numeral
+                            .as_mut()
+                            .and_then(|n| n.key.as_mut())
+                        {
+                            key.mode = current_text.trim().to_owned();
+                        }
+                    }
+                    "inversion" if in_harmony => {
+                        harmony_written.inversion = current_text.trim().parse().ok()
+                    }
                     "bass" if in_harmony => in_harmony_bass = false,
                     "degree-value" if in_harmony_degree => {
                         harmony_degree_value = current_text.trim().to_string();
@@ -1984,7 +2184,7 @@ pub(crate) fn parse_musicxml_collecting(
                     "harmony" => {
                         in_harmony = false;
                         let root = build_note_name(&harmony_root_step, harmony_root_alter);
-                        if !root.is_empty() {
+                        if !root.is_empty() || harmony_written.numeral.is_some() {
                             let bass = if harmony_bass_step.is_empty() {
                                 None
                             } else {
@@ -2000,6 +2200,9 @@ pub(crate) fn parse_musicxml_collecting(
                                 harmony_function: harmony_function.take(),
                                 harmony_type: None,
                                 chord_ref: None,
+                                written: (harmony_written
+                                    != acorde_core::WrittenHarmony::default())
+                                .then(|| Box::new(std::mem::take(&mut harmony_written))),
                                 range_end: None,
                                 degrees: std::mem::take(&mut harmony_degrees),
                             });
@@ -2155,22 +2358,27 @@ pub(crate) fn parse_musicxml_collecting(
                         };
                     }
                     "per-minute" if in_metronome => {
-                        metronome_per_minute = current_text
-                            .trim()
-                            .parse::<u16>()
-                            .ok()
-                            .filter(|bpm| *bpm > 0);
+                        metronome_per_minute = Some(current_text.trim().to_owned());
                     }
                     "metronome" if in_metronome => {
                         in_metronome = false;
                         if let (Some(beat_unit), Some(per_minute)) =
                             (metronome_beat_unit.take(), metronome_per_minute.take())
                         {
+                            let numeric = per_minute.parse::<u16>().ok().filter(|bpm| *bpm > 0);
+                            let written = (numeric.map(|n| n.to_string()).as_deref()
+                                != Some(per_minute.as_str()))
+                            .then(|| acorde_core::MetronomeText {
+                                per_minute,
+                                before: metronome_words_before.clone(),
+                                after: String::new(),
+                            });
                             pending_metronome = Some(MetronomeMark {
                                 beat_unit,
                                 beat_unit_dots: metronome_dots,
-                                per_minute,
+                                per_minute: numeric.unwrap_or(0),
                                 parentheses: metronome_parentheses,
+                                written,
                             });
                         } else {
                             tolerated.push(crate::Diagnostic::warning(
@@ -2194,7 +2402,7 @@ pub(crate) fn parse_musicxml_collecting(
                                 if m.navigation.is_none() {
                                     m.navigation = Some(nav);
                                 }
-                            } else if pending_sound_tempo.is_some() {
+                            } else if pending_sound_tempo.is_some() || pending_metronome.is_some() {
                                 if let Some(text) = pending_tempo_text.take() {
                                     if m.tempo_text.is_none() {
                                         m.tempo_text = Some(text.clone());
@@ -2279,7 +2487,14 @@ pub(crate) fn parse_musicxml_collecting(
                                 pending_direction_staff,
                                 measure,
                                 pending_direction_position_beats.unwrap_or(0.0),
-                                dynamic,
+                                PlacedDynamic {
+                                    value: dynamic,
+                                    above: match pending_direction_placement.as_deref() {
+                                        Some("above") => Some(true),
+                                        Some("below") => Some(false),
+                                        _ => None,
+                                    },
+                                },
                             ));
                         }
                         pending_sound_tempo = None;
@@ -2290,7 +2505,6 @@ pub(crate) fn parse_musicxml_collecting(
                             _ => None,
                         };
                         pending_direction_placement = None;
-                        pending_direction_position_beats = None;
                         pending_direction_offset_x = None;
                         pending_direction_offset_y = None;
                         pending_direction_relative_x = None;
@@ -2343,8 +2557,11 @@ pub(crate) fn parse_musicxml_collecting(
                                         let latest = last_voice_notes.get(&(key.0, voice));
                                         match (part_index, latest) {
                                             (Some(pi), Some(address))
-                                                if *address != hairpin_records[record].start =>
+                                                if *address != hairpin_records[record].start
+                                                    && address.staff
+                                                        == hairpin_records[record].start.staff =>
                                             {
+                                                hairpin_records[record].end = Some(address.clone());
                                                 if let Some(note) =
                                                     note_at_mut(&mut score.parts[pi], address)
                                                 {
@@ -2359,6 +2576,7 @@ pub(crate) fn parse_musicxml_collecting(
                             }
                             None => {}
                         }
+                        pending_direction_position_beats = None;
                         pending_direction_staff = 0;
                         in_direction = false;
                     }
@@ -2384,6 +2602,19 @@ pub(crate) fn parse_musicxml_collecting(
                             if let Some(nav) = words_to_navigation(&text) {
                                 pending_navigation = Some(nav);
                             } else {
+                                if let Some(mark) = pending_metronome.as_mut() {
+                                    let written = mark.written.get_or_insert_with(|| {
+                                        acorde_core::MetronomeText {
+                                            per_minute: mark.per_minute.to_string(),
+                                            before: metronome_words_before.clone(),
+                                            after: String::new(),
+                                        }
+                                    });
+                                    if !written.after.is_empty() {
+                                        written.after.push(' ');
+                                    }
+                                    written.after.push_str(&text);
+                                }
                                 // Several <words> in one direction (often split around a
                                 // <metronome>) form one text, not last-wins.
                                 let text = match pending_expression_text.take() {
@@ -2872,7 +3103,14 @@ pub(crate) fn parse_musicxml_collecting(
                         pending_articulations.push(Articulation::Tremolo(n));
                         pending_tremolo = false;
                     }
-                    "notations" => in_notations = false,
+                    "notations" => {
+                        if notations_hidden {
+                            pending_hidden_articulations
+                                .extend(notations_articulation_start..pending_articulations.len());
+                        }
+                        in_notations = false;
+                        notations_hidden = false;
+                    }
                     "articulations" => in_artic_block = false,
                     "ornaments" => in_ornament_block = false,
                     "technical" => in_technical_block = false,
@@ -3064,17 +3302,52 @@ pub(crate) fn parse_musicxml_collecting(
                         if let Some(pi) = part_index {
                             let requested_staff_index = note_staff.saturating_sub(1);
                             let staff_count = score.parts[pi].staves.len();
+                            // A beamed voice can begin on either staff. Keep a continuous
+                            // authored beam together even before its conventional home staff
+                            // has sounded; a backup/forward clears last_note_start.
+                            let beam_home = last_note_start.and_then(|(staff, slot, _)| {
+                                let previous = last_note_address.as_ref().and_then(|addr| {
+                                    score
+                                        .parts
+                                        .get(addr.part)?
+                                        .staves
+                                        .get(addr.staff)?
+                                        .measures
+                                        .get(addr.measure)?
+                                        .voices
+                                        .get(addr.voice)?
+                                        .get(addr.note)
+                                })?;
+                                (staff != requested_staff_index
+                                    && requested_staff_index < staff_count
+                                    && source_voice_slots.get(&(staff, note_voice)) == Some(&slot)
+                                    && voice_cursor_ticks.get(&(staff, slot))
+                                        == Some(&measure_cursor_ticks)
+                                    && matches!(
+                                        previous.beam,
+                                        acorde_core::BeamState::Begin
+                                            | acorde_core::BeamState::Continue
+                                    )
+                                    && matches!(
+                                        note_beam,
+                                        acorde_core::BeamState::Continue
+                                            | acorde_core::BeamState::End
+                                    ))
+                                .then_some(staff)
+                            });
                             let cross_home = if note_chord {
                                 last_note_cross_home
                             } else {
-                                declared_cross_staff_home(
-                                    requested_staff_index,
-                                    staff_count,
-                                    note_voice,
-                                    measure_cursor_ticks,
-                                    &source_voice_slots,
-                                    &voice_cursor_ticks,
-                                )
+                                beam_home.or_else(|| {
+                                    declared_cross_staff_home(
+                                        requested_staff_index,
+                                        staff_count,
+                                        note_voice,
+                                        measure_cursor_ticks,
+                                        &source_voice_slots,
+                                        &voice_cursor_ticks,
+                                    )
+                                })
                             };
                             let (target_staff_index, cross_target) = if let Some(home) = cross_home
                             {
@@ -3350,15 +3623,24 @@ pub(crate) fn parse_musicxml_collecting(
                                     }
                                     // MusicXML permits an ornament on any chord member;
                                     // the canonical note stores the chord as one event.
-                                    for mark in pending_articulations.drain(..) {
+                                    for (index, mark) in pending_articulations.drain(..).enumerate()
+                                    {
                                         if matches!(mark, Articulation::Tremolo(_))
                                             && !last.articulations.contains(&mark)
                                         {
+                                            if pending_hidden_articulations.contains(&index) {
+                                                last.hidden_articulations
+                                                    .push(last.articulations.len());
+                                            }
                                             last.articulations.push(mark);
                                         }
                                     }
                                     if pending_tremolo_pair.is_some() {
                                         last.tremolo_pair = pending_tremolo_pair.take();
+                                    }
+                                    if let Some(direction) = note_arpeggiate.take() {
+                                        last.arpeggiate = Some(direction);
+                                        last.arpeggio_number = note_arpeggio_number.take();
                                     }
                                     merge_musicxml_chord_note(
                                         last,
@@ -3413,22 +3695,34 @@ pub(crate) fn parse_musicxml_collecting(
                                             normal_notes,
                                         });
                                         note.tuplet_boundary = note_tuplet_boundary;
+                                        note.tuplet_display = note_tuplet_display.clone();
                                     }
-                                    let mut started_hairpin = None;
+                                    let mut started_hairpins = Vec::new();
                                     if !note.is_grace {
                                         let mut numbers = staff_hairpin_starts
                                             .keys()
-                                            .filter(|(staff, _)| *staff == target_staff_index)
-                                            .map(|(_, number)| *number)
+                                            .filter(|(staff, _)| {
+                                                *staff == target_staff_index
+                                                    || cross_target == Some(*staff)
+                                            })
+                                            .copied()
                                             .collect::<Vec<_>>();
                                         numbers.sort_unstable();
-                                        if let Some(&number) = numbers.first()
-                                            && let Some((kind, above)) = staff_hairpin_starts
-                                                .remove(&(target_staff_index, number))
-                                        {
-                                            note.hairpin_start = Some(kind);
-                                            note.hairpin_above = above;
-                                            started_hairpin = Some(number);
+                                        for (direction_staff, number) in numbers {
+                                            if let Some((kind, above)) = staff_hairpin_starts
+                                                .remove(&(direction_staff, number))
+                                            {
+                                                if note.hairpin_start.is_none() {
+                                                    note.hairpin_start = Some(kind);
+                                                    note.hairpin_above = above;
+                                                }
+                                                started_hairpins.push((
+                                                    direction_staff,
+                                                    number,
+                                                    kind,
+                                                    above,
+                                                ));
+                                            }
                                         }
                                     }
                                     if let Some(cs) = pending_chord.take() {
@@ -3447,6 +3741,7 @@ pub(crate) fn parse_musicxml_collecting(
                                     note.glissando_end = note_glissando_end;
                                     if let Some(arp) = note_arpeggiate.take() {
                                         note.arpeggiate = Some(arp);
+                                        note.arpeggio_number = note_arpeggio_number.take();
                                     }
                                     if !pending_fingerings.is_empty() {
                                         note.fingerings = std::mem::take(&mut pending_fingerings);
@@ -3496,6 +3791,8 @@ pub(crate) fn parse_musicxml_collecting(
                                     if !pending_articulations.is_empty() {
                                         note.articulations =
                                             std::mem::take(&mut pending_articulations);
+                                        note.hidden_articulations =
+                                            std::mem::take(&mut pending_hidden_articulations);
                                     }
                                     crate::assign_note_verses(
                                         &mut note,
@@ -3503,6 +3800,7 @@ pub(crate) fn parse_musicxml_collecting(
                                     );
                                     if !note.is_rest && !note.is_grace {
                                         note.dynamic = note_inline_dynamic.take();
+                                        note.dynamic_above = note_inline_dynamic_above.take();
                                     }
                                     note.hidden = note_hidden;
                                     voice.push(note);
@@ -3545,7 +3843,7 @@ pub(crate) fn parse_musicxml_collecting(
                                     last_note_start =
                                         Some((target_staff_index, voice_index, note_start));
                                     last_note_cross_home = cross_home;
-                                    if let Some(number) = started_hairpin {
+                                    for (direction_staff, number, kind, above) in started_hairpins {
                                         let record = hairpin_records.len();
                                         let start_position = (
                                             address.measure,
@@ -3555,19 +3853,23 @@ pub(crate) fn parse_musicxml_collecting(
                                         // A stop read before this start but timed after it.
                                         let early = early_hairpin_stops.iter().position(
                                             |&(staff, stop_number, position)| {
-                                                staff == target_staff_index
+                                                staff == direction_staff
                                                     && stop_number == number
                                                     && position_after(position, start_position)
                                             },
                                         );
                                         hairpin_records.push(HairpinRecord {
                                             start: address.clone(),
+                                            end: None,
+                                            kind,
+                                            number,
+                                            above,
                                             stop: early
                                                 .map(|index| early_hairpin_stops.remove(index).2),
                                         });
                                         if early.is_none() {
                                             open_hairpin_voices.insert(
-                                                (target_staff_index, number),
+                                                (direction_staff, number),
                                                 (voice_index, record),
                                             );
                                         }
@@ -4506,6 +4808,68 @@ mod tests {
     }
 
     #[test]
+    fn simultaneous_numbered_wedges_keep_both_sides_through_roundtrip() {
+        let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>2</beats><beat-type>4</beat-type></time></attributes><direction placement="above"><direction-type><wedge type="crescendo" number="1"/></direction-type></direction><direction placement="below"><direction-type><wedge type="crescendo" number="2"/></direction-type></direction><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note><note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note><direction><direction-type><wedge type="stop" number="1"/></direction-type></direction><direction><direction-type><wedge type="stop" number="2"/></direction-type></direction></measure></part></score-partwise>"#;
+        let assert_wedges = |score: &Score| {
+            let wedges = score
+                .spanners
+                .iter()
+                .filter(|span| span.kind == NotationSpannerKind::HairpinCrescendo)
+                .collect::<Vec<_>>();
+            assert_eq!(wedges.len(), 2);
+            assert_eq!(
+                wedges.iter().map(|span| span.number).collect::<Vec<_>>(),
+                vec![Some(1), Some(2)]
+            );
+            assert_eq!(
+                wedges
+                    .iter()
+                    .map(|span| span.placement.as_deref())
+                    .collect::<Vec<_>>(),
+                vec![Some("above"), Some("below")]
+            );
+            assert!(
+                wedges
+                    .iter()
+                    .all(|span| span.start.note == 0 && span.end.note == 1)
+            );
+        };
+        let score = parse_musicxml(xml).expect("imports both wedges");
+        assert_wedges(&score);
+        let restored =
+            parse_musicxml(&crate::serialize_musicxml(&score).expect("serializes wedges"))
+                .expect("reimports wedges");
+        assert_wedges(&restored);
+    }
+
+    #[test]
+    fn wedge_on_cross_staff_beam_attaches_to_displayed_staff_note() {
+        let xml = r#"<score-partwise><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>24</divisions><staves>2</staves><time><beats>2</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>B</step><octave>2</octave></pitch><duration>4</duration><voice>1</voice><type>16th</type><stem>up</stem><staff>2</staff><beam number="1">begin</beam></note><note><pitch><step>D</step><octave>3</octave></pitch><duration>4</duration><voice>1</voice><type>16th</type><stem>up</stem><staff>1</staff><beam number="1">continue</beam></note><direction placement="below"><direction-type><wedge type="crescendo" number="1"/></direction-type><staff>1</staff></direction><note><pitch><step>C</step><octave>4</octave></pitch><duration>12</duration><voice>1</voice><type>eighth</type><stem>up</stem><staff>1</staff><beam number="1">end</beam></note><direction><direction-type><wedge type="stop" number="1"/></direction-type><staff>1</staff></direction><direction placement="below"><direction-type><wedge type="diminuendo" number="1"/></direction-type><staff>1</staff></direction><note><pitch><step>C</step><octave>4</octave></pitch><duration>8</duration><voice>1</voice><type>eighth</type><staff>1</staff></note><direction><direction-type><wedge type="stop" number="1"/></direction-type><staff>1</staff></direction></measure></part></score-partwise>"#;
+        let score = parse_musicxml(xml).expect("imports cross-staff wedges");
+        let wedges = score
+            .spanners
+            .iter()
+            .filter(|span| {
+                matches!(
+                    span.kind,
+                    NotationSpannerKind::HairpinCrescendo | NotationSpannerKind::HairpinDecrescendo
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            wedges.len(),
+            2,
+            "{wedges:?} notes={:?}",
+            score.parts[0]
+                .staves
+                .iter()
+                .map(|staff| &staff.measures[0].voices[0])
+                .collect::<Vec<_>>()
+        );
+        assert_ne!(wedges[0].start, wedges[1].start);
+    }
+
+    #[test]
     fn sparse_source_voice_numbers_use_stable_editing_slots_without_renumbering() {
         let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>1</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type></note><backup><duration>1</duration></backup><note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><voice>5</voice><type>quarter</type></note></measure><measure number="2"><note><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration><voice>5</voice><type>quarter</type></note></measure></part></score-partwise>"#;
         let score = parse_musicxml(xml).expect("sparse voices parse");
@@ -4955,20 +5319,24 @@ mod tests {
 
     #[test]
     fn breath_mark_parsed_from_notations() {
-        let xml = xml_with_notations("<breath-mark/>");
-        let score = parse_musicxml(&xml).unwrap();
-        let notes = &score.parts[0].staves[0].measures[0].voices[0];
-        let note = notes.iter().find(|n| !n.is_rest).unwrap();
-        assert!(note.articulations.contains(&Articulation::BreathMark));
+        for element in ["<breath-mark/>", "<breath-mark>comma</breath-mark>"] {
+            let xml = xml_with_notations(&format!("<articulations>{element}</articulations>"));
+            let score = parse_musicxml(&xml).unwrap();
+            let notes = &score.parts[0].staves[0].measures[0].voices[0];
+            let note = notes.iter().find(|n| !n.is_rest).unwrap();
+            assert!(note.articulations.contains(&Articulation::BreathMark));
+        }
     }
 
     #[test]
     fn caesura_parsed_from_notations() {
-        let xml = xml_with_notations("<caesura/>");
-        let score = parse_musicxml(&xml).unwrap();
-        let notes = &score.parts[0].staves[0].measures[0].voices[0];
-        let note = notes.iter().find(|n| !n.is_rest).unwrap();
-        assert!(note.articulations.contains(&Articulation::Caesura));
+        for element in ["<caesura/>", "<caesura>normal</caesura>"] {
+            let xml = xml_with_notations(&format!("<articulations>{element}</articulations>"));
+            let score = parse_musicxml(&xml).unwrap();
+            let notes = &score.parts[0].staves[0].measures[0].voices[0];
+            let note = notes.iter().find(|n| !n.is_rest).unwrap();
+            assert!(note.articulations.contains(&Articulation::Caesura));
+        }
     }
 
     #[test]

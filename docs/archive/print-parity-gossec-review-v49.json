@@ -1,0 +1,223 @@
+{
+  "classification": "partial assistant review with unresolved defects; no visual pass",
+  "records": [
+    {
+      "score": "gossec",
+      "engine": "acorde",
+      "pdf_sha256": "c2ffd532ea40365b2ab64ec947adf713ebb7dcf09981020028054ba33342dd14",
+      "pages": [
+        {
+          "file": "gossec-acorde-01.png",
+          "sha256": "02f91b3713c1491859d992f7abbe3cd7d4084c06fcf5659d0c4f1175be59ca0b",
+          "review": "inspected; comparative findings unresolved",
+          "reviewer": "single implementing assistant",
+          "physical_scale_basis": "A4 PDF rasterized to 1800 px height; full page inspected",
+          "observations": [
+            "Above-staff up-bow and down-bow primitives are inverted relative to their standard symbol orientation.",
+            "Grace-to-principal-note slurs have excessive vertical excursions; short below slur ends at a downward stem tip instead of near the notehead.",
+            "System-start measure number sits too close to the treble clef top; check exact ink clearance.",
+            "No page-edge clipping or missing pitched events found by the prior audit; these observations do not establish full source fidelity."
+          ]
+        },
+        {
+          "file": "gossec-acorde-02.png",
+          "sha256": "52d4485cdc028835a32c0cb99b628629842f6d6bbf8ce6924f3204522a70b9a4",
+          "review": "inspected; comparative findings unresolved",
+          "reviewer": "single implementing assistant",
+          "physical_scale_basis": "A4 PDF rasterized to 1800 px height; full page inspected",
+          "observations": [
+            "Above-staff up-bow and down-bow primitives are inverted relative to their standard symbol orientation.",
+            "Grace-to-principal-note slurs have excessive vertical excursions; short below slur ends at a downward stem tip instead of near the notehead.",
+            "System-start measure number sits too close to the treble clef top; check exact ink clearance.",
+            "No page-edge clipping or missing pitched events found by the prior audit; these observations do not establish full source fidelity."
+          ]
+        },
+        {
+          "file": "gossec-acorde-03.png",
+          "sha256": "1f314d43a070735db9c17926c7607f31088dc64f606f487f1acc09b52c1a4e8c",
+          "review": "pending"
+        },
+        {
+          "file": "gossec-acorde-04.png",
+          "sha256": "13db03df1b730fb823cd3f0890715d3d4989006de82f018a0ed64358e9a2801a",
+          "review": "pending"
+        },
+        {
+          "file": "gossec-acorde-05.png",
+          "sha256": "cecf046fecf2e1cc87ac06aedc4fdcd09b60de7133fe0103f0240c49569b7c0d",
+          "review": "pending"
+        },
+        {
+          "file": "gossec-acorde-06.png",
+          "sha256": "1361c83d1405d7fb6f4e90ae271fa6f079dfb3e747b01f8abf9d53ade4f489b5",
+          "review": "pending"
+        },
+        {
+          "file": "gossec-acorde-07.png",
+          "sha256": "e44a118bff8576f83fec74784bf9b9fcc7a128c2d0567720958d52ac46ba0ab9",
+          "review": "pending"
+        },
+        {
+          "file": "gossec-acorde-08.png",
+          "sha256": "40f5245ede709316d8b7cfafaee7c5bd0ce58d2ce470579e7172c5b12ebb86cf",
+          "review": "inspected; fingerings repaired, score-level review pending",
+          "observations": [
+            "Second-violin fingerings are near their staff and no longer collide with first-violin tuplets.",
+            "Hidden first-violin tuplet groups are absent."
+          ]
+        },
+        {
+          "file": "gossec-acorde-09.png",
+          "sha256": "e71967a9de72524315d904c18e42eaa0ba836ed084517ff2feae8594059a6394",
+          "review": "pending"
+        },
+        {
+          "file": "gossec-acorde-10.png",
+          "sha256": "331566b2b86d25b24090b83f70b7f528fea9fc56b28099e505f48c54d05522a0",
+          "review": "pending"
+        },
+        {
+          "file": "gossec-acorde-11.png",
+          "sha256": "c59d9e73be8b013848f84f19caf524ee20ce3b7a716125f2741119843d5d470d",
+          "review": "pending"
+        },
+        {
+          "file": "gossec-acorde-12.png",
+          "sha256": "a552001b50b4a0d01db3b49475d2c2140c48872b2688c8a1c5a0f4af32abd718",
+          "review": "pending"
+        },
+        {
+          "file": "gossec-acorde-13.png",
+          "sha256": "bbf534e79451a18600ddc43646e523faf4acc4214b717bc13114b0a785b40f7c",
+          "review": "pending"
+        },
+        {
+          "file": "gossec-acorde-14.png",
+          "sha256": "fbf9158ab63c480f200ff0cb3541d7d923c502bb5e43731884732ef1f835157a",
+          "review": "pending"
+        },
+        {
+          "file": "gossec-acorde-15.png",
+          "sha256": "70c28ee743cf820976edb3d396bb17e3eceddab17085fab5cb506ca9b2975bc7",
+          "review": "pending"
+        },
+        {
+          "file": "gossec-acorde-16.png",
+          "sha256": "5a2a6f59ca2b600afd81ee27e31683840a66e169266c7e76cc6783372cfe9744",
+          "review": "pending"
+        },
+        {
+          "file": "gossec-acorde-17.png",
+          "sha256": "126473b22414d5235b25106d852125289e39e6115fed56d922f3e2aed4cd3e3c",
+          "review": "pending"
+        },
+        {
+          "file": "gossec-acorde-18.png",
+          "sha256": "916c3fa1cb9daef4d24fd38c7ecc1db2822e90f0f545b541bd55f78afb07d5af",
+          "review": "pending"
+        }
+      ]
+    },
+    {
+      "score": "gossec",
+      "engine": "verovio",
+      "pdf_sha256": "fc161c2fd1208047478fe1fb94eeefd2b6d1b881e3073ea5e1be30284aec01d0",
+      "pages": [
+        {
+          "file": "gossec-verovio-01.png",
+          "sha256": "d9863b1f4d9a7b30558d1602593afe19bc1843f9134960c5d45faa36a4b7949f",
+          "review": "inspected; comparative findings unresolved",
+          "reviewer": "single implementing assistant",
+          "physical_scale_basis": "A4 PDF rasterized to 1800 px height; full page inspected",
+          "observations": [
+            "Standard upright bowing shapes; compact grace-note slurs.",
+            "System starts clear the clef with measure numbers at the left bracket.",
+            "Outer slur sides differ from source Bezier-side hints; do not treat Verovio side choices as source ground truth."
+          ]
+        },
+        {
+          "file": "gossec-verovio-02.png",
+          "sha256": "4e836032e272e9911569161c5d74c272886d43c86498b08fa3ef71389d1f5c43",
+          "review": "inspected; comparative findings unresolved",
+          "reviewer": "single implementing assistant",
+          "physical_scale_basis": "A4 PDF rasterized to 1800 px height; full page inspected",
+          "observations": [
+            "Standard upright bowing shapes; compact grace-note slurs.",
+            "System starts clear the clef with measure numbers at the left bracket.",
+            "Outer slur sides differ from source Bezier-side hints; do not treat Verovio side choices as source ground truth."
+          ]
+        },
+        {
+          "file": "gossec-verovio-03.png",
+          "sha256": "c35428f56614240ea98c6f4f5fb74d00eaa9c57db9b58e8a7d6c3d381d34d58c",
+          "review": "pending"
+        },
+        {
+          "file": "gossec-verovio-04.png",
+          "sha256": "280525a47415199f2e1977b742a3239b4a31db41b160eee615b1410230925bff",
+          "review": "pending"
+        },
+        {
+          "file": "gossec-verovio-05.png",
+          "sha256": "f048190f2e4b50d13495b2377405ccf4f8b91810b3b76b30a872742c26d340c1",
+          "review": "pending"
+        },
+        {
+          "file": "gossec-verovio-06.png",
+          "sha256": "814030b764d5d8b0484c82c5942880d53ec497eba205256e85f0a41802605282",
+          "review": "pending"
+        },
+        {
+          "file": "gossec-verovio-07.png",
+          "sha256": "511b251fadf9a5ba742a68d1786d9079d660b57d9ecaa168130f09f3d9d15f6b",
+          "review": "pending"
+        },
+        {
+          "file": "gossec-verovio-08.png",
+          "sha256": "ea349aadd0eea80c5e0367b99e227faec4d7eb8a2e77e3e6a1aef3bfea0ff9d6",
+          "review": "pending"
+        },
+        {
+          "file": "gossec-verovio-09.png",
+          "sha256": "d56e9f718bb1285481ad4cb62352536a86c056bcb766ea537b9b5226e9b903ca",
+          "review": "pending"
+        },
+        {
+          "file": "gossec-verovio-10.png",
+          "sha256": "aea628a4e2162e1037118b7b9cb1bdc7230c16d867bc7749c2ae89e4d23a8cb2",
+          "review": "pending"
+        },
+        {
+          "file": "gossec-verovio-11.png",
+          "sha256": "f1ceb29caa0de3cff954f376b434c50aed0649c9cb2e5589a790ad2c70a258f2",
+          "review": "pending"
+        },
+        {
+          "file": "gossec-verovio-12.png",
+          "sha256": "546c3109ef42fe12da410b4ab9ec625cf65d4a4ce0d8bac7ef99e7bc92f5a4b7",
+          "review": "pending"
+        },
+        {
+          "file": "gossec-verovio-13.png",
+          "sha256": "57f282cdd9bb3f810b852025d3498b31255dccce0890b3314f23eb07856773cf",
+          "review": "pending"
+        },
+        {
+          "file": "gossec-verovio-14.png",
+          "sha256": "a0432074b85d9914490b8097c84bdafdfe23bdf2fe7d9bdc0ead9b0d58a99e3a",
+          "review": "pending"
+        },
+        {
+          "file": "gossec-verovio-15.png",
+          "sha256": "590848a156da24dd1215bb8711bd600239d5f477e1e1d26ab5135068529bfc8a",
+          "review": "pending"
+        },
+        {
+          "file": "gossec-verovio-16.png",
+          "sha256": "e5084b3342e1707f10b5f866915a8b1b518dccc4e5feb6aec002b59a81ab7876",
+          "review": "pending"
+        }
+      ]
+    }
+  ]
+}

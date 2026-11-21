@@ -173,6 +173,22 @@ jobs:
       - name: Check opt-in OMR bindings for wasm32
         run: cargo check -p acorde-wasm --target wasm32-unknown-unknown --all-features --locked
 
+      - name: Test measured print in Chrome
+        run: wasm-pack test --headless --chrome crates/wasm --features measured-print
+
+      - name: Build and budget measured print profile
+        shell: bash
+        run: |
+          wasm-pack build crates/wasm --target web --release \
+            --out-dir ../../target/wasm-profiles/measured-print \
+            --features measured-print
+          size=$(stat -c%s target/wasm-profiles/measured-print/acorde_wasm_bg.wasm)
+          echo "Measured print WASM bytes: $size"
+          # Includes caller-font shaping and outline geometry. Candidate v47
+          # measured 11,241,046 bytes on macOS; qualify this separate opt-in
+          # profile on Linux with less than 2% cross-toolchain headroom.
+          test "$size" -le 11450000
+
       - name: Check WASM artifact budget
         shell: bash
         run: |
@@ -291,6 +307,10 @@ jobs:
           # measured 7,130,353 bytes, +35,427 over the same-base #433 build.
           # The prior Linux #433 artifact was 7,169,359 bytes; this gate leaves
           # about 15 KB above its size plus the measured feature delta.
+          # Print/source-fidelity repairs on d65041b3 measured 7,338,641 bytes
+          # on Linux CI (run 43678938474). Hidden articulation visibility adds
+          # model/import/export handling. The combined print/arrangement cost
+          # must be measured on this branch before release qualification.
           # Arrangement integration (PR #442) measured 8,046,523 bytes versus
           # 7,198,793 at b12bf625: +847,730 bytes. Both are Linux CI builds
           # with Rust 1.100.0, wasm-pack 0.15.0 and the same -Oz optimization.
@@ -321,7 +341,9 @@ jobs:
           # The old 8,690,000-byte gate failed by 14,678 bytes. Set a measured
           # 8,740,000-byte gate with 35,322 bytes of headroom; receipt in
           # docs/arrangement-stage7-wasm-size.json.
-          test "$size" -le 8740000
+          # Provisional combined bound: 8,706,630 measured arrangement bytes
+          # plus 139,848 measured print increment, with 53,522 bytes of margin.
+          test "$size" -le 8900000
 
   renderer-benchmark:
     name: Renderer performance budget

@@ -83,6 +83,19 @@ an import-only MuseScore 3.6.1 smoke corpus; MSCX export is not claimed.
 pinned revision in `manifest.json`. Its physical 3/4+1/4 and 7/8+1/8 split measures are used for
 an import-only playback onset regression; MusicXML export is not claimed.
 
+`openscore_lieder_brahms_gestillte_sehnsucht.mxl` is the full CC0 OpenScore Lieder
+MusicXML score of Brahms's *Gestillte Sehnsucht*, Op. 91 No. 1. Its upstream revision,
+path and checksum are pinned in `manifest.json`. After a failed frozen print evaluation,
+it became development data for cross-staff beams, hidden timing rests and authored
+tuplet visibility. It is no longer an unseen evaluation input.
+
+`harmony_written.musicxml` is a self-authored fixture for Roman numerals, local keys,
+inversions, and authored root/kind text including an explicitly empty root label.
+
+`musicxml_hidden_notations.musicxml` is a self-authored fixture for separate visible
+and hidden notation layers. Hidden performance articulations remain in the model
+and playback; hidden tuplet digits and brackets do not appear in print.
+
 `freilachs_no_17.mscz` and `freilachs_no_17_accordion.mscz` are public-domain
 score archives from the pinned fisarmonica.org revision in `manifest.json`.
 Their two independent repeat/alternate-ending groups are tested through direct
@@ -143,3 +156,5 @@ of backward non-note directions remains reported as unsupported.
 crescendo and high notes on the lower staff. It is a focused inter-staff clearance example, not a
 representative corpus. Verovio 6.3.0 and Acorde were rendered from this same input; both avoided
 a wedge/note collision in this example, while Acorde used more inter-staff space.
+
+- `openscore_gossec_quartet_rh189.mxl`: OpenScore StringQuartets, Gossec RH 189 (CC0-1.0), pinned revision and hash in the manifest. Full-score regression for hidden notation layers and second-violin fingerings near adjacent staff notation.

@@ -1230,6 +1230,7 @@ fn parse_abc_chord_symbol(text: &str) -> Option<ChordSymbol> {
         harmony_function: None,
         harmony_type: None,
         chord_ref: None,
+        written: None,
         range_end: None,
         degrees: Vec::new(),
     })

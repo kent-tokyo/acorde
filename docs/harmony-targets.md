@@ -121,4 +121,3 @@ The observed legacy timing ratios vary between runs; this sample does not prove
 a performance improvement. The script's standalone wrapper allows Clippy's
 `duplicate_mod` lint only because both unchanged audition fixture graphs embed
 the same private helper. Product code and tests retain their normal lint rules.
-

@@ -2,6 +2,52 @@
 
 ## [Unreleased]
 
+- Import text-bearing MusicXML breath and caesura marks as visible articulations;
+  paired tags now follow the same path as self-closing tags.
+- Preserve concurrent numbered MusicXML wedges as typed crescendo/decrescendo
+  spanners, including starts on notes beamed across staves. MusicXML round trips
+  retain their numbers and placements; measured collision reflow follows each
+  rendered wedge's side. This extends the serialized
+  `NotationSpannerKind` enum; release-version review is required.
+- Retain hidden MusicXML articulations as performance data with optional
+  `Note::hidden_articulations` indices and `SetHiddenArticulations` editing.
+  Hidden notation containers suppress their tuplet digits/brackets and articulation
+  ink through export. Measured print reserves final fingering and technique-text bounds.
+- Preserve authored dynamic placement in optional, serde-defaulted
+  `Note::dynamic_above`, `SetDynamicPlacement`, MusicXML import/export and print
+  engraving. Unspecified placement stays unspecified through round trips.
+- Preserve MusicXML harmony root/kind spellings, Roman or Nashville numerals,
+  alterations, local numeral keys and inversions in optional `ChordSymbol::written`
+  JSON. Empty authored root text stays empty. `SetChordSymbol` edits and undo/redo
+  retain this data. The added public struct field requires release-version review.
+- Measured print uses pinned OFL-licensed Bravura Text 1.482 outlines for inline
+  music symbols; ordinary text retains the caller's font. Empty SVG paths are
+  accepted as nonpainting PDF geometry.
+- Retain authored tuplet bracket, number visibility/ratio, and side in the optional
+  serde-defaulted `Note::tuplet_display` field with `SetTupletDisplay` editing and
+  MusicXML round trips. Hidden source notes and rests remain invisible in PDF.
+- Keep authored beams together when they begin on the lower staff and cross upward;
+  synthetic fractional timing rests do not acquire visible tuplet marks on export.
+- Measured print clears tuplets, text, articulations, beams and ties using final
+  geometry, shares compatible filled unison heads, and measures interleaved rhythmic
+  columns per physical staff. Qualification against the retired corpus remains ongoing.
+- Add opt-in measured print engraving with caller-supplied text fonts, physical
+  minimum spacing, per-system collision reflow, outlined SVG text and shared PDF
+  geometry. Existing rendering defaults are unchanged. See the engraving parity
+  protocol for development evidence and still-pending qualification gates.
+- Preserve compound outline counters in PDF fills, additional-verse lyric
+  hyphens/extenders, and the placement of numbered slurs sharing endpoints.
+- Separate repeat dots and barline strokes at print size, with larger repeat
+  dots and measured trailing clearance before backward repeats.
+- Add serde-defaulted `Note::arpeggio_number` and its editing command, preserving
+  MusicXML groups that join simultaneous rolled chords across voices or staves.
+- Extend `MetronomeMark` JSON with optional, serde-defaulted `written` text
+  (`per_minute`, `before`, `after`) to preserve empty, qualified and ranged
+  MusicXML metronome values and the order of surrounding words. Playback tempo
+  remains independent. Adding the public Rust struct field requires callers
+  constructing a literal to specify `written: None`; release versioning must
+  account for this API change.
+
 ## 1.3.15 - 2026-11-20
 
 - Write new standard-bass preset and layer arrangements on separate treble

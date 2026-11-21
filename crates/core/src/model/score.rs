@@ -336,6 +336,8 @@ pub enum NotationSpannerKind {
     TrillLine,
     Pedal,
     Ottava,
+    HairpinCrescendo,
+    HairpinDecrescendo,
     /// A dashed continuation line after a text direction ("cresc. - - -"), MusicXML
     /// `<dashes>`.
     Dashes,
@@ -457,6 +459,16 @@ impl Score {
                     !start.is_some_and(|n| n.ottava_start.is_some())
                         || !end.is_some_and(|n| n.ottava_end)
                 }
+                NotationSpannerKind::HairpinCrescendo => {
+                    !start.is_some_and(|n| {
+                        n.hairpin_start == Some(crate::model::notation::HairpinKind::Crescendo)
+                    }) || !end.is_some_and(|n| n.hairpin_end)
+                }
+                NotationSpannerKind::HairpinDecrescendo => {
+                    !start.is_some_and(|n| {
+                        n.hairpin_start == Some(crate::model::notation::HairpinKind::Decrescendo)
+                    }) || !end.is_some_and(|n| n.hairpin_end)
+                }
                 // No note flag holds dashes; consumers read the typed spanner.
                 NotationSpannerKind::Dashes => false,
             }
@@ -472,6 +484,12 @@ impl Score {
                     NotationSpannerKind::Glissando => note.glissando_start = true,
                     NotationSpannerKind::TrillLine => note.trill_line_start = true,
                     NotationSpannerKind::Pedal => note.pedal_start = true,
+                    NotationSpannerKind::HairpinCrescendo if note.hairpin_start.is_none() => {
+                        note.hairpin_start = Some(crate::model::notation::HairpinKind::Crescendo);
+                    }
+                    NotationSpannerKind::HairpinDecrescendo if note.hairpin_start.is_none() => {
+                        note.hairpin_start = Some(crate::model::notation::HairpinKind::Decrescendo);
+                    }
                     NotationSpannerKind::Ottava if note.ottava_start.is_none() => {
                         let two = spanner.ottava_size.is_some_and(|size| size >= 15);
                         // MusicXML `up` displays the notes higher: an 8vb.
@@ -483,7 +501,10 @@ impl Score {
                             (true, true) => OttavaKind::Mb15,
                         });
                     }
-                    NotationSpannerKind::Ottava | NotationSpannerKind::Dashes => {}
+                    NotationSpannerKind::Ottava
+                    | NotationSpannerKind::Dashes
+                    | NotationSpannerKind::HairpinCrescendo
+                    | NotationSpannerKind::HairpinDecrescendo => {}
                 }
             }
             if let Some(note) = score.note_at_mut(&spanner.end) {
@@ -492,6 +513,8 @@ impl Score {
                     NotationSpannerKind::Glissando => note.glissando_end = true,
                     NotationSpannerKind::TrillLine => note.trill_line_end = true,
                     NotationSpannerKind::Pedal => note.pedal_end = true,
+                    NotationSpannerKind::HairpinCrescendo
+                    | NotationSpannerKind::HairpinDecrescendo => note.hairpin_end = true,
                     NotationSpannerKind::Ottava => note.ottava_end = true,
                     NotationSpannerKind::Dashes => {}
                 }
@@ -2345,9 +2368,26 @@ pub struct MetronomeMark {
     pub beat_unit: Duration,
     #[serde(default)]
     pub beat_unit_dots: u8,
+    /// Exact positive integer when available; zero when `written` contains a textual
+    /// or empty value. This is notation, never the playback tempo.
     pub per_minute: u16,
     #[serde(default)]
     pub parentheses: bool,
+    /// Source spelling and words surrounding the beat symbol. When present, these
+    /// runs replace the corresponding merged `Measure::tempo_text` on the page.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub written: Option<MetronomeText>,
+}
+
+/// Ordered text runs in a written metronome direction. An empty `per_minute`
+/// prints only the beat symbol; a range or qualified value stays textual.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MetronomeText {
+    pub per_minute: String,
+    #[serde(default)]
+    pub before: String,
+    #[serde(default)]
+    pub after: String,
 }
 
 /// A pedal direction at a score-time position within this staff's measure.
@@ -2686,10 +2726,17 @@ pub struct Note {
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub explicit_unbeamed: bool,
     pub articulations: Vec<Articulation>,
+    /// Indices of articulations retained for performance but not printed.
+    /// Out-of-range indices have no effect; editing commands keep indices aligned.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub hidden_articulations: Vec<usize>,
     /// Two-note tremolo endpoint ("start" or "stop"); absent for a single-note tremolo.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tremolo_pair: Option<String>,
     pub dynamic: Option<Dynamic>,
+    /// Authored dynamic side: true is above, false is below, None uses layout policy.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dynamic_above: Option<bool>,
     pub stem_up: Option<bool>,
     #[serde(default)]
     pub hairpin_start: Option<HairpinKind>,
@@ -2703,6 +2750,8 @@ pub struct Note {
     /// Start/stop of an authored tuplet group, independent of the rhythmic ratio.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tuplet_boundary: Option<TupletBoundary>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tuplet_display: Option<super::notation::TupletDisplay>,
     #[serde(default)]
     pub chord_symbol: Option<ChordSymbol>,
     #[serde(default)]
@@ -2730,6 +2779,9 @@ pub struct Note {
     /// Arpeggiate direction: `Some(true)` = up, `Some(false)` = down, `None` = none.
     #[serde(default)]
     pub arpeggiate: Option<bool>,
+    /// MusicXML group joining simultaneous arpeggiated chords across voices/staves.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub arpeggio_number: Option<u16>,
     /// Technique/style instruction attached to this note ("pizz.", "arco", "con sord.", etc.).
     #[serde(default)]
     pub technique_text: Option<String>,
@@ -2784,6 +2836,16 @@ pub struct GuitarBendPoint {
 }
 
 impl Note {
+    /// Articulations whose source visibility permits engraving; playback retains all marks.
+    pub fn visible_articulations(&self) -> impl Iterator<Item = &Articulation> {
+        self.articulations
+            .iter()
+            .enumerate()
+            .filter_map(|(index, mark)| {
+                (!self.hidden_articulations.contains(&index)).then_some(mark)
+            })
+    }
+
     /// Select one authored fingering candidate without changing the score.
     pub fn select_fingering(
         &self,
@@ -2832,14 +2894,17 @@ impl Note {
             beam: BeamState::None,
             explicit_unbeamed: false,
             articulations: Vec::new(),
+            hidden_articulations: Vec::new(),
             tremolo_pair: None,
             dynamic: None,
+            dynamic_above: None,
             stem_up: None,
             hairpin_start: None,
             hairpin_above: None,
             hairpin_end: false,
             tuplet: None,
             tuplet_boundary: None,
+            tuplet_display: None,
             chord_symbol: None,
             is_grace: false,
             grace_slash: false,
@@ -2852,6 +2917,7 @@ impl Note {
             slur_start: false,
             slur_end: false,
             arpeggiate: None,
+            arpeggio_number: None,
             technique_text: None,
             glissando_start: false,
             glissando_end: false,
@@ -2897,14 +2963,17 @@ impl Note {
             beam: BeamState::None,
             explicit_unbeamed: false,
             articulations: Vec::new(),
+            hidden_articulations: Vec::new(),
             tremolo_pair: None,
             dynamic: None,
+            dynamic_above: None,
             stem_up: None,
             hairpin_start: None,
             hairpin_above: None,
             hairpin_end: false,
             tuplet: None,
             tuplet_boundary: None,
+            tuplet_display: None,
             chord_symbol: None,
             is_grace: false,
             grace_slash: false,
@@ -2917,6 +2986,7 @@ impl Note {
             slur_start: false,
             slur_end: false,
             arpeggiate: None,
+            arpeggio_number: None,
             technique_text: None,
             glissando_start: false,
             glissando_end: false,
@@ -5541,12 +5611,15 @@ fn note_content_eq(a: &Note, b: &Note) -> bool {
         && a.beam == b.beam
         && a.explicit_unbeamed == b.explicit_unbeamed
         && a.articulations == b.articulations
+        && a.hidden_articulations == b.hidden_articulations
         && a.dynamic == b.dynamic
+        && a.dynamic_above == b.dynamic_above
         && a.stem_up == b.stem_up
         && a.hairpin_start == b.hairpin_start
         && a.hairpin_above == b.hairpin_above
         && a.hairpin_end == b.hairpin_end
         && a.tuplet == b.tuplet
+        && a.tuplet_display == b.tuplet_display
         && a.chord_symbol == b.chord_symbol
         && a.is_grace == b.is_grace
         && a.grace_slash == b.grace_slash
@@ -5559,6 +5632,7 @@ fn note_content_eq(a: &Note, b: &Note) -> bool {
         && a.slur_start == b.slur_start
         && a.slur_end == b.slur_end
         && a.arpeggiate == b.arpeggiate
+        && a.arpeggio_number == b.arpeggio_number
         && a.tab_position == b.tab_position
         && a.tab_positions == b.tab_positions
         && a.guitar_technique == b.guitar_technique
@@ -7405,6 +7479,21 @@ mod tests {
     }
 
     #[test]
+    fn legacy_metronome_json_has_no_written_override() {
+        let original = MetronomeMark {
+            beat_unit: Duration::Quarter,
+            beat_unit_dots: 0,
+            per_minute: 120,
+            parentheses: false,
+            written: None,
+        };
+        let mut json = serde_json::to_value(&original).unwrap();
+        json.as_object_mut().unwrap().remove("written");
+        let restored: MetronomeMark = serde_json::from_value(json).unwrap();
+        assert_eq!(restored, original);
+    }
+
+    #[test]
     fn diff_and_patch_preserve_written_metronome_marks() {
         let a = Score::new("T", 120, 4, 4, 0, 1);
         let mut b = a.clone();
@@ -7413,6 +7502,11 @@ mod tests {
             beat_unit_dots: 0,
             per_minute: 69,
             parentheses: true,
+            written: Some(MetronomeText {
+                per_minute: "ca 69".into(),
+                before: "Moderato".into(),
+                after: String::new(),
+            }),
         });
         let changes = diff(&a, &b);
         assert!(changes.iter().any(|change| matches!(
@@ -7863,6 +7957,41 @@ mod tests {
         a.stem_up = Some(true);
         c.stem_up = Some(false);
         assert!(!note_content_eq(&a, &c));
+    }
+
+    #[test]
+    fn diff_and_patch_preserve_note_print_visibility_and_placement() {
+        let mut before = Score::new("Print metadata", 120, 4, 4, 0, 1);
+        before.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(crate::Step::C, 4), Duration::Whole)];
+        before.parts[0].staves[0].measures[0].voices[0][0]
+            .articulations
+            .push(Articulation::Staccato);
+        for field in 0..3 {
+            let mut after = before.clone();
+            let note = &mut after.parts[0].staves[0].measures[0].voices[0][0];
+            match field {
+                0 => note.hidden_articulations = vec![0],
+                1 => note.dynamic_above = Some(true),
+                _ => {
+                    note.tuplet_display = Some(crate::TupletDisplay {
+                        bracket: Some(false),
+                        number: crate::TupletNumberDisplay::None,
+                        above: None,
+                    });
+                }
+            }
+            assert!(
+                diff(&before, &after)
+                    .iter()
+                    .any(|change| matches!(change, ScoreChange::NoteModified { .. }))
+            );
+            let patched = apply_patch(&before, &score_patch(&before, &after)).unwrap();
+            assert_eq!(
+                serde_json::to_value(&patched).unwrap(),
+                serde_json::to_value(&after).unwrap()
+            );
+        }
     }
 
     #[test]

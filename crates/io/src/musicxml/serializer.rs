@@ -1105,25 +1105,58 @@ fn serialize_note(
             xml.push_str(&format!(" placement=\"{}\"", escape_xml(placement)));
         }
         xml.push_str(">\n");
-        xml.push_str("        <root>\n");
-        xml.push_str(&format!(
-            "          <root-step>{}</root-step>\n",
-            escape_xml(root_step)
-        ));
-        if root_alter != 0 {
-            xml.push_str(&format!(
-                "          <root-alter>{}</root-alter>\n",
-                root_alter
-            ));
+        let written = cs.written.as_ref();
+        if let Some(numeral) = written.and_then(|w| w.numeral.as_ref()) {
+            xml.push_str("        <numeral>\n          <numeral-root");
+            if let Some(text) = &numeral.text {
+                xml.push_str(&format!(" text=\"{}\"", escape_xml(text)));
+            }
+            xml.push_str(&format!(">{}</numeral-root>\n", numeral.root));
+            if numeral.alter != 0.0 {
+                xml.push_str(&format!(
+                    "          <numeral-alter>{}</numeral-alter>\n",
+                    numeral.alter
+                ));
+            }
+            if let Some(key) = &numeral.key {
+                xml.push_str(&format!("          <numeral-key><numeral-fifths>{}</numeral-fifths><numeral-mode>{}</numeral-mode></numeral-key>\n", key.fifths, escape_xml(&key.mode)));
+            }
+            xml.push_str("        </numeral>\n");
+        } else {
+            xml.push_str("        <root>\n          <root-step");
+            if let Some(text) = written.and_then(|w| w.root_text.as_ref()) {
+                xml.push_str(&format!(" text=\"{}\"", escape_xml(text)));
+            }
+            xml.push_str(&format!(">{}</root-step>\n", escape_xml(root_step)));
+            if root_alter != 0 {
+                xml.push_str(&format!(
+                    "          <root-alter>{}</root-alter>\n",
+                    root_alter
+                ));
+            }
+            xml.push_str("        </root>\n");
         }
-        xml.push_str("        </root>\n");
-        match cs.kind.as_str() {
-            "major-add9" => xml.push_str("        <kind text=\"add9\">other</kind>\n"),
-            "minor-add9" => xml.push_str("        <kind text=\"madd9\">other</kind>\n"),
-            _ => xml.push_str(&format!(
-                "        <kind>{}</kind>\n",
-                escape_xml(&musicxml_harmony_kind(&cs.kind))
-            )),
+        xml.push_str("        <kind");
+        let kind_text = written
+            .and_then(|w| w.kind_text.as_deref())
+            .or(match cs.kind.as_str() {
+                "major-add9" => Some("add9"),
+                "minor-add9" => Some("madd9"),
+                _ => None,
+            });
+        if let Some(text) = kind_text {
+            xml.push_str(&format!(" text=\"{}\"", escape_xml(text)));
+        }
+        xml.push_str(&format!(
+            ">{}</kind>\n",
+            escape_xml(&musicxml_harmony_kind(&cs.kind))
+        ));
+        if let Some(inversion) = written.and_then(|w| w.inversion) {
+            xml.push_str("        <inversion");
+            if let Some(text) = written.and_then(|w| w.inversion_text.as_ref()) {
+                xml.push_str(&format!(" text=\"{}\"", escape_xml(text)));
+            }
+            xml.push_str(&format!(">{inversion}</inversion>\n"));
         }
         if let Some(function) = &cs.harmony_function {
             xml.push_str(&format!(
@@ -1173,7 +1206,11 @@ fn serialize_note(
 
     // Dynamic
     if let Some(dyn_val) = &note.dynamic {
-        xml.push_str("      <direction placement=\"below\">\n");
+        xml.push_str(match note.dynamic_above {
+            Some(true) => "      <direction placement=\"above\">\n",
+            Some(false) => "      <direction placement=\"below\">\n",
+            None => "      <direction>\n",
+        });
         xml.push_str("        <direction-type>\n");
         xml.push_str(&format!(
             "          <dynamics><{}/></dynamics>\n",
@@ -1198,7 +1235,10 @@ fn serialize_note(
     );
 
     // Hairpin start
-    if let Some(hp) = &note.hairpin_start {
+    if let Some(hp) = &note.hairpin_start
+        && !has_typed_endpoint(NotationSpannerKind::HairpinCrescendo)
+        && !has_typed_endpoint(NotationSpannerKind::HairpinDecrescendo)
+    {
         let wedge_type = match hp {
             HairpinKind::Crescendo => "crescendo",
             HairpinKind::Decrescendo => "diminuendo",
@@ -1528,7 +1568,10 @@ fn serialize_note(
     }
 
     // Hairpin stop
-    if note.hairpin_end {
+    if note.hairpin_end
+        && !has_typed_endpoint(NotationSpannerKind::HairpinCrescendo)
+        && !has_typed_endpoint(NotationSpannerKind::HairpinDecrescendo)
+    {
         xml.push_str("      <direction placement=\"below\">\n");
         xml.push_str("        <direction-type>\n");
         xml.push_str("          <wedge type=\"stop\"/>\n");
@@ -1829,6 +1872,29 @@ fn serialize_typed_direction_spanners(
         };
         let number = spanner.number.unwrap_or(1);
         match spanner.kind {
+            NotationSpannerKind::HairpinCrescendo | NotationSpannerKind::HairpinDecrescendo => {
+                let wedge_type = if endpoint == "stop" {
+                    "stop"
+                } else if spanner.kind == NotationSpannerKind::HairpinCrescendo {
+                    "crescendo"
+                } else {
+                    "diminuendo"
+                };
+                let placement = spanner
+                    .placement
+                    .as_deref()
+                    .map_or_else(String::new, |value| {
+                        format!(" placement=\"{}\"", escape_xml(value))
+                    });
+                xml.push_str(&format!("      <direction{placement}>\n"));
+                xml.push_str("        <direction-type>\n");
+                xml.push_str(&format!(
+                    "          <wedge type=\"{wedge_type}\" number=\"{number}\"/>\n"
+                ));
+                xml.push_str("        </direction-type>\n");
+                xml.push_str(&format!("        <staff>{}</staff>\n", address.staff + 1));
+                xml.push_str("      </direction>\n");
+            }
             NotationSpannerKind::Pedal => {
                 let paired = paired_timed_pedal(score, spanner, endpoint == "start");
                 let placement = spanner.placement.as_deref().map_or_else(
@@ -1904,6 +1970,43 @@ fn serialize_notations(
     tab_lines: Option<u8>,
     tuplet_marks: (bool, bool),
 ) {
+    if note.hidden_articulations.is_empty() {
+        serialize_visible_notations(xml, note, typed_spanners, address, tab_lines, tuplet_marks);
+        return;
+    }
+    let mut visible = note.clone();
+    visible.articulations = note.visible_articulations().cloned().collect();
+    visible.hidden_articulations.clear();
+    serialize_visible_notations(
+        xml,
+        &visible,
+        typed_spanners,
+        address,
+        tab_lines,
+        tuplet_marks,
+    );
+    let mut hidden = Note::rest(Duration::Quarter);
+    hidden.articulations = note
+        .articulations
+        .iter()
+        .enumerate()
+        .filter(|(index, _)| note.hidden_articulations.contains(index))
+        .map(|(_, mark)| mark.clone())
+        .collect();
+    hidden.tremolo_pair = note.tremolo_pair.clone();
+    let mut contents = String::new();
+    serialize_visible_notations(&mut contents, &hidden, &[], address, None, (false, false));
+    xml.push_str(&contents.replacen("<notations>", "<notations print-object=\"no\">", 1));
+}
+
+fn serialize_visible_notations(
+    xml: &mut String,
+    note: &Note,
+    typed_spanners: &[&NotationSpanner],
+    address: &NoteAddr,
+    tab_lines: Option<u8>,
+    tuplet_marks: (bool, bool),
+) {
     let typed_has =
         |kind: NotationSpannerKind| typed_spanners.iter().any(|spanner| spanner.kind == kind);
     // The first (written) pitch's own ties; chord members write theirs separately.
@@ -1947,7 +2050,31 @@ fn serialize_notations(
         xml.push_str("          <tied type=\"start\"/>\n");
     }
     if tuplet_marks.0 {
-        xml.push_str("          <tuplet type=\"start\" bracket=\"yes\"/>\n");
+        xml.push_str("          <tuplet type=\"start\"");
+        if let Some(display) = &note.tuplet_display {
+            if let Some(bracket) = display.bracket {
+                xml.push_str(if bracket {
+                    " bracket=\"yes\""
+                } else {
+                    " bracket=\"no\""
+                });
+            }
+            xml.push_str(match display.number {
+                acorde_core::TupletNumberDisplay::Actual => " show-number=\"actual\"",
+                acorde_core::TupletNumberDisplay::Both => " show-number=\"both\"",
+                acorde_core::TupletNumberDisplay::None => " show-number=\"none\"",
+            });
+            if let Some(above) = display.above {
+                xml.push_str(if above {
+                    " placement=\"above\""
+                } else {
+                    " placement=\"below\""
+                });
+            }
+        } else {
+            xml.push_str(" bracket=\"yes\"");
+        }
+        xml.push_str("/>\n");
     }
     if tuplet_marks.1 {
         xml.push_str("          <tuplet type=\"stop\"/>\n");
@@ -1991,6 +2118,8 @@ fn serialize_notations(
             )),
             NotationSpannerKind::Pedal
             | NotationSpannerKind::Ottava
+            | NotationSpannerKind::HairpinCrescendo
+            | NotationSpannerKind::HairpinDecrescendo
             | NotationSpannerKind::Dashes => {}
         }
     }
@@ -2106,8 +2235,11 @@ fn serialize_notations(
     }
     if let Some(dir) = note.arpeggiate {
         let dir_str = if dir { "up" } else { "down" };
+        let number = note
+            .arpeggio_number
+            .map_or_else(String::new, |n| format!(" number=\"{n}\""));
         xml.push_str(&format!(
-            "          <arpeggiate direction=\"{}\"/>\n",
+            "          <arpeggiate direction=\"{}\"{number}/>\n",
             dir_str
         ));
     }
@@ -2336,6 +2468,9 @@ fn push_tempo_direction(
     measure: Option<&acorde_core::Measure>,
 ) {
     let words = measure.and_then(|measure| measure.tempo_text.as_deref());
+    let written = measure
+        .and_then(|m| m.metronome_mark.as_ref())
+        .and_then(|m| m.written.as_ref());
     let attrs = words
         .and_then(|text| {
             measure.map(|measure| measure_text_direction_attrs(measure, TextStyle::Generic, text))
@@ -2345,16 +2480,33 @@ fn push_tempo_direction(
     if let Some((measure, text)) =
         measure.and_then(|measure| measure.tempo_text.as_deref().map(|text| (measure, text)))
     {
-        xml.push_str("        <direction-type>\n");
-        xml.push_str(&format!(
-            "          <words{}>{}</words>\n",
-            styled_text_position_attrs(measure_styled_text(measure, TextStyle::Generic, text)),
-            escape_xml(text)
-        ));
-        xml.push_str("        </direction-type>\n");
+        let before = written.map_or(text, |w| w.before.as_str());
+        if !before.is_empty() {
+            xml.push_str("        <direction-type>\n");
+            xml.push_str(&format!(
+                "          <words{}>{}</words>\n",
+                styled_text_position_attrs(measure_styled_text(measure, TextStyle::Generic, text)),
+                escape_xml(before)
+            ));
+            xml.push_str("        </direction-type>\n");
+        }
     }
     if let Some(mark) = measure.and_then(|measure| measure.metronome_mark.as_ref()) {
+        if words.is_none()
+            && let Some(written) = written.filter(|w| !w.before.is_empty())
+        {
+            xml.push_str(&format!(
+                "        <direction-type><words>{}</words></direction-type>\n",
+                escape_xml(&written.before)
+            ));
+        }
         push_metronome_type(xml, mark);
+        if let Some(written) = written.filter(|w| !w.after.is_empty()) {
+            xml.push_str(&format!(
+                "        <direction-type><words>{}</words></direction-type>\n",
+                escape_xml(&written.after)
+            ));
+        }
     } else if words.is_none()
         && let Some(bpm) = bpm
     {
@@ -2394,7 +2546,12 @@ fn push_metronome_type(xml: &mut String, mark: &acorde_core::MetronomeMark) {
     }
     xml.push_str(&format!(
         "            <per-minute>{}</per-minute>\n",
-        mark.per_minute
+        escape_xml(
+            &mark
+                .written
+                .as_ref()
+                .map_or_else(|| mark.per_minute.to_string(), |w| w.per_minute.clone())
+        )
     ));
     xml.push_str("          </metronome>\n");
     xml.push_str("        </direction-type>\n");

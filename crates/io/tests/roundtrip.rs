@@ -27,6 +27,47 @@ fn harmony_groove_export_preserves_actual_playback_pitches() {
     assert_eq!(actual, expected);
 }
 
+#[test]
+fn hidden_notation_layers_keep_performance_marks_and_roundtrip_visibility() {
+    let xml = include_str!("../../../tests/fixtures/musicxml_hidden_notations.musicxml");
+    let parsed = parse_musicxml(xml).unwrap();
+    let first = &parsed.parts[0].staves[0].measures[0].voices[0][0];
+    assert_eq!(first.articulations.len(), 3);
+    assert_eq!(first.hidden_articulations, vec![0, 1]);
+    assert_eq!(
+        first.visible_articulations().collect::<Vec<_>>(),
+        vec![&acorde_core::Articulation::Tenuto]
+    );
+    assert_eq!(
+        first.tuplet_display.as_ref().unwrap().number,
+        acorde_core::TupletNumberDisplay::None
+    );
+    assert_eq!(first.tuplet_display.as_ref().unwrap().bracket, Some(false));
+    let written = serialize_musicxml(&parsed).unwrap();
+    assert!(written.contains("<notations print-object=\"no\">"));
+    let reparsed = parse_musicxml(&written).unwrap();
+    let second = &reparsed.parts[0].staves[0].measures[0].voices[0][0];
+    let inventory = |note: &acorde_core::Note| {
+        let mut result: Vec<_> = note
+            .articulations
+            .iter()
+            .enumerate()
+            .map(|(i, a)| (format!("{a:?}"), !note.hidden_articulations.contains(&i)))
+            .collect();
+        result.sort();
+        result
+    };
+    assert_eq!(inventory(first), inventory(second));
+    assert_eq!(first.tuplet_display, second.tuplet_display);
+    let events = |score: &acorde_core::Score| {
+        acorde_core::to_playback_events(score, &acorde_core::PlaybackOptions::default())
+            .into_iter()
+            .map(|e| (e.pitch_midi, e.time_beats, e.duration_beats))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(events(&parsed), events(&reparsed));
+}
+
 #[cfg(feature = "abc")]
 #[test]
 fn abc_midbar_chord_plan_uses_source_onsets_and_arranges_without_snapping() {
@@ -355,6 +396,81 @@ fn quilter_written_metronome_mark_survives_musicxml_roundtrip() {
         restored.parts[0].staves[0].measures[0].metronome_mark,
         opening.metronome_mark
     );
+}
+
+#[test]
+fn quilter_cross_staff_arpeggio_numbers_survive_musicxml_roundtrip() {
+    let score = acorde_io::parse_mxl(OPENSCORE_LIEDER_QUILTER_MXL).unwrap();
+    let groups = |score: &acorde_core::Score| {
+        score
+            .parts
+            .iter()
+            .flat_map(|p| &p.staves)
+            .flat_map(|s| &s.measures)
+            .flat_map(|m| &m.voices)
+            .flatten()
+            .filter(|n| n.arpeggiate.is_some())
+            .map(|n| (n.arpeggiate, n.arpeggio_number))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(groups(&score), vec![(Some(true), Some(1)); 4]);
+    let restored = parse_musicxml(&serialize_musicxml(&score).unwrap()).unwrap();
+    assert_eq!(groups(&restored), groups(&score));
+}
+
+#[test]
+fn textual_and_empty_metronomes_preserve_order_without_inventing_playback() {
+    for value in ["", "ca 108", "132–144", "072", "72"] {
+        let xml = SIMPLE_XML.replace(
+            "<direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>120</per-minute></metronome></direction-type>",
+            &format!("<direction-type><words>Allegro (</words></direction-type><direction-type><metronome><beat-unit>eighth</beat-unit><per-minute>{value}</per-minute></metronome></direction-type><direction-type><words>molto)</words></direction-type>"),
+        ).replace("        <sound tempo=\"120\"/>\n", "");
+        let score = parse_musicxml(&xml).unwrap();
+        let bar = &score.parts[0].staves[0].measures[0];
+        assert_eq!(bar.tempo, None);
+        let mark = bar.metronome_mark.as_ref().unwrap();
+        assert_eq!(mark.beat_unit, Duration::Eighth);
+        let written = mark.written.as_ref().unwrap();
+        assert_eq!(written.per_minute, value);
+        assert_eq!(written.before, "Allegro (");
+        assert_eq!(written.after, "molto)");
+        let exported = serialize_musicxml(&score).unwrap();
+        let before = exported.find("Allegro (").unwrap();
+        let unit = exported.find("<beat-unit>eighth</beat-unit>").unwrap();
+        let after = exported.find("molto)").unwrap();
+        assert!(before < unit && unit < after);
+        let restored = parse_musicxml(&exported).unwrap();
+        let restored = &restored.parts[0].staves[0].measures[0];
+        assert_eq!(restored.metronome_mark, bar.metronome_mark);
+        assert_eq!(restored.tempo_text, bar.tempo_text);
+        assert_eq!(restored.tempo, None);
+    }
+}
+
+#[test]
+fn webern_unit_only_metronomes_survive_musicxml_roundtrip() {
+    let score = acorde_io::parse_mxl(OPENSCORE_LIEDER_WEBERN_MXL).unwrap();
+    let marks = |score: &acorde_core::Score| {
+        score
+            .parts
+            .iter()
+            .flat_map(|p| &p.staves)
+            .flat_map(|s| &s.measures)
+            .filter_map(|m| m.metronome_mark.clone().map(|mark| (m.tempo, mark)))
+            .collect::<Vec<_>>()
+    };
+    let original = marks(&score);
+    assert_eq!(original.len(), 2);
+    assert_eq!(
+        original.iter().map(|(tempo, _)| *tempo).collect::<Vec<_>>(),
+        vec![Some(56), Some(36)]
+    );
+    for (_, mark) in &original {
+        assert_eq!(mark.beat_unit, Duration::Eighth);
+        assert_eq!(mark.written.as_ref().unwrap().per_minute, "");
+    }
+    let restored = parse_musicxml(&serialize_musicxml(&score).unwrap()).unwrap();
+    assert_eq!(marks(&restored), original);
 }
 
 #[test]
@@ -1602,6 +1718,18 @@ fn fixture_manifest_sha256_matches_checked_in_files() {
                 include_bytes!("../../../tests/fixtures/UprightPianoKW-small-20190703.sf2")
             }
             "FluidR3Mono_GM.sf3" => include_bytes!("../../../tests/fixtures/FluidR3Mono_GM.sf3"),
+            "openscore_lieder_brahms_gestillte_sehnsucht.mxl" => include_bytes!(
+                "../../../tests/fixtures/openscore_lieder_brahms_gestillte_sehnsucht.mxl"
+            ),
+            "harmony_written.musicxml" => {
+                include_bytes!("../../../tests/fixtures/harmony_written.musicxml")
+            }
+            "musicxml_hidden_notations.musicxml" => {
+                include_bytes!("../../../tests/fixtures/musicxml_hidden_notations.musicxml")
+            }
+            "openscore_gossec_quartet_rh189.mxl" => {
+                include_bytes!("../../../tests/fixtures/openscore_gossec_quartet_rh189.mxl")
+            }
             other => panic!("manifest fixture has no embedded test mapping: {other}"),
         };
         let actual = Sha256::digest(bytes)
@@ -3873,6 +4001,7 @@ fn non_mei_exports_report_harmonic_type_loss() {
         harmony_function: None,
         harmony_type: Some("roman".to_string()),
         chord_ref: Some("#harmonychordA".to_string()),
+        written: None,
         range_end: Some(NoteAddr {
             part: 0,
             staff: 0,
@@ -8524,6 +8653,98 @@ mod kern_pae_tests {
             assert!(acorde_io::parse_pae(&huge).is_err());
         }
     }
+}
+
+#[test]
+fn harmony_written_spelling_and_numerals_roundtrip_without_inventing_pitch_roots() {
+    let score = parse_musicxml(include_str!(
+        "../../../tests/fixtures/harmony_written.musicxml"
+    ))
+    .unwrap();
+    let chords = |s: &acorde_core::Score| {
+        s.parts[0].staves[0].measures[0].voices[0]
+            .iter()
+            .map(|n| n.chord_symbol.clone().unwrap())
+            .collect::<Vec<_>>()
+    };
+    let expected = chords(&score);
+    assert_eq!(
+        expected
+            .iter()
+            .map(|c| c.display_text())
+            .collect::<Vec<_>>(),
+        ["|PAC", "i6", "#vii°", "F#sus"]
+    );
+    assert_eq!(expected[0].root, "C");
+    assert!(expected[1].root.is_empty());
+    assert_eq!(
+        expected[2]
+            .written
+            .as_ref()
+            .unwrap()
+            .numeral
+            .as_ref()
+            .unwrap()
+            .key
+            .as_ref()
+            .unwrap()
+            .fifths,
+        -2
+    );
+    let xml = serialize_musicxml(&score).unwrap();
+    assert!(xml.contains("<root-step text=\"\">C</root-step>"));
+    let reparsed = parse_musicxml(&xml).unwrap();
+    assert_eq!(chords(&reparsed), expected);
+    let old_json = r#"{"root":"C","kind":"major","bass":null}"#;
+    let old: acorde_core::ChordSymbol = serde_json::from_str(old_json).unwrap();
+    assert!(old.written.is_none());
+    assert_eq!(old.display_text(), "C");
+}
+
+#[test]
+fn authored_tuplet_visibility_and_placement_survive_musicxml_roundtrip() {
+    let score = acorde_io::parse_mxl(include_bytes!(
+        "../../../tests/fixtures/openscore_lieder_brahms_gestillte_sehnsucht.mxl"
+    ))
+    .unwrap();
+    // The voice starts on the lower staff and crosses upward within the same
+    // authored beam. Its tuplet start must not be separated from the stop.
+    for measure in [21, 22] {
+        let lower = &score.parts[2].staves[1].measures[measure].voices[0];
+        assert_eq!(
+            lower[2].cross_staff.as_ref().map(|c| c.target_staff),
+            Some(0)
+        );
+        assert_eq!(
+            lower[0].tuplet_boundary,
+            Some(acorde_core::TupletBoundary::Start)
+        );
+        assert_eq!(
+            lower[2].tuplet_boundary,
+            Some(acorde_core::TupletBoundary::Stop)
+        );
+        assert!(lower[..3].iter().all(|n| !n.is_rest));
+    }
+    let displays = |score: &acorde_core::Score| {
+        score
+            .parts
+            .iter()
+            .flat_map(|p| &p.staves)
+            .flat_map(|s| &s.measures)
+            .flat_map(|m| &m.voices)
+            .flatten()
+            .filter_map(|n| n.tuplet_display.clone())
+            .collect::<Vec<_>>()
+    };
+    let expected = displays(&score);
+    assert!(expected.iter().any(|d| d.number == acorde_core::TupletNumberDisplay::None && d.bracket == Some(false)));
+    assert!(
+        expected
+            .iter()
+            .any(|d| d.number == acorde_core::TupletNumberDisplay::Actual && d.above == Some(true))
+    );
+    let output = serialize_musicxml(&score).unwrap();
+    assert_eq!(displays(&parse_musicxml(&output).unwrap()), expected);
 }
 
 #[cfg(feature = "mscz")]

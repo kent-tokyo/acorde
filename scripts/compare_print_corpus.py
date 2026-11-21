@@ -49,6 +49,9 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 TARGET = pathlib.Path(os.environ.get("CARGO_TARGET_DIR", ROOT / "target"))
 ACORDE = pathlib.Path(os.environ.get("ACORDE_BINARY", TARGET / "release/acorde"))
 PRINT_MXL = pathlib.Path(os.environ.get("PRINT_MXL_BINARY", TARGET / "release/examples/print_mxl"))
+PRINT_STRATEGY = os.environ.get("ACORDE_PRINT_STRATEGY", "density")
+if PRINT_STRATEGY not in ("density", "measured"):
+    raise ValueError("ACORDE_PRINT_STRATEGY must be density or measured")
 FONT = ROOT / "crates/pdf/tests/fixtures/Tuffy.ttf"
 CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 VEROVIO = ["verovio", "--page-width", "2100", "--page-height", "2970",
@@ -63,6 +66,7 @@ SELECTORS = {
         "dynamics": ".acorde-dynamic", "hairpins": ".acorde-hairpin", "articulations": ".acorde-articulation",
         "notation": ".acorde-notehead, .acorde-accidental, .acorde-rest:not(.acorde-hidden)",
         "staff_lines": ".acorde-staff > line", "staff": ".acorde-staff", "system": None,
+        "curves": ".acorde-stem, .acorde-beam, .acorde-slur, .acorde-tie, .acorde-articulation, .acorde-arpeggio, .acorde-lyric-hyphen, .acorde-lyric-extender, .acorde-tuplet-bracket, .acorde-tuplet-number, .acorde-hairpin",
     },
     "verovio": {
         "noteheads": ".notehead", "rests": ".rest, .mRest",
@@ -70,15 +74,17 @@ SELECTORS = {
         "dynamics": ".dynam", "hairpins": ".hairpin:has(path, line, polyline)", "articulations": ".artic",
         "notation": ".notehead, .accid, .rest, .mRest",
         "staff_lines": ":scope > path", "staff": ".staff", "system": ".system",
+        "curves": ".stem, .beam, .slur, .tie, .artic, .arpeg, .tupletBracket, .tupletNum, .hairpin",
     },
 }
 
 MEASURE_JS = r"""
 const SEL = %s;
+const W = SEL.page_width_mm || 210, H = SEL.page_height_mm || 297;
 const out = {pages: []};
 for (const svg of document.querySelectorAll('body > div > svg')) {
   const page = svg.getBoundingClientRect();
-  const mm = 210 / page.width;
+  const mm = W / page.width;
   const box = el => { const r = el.getBoundingClientRect();
     return {x0: (r.left - page.left) * mm, y0: (r.top - page.top) * mm,
             x1: (r.right - page.left) * mm, y1: (r.bottom - page.top) * mm}; };
@@ -86,32 +92,80 @@ for (const svg of document.querySelectorAll('body > div > svg')) {
   const counts = {};
   for (const k of ['noteheads','rests','slurs','ties','lyrics','dynamics','hairpins','articulations'])
     counts[k] = svg.querySelectorAll(SEL[k]).length;
-  const H = 297, W = 210;
   let pastEdge = 0, pastMargin = 0;
+  const edgeCandidates = [];
   for (const el of svg.querySelectorAll('path, use, line, polyline, polygon, rect, ellipse, circle, text')) {
     if (el.closest('defs, symbol')) continue;
     const b = box(el); if (!real(b)) continue;
-    if (b.x0 < -0.1 || b.y0 < -0.1 || b.x1 > W + 0.1 || b.y1 > H + 0.1) pastEdge++;
+    if (b.x0 < -0.1 || b.y0 < -0.1 || b.x1 > W + 0.1 || b.y1 > H + 0.1) {
+      pastEdge++;
+      edgeCandidates.push({box:b, className:el.getAttribute('class') || el.parentElement?.getAttribute('class'), text:el.closest('[data-text]')?.getAttribute('data-text') || el.textContent});
+    }
     else if (b.x0 < 14 - 0.5 || b.x1 > W - 14 + 0.5 || b.y0 < 16 - 0.5 || b.y1 > H - 16 + 0.5) pastMargin++;
   }
-  const texts = [...svg.querySelectorAll('text')].filter(t => t.textContent.trim() && !t.closest('defs'))
-    .map(t => ({b: box(t), label: t.textContent.trim(), className: t.getAttribute('class') || '',
+  const texts = [...svg.querySelectorAll('text, [data-acorde-outlined-text]')].filter(t => t.textContent.trim() && !t.closest('defs'))
+    .map(t => ({el: t, b: box(t), label: t.getAttribute('data-text') || t.textContent.trim(), className: t.getAttribute('class') || '',
                 lyric: !!t.closest(SEL.lyrics),
-                font: Math.max(...[t, ...t.querySelectorAll('tspan')].map(e =>
+                font: t.hasAttribute('data-font-size') ? parseFloat(t.getAttribute('data-font-size')) * t.getScreenCTM().d * mm : Math.max(...[t, ...t.querySelectorAll('tspan')].map(e =>
                   parseFloat(getComputedStyle(e).fontSize) * e.getScreenCTM().d * mm))})).filter(t => real(t.b));
+  for (const el of svg.querySelectorAll('g.acorde-dynamic[data-baseline]')) {
+    texts.push({el, b:box(el), label:el.getAttribute('data-text'), className:'acorde-dynamic', lyric:false, font:null});
+  }
   const marks = [...svg.querySelectorAll(SEL.notation)]
     .map(el => ({b: box(el), className: el.getAttribute('class') || ''})).filter(m => real(m.b));
   const area = (a, b) => Math.max(0, Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0)) *
                          Math.max(0, Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0));
   let textMark = 0, textText = 0;
   const textMarkCandidates = [];
+  const textTextCandidates = [];
+  const staffLines = [...svg.querySelectorAll(SEL.staff)].flatMap(staff =>
+    [...staff.querySelectorAll(SEL.staff_lines)]).map(box).filter(b => b.x1 - b.x0 > 5);
+  const lyricStaffCandidates = [];
+  const dynamicStaffCandidates = [];
+  const curveCandidates = [];
+  const curves = [...new Set([...svg.querySelectorAll(SEL.curves)].flatMap(el =>
+    el instanceof SVGGeometryElement ? [el] : [...el.querySelectorAll('path,line,polyline,polygon,circle,ellipse')]))]
+    .map(el => ({el, b:box(el), owner:el.closest(SEL.curves)?.getAttribute('class') || ''}));
   for (let i = 0; i < texts.length; i++) {
+    const t = texts[i];
+    for (const curve of curves) {
+      // An outlined text ornament owns its own paths; those are not collisions.
+      if (t.el.contains(curve.el)) continue;
+      const b = t.b, c = curve.b;
+      if (Math.min(b.x1,c.x1) < Math.max(b.x0,c.x0) || Math.min(b.y1,c.y1) < Math.max(b.y0,c.y0)) continue;
+      const length = curve.el.getTotalLength(), matrix = curve.el.getScreenCTM();
+      const scale = Math.hypot(matrix.a,matrix.b) * mm;
+      const steps = Math.max(1, Math.min(20000, Math.ceil(length*scale/0.15)));
+      const hit = Array.from({length:steps+1}, (_,j) => {
+        const p = curve.el.getPointAtLength(length*j/steps).matrixTransform(matrix);
+        const x = (p.x-page.left)*mm, y = (p.y-page.top)*mm;
+        if (!(b.x0+0.04 < x && x < b.x1-0.04 && b.y0+0.04 < y && y < b.y1-0.04)) return false;
+        if (!t.el.hasAttribute('data-acorde-outlined-text') && !t.el.matches('g.acorde-dynamic')) return true;
+        return [...t.el.querySelectorAll('path')].some(path =>
+          { const point = new DOMPoint(p.x,p.y).matrixTransform(path.getScreenCTM().inverse());
+            return path.isPointInFill(point) || path.isPointInStroke(point); });
+      }).some(Boolean);
+      if (hit) curveCandidates.push({text:t.label,textBox:b,markClass:curve.owner,markBox:c});
+    }
     for (const m of marks) if (area(texts[i].b, m.b) > 0.5) {
       textMark++;
       textMarkCandidates.push({text: texts[i].label, textClass: texts[i].className,
         markClass: m.className, overlap_mm2: area(texts[i].b, m.b), textBox: texts[i].b, markBox: m.b});
     }
-    for (let j = i + 1; j < texts.length; j++) if (area(texts[i].b, texts[j].b) > 0.5) textText++;
+    for (let j = i + 1; j < texts.length; j++) if (area(texts[i].b, texts[j].b) > 0.5) {
+      textText++;
+      textTextCandidates.push({first:t.label, second:texts[j].label, firstBox:t.b, secondBox:texts[j].b});
+    }
+    if (texts[i].lyric) for (const line of staffLines) {
+      const y = (line.y0 + line.y1) / 2, b = texts[i].b;
+      if (b.y0 + 0.05 < y && y < b.y1 - 0.05 && Math.min(b.x1,line.x1)-Math.max(b.x0,line.x0) > 0.2)
+        lyricStaffCandidates.push({text:texts[i].label,textBox:b,lineBox:line});
+    }
+    if (t.el.matches('g.acorde-dynamic')) for (const line of staffLines) {
+      const y = (line.y0 + line.y1) / 2, b = t.b;
+      if (b.y0 + 0.05 < y && y < b.y1 - 0.05 && Math.min(b.x1,line.x1)-Math.max(b.x0,line.x0) > 0.2)
+        dynamicStaffCandidates.push({text:t.label,textBox:b,lineBox:line});
+    }
   }
   const spaces = [];
   for (const staff of svg.querySelectorAll(SEL.staff)) {
@@ -121,11 +175,16 @@ for (const svg of document.querySelectorAll('body > div > svg')) {
   }
   const med = a => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
   out.pages.push({counts, past_page_edge: pastEdge, past_margins: pastMargin,
+    edge_candidates: edgeCandidates, text_text_candidates: textTextCandidates,
     text_over_notation: textMark, text_over_text: textText,
     text_notation_candidates: textMarkCandidates,
+    lyric_staff_candidates: lyricStaffCandidates,
+    dynamic_staff_candidates: dynamicStaffCandidates,
+    text_curve_candidates: curveCandidates,
     systems: SEL.system ? svg.querySelectorAll(SEL.system).length : null,
-    staff_space_mm: med(spaces), lyric_font_mm: med(texts.filter(t => t.lyric).map(t => t.font)),
-    text_font_mm: med(texts.map(t => t.font)), min_text_font_mm: texts.length ? Math.min(...texts.map(t => t.font)) : null});
+    staff_space_mm: med(spaces), staff_space_samples_mm: spaces,
+    lyric_font_mm: med(texts.filter(t => t.lyric).map(t => t.font)),
+    text_font_mm: med(texts.map(t => t.font).filter(f => f !== null)), min_text_font_mm: texts.some(t => t.font !== null) ? Math.min(...texts.map(t => t.font).filter(f => f !== null)) : null});
 }
 document.getElementById('out').textContent = JSON.stringify(out);
 """
@@ -166,10 +225,14 @@ def expected_marks(path):
     return dict(counts)
 
 
-def measure(svgs, selectors, html_path):
+def measure(svgs, selectors, html_path, page_width_mm=210, page_height_mm=297):
+    if not (0 < page_width_mm < 2000 and 0 < page_height_mm < 2000):
+        raise ValueError("invalid physical page size")
+    selectors = dict(selectors, page_width_mm=page_width_mm, page_height_mm=page_height_mm)
     body = "".join(f"<div>{re.sub(r'<\\?xml[^>]*>', '', p.read_text())}</div>" for p in svgs)
     html_path.write_text(
-        "<!doctype html><html><head><style>body{margin:0}div{width:840px}div>svg{width:840px;height:1188px;display:block}"
+        "<!doctype html><html><head><meta charset='utf-8'><style>body{margin:0}"
+        f"div{{width:{page_width_mm*4}px}}div>svg{{width:{page_width_mm*4}px;height:{page_height_mm*4}px;display:block}}"
         f"</style></head><body>{body}<pre id='out'></pre><script>{MEASURE_JS % json.dumps(selectors)}</script></body></html>")
     dom = run(CHROME, "--headless=new", "--disable-gpu", "--virtual-time-budget=10000",
               "--dump-dom", html_path.as_uri()).stdout
@@ -186,10 +249,33 @@ def measure(svgs, selectors, html_path):
         "elements_past_margins": summed("past_margins"),
         "text_over_notation": summed("text_over_notation"),
         "text_over_text": summed("text_over_text"),
+        "edge_candidates": [dict(page=index + 1, **candidate)
+                            for index, page in enumerate(pages)
+                            for candidate in page["edge_candidates"]],
+        "text_text_candidates": [dict(page=index + 1, **candidate)
+                                 for index, page in enumerate(pages)
+                                 for candidate in page["text_text_candidates"]],
+        "lyric_staff_candidates": [dict(page=index + 1, **candidate)
+                                     for index, page in enumerate(pages)
+                                     for candidate in page["lyric_staff_candidates"]],
+        "dynamic_staff_candidates": [dict(page=index + 1, **candidate)
+                                     for index, page in enumerate(pages)
+                                     for candidate in page["dynamic_staff_candidates"]],
+        "text_curve_candidates": [dict(page=index + 1, **candidate)
+                                   for index, page in enumerate(pages)
+                                   for candidate in page["text_curve_candidates"]],
         "text_notation_candidates": [dict(page=index + 1, **candidate)
                                      for index, page in enumerate(pages)
                                      for candidate in page["text_notation_candidates"]],
         "staff_space_mm": round(statistics.median(values("staff_space_mm")), 2) if values("staff_space_mm") else None,
+        "staff_space_samples_mm": [{"page": index + 1, "staff_ordinal": ordinal,
+                                    "space_mm": round(space, 5)}
+                                   for index, page in enumerate(pages)
+                                   for ordinal, space in enumerate(page["staff_space_samples_mm"])],
+        "min_staff_space_mm": round(min(space for page in pages for space in page["staff_space_samples_mm"]), 5)
+                              if any(page["staff_space_samples_mm"] for page in pages) else None,
+        "max_staff_space_mm": round(max(space for page in pages for space in page["staff_space_samples_mm"]), 5)
+                              if any(page["staff_space_samples_mm"] for page in pages) else None,
         "lyric_font_mm": round(statistics.median(values("lyric_font_mm")), 2) if values("lyric_font_mm") else None,
         "text_font_mm": round(statistics.median(values("text_font_mm")), 2) if values("text_font_mm") else None,
         "min_text_font_mm": round(min(values("min_text_font_mm")), 2) if values("min_text_font_mm") else None,
@@ -215,7 +301,16 @@ def main():
         pdf = work / f"{name}-acorde.pdf"
         for old in work.glob(f"{name}-acorde-page-*.svg"):
             old.unlink()
-        log = run(PRINT_MXL, shared, FONT, pdf, measures, "density").stderr
+        try:
+            log = run(PRINT_MXL, shared, FONT, pdf, measures, PRINT_STRATEGY).stderr
+        except subprocess.CalledProcessError as error:
+            rows.append({"score": name, "source": source, "status": "failed",
+                         "stage": "acorde-print", "error": error.stderr,
+                         "acorde_print_strategy": PRINT_STRATEGY,
+                         "source_sha256": hashlib.sha256(src.read_bytes()).hexdigest(),
+                         "shared_input_sha256": hashlib.sha256(shared.read_bytes()).hexdigest()})
+            out.write_text(json.dumps(rows, indent=2) + "\n")
+            continue
         acorde_svgs = sorted(work.glob(f"{name}-acorde-page-*.svg"), key=lambda p: int(p.stem.rsplit("-", 1)[1]))
         for old in work.glob(f"{name}-verovio*.svg"):
             old.unlink()
@@ -231,6 +326,7 @@ def main():
         expected = expected_marks(shared)
         rows.append({
             "score": name, "source": source, "measures_per_system": int(measures),
+            "acorde_print_strategy": PRINT_STRATEGY,
             "verovio_version": "6.4.1" if VEROVIO_NPM_PREFIX else "6.3.0",
             "source_sha256": hashlib.sha256(src.read_bytes()).hexdigest(),
             "shared_input_sha256": hashlib.sha256(shared.read_bytes()).hexdigest(),
@@ -239,8 +335,12 @@ def main():
             "shortfalls": {r: {k: v - d[r]["marks"].get(k, 0) for k, v in expected.items() if d[r]["marks"].get(k, 0) < v}
                            for d in [{"acorde": acorde, "verovio": verovio}] for r in d},
         })
+        out.write_text(json.dumps(rows, indent=2) + "\n")
     out.write_text(json.dumps(rows, indent=2) + "\n")
     for r in rows:
+        if r.get("status") == "failed":
+            print(f"{r['score']}: FAILED {r['stage']}: {r['error'].strip()}")
+            continue
         a, v = r["acorde"], r["verovio"]
         print(f"{r['score']}: import diagnostics {r['import_diagnostics']['total']}")
         for label, m in (("Acorde ", a), ("Verovio", v)):
@@ -248,6 +348,8 @@ def main():
                   f"margin {m['elements_past_margins']} text/notation {m['text_over_notation']} "
                   f"text/text {m['text_over_text']} staff {m['staff_space_mm']} lyric {m['lyric_font_mm']} "
                   f"text {m['text_font_mm']} min-text {m['min_text_font_mm']} shortfall {r['shortfalls'][label.strip().lower()]}")
+    if any(r.get("status") == "failed" for r in rows):
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

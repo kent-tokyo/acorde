@@ -1,0 +1,248 @@
+{
+  "schema_version": 1,
+  "selection_sha256": "27c2e9dbf8f61c606e39a875aa1ad2026f769b9a7b7f733547f4505c56f74cab",
+  "source_contents_inspected": false,
+  "renders_inspected": false,
+  "files": [
+    {
+      "group": "piano",
+      "id": "wq117n11",
+      "source_url": "https://raw.githubusercontent.com/DCMLab/cpe_bach_keyboard/4b3511eab12b5fbfc7aa5c75819ee02225430da8/MS3/wq117n11.mscx",
+      "license": "CC-BY-NC-SA-4.0",
+      "git_blob_sha1": "a974276236c43eeb21f9c9b1c5f06e52b898d47f",
+      "sha256": "a9e00d29a0adbb62286009b62928a0053bd61f495c56fd5f6f0f2331c0befdac",
+      "bytes": 76534,
+      "local_path": "piano/wq117n11.mscx"
+    },
+    {
+      "group": "piano",
+      "id": "wq117n12",
+      "source_url": "https://raw.githubusercontent.com/DCMLab/cpe_bach_keyboard/4b3511eab12b5fbfc7aa5c75819ee02225430da8/MS3/wq117n12.mscx",
+      "license": "CC-BY-NC-SA-4.0",
+      "git_blob_sha1": "65a695deceafb557873418eaace3e59561e0fb2d",
+      "sha256": "8909c0d240ae5c6ddfa23f3ba265bdca3d217af1e1d5c27628250a767a24dbf5",
+      "bytes": 72728,
+      "local_path": "piano/wq117n12.mscx"
+    },
+    {
+      "group": "piano",
+      "id": "BI105-1op30-1",
+      "source_url": "https://raw.githubusercontent.com/DCMLab/chopin_mazurkas/5931135e614985023b96de2a291c74b7ef90b287/MS3/BI105-1op30-1.mscx",
+      "license": "CC-BY-NC-SA-4.0",
+      "git_blob_sha1": "ea90129f4c70a8927615e658f680dd977ca01e8b",
+      "sha256": "5d11341518774f8f6c09e03c1cda8127efb2f51a85ae8b3bfc43630e15e1db7a",
+      "bytes": 195388,
+      "local_path": "piano/BI105-1op30-1.mscx"
+    },
+    {
+      "group": "piano",
+      "id": "BI115-1op33-1",
+      "source_url": "https://raw.githubusercontent.com/DCMLab/chopin_mazurkas/5931135e614985023b96de2a291c74b7ef90b287/MS3/BI115-1op33-1.mscx",
+      "license": "CC-BY-NC-SA-4.0",
+      "git_blob_sha1": "ca83ba1a4d54ae74f19cb84ca87abb46f5a18eea",
+      "sha256": "b44055baa492bcf54e0be97f3eed0421245774f6b15acef13370543322a216e6",
+      "bytes": 196000,
+      "local_path": "piano/BI115-1op33-1.mscx"
+    },
+    {
+      "group": "piano",
+      "id": "n02",
+      "source_url": "https://raw.githubusercontent.com/DCMLab/schumann_kinderszenen/ee929c1556bc937fe1ea7303cac4476e37caa4d1/MS3/n02.mscx",
+      "license": "CC-BY-NC-SA-4.0",
+      "git_blob_sha1": "820705f21ddaca55ffd23f6c0ccc62d5822a8e24",
+      "sha256": "25e589462b8599690bd00c00b684f9fecc776f1224e5b11071b49fd99082e2eb",
+      "bytes": 216347,
+      "local_path": "piano/n02.mscx"
+    },
+    {
+      "group": "piano",
+      "id": "n07",
+      "source_url": "https://raw.githubusercontent.com/DCMLab/schumann_kinderszenen/ee929c1556bc937fe1ea7303cac4476e37caa4d1/MS3/n07.mscx",
+      "license": "CC-BY-NC-SA-4.0",
+      "git_blob_sha1": "59a72601e93ac9b051e127896c0606330155572b",
+      "sha256": "2c668d0b0eb567083daee9bc62c58343747b0a65a764ad16886f37efb5301c02",
+      "bytes": 171181,
+      "local_path": "piano/n07.mscx"
+    },
+    {
+      "group": "vocal",
+      "id": "lc6212179",
+      "source_url": "https://raw.githubusercontent.com/OpenScore/Lieder/38c5db510224d9facdc4b08d741fc788cfb58ea8/scores/Beach%2C_Amy/3_Browning_Songs%2C_Op.44/1_The_Year%E2%80%99s_at_the_Spring/lc6212179.mxl",
+      "license": "CC0-1.0",
+      "git_blob_sha1": "47f59f56a6213dae0d0c1e13adf0589575152322",
+      "sha256": "de6f04d0bebda71809ce9c42f77a6e04dd24c3e378dd9e66821bf20c9307e1e4",
+      "bytes": 11609,
+      "local_path": "vocal/lc6212179.mxl"
+    },
+    {
+      "group": "vocal",
+      "id": "lc6302395",
+      "source_url": "https://raw.githubusercontent.com/OpenScore/Lieder/38c5db510224d9facdc4b08d741fc788cfb58ea8/scores/Brahms%2C_Johannes/2_Ges%C3%A4nge%2C_Op.91/1_Gestillte_Sehnsucht/lc6302395.mxl",
+      "license": "CC0-1.0",
+      "git_blob_sha1": "5c9bd32dfbff4116ef05216aa4df56bd7c361f50",
+      "sha256": "9291808a4f38924fda4d54dbe281a81a2ae292dcf460286887f6ce26d04e7279",
+      "bytes": 25202,
+      "local_path": "vocal/lc6302395.mxl"
+    },
+    {
+      "group": "vocal",
+      "id": "lc6260992",
+      "source_url": "https://raw.githubusercontent.com/OpenScore/Lieder/38c5db510224d9facdc4b08d741fc788cfb58ea8/scores/Chaminade%2C_C%C3%A9cile/_/Alleluia/lc6260992.mxl",
+      "license": "CC0-1.0",
+      "git_blob_sha1": "9bfe0f24a8bbd50c6ea2c998743e8aeeed3359aa",
+      "sha256": "10b660e15a7f84394afb32e3cb83fd7cb9960833166c7edc16fda11386d1af0b",
+      "bytes": 9842,
+      "local_path": "vocal/lc6260992.mxl"
+    },
+    {
+      "group": "vocal",
+      "id": "lc6810863",
+      "source_url": "https://raw.githubusercontent.com/OpenScore/Lieder/38c5db510224d9facdc4b08d741fc788cfb58ea8/scores/Faur%C3%A9%2C_Gabriel/3_Songs%2C_Op.7/1_Apr%C3%A8s_un_r%C3%AAve/lc6810863.mxl",
+      "license": "CC0-1.0",
+      "git_blob_sha1": "d71a8ce678f6aa07f43768ea957cd95fd5cfd8b7",
+      "sha256": "c2cb268e1163d3959d0bf2f3befc47bf1e895b0dc7fa94f4983d6052bd6e1ef1",
+      "bytes": 12122,
+      "local_path": "vocal/lc6810863.mxl"
+    },
+    {
+      "group": "vocal",
+      "id": "lc5093434",
+      "source_url": "https://raw.githubusercontent.com/OpenScore/Lieder/38c5db510224d9facdc4b08d741fc788cfb58ea8/scores/Schubert%2C_Franz/4_Ges%C3%A4nge_aus_%E2%80%9EWilhelm_Meister%E2%80%9C%2C_D.877/1_Mignon_und_der_Harfner/lc5093434.mxl",
+      "license": "CC0-1.0",
+      "git_blob_sha1": "8315d883b662be637e3902917c8e18082300e050",
+      "sha256": "c818fe1cb65cd7a838e9328b9180353c39f19c3a7f2a3ac7d7d8b15c1b297e8c",
+      "bytes": 13541,
+      "local_path": "vocal/lc5093434.mxl"
+    },
+    {
+      "group": "vocal",
+      "id": "lc5133602",
+      "source_url": "https://raw.githubusercontent.com/OpenScore/Lieder/38c5db510224d9facdc4b08d741fc788cfb58ea8/scores/Schumann%2C_Clara/6_Lieder%2C_Op.13/1_Ich_stand_in_dunklen_Tr%C3%A4umen/lc5133602.mxl",
+      "license": "CC0-1.0",
+      "git_blob_sha1": "b4e46366aadb0a71b3634708374334951e6a399e",
+      "sha256": "439ba7b1b5cc4b6d82918032a0347446e794b0c8f226ac9369f1afb653e7b30c",
+      "bytes": 8866,
+      "local_path": "vocal/lc5133602.mxl"
+    },
+    {
+      "group": "chamber",
+      "id": "sq14387632",
+      "source_url": "https://raw.githubusercontent.com/OpenScore/StringQuartets/2614b0b2958dd1ce3f52e172a43e5f4d0e29570f/scores/Beach%2C_Amy/String_Quartet%2C_Op._89/sq14387632.mxl",
+      "license": "CC0-1.0",
+      "git_blob_sha1": "02c2438977f5cc88ab902e97ec151c23126ebca9",
+      "sha256": "456c26bff2c631d73e6722480e813dd6716d7fb9671ae48041af33f4b3d649f3",
+      "bytes": 108267,
+      "local_path": "chamber/sq14387632.mxl"
+    },
+    {
+      "group": "chamber",
+      "id": "sq27571393",
+      "source_url": "https://raw.githubusercontent.com/OpenScore/StringQuartets/2614b0b2958dd1ce3f52e172a43e5f4d0e29570f/scores/Gossec%2C_Fran%C3%A7ois_Joseph/String_Quartet_in_C_minor%2C_RH_189/sq27571393.mxl",
+      "license": "CC0-1.0",
+      "git_blob_sha1": "590ecdc6373ccff01fadabe83dda2c63d53d10dd",
+      "sha256": "a0764ad885be2179a43a8b4809c490d18228bf7e2d064bdf4306c0413f358b1e",
+      "bytes": 83375,
+      "local_path": "chamber/sq27571393.mxl"
+    },
+    {
+      "group": "chamber",
+      "id": "sq7551068",
+      "source_url": "https://raw.githubusercontent.com/OpenScore/StringQuartets/2614b0b2958dd1ce3f52e172a43e5f4d0e29570f/scores/Maier%2C_Amanda/String_Quartet_in_A_major/sq7551068.mxl",
+      "license": "CC0-1.0",
+      "git_blob_sha1": "23a4dc57174a64b5f60575ad070f226ca71869b1",
+      "sha256": "9d8bd736a40cd6969848f619bf63b7adf713d92445f271c65c391495f274c9c9",
+      "bytes": 74328,
+      "local_path": "chamber/sq7551068.mxl"
+    },
+    {
+      "group": "chamber",
+      "id": "sq8437358",
+      "source_url": "https://raw.githubusercontent.com/OpenScore/StringQuartets/2614b0b2958dd1ce3f52e172a43e5f4d0e29570f/scores/Saint-Georges%2C_Joseph_Bologne/String_Quartet_in_C_major%2C_Op.1_No.1/sq8437358.mxl",
+      "license": "CC0-1.0",
+      "git_blob_sha1": "760084a3db2faf72a622234017f7716155f91364",
+      "sha256": "98f4bd338941b4e08120f1896202236116205777fb371b1a119d96a92c1c4710",
+      "bytes": 51364,
+      "local_path": "chamber/sq8437358.mxl"
+    },
+    {
+      "group": "chamber",
+      "id": "sq7648382",
+      "source_url": "https://raw.githubusercontent.com/OpenScore/StringQuartets/2614b0b2958dd1ce3f52e172a43e5f4d0e29570f/scores/Schubert%2C_Franz/String_Quartet_in_C_minor%2C_D.703%2C_No.12/sq7648382.mxl",
+      "license": "CC0-1.0",
+      "git_blob_sha1": "80ecc62f2d84562f4a930270fc5c9e2b34ce0d1b",
+      "sha256": "a324c9268225e3456e4af0e180ee3403dfa6cfd8b79b77229504e79024153b22",
+      "bytes": 69401,
+      "local_path": "chamber/sq7648382.mxl"
+    },
+    {
+      "group": "chamber",
+      "id": "sq8812200",
+      "source_url": "https://raw.githubusercontent.com/OpenScore/StringQuartets/2614b0b2958dd1ce3f52e172a43e5f4d0e29570f/scores/Wolf%2C_Hugo/Italian_Serenade/sq8812200.mxl",
+      "license": "CC0-1.0",
+      "git_blob_sha1": "9242db2ad2eccb5dff1f28026590f4a98e7b34b3",
+      "sha256": "d8b8aa0a69fde21920b48798e2e7d7b56d822ac0b2e056a937678a373caa5276",
+      "bytes": 116552,
+      "local_path": "chamber/sq8812200.mxl"
+    },
+    {
+      "group": "part",
+      "id": "sq27449398",
+      "source_url": "https://raw.githubusercontent.com/OpenScore/StringQuartets/2614b0b2958dd1ce3f52e172a43e5f4d0e29570f/scores/Dittersdorf%2C_Carl_Ditters_von/String_Quartet_in_D_major%2C_Kr.191/sq27449398.mxl",
+      "license": "CC0-1.0",
+      "git_blob_sha1": "8d7d04374b5b95511ef6c771082500cf37caaeb1",
+      "sha256": "70e01a6c1f4e8e5ae1d9b9b0a8771d5cf773e3c478903e0da6607199250a59e7",
+      "bytes": 115054,
+      "local_path": "part/sq27449398.mxl"
+    },
+    {
+      "group": "part",
+      "id": "sq12701461",
+      "source_url": "https://raw.githubusercontent.com/OpenScore/StringQuartets/2614b0b2958dd1ce3f52e172a43e5f4d0e29570f/scores/Hoffmeister%2C_Franz_Anton/String_Quartet_No.9_in_D_major/sq12701461.mxl",
+      "license": "CC0-1.0",
+      "git_blob_sha1": "1db71ec59cd8a72559f8a87c3746d32b5f3b84ea",
+      "sha256": "2bc12e9de92d9b2ce01b8b72538c8e2563699f8410a21d4ecd62367d6818f502",
+      "bytes": 108008,
+      "local_path": "part/sq12701461.mxl"
+    },
+    {
+      "group": "part",
+      "id": "sq15230467",
+      "source_url": "https://raw.githubusercontent.com/OpenScore/StringQuartets/2614b0b2958dd1ce3f52e172a43e5f4d0e29570f/scores/Mozart%2C_Wolfgang_Amadeus/String_Quartet_No.1_in_G_major%2C_K.8073f/sq15230467.mxl",
+      "license": "CC0-1.0",
+      "git_blob_sha1": "8ed2e805dac5031b2f059c9116b0c10987edada2",
+      "sha256": "29aaae3a3abd82d6158bd01c09d6903bc39559bc02caddcb7bf3b46c72247344",
+      "bytes": 68298,
+      "local_path": "part/sq15230467.mxl"
+    },
+    {
+      "group": "part",
+      "id": "sq9146376",
+      "source_url": "https://raw.githubusercontent.com/OpenScore/StringQuartets/2614b0b2958dd1ce3f52e172a43e5f4d0e29570f/scores/Haydn%2C_Joseph/String_Quartet_in_A_major%2C_Hob.III24%2C_Op.9_No.6/sq9146376.mxl",
+      "license": "CC0-1.0",
+      "git_blob_sha1": "14c077a0e2738a4217ca96484e3c711089ef6b7f",
+      "sha256": "c72f0dcf81e8de3b3176fcd58928ebf8cb74d992c1686c57fd007028d5802f7d",
+      "bytes": 85118,
+      "local_path": "part/sq9146376.mxl"
+    },
+    {
+      "group": "part",
+      "id": "sq7070319",
+      "source_url": "https://raw.githubusercontent.com/OpenScore/StringQuartets/2614b0b2958dd1ce3f52e172a43e5f4d0e29570f/scores/Mayer%2C_Emilie/String_Quartet_in_G_minor%2C_Op.14/sq7070319.mxl",
+      "license": "CC0-1.0",
+      "git_blob_sha1": "a3d499cbc8023f26b5378eb7ef60fc72ffae173c",
+      "sha256": "881ed1e646923e3f6e48f9b2c7f71f685129af32e96a455e3adfad82b48bdd93",
+      "bytes": 26535,
+      "local_path": "part/sq7070319.mxl"
+    },
+    {
+      "group": "part",
+      "id": "sq24409123",
+      "source_url": "https://raw.githubusercontent.com/OpenScore/StringQuartets/2614b0b2958dd1ce3f52e172a43e5f4d0e29570f/scores/Dvo%C5%99%C3%A1k%2C_Anton%C3%ADn/Echo_of_Songs%2C_B.152/sq24409123.mxl",
+      "license": "CC0-1.0",
+      "git_blob_sha1": "e7d0bbabaddcaff44e44213efb30be7db78aafba",
+      "sha256": "3cb50359d28df771b3d9fef216b06e752b8ea3a42b7f56256cb745af07db9c27",
+      "bytes": 40409,
+      "local_path": "part/sq24409123.mxl"
+    }
+  ]
+}

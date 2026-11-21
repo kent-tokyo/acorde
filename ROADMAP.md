@@ -93,13 +93,14 @@ and missing-mark cases. Aloha Oe's final page remains sparsely used.
 Compare each revision on the same A4 inputs and verify suspicious collision
 counts in the PDFs, including slurs, beams, lyrics and directions.
 
-Complete the randomized, print-size A/B review with at least two independent
-reviewers ([#390](https://github.com/kent-tokyo/acorde/issues/390)). Record
-readability, spacing, typography, collisions, paper use and missing/wrong marks
-per score and reviewer. The initial gate is no confirmed page-edge clipping or
-unexplained missing marks on the fixed corpus, followed by no systematic
-Verovio preference in the blind review. Repeat on an untouched piano/chamber
-holdout before claiming broader parity. Page count alone is not a quality score.
+The active [print parity protocol](docs/engraving-parity.md) records the user's
+2026-11-15 instruction for the implementing assistant to perform every-page,
+print-size source and output review ([#390](https://github.com/kent-tokyo/acorde/issues/390)).
+Record readability, spacing, typography, collisions, paper use and missing/wrong
+marks per score and page. This replaces the earlier two-human-reviewer requirement
+for this task; it is not independent review evidence. All four gates remain pending.
+The first reserved cohort failed and is now development data; a disjoint frozen
+cohort is required before a broader parity claim. Page count alone is not a quality score.
 
 ### 2. Playback and audio: alphaTab 1.9.0
 
