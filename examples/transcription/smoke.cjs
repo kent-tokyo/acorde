@@ -87,11 +87,17 @@ async function main() {
       assert.equal(headers["x-pitch-low"], "60");
       assert.equal(headers["x-pitch-high"], "70");
       await route.fulfill({
-        json: { notes: [{ start: 0.2, end: 1, pitch: 64, hand: "right" }] },
+        json: {
+          notes: [{ start: 0.2, end: 1, pitch: 64, hand: "right" }],
+          context_limited_notes: 1,
+        },
       });
     });
     await page.locator("#analyze").click();
     await page.getByText("1音の候補を作りました。", { exact: false }).waitFor();
+    await page
+      .getByText("1音は解析範囲の端まで続いています。", { exact: false })
+      .waitFor();
     assert.equal(await page.locator("#scoreImage").isHidden(), true);
     downloadPromise = page.waitForEvent("download");
     await page.locator("#saveProject").click();

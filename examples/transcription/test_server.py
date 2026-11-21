@@ -8,7 +8,22 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import mido
-from server import midi_bytes
+from server import midi_bytes, recording_notes
+
+
+class RecordingWindowTest(unittest.TestCase):
+    def test_selected_attacks_keep_releases_beyond_selection(self):
+        events = [(0.4, 1.5, 60), (1.5, 3.2, 64), (2.5, 5.0, 67),
+                  (3.1, 3.5, 69), (1.7, 2.0, 30)]
+        notes, limited = recording_notes(events, 2.0, 6.0, 10.0, 3.0, 5.0, 48, 80)
+        self.assertEqual([(n['pitch'], n['start'], n['end']) for n in notes],
+                         [(64, 3.5, 5.2), (67, 4.5, 6.0)])
+        self.assertEqual(limited, 1)
+
+    def test_recording_end_is_not_a_context_cut(self):
+        notes, limited = recording_notes([(0.5, 3.0, 60)], 0.0, 3.0, 3.0, 0.0, 2.0, 0, 127)
+        self.assertEqual(notes[0]['end'], 3.0)
+        self.assertEqual(limited, 0)
 
 
 class MidiExportTest(unittest.TestCase):

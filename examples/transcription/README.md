@@ -15,7 +15,11 @@ cargo build -p acorde-cli --bin acorde --example transcription_score
 
 Open the printed `127.0.0.1` address. Choose a WAV, set a start and end time, and create
 candidates for that range. Creating candidates replaces notes whose starts and MIDI pitches
-fall in the selected ranges and preserves notes outside them. Restrict the pitch range when
+fall in the selected ranges and preserves notes outside them. The models receive up to two seconds of context on each side, and only
+notes whose estimated attacks fall in the selected range are added. Their estimated releases can
+extend beyond that range. A detected note reaching the end of the context is flagged for review;
+longer held notes and attacks close to a range boundary still require checking. Restrict the
+pitch range when
 investigating a melody or bass line. Select notes in the piano roll and edit their fields, or add
 and remove notes. The range buttons assign all notes whose starts and pitches fall in the selected
 ranges to one hand. The initial split at MIDI note 60 is a guess. Chord candidates are pitch-class

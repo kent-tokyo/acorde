@@ -552,8 +552,11 @@
             )
             .concat(data.notes);
           select(-1);
+          const boundaryMessage = data.context_limited_notes
+            ? ` ${data.context_limited_notes}音は解析範囲の端まで続いています。長さを確認してください。`
+            : "";
           status(
-            `${data.notes.length}音の候補を作りました。音高と左右を確認してください。`,
+            `${data.notes.length}音の候補を作りました。音高と左右を確認してください。${boundaryMessage}`,
           );
         } catch (e) {
           status(e.message);

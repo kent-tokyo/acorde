@@ -18,6 +18,7 @@ import mido
 ROOT = Path(__file__).resolve().parent
 MAX_AUDIO = 64 * 1024 * 1024
 MAX_JSON = 4 * 1024 * 1024
+CONTEXT_SECONDS = 2.0
 
 
 def whole_number(value, name):
@@ -97,6 +98,24 @@ def midi_bytes(data):
     return output.getvalue()
 
 
+def recording_notes(events, window_start, window_end, recording_end, selected_start, selected_end,
+                    low, high):
+    notes = []
+    context_limited = 0
+    for onset, offset, pitch in events:
+        onset = float(onset) + window_start
+        offset = min(float(offset) + window_start, window_end)
+        pitch = int(pitch)
+        if not (math.isfinite(onset) and math.isfinite(offset) and selected_start <= onset < selected_end
+                and offset > onset and low <= pitch <= high):
+            continue
+        if window_end < recording_end and offset >= window_end - 0.02:
+            context_limited += 1
+        notes.append({'start': onset, 'end': offset, 'pitch': pitch,
+                      'hand': 'left' if pitch < 60 else 'right'})
+    return notes, context_limited
+
+
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if urlsplit(self.path).path != '/':
@@ -141,9 +160,13 @@ class Handler(BaseHTTPRequestHandler):
                             and 0 <= start < end <= info.duration + 0.01 and start < info.duration):
                         raise ValueError('Invalid audio range')
                     end = min(end, info.duration)
-                    if start > 0 or end < info.duration:
-                        samples, rate = sf.read(str(path), start=round(start * info.samplerate),
-                                                stop=round(end * info.samplerate), always_2d=True)
+                    first_frame = max(0, round((start - CONTEXT_SECONDS) * info.samplerate))
+                    last_frame = min(info.frames, round((end + CONTEXT_SECONDS) * info.samplerate))
+                    window_start = first_frame / info.samplerate
+                    window_end = last_frame / info.samplerate
+                    if first_frame > 0 or last_frame < info.frames:
+                        samples, rate = sf.read(str(path), start=first_frame, stop=last_frame,
+                                                always_2d=True)
                         sf.write(str(path), samples, rate)
                     if mode == 'piano':
                         if (not self.server.piano_model or not Path(self.server.piano_model).is_file()
@@ -170,9 +193,11 @@ class Handler(BaseHTTPRequestHandler):
                         events = [(a, b, p) for a, b, p, _, _ in raw]
                     else:
                         raise ValueError('Unknown transcription model')
-                notes = [{'start': float(a) + start, 'end': min(float(b) + start, end), 'pitch': int(p),
-                          'hand': 'left' if p < 60 else 'right'} for a, b, p in events if a < end - start and b > a and low <= p <= high]
-                self.respond(200, 'application/json', json.dumps({'notes': notes}).encode())
+                notes, context_limited = recording_notes(events, window_start, window_end,
+                                                         info.duration, start, end, low, high)
+                self.respond(200, 'application/json', json.dumps({
+                    'notes': notes, 'context_limited_notes': context_limited,
+                }).encode())
             elif self.path in ('/midi', '/musicxml', '/preview'):
                 data = json.loads(payload)
                 midi = midi_bytes(data)
