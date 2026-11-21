@@ -3677,16 +3677,19 @@ fn compute_print_layout_with_rows(
     let opening_credit_reserve_mm = opening_credit_reserve_mm
         .min((content_height_mm - scaled_system_height_mm - first_spacer_mm).max(0.0));
 
-    let has_explicit_page_break = rows.iter().any(|row| {
-        row.measure_indices.last().is_some_and(|&measure_index| {
-            layout_score
-                .parts
-                .iter()
-                .flat_map(|part| part.staves.iter())
-                .filter_map(|staff| staff.measures.get(measure_index))
-                .any(|measure| measure.page_break)
+    let explicit_page_breaks: Vec<bool> = rows
+        .iter()
+        .map(|row| {
+            row.measure_indices.last().is_some_and(|&measure_index| {
+                layout_score
+                    .parts
+                    .iter()
+                    .flat_map(|part| part.staves.iter())
+                    .filter_map(|staff| staff.measures.get(measure_index))
+                    .any(|measure| measure.page_break)
+            })
         })
-    });
+        .collect();
     let repeat_system_ranges = if matches!(
         config.notation_break_policy,
         NotationBreakPolicy::KeepRepeatsTogether
@@ -3708,9 +3711,7 @@ fn compute_print_layout_with_rows(
         return Err(PrintLayoutError::RepeatRangeExceedsPageCapacity);
     }
     let page_capacities = if matches!(config.final_page_policy, FinalPagePolicy::Balance)
-        && !has_explicit_page_break
         && systems_per_page > 1
-        && (measured_heights.is_some() || rows.len() > systems_per_page)
         && repeat_system_ranges.is_empty()
         && !config
             .publication
@@ -3719,21 +3720,42 @@ fn compute_print_layout_with_rows(
             .any(|section| section.start_on_new_page)
         && config.publication.spacers.is_empty()
     {
-        if let Some(heights) = measured_heights {
-            balanced_measured_capacities(
-                heights,
-                content_height_mm,
-                opening_credit_reserve_mm,
-                systems_per_page,
-            )
-        } else {
-            let page_count = rows.len().div_ceil(systems_per_page);
-            let base = rows.len() / page_count;
-            let remainder = rows.len() % page_count;
-            (0..page_count)
-                .map(|index| base + usize::from(index < remainder))
-                .collect::<Vec<_>>()
+        // A forced page break ends a balancing segment. Distribute each
+        // segment independently so no system crosses an authored boundary.
+        let mut capacities = Vec::new();
+        let mut start = 0;
+        for end in 1..=rows.len() {
+            if end != rows.len() && !explicit_page_breaks[end - 1] {
+                continue;
+            }
+            let count = end - start;
+            if let Some(heights) = measured_heights {
+                let opening = if start == 0 {
+                    opening_credit_reserve_mm
+                } else {
+                    0.0
+                };
+                let segment = balanced_measured_capacities(
+                    &heights[start..end],
+                    content_height_mm,
+                    opening,
+                    systems_per_page,
+                );
+                if segment.is_empty() {
+                    capacities.clear();
+                    break;
+                }
+                capacities.extend(segment);
+            } else {
+                let page_count = count.div_ceil(systems_per_page);
+                let base = count / page_count;
+                let remainder = count % page_count;
+                capacities
+                    .extend((0..page_count).map(|index| base + usize::from(index < remainder)));
+            }
+            start = end;
         }
+        capacities
     } else {
         Vec::new()
     };
@@ -5214,6 +5236,39 @@ mod tests {
         .expect("valid explicit-break print config");
         assert_eq!(result.pages[0].systems.len(), 2);
         assert_eq!(result.pages[1].systems.len(), 3);
+    }
+
+    #[test]
+    fn balance_policy_balances_after_an_explicit_page_break() {
+        let mut score = score_with_measures(9);
+        score.parts[0].staves[0].measures[1].page_break = true;
+        let config = PrintConfig {
+            measures_per_system: 1,
+            systems_per_page: Some(3),
+            final_page_policy: FinalPagePolicy::Balance,
+            system_spacing: SystemSpacing::Packed,
+            ..PrintConfig::default()
+        };
+        let rows = (0..9)
+            .map(|i| crate::RowLayout {
+                measure_indices: vec![i],
+            })
+            .collect::<Vec<_>>();
+        for result in [
+            compute_print_layout(&score, &config).unwrap(),
+            paginate_measured_systems(&score, &config, &rows, &[70.0; 9]).unwrap(),
+        ] {
+            assert_eq!(
+                result
+                    .pages
+                    .iter()
+                    .map(|p| p.systems.len())
+                    .collect::<Vec<_>>(),
+                [2, 3, 2, 2]
+            );
+            assert_eq!(result.pages[0].break_reason, BreakReason::ExplicitPageBreak);
+            result.validate().unwrap();
+        }
     }
 
     #[test]

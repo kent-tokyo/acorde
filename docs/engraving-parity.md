@@ -775,6 +775,34 @@ the production source diff against `52f97f9c` has SHA-256
 All four final gates remain pending, including complete visual review and
 cross-platform/WASM and reserved-cohort verification.
 
+### Page balancing with explicit breaks
+
+With `FinalPagePolicy::Balance`, an explicit page break used to disable balancing
+throughout the score. Balancing now treats each run between explicit breaks as
+a separate segment, preserving each break and the system order. The existing
+default remains `AllowSingleSystem`; repeat-preserving ranges, publication
+sections starting new pages and publication spacers still use the prior
+unbalanced path. The same policy applies to fixed and measured system heights.
+
+As an experiment, a page break was inserted into the prepared
+`piano-BI105-1op30-1` input at measure index 22. With the same measured print
+configuration and balancing enabled, the page system counts changed from
+`[4, 4, 1]` to `[4, 3, 2]` while the explicit break and three-page count were
+preserved. The final page was visually inspected; this is an altered development
+input, not an independent acceptance score. Its input SHA-256 is
+`d794905823b7ed61620e0880495954486ef2dd722e1576ba8d1c373d3aebb47d`, the
+configuration SHA-256 is
+`2cfec5dd04e4a362fac653b6b1d6da4f756743793031da1ea7038d2065c07801`, and the
+final-page raster SHA-256 is
+`50ec342680d7350ee497690a7763720c691fe03b8951478783b35efe4a9e6e7b`.
+The release binary SHA-256 is
+`403e914dd3a4d5f95a43fa7c2f92a8111d391bb33f305cdf3ec14ff00574e8a5`;
+the layout diff against `c3f68326` has SHA-256
+`1c17eeb620fcb52061c33dc415904bec1ab9f74598312ba192a7b30f99181bfb`.
+The layout suite passed 143 tests and scoped all-feature layout library Clippy
+passed on macOS. This does not address the extra pages or complete the visual,
+cross-platform, WASM, performance or reserved-corpus gates.
+
 ### Reuse of measured row geometry
 
 Profiling the 643-measure chamber input showed repeated pagination attempts:

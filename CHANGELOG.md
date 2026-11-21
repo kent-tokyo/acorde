@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- When page balancing is selected, distribute systems independently between
+  explicit page breaks instead of disabling balancing for the whole score.
+
 - Account for voice separation and authored horizontal note offsets when
   measuring print columns, so displaced noteheads have room at barlines.
 
