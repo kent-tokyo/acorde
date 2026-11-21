@@ -231,6 +231,30 @@ are not independent labels for keys pressed. It provides a real-register functio
 not a note-accuracy measurement, register identification, or evaluation of an accompanied
 two-hand performance. Reference pitches and timing would need independent annotation.
 
+### Named registers with a common score
+
+Henry Doktorski's [Accordion Registrations](https://newmusicusa.org/nmbx/accordion-registrations/)
+includes a score for its audio demonstrations and describes the instruments and reed combinations.
+The article's original audio links currently redirect to unavailable pages. Archived copies of
+the [clarinet](https://web.archive.org/web/20060213220215id_/http://www.newmusicbox.org:80/70/audio/Clarinet.mp3),
+[bandoneon](https://web.archive.org/web/20060213220102id_/http://www.newmusicbox.org:80/70/audio/Bandoneon.mp3),
+and [master](https://web.archive.org/web/20060213220155id_/http://www.newmusicbox.org:80/70/audio/Master.mp3)
+examples were converted to 22.05 kHz mono WAV and processed from 0 to 20 seconds using Basic Pitch
+0.4.0, default thresholds and pitch range 0–127. Source recordings and score are not included in
+this repository.
+
+| Register | Model events | Source MP3 SHA-256 | API response SHA-256 |
+| --- | ---: | --- | --- |
+| Clarinet | 65 | `2ccc93990f761665116df0b3dc7bcaee288884799f7dab469b4f82625f55031b` | `02adbed80b4d7ed88b8843eba689ec94ab1b8707bb4dd300ddd89af5b6ee9be2` |
+| Bandoneon | 67 | `b6bf8cab94e1377fafe8180fa688f004bfc5a37d3beba2dd70890f9b56111530` | `7b10eac30cccd714cbcf3e75d8bc958a344c5d8d0893e3aa75aa0d3874fb7cdf` |
+| Master | 100 | `d430b28e13ac3f7549b621e9f387d0c9d84b98531954ed33aad209e9dd02d2dd` | `0812f8b9ab05ff2a59e1d35b0bfab54e0d687a2d9f242bdcf1e196da2b209623` |
+
+The [score image](https://newmusicusa.org/wp-content/uploads/nmbx/assets/70/images/accregistration_525x79.jpg)
+SHA-256 is `845c69185e0c930bacda63a26e3b5b0ecd380e01133dec0385935ad74f935d83`.
+The common score is useful context, but it is not an independently time-aligned reference, and
+event counts do not distinguish extra octave reeds, repeated detections, missed keys, or actual
+performance differences. This observation does not measure note accuracy or two-hand separation.
+
 ## Overlap export check
 
 The same-hand, same-pitch overlap guard was checked against five existing model outputs. Each
