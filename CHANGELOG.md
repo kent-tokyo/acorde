@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## 2.0.0 - 2026-11-22
+
+- **Migration:** Public score-model structs gain fields and enums gain variants.
+  Update complete Rust struct literals and exhaustive matches before upgrading.
+  See the [v2.0.0 migration notes](docs/migrations.md#v200-score-model-and-measured-print).
+  Existing Score JSON uses defaults for the newly added fields. Measured print
+  remains opt-in and its Verovio parity gates are still open.
+
 - Preserve open tie starts at system breaks and connect a tie to an explicitly
   tied matching pitch in another voice in measured print, including when the
   original voice continues with a rest or has no further event.
