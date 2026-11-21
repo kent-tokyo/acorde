@@ -743,3 +743,55 @@ The MIDI SHA-256 is `31183611b5d4ec226ef88df16046aa5405d898ce9aee9f1c92333a008cc
 the MusicXML SHA-256 is `979e966c1fdf65145fb979ec3f0dec0167394a591f8c2935c5a04962f80dc829`.
 This evaluates playback events on one excerpt with a chosen tempo, not notation readability,
 correct beat alignment, or general MusicXML conversion accuracy.
+
+## Phone recording of digital piano: Sight to Sound MIDI test set
+
+The [Sight to Sound MIDI test set](https://www.robots.ox.ac.uk/~vgg/research/sighttosound/)
+contains eight videos of a single amateur playing a digital piano. The authors describe a
+phone-camera recording and a MIDI reference captured by the instrument, aligned to the
+video audio. This is a separate performer and recording setup from the preceding development
+and evaluation data. The eight numbered files are all included; their individual piece
+names are not supplied, so composition-level separation has not been verified. Model
+training-set overlap is also unknown. The source is by A. S. Koepke, O. Wiles, Y. Moses and
+A. Zisserman, ICASSP 2020, and is licensed CC BY 4.0. Neither videos nor MIDI are included
+here. The downloaded `MIDItest.zip` had SHA-256
+`0e440b140af7fb5d53d8ec34a17adff26479b2fada537688c36e5386d25a8a1b`.
+
+Before inspecting either model's output, all eight videos were fixed and each video's first
+30 seconds were decoded with ffmpeg to mono 16 kHz PCM16; both models used the same audio.
+Initial comparisons produced almost no matches because the provided MIDI is approximately
+0.2–0.4 seconds later than the decoded audio. After discovering this, an alignment procedure
+was added: `align_phone_reference.py` scores a grid of constant shifts from -0.8 to 0.2 s
+in 5 ms steps against the 16 kHz audio's spectral-flux onset envelope and reference MIDI
+onsets between seconds 1 and 9. The best shift is applied to the reference MIDI; no model
+output enters this calculation. Librosa 0.11.0, NumPy 2.4.6, and pretty_midi 0.2.11.post0
+were used. The offsets in file order below were -0.375, -0.355, -0.205, -0.225, -0.270,
+-0.390, -0.300 and -0.180 seconds. The following results use only onsets in seconds 10–30,
+outside the alignment window. Because the alignment procedure was introduced after seeing
+the initial comparisons, this is an exploratory evaluation, not a preregistered test.
+
+The earlier piano model and Transkun were run with the same versions and settings as the
+PianoVAM evaluation. Matching uses 50 ms onset tolerance and 50-cent pitch tolerance;
+end matching also uses a tolerance of 20% of reference duration or 50 ms, whichever is
+larger. MIDI key releases need not coincide with the ends of sustained sound.
+
+| Video | Reference | Earlier matched / extra | Transkun matched / extra | Earlier / Transkun onset-and-end F1 |
+| --- | ---: | ---: | ---: | ---: |
+| 10 | 60 | 60 / 9 | 60 / 0 | 0.667 / 0.933 |
+| 21 | 43 | 42 / 11 | 43 / 0 | 0.792 / 0.814 |
+| 23 | 72 | 71 / 0 | 72 / 0 | 0.923 / 0.944 |
+| 24 | 80 | 80 / 1 | 80 / 0 | 0.870 / 0.963 |
+| 25 | 37 | 37 / 3 | 37 / 0 | 0.727 / 0.946 |
+| 26 | 49 | 48 / 5 | 49 / 0 | 0.549 / 0.939 |
+| 27 | 52 | 52 / 5 | 52 / 0 | 0.771 / 0.904 |
+| 5 | 83 | 83 / 10 | 83 / 0 | 0.795 / 0.952 |
+| Total | 476 | 473 / 44 | 476 / 0 | — |
+
+On this small sample the candidate has 44 fewer unmatched notes and matches three more
+reference onsets. It does not establish performance on acoustic pianos recorded by phone,
+other performers, independently identified compositions, or other recording devices.
+`sighttosound-comparison.json` fixes the excerpts and hashes for original video, original
+and aligned reference, decoded audio and both outputs. To reproduce, unpack the archive as
+`examples/transcription/sighttosound/`, use ffmpeg's `-t 30 -ac 1 -ar 16000 -c:a pcm_s16le`
+to write each `.excerpt.wav`, generate `.aligned.mid` with `align_phone_reference.py`, run
+the two models into the manifest's paths, then pass the manifest to `compare_corpus.py`.
