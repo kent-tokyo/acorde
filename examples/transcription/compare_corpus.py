@@ -8,18 +8,34 @@ import math
 from pathlib import Path
 
 import mir_eval
+import numpy as np
 
 from evaluate import extract
 
 
-def summarize(reference, estimate):
-    matches = mir_eval.transcription.match_notes(
-        *reference, *estimate, onset_tolerance=0.05, pitch_tolerance=50, offset_ratio=None)
+def summarize(reference, estimate, *, start=0.0, end=None, offset_ratio=None):
+    def inside(onset):
+        return bool(start <= onset and (end is None or onset < end))
+    def subset(events, indices):
+        return tuple(part[np.asarray(indices, dtype=int)] for part in events)
+    def match(left, right):
+        return mir_eval.transcription.match_notes(
+            *left, *right, onset_tolerance=0.05, pitch_tolerance=50,
+            offset_ratio=offset_ratio, offset_min_tolerance=0.05)
+    inside_refs = [i for i, interval in enumerate(reference[0]) if inside(interval[0])]
+    outside_refs = [i for i, interval in enumerate(reference[0]) if not inside(interval[0])]
+    matches = match(subset(reference, inside_refs), estimate)
     matched = len(matches)
-    reference_count = len(reference[0])
-    estimate_count = len(estimate[0])
+    matched_estimates = {est for _, est in matches}
+    remaining_estimates = [i for i in range(len(estimate[0])) if i not in matched_estimates]
+    boundary_matches = match(subset(reference, outside_refs), subset(estimate, remaining_estimates))
+    matched_estimates.update(remaining_estimates[est] for _, est in boundary_matches)
+    false_positive = sum(inside(interval[0]) and index not in matched_estimates
+                         for index, interval in enumerate(estimate[0]))
+    reference_count = len(inside_refs)
+    estimate_count = matched + false_positive
     return {'matched': matched, 'reference': reference_count, 'estimated': estimate_count,
-            'false_positive': estimate_count - matched, 'missed': reference_count - matched}
+            'false_positive': false_positive, 'missed': reference_count - matched}
 
 
 def rates(counts):
@@ -56,10 +72,13 @@ def compare(manifest_path):
         if not isinstance(expected_hashes, dict) or any(
                 key not in hashes or value != hashes[key] for key, value in expected_hashes.items()):
             raise ValueError(f'file hash does not match manifest: {label}')
-        reference = extract(paths['reference'], start=start, end=end)
+        margin_start = max(0.0, start - 0.05)
+        margin_end = None if end is None else end + 0.05
+        reference = extract(paths['reference'], start=margin_start, end=margin_end)
         row = {'id': label, 'start': start, 'end': end, 'sha256': hashes}
         for model in ('baseline', 'candidate'):
-            counts = summarize(reference, extract(paths[model], start=start, end=end))
+            estimate = extract(paths[model], start=margin_start, end=margin_end)
+            counts = summarize(reference, estimate, start=start, end=end)
             for key in counts:
                 totals[model][key] += counts[key]
             row[model] = rates(counts)

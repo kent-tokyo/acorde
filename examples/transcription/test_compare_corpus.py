@@ -4,12 +4,33 @@ import unittest
 from pathlib import Path
 
 import mido
+import numpy as np
+import pretty_midi
 
-from compare_corpus import compare
+from compare_corpus import compare, summarize
 from rescale_reference import rescale
 
 
 class CorpusComparisonTest(unittest.TestCase):
+    def test_matching_crosses_both_window_boundaries(self):
+        def events(items):
+            return (np.array([[time, time + 0.3] for time, _ in items], dtype=float),
+                    np.array([pretty_midi.note_number_to_hz(pitch) for _, pitch in items]))
+        reference = events([(0.99, 60), (1.02, 62), (1.98, 64), (2.01, 65)])
+        estimate = events([(1.01, 60), (0.99, 62), (2.01, 64), (1.99, 65), (1.5, 67)])
+        counts = summarize(reference, estimate, start=1.0, end=2.0)
+        self.assertEqual(counts, {'matched': 2, 'reference': 2, 'estimated': 3,
+                                  'false_positive': 1, 'missed': 0})
+
+    def test_in_window_reference_has_priority_over_boundary_context(self):
+        pitches = np.array([pretty_midi.note_number_to_hz(60)])
+        reference = (np.array([[0.99, 1.2], [1.02, 1.2]]), np.repeat(pitches, 2))
+        estimate = (np.array([[1.01, 1.2]]), pitches)
+        counts = summarize(reference, estimate, start=1.0, end=2.0)
+        self.assertEqual(counts['matched'], 1)
+        self.assertEqual(counts['missed'], 0)
+        self.assertEqual(counts['false_positive'], 0)
+
     def test_reference_rescale_rounds_absolute_ticks(self):
         with tempfile.TemporaryDirectory() as directory:
             source, output = Path(directory) / 'source.mid', Path(directory) / 'output.mid'
