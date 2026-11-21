@@ -821,3 +821,31 @@ This subset was selected after the model results were available, and identificat
 on pitch sequences rather than original file titles. It is exploratory evidence for two
 composition-distinct phone recordings of a digital piano, not a preregistered confirmation or
 an acoustic-piano test. Neither model's training-set overlap has been audited.
+
+### MIDI and MusicXML export for the identified phone recordings
+
+For the two identified video excerpts, the Transkun output notes starting in seconds
+10–30 were exported through the same `midi_bytes` and `transcription_score` helpers used
+by the workspace. A fixed 120 BPM, 4/4, first-bar time of 10 seconds, no pickup, and the
+initial MIDI-60 hand split were used. These are test settings, not verified musical tempo,
+meter, hand or bar annotations. Acorde's `playback-report` was compared against the same
+aligned instrument MIDI reference; exported MIDI and MusicXML playback times were shifted
+back by 10 seconds. No boundary candidates or human corrections were added.
+
+| Video | Reference | Exported MIDI onset P / R / F1 | MusicXML playback onset P / R / F1 |
+| --- | ---: | --- | --- |
+| 5 | 83 | 1.000 / 1.000 / 1.000 | 1.000 / 1.000 / 1.000 |
+| 27 | 52 | 1.000 / 1.000 / 1.000 | 1.000 / 1.000 / 1.000 |
+
+At 50 ms onset tolerance, all exported MIDI onsets matched a MusicXML playback onset in
+both windows; no matched endings exceeded the evaluator's relative-duration tolerance.
+This allows smaller timing changes and does not establish correct notation, readability,
+voice or hand assignment, or improvement in correction time. These two pieces were
+identified after results were inspected, so the comparison remains exploratory.
+
+Export MIDI SHA-256: video 5 `00beb5cc14dfe45e32944b1e116051b650a591fd50104fa4735fd08434effc33`;
+video 27 `6eb69d51cf95aea72b573eff7d301efa7901e6eb38b300fd24cf67c113d2130e`.
+Playback-report SHA-256: video 5 `54b2d2019b8aae747d3756b81d6ae57092f50a298a23d369e2be7cdb28dda2db`;
+video 27 `239d35298d8a49efab2fdfe00776204e2c4a8ad85fb497805d8eca63f941b32b`.
+MusicXML file hashes changed across repeated exports even though the playback-report hashes
+and comparison results remained unchanged.
