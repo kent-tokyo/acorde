@@ -1,0 +1,1098 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>耳コピ支援</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #f4f3ee;
+        color: #242825;
+        font:
+          16px system-ui,
+          sans-serif;
+      }
+      main {
+        max-width: 1150px;
+        margin: auto;
+        padding: 24px;
+      }
+      h1 {
+        font-size: 1.6rem;
+        margin: 0 0 16px;
+      }
+      section {
+        background: white;
+        border: 1px solid #d4d9d3;
+        border-radius: 10px;
+        padding: 16px;
+        margin: 12px 0;
+      }
+      label {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+        margin: 4px;
+      }
+      input,
+      select,
+      button {
+        font: inherit;
+        padding: 6px;
+        border: 1px solid #a6afa8;
+        border-radius: 5px;
+      }
+      button {
+        background: #eaf0ea;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #d7e6da;
+      }
+      button:disabled {
+        opacity: 0.5;
+      }
+      input[type="number"] {
+        width: 78px;
+      }
+      input[type="file"] {
+        max-width: 100%;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .grow {
+        flex: 1;
+      }
+      .scroll {
+        overflow: auto;
+        max-height: 480px;
+        border: 1px solid #cdd5cf;
+      }
+      #ruler {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        height: 24px;
+        background: #f1f4f1;
+        border-bottom: 1px solid #cdd5cf;
+      }
+      #ruler span {
+        position: absolute;
+        font-size: 11px;
+        padding-left: 3px;
+        border-left: 1px solid #829087;
+      }
+      #scoreImage[hidden] {
+        display: none;
+      }
+      #scoreImage {
+        display: block;
+        max-width: none;
+      }
+      canvas {
+        display: block;
+        cursor: crosshair;
+        touch-action: none;
+      }
+      small {
+        color: #4b5950;
+      }
+      .status {
+        min-height: 1.4em;
+        color: #7c3022;
+      }
+      audio {
+        max-width: 100%;
+      }
+      a {
+        color: #225f46;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>耳コピ支援</h1>
+      <section>
+        <div class="row">
+          <label
+            >録音
+            <input
+              id="file"
+              type="file"
+              accept="audio/wav,audio/x-wav,audio/wave" /></label
+          ><label
+            >楽器
+            <select id="instrument">
+              <option value="piano">ピアノ</option>
+              <option value="accordion">アコーディオン</option>
+            </select></label
+          ><label
+            >採譜モデル
+            <select id="model">
+              <option value="basic">汎用</option>
+              <option value="piano">ピアノ専用</option>
+            </select></label
+          ><label
+            >最低音 MIDI
+            <input id="low" type="number" min="0" max="127" value="0"
+          /></label>
+          <label
+            >最高音 MIDI
+            <input id="high" type="number" min="0" max="127" value="127"
+          /></label>
+          <button id="analyze" disabled>指定範囲の音符候補を作る</button>
+        </div>
+        <p id="recordingStatus" role="status"></p>
+        <p class="status" id="status" role="status"></p>
+        <audio id="audio" controls></audio>
+      </section>
+      <section>
+        <div class="row">
+          <label
+            >開始秒
+            <input
+              id="loopStart"
+              type="number"
+              min="0"
+              step="0.1"
+              value="0" /></label
+          ><label
+            >終了秒
+            <input
+              id="loopEnd"
+              type="number"
+              min="0"
+              step="0.1"
+              value="4" /></label
+          ><label
+            >速度
+            <select id="rate">
+              <option value="0.5">0.5×</option>
+              <option value="0.75">0.75×</option>
+              <option value="1" selected>1×</option>
+            </select></label
+          ><button id="loop">原音をループ</button
+          ><button id="audition">候補を再生</button
+          ><button id="stop">停止</button>
+        </div>
+      </section>
+      <section>
+        <div class="row">
+          <strong>音符</strong><span class="grow"></span
+          ><button id="add">音符を追加</button
+          ><button id="remove" disabled>選択した音符を削除</button>
+          <button id="undo" disabled>元に戻す</button>
+          <button id="rangeLeft">指定範囲を左手へ</button>
+          <button id="rangeRight">指定範囲を右手へ</button>
+        </div>
+        <p>
+          <small
+            >音符を選んで下の値を変更できます。横軸は録音の秒数です。</small
+          >
+        </p>
+        <div id="boundaryPanel" hidden>
+          <p><strong>開始位置の手前にある候補</strong></p>
+          <p>
+            <small
+              >開始位置の50ミリ秒前までの音です。既存の音符と聴き比べて追加してください。</small
+            >
+          </p>
+          <ul id="boundaryList"></ul>
+        </div>
+        <div class="scroll">
+          <div id="ruler" aria-hidden="true"></div>
+          <canvas
+            id="roll"
+            tabindex="0"
+            aria-label="音符一覧。選択した音符は下の欄で編集できます"
+          ></canvas>
+        </div>
+        <div class="row">
+          <label
+            >音高 MIDI
+            <input id="pitch" type="number" min="0" max="127" step="1" /></label
+          ><label
+            >開始秒
+            <input id="start" type="number" min="0" step="0.01" /></label
+          ><label
+            >終了秒 <input id="end" type="number" min="0" step="0.01" /></label
+          ><label
+            >手
+            <select id="hand">
+              <option value="right">右手</option>
+              <option value="left">左手</option>
+            </select></label
+          ><button id="apply" disabled>変更を適用</button>
+        </div>
+        <div id="octaveReview" hidden>
+          <p><small>近い時刻にオクターブ違いの音があります。同時に弾いた音やリードの音を含むため、原音と確認してください。</small></p>
+          <ul id="octaveList"></ul>
+        </div>
+      </section>
+      <section>
+        <div class="row">
+          <label
+            >テンポ
+            <input
+              id="tempo"
+              type="number"
+              value="120"
+              min="20"
+              max="400" /></label
+          ><label
+            >拍子
+            <input id="numerator" type="number" value="4" min="1" max="32" /> /
+            <select id="denominator">
+              <option>2</option>
+              <option selected>4</option>
+              <option>8</option>
+              <option>16</option>
+            </select></label
+          ><label
+            >最初の完全な小節頭の秒
+            <input id="barStart" type="number" value="0" step="0.01" /></label
+          ><label
+            >弱起の長さ（16分音符）<input
+              id="pickupSteps"
+              type="number"
+              min="0"
+              max="255"
+              step="1"
+              value="0"
+          /></label>
+          <button id="midi">MIDI を保存</button
+          ><button id="musicxml">MusicXML を保存</button
+          ><button id="saveProject">編集内容を保存</button
+          ><label
+            >編集内容を開く
+            <input id="openProject" type="file" accept="application/json,.json"
+          /></label>
+        </div>
+        <p>
+          <small
+            >弱起がある場合は、その長さと最初の完全な小節頭を指定してください。楽譜化では音の時刻を拍に合わせ、重なる音の長さが変わる場合があります。音符の左右を確認してください。</small
+          >
+        </p>
+      </section>
+      <section>
+        <div class="row">
+          <strong>楽譜</strong>
+          <button id="preview">楽譜を表示</button>
+          <label
+            >小節 <input id="measure" type="number" min="1" step="1" value="1"
+          /></label>
+          <button id="measureLoop" disabled>この小節をループに設定</button>
+        </div>
+        <div class="scroll">
+          <img id="scoreImage" alt="生成した楽譜" hidden />
+        </div>
+      </section>
+      <section>
+        <div class="row">
+          <strong>左手のベース・和音候補</strong>
+          <label
+            >開始時刻の幅
+            <select id="chordWindow">
+              <option value="0.1">0.1秒</option>
+              <option value="0.2" selected>0.2秒</option>
+              <option value="0.4">0.4秒</option>
+            </select></label
+          >
+          <button id="chords">候補を表示</button>
+        </div>
+        <p>
+          <small
+            >左手に割り当てた音の開始時刻が指定幅に収まる組み合わせから推定します。アコーディオンのボタンやレジスターは判定しません。</small
+          >
+        </p>
+        <div class="row"><strong>ベース音</strong></div>
+        <ul id="bassList"></ul>
+        <div class="row"><strong>和音</strong></div>
+        <ul id="chordList"></ul>
+      </section>
+    </main>
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const state = {
+        notes: [],
+        boundaryCandidates: [],
+        undo: [],
+        selected: -1,
+        url: null,
+        context: null,
+        timers: [],
+        looping: false,
+        scale: 90,
+        previewUrl: null,
+        previewMeta: null,
+        recordingHash: null,
+        expectedRecordingHash: null,
+      };
+      const status = (message) => ($("status").textContent = message);
+      const value = (id) => Number($(id).value);
+      function updateRecordingStatus() {
+        const current = state.recordingHash;
+        const expected = state.expectedRecordingHash;
+        if (!current) {
+          $("recordingStatus").textContent = expected
+            ? "保存した編集内容に対応する録音を選んでください。"
+            : "";
+        } else if (!expected) {
+          $("recordingStatus").textContent =
+            "編集内容に元の録音の照合情報がありません。";
+        } else if (current === expected) {
+          $("recordingStatus").textContent = "録音が編集内容と一致しています。";
+        } else {
+          $("recordingStatus").textContent =
+            "選択した録音は編集内容の録音と異なります。保存済みの録音情報は保持します。";
+        }
+      }
+      function clearCandidates() {
+        $("bassList").replaceChildren();
+        $("chordList").replaceChildren();
+      }
+      $("chordWindow").onchange = clearCandidates;
+      function clearPreview() {
+        if (state.previewUrl) URL.revokeObjectURL(state.previewUrl);
+        state.previewUrl = null;
+        state.previewMeta = null;
+        $("scoreImage").hidden = true;
+        $("scoreImage").removeAttribute("src");
+        $("measureLoop").disabled = true;
+      }
+      for (const id of [
+        "tempo",
+        "numerator",
+        "denominator",
+        "barStart",
+        "pickupSteps",
+        "instrument",
+      ])
+        $(id).addEventListener("input", clearPreview);
+      function rememberNotes() {
+        clearCandidates();
+        clearPreview();
+        state.undo.push({
+          notes: state.notes.map((note) => ({ ...note })),
+          boundaryCandidates: state.boundaryCandidates.map((candidate) => ({
+            note: { ...candidate.note },
+            added: candidate.added,
+          })),
+          expectedRecordingHash: state.expectedRecordingHash,
+        });
+        if (state.undo.length > 50) state.undo.shift();
+      }
+      $("undo").onclick = () => {
+        const previous = state.undo.pop();
+        if (previous) {
+          state.notes = previous.notes;
+          state.boundaryCandidates = previous.boundaryCandidates;
+          state.expectedRecordingHash = previous.expectedRecordingHash;
+          updateRecordingStatus();
+          clearCandidates();
+          clearPreview();
+          select(-1);
+          status("音符の変更を元に戻しました。");
+        }
+      };
+      function renderBoundaryCandidates() {
+        const panel = $("boundaryPanel");
+        const list = $("boundaryList");
+        list.replaceChildren();
+        panel.hidden = state.boundaryCandidates.length === 0;
+        state.boundaryCandidates.forEach((candidate, index) => {
+          const note = candidate.note;
+          const exact = state.notes.some(
+            (existing) =>
+              existing.pitch === note.pitch &&
+              existing.start === note.start &&
+              existing.end === note.end,
+          );
+          const near = state.notes.some(
+            (existing) =>
+              existing.pitch === note.pitch &&
+              Math.abs(existing.start - note.start) <= 0.075 &&
+              existing.end > note.start &&
+              note.end > existing.start,
+          );
+          const item = document.createElement("li");
+          const text = document.createElement("span");
+          text.textContent =
+            `${note.start.toFixed(3)}〜${note.end.toFixed(3)}秒　MIDI ${note.pitch}` +
+            (near ? "　近い音符あり" : "") +
+            (note.context_limited ? "　音の長さを確認" : "");
+          const button = document.createElement("button");
+          button.textContent = candidate.added && exact ? "追加済み" : "追加";
+          button.disabled = candidate.added && exact;
+          button.onclick = () => {
+            rememberNotes();
+            const { context_limited, ...newNote } =
+              state.boundaryCandidates[index].note;
+            state.notes.push(newNote);
+            state.boundaryCandidates[index].added = true;
+            select(state.notes.length - 1);
+            status("開始位置の手前の候補を追加しました。");
+          };
+          item.append(text, " ", button);
+          list.append(item);
+        });
+      }
+      function renderOctaveReview() {
+        const selected = state.notes[state.selected];
+        const related = selected ? state.notes.flatMap((note, index) => {
+          const distance = Math.abs(note.pitch - selected.pitch);
+          return index !== state.selected && (distance === 12 || distance === 24) &&
+            Math.abs(note.start - selected.start) <= 0.12 &&
+            note.start < selected.end && selected.start < note.end
+            ? [{ note, index }] : [];
+        }) : [];
+        const list = $("octaveList");
+        list.replaceChildren();
+        $("octaveReview").hidden = related.length === 0;
+        related.slice(0, 20).forEach(({ note, index }) => {
+          const item = document.createElement("li");
+          const button = document.createElement("button");
+          button.textContent = "選択";
+          button.onclick = () => select(index);
+          item.append(`MIDI ${note.pitch}　${note.start.toFixed(3)}〜${note.end.toFixed(3)}秒　${note.hand === "left" ? "左手" : "右手"} `, button);
+          list.append(item);
+        });
+        if (related.length > 20) list.append(`ほか ${related.length - 20} 音`);
+      }
+      function render() {
+        const canvas = $("roll"),
+          context = canvas.getContext("2d");
+        const duration = Math.max(
+          4,
+          $("audio").duration || 0,
+          ...state.notes.map((n) => n.end),
+        );
+        const width = Math.min(15000, Math.max(800, Math.ceil(duration * 90))),
+          row = 15,
+          top = 127,
+          bottom = 0;
+        state.scale = width / duration;
+        const ruler = $("ruler");
+        ruler.style.width = `${width}px`;
+        ruler.replaceChildren();
+        const tickStep = Math.max(1, Math.ceil(duration / 12));
+        for (let second = 0; second < duration; second += tickStep) {
+          const label = document.createElement("span");
+          label.style.left = `${second * state.scale}px`;
+          label.textContent = `${second}秒`;
+          ruler.append(label);
+        }
+        canvas.width = width;
+        canvas.height = (top - bottom + 1) * row;
+        context.font = "11px system-ui";
+        for (let p = bottom; p <= top; p++) {
+          let y = (top - p) * row;
+          context.fillStyle = [1, 3, 6, 8, 10].includes(p % 12)
+            ? "#edf1ed"
+            : "#fff";
+          context.fillRect(0, y, width, row);
+          context.strokeStyle = "#e0e5e0";
+          context.strokeRect(0, y, width, row);
+          if (p % 12 === 0) {
+            context.fillStyle = "#354d3d";
+            context.fillText("C" + (Math.floor(p / 12) - 1), 2, y + 11);
+          }
+        }
+        state.notes.forEach((n, i) => {
+          let x = n.start * state.scale,
+            y = (top - n.pitch) * row;
+          if (y < 0 || y >= canvas.height) return;
+          context.fillStyle =
+            i === state.selected
+              ? "#e69042"
+              : n.hand === "left"
+                ? "#667fb5"
+                : "#438c69";
+          context.fillRect(
+            x,
+            y + 1,
+            Math.max(2, (n.end - n.start) * state.scale),
+            row - 2,
+          );
+        });
+        $("remove").disabled = $("apply").disabled = state.selected < 0;
+        $("undo").disabled = state.undo.length === 0;
+        renderBoundaryCandidates();
+        renderOctaveReview();
+      }
+      function select(i) {
+        state.selected = i;
+        const n = state.notes[i];
+        if (n) {
+          for (const k of ["pitch", "start", "end", "hand"]) $(k).value = n[k];
+        }
+        render();
+      }
+      $("file").onchange = async () => {
+        stop();
+        const savedBoundaryCandidates = state.boundaryCandidates;
+        const expectedHash = state.expectedRecordingHash;
+        if (state.url) URL.revokeObjectURL(state.url);
+        state.url = null;
+        state.recordingHash = null;
+        state.boundaryCandidates = [];
+        const clearedBoundaryCandidates = state.boundaryCandidates;
+        state.undo.forEach((snapshot) => (snapshot.boundaryCandidates = []));
+        $("audio").removeAttribute("src");
+        $("analyze").disabled = true;
+        clearPreview();
+        select(-1);
+        const file = $("file").files[0];
+        if (!file) {
+          $("saveProject").disabled = false;
+          updateRecordingStatus();
+          return;
+        }
+        state.url = URL.createObjectURL(file);
+        $("audio").src = state.url;
+        if (file.size > 64 * 1024 * 1024) {
+          $("saveProject").disabled = false;
+          $("recordingStatus").textContent =
+            "録音が64 MiBを超えているため解析できません。";
+          return;
+        }
+        $("saveProject").disabled = true;
+        $("recordingStatus").textContent = "録音を照合しています。";
+        try {
+          const bytes = await file.arrayBuffer();
+          const digest = await crypto.subtle.digest("SHA-256", bytes);
+          if (file !== $("file").files[0]) return;
+          state.recordingHash = Array.from(new Uint8Array(digest), (byte) =>
+            byte.toString(16).padStart(2, "0"),
+          ).join("");
+          if (expectedHash && state.recordingHash === expectedHash &&
+              state.expectedRecordingHash === expectedHash &&
+              state.boundaryCandidates === clearedBoundaryCandidates) {
+            state.boundaryCandidates = savedBoundaryCandidates;
+            renderBoundaryCandidates();
+          }
+          if (!state.expectedRecordingHash && state.notes.length === 0) {
+            state.expectedRecordingHash = state.recordingHash;
+          }
+          updateRecordingStatus();
+        } catch (error) {
+          if (file !== $("file").files[0]) return;
+          $("recordingStatus").textContent =
+            "録音の照合情報を計算できませんでした。";
+        } finally {
+          if (file === $("file").files[0]) {
+            $("saveProject").disabled = false;
+            $("analyze").disabled = false;
+          }
+        }
+        status("録音を読み込みました。既存の音符は保持しています。");
+      };
+      $("audio").onloadedmetadata = () => {
+        $("loopEnd").value = Math.min(4, $("audio").duration).toFixed(3);
+        render();
+      };
+      $("analyze").onclick = async () => {
+        let file = $("file").files[0],
+          begin = value("loopStart"),
+          end = value("loopEnd"),
+          low = value("low"),
+          high = value("high"),
+          original = JSON.stringify([state.notes, state.expectedRecordingHash]);
+        if (!file) return;
+        $("analyze").disabled = true;
+        status("音符候補を解析中です。");
+        try {
+          let response = await fetch("/transcribe", {
+            method: "POST",
+            headers: {
+              "X-Transcription-Model": $("model").value,
+              "X-Range-Start": String(begin),
+              "X-Range-End": String(end),
+              "X-Pitch-Low": String(low),
+              "X-Pitch-High": String(high),
+            },
+            body: file,
+          });
+          let data = await response.json();
+          if (!response.ok) throw Error(data.error);
+          if (file !== $("file").files[0])
+            throw Error("録音が変更されたため、解析結果を破棄しました。");
+          if (
+            original !==
+            JSON.stringify([state.notes, state.expectedRecordingHash])
+          )
+            throw Error("音符が変更されたため、解析結果を破棄しました。");
+          rememberNotes();
+          if (
+            state.expectedRecordingHash &&
+            state.recordingHash !== state.expectedRecordingHash
+          ) {
+            state.expectedRecordingHash = null;
+            updateRecordingStatus();
+          }
+          state.notes = state.notes
+            .filter(
+              (n) =>
+                n.start < begin ||
+                n.start >= end ||
+                n.pitch < low ||
+                n.pitch > high,
+            )
+            .concat(data.notes);
+          state.boundaryCandidates = (data.boundary_notes || []).map(
+            (note) => ({ note, added: false }),
+          );
+          select(-1);
+          const boundaryMessage = data.context_limited_notes
+            ? ` ${data.context_limited_notes}音は解析範囲の端まで続いています。長さを確認してください。`
+            : "";
+          status(
+            `${data.notes.length}音の候補を作りました。音高と左右を確認してください。${boundaryMessage}`,
+          );
+        } catch (e) {
+          status(e.message);
+        } finally {
+          $("analyze").disabled = false;
+        }
+      };
+      function assignRange(hand) {
+        const begin = value("loopStart"),
+          end = value("loopEnd");
+        const low = value("low"),
+          high = value("high");
+        if (!(
+          begin >= 0 &&
+          end > begin &&
+          Number.isInteger(low) &&
+          Number.isInteger(high) &&
+          low >= 0 &&
+          low <= high &&
+          high <= 127
+        )) {
+          status("時刻と音域を確認してください。");
+          return;
+        }
+        rememberNotes();
+        let count = 0;
+        for (const note of state.notes) {
+          if (
+            note.start >= begin &&
+            note.start < end &&
+            note.pitch >= low &&
+            note.pitch <= high
+          ) {
+            note.hand = hand;
+            count++;
+          }
+        }
+        select(state.selected);
+        status(
+          `${count}音を${hand === "left" ? "左手" : "右手"}に割り当てました。`,
+        );
+      }
+      $("rangeLeft").onclick = () => assignRange("left");
+      $("rangeRight").onclick = () => assignRange("right");
+      $("roll").onclick = (e) => {
+        let r = e.target.getBoundingClientRect(),
+          x = ((e.clientX - r.left) * e.target.width) / r.width / state.scale,
+          p =
+            127 -
+            Math.floor(((e.clientY - r.top) * e.target.height) / r.height / 15);
+        let i = state.notes.findLastIndex(
+          (n) => n.pitch === p && n.start <= x && n.end >= x,
+        );
+        select(i);
+      };
+      $("add").onclick = () => {
+        let start = Math.max(0, value("loopStart"));
+        rememberNotes();
+        state.notes.push({ pitch: 60, start, end: start + 0.5, hand: "right" });
+        select(state.notes.length - 1);
+      };
+      $("remove").onclick = () => {
+        if (state.selected >= 0) {
+          rememberNotes();
+          state.notes.splice(state.selected, 1);
+          select(-1);
+        }
+      };
+      $("apply").onclick = () => {
+        let pitch = value("pitch"),
+          start = value("start"),
+          end = value("end");
+        if (
+          !Number.isInteger(pitch) ||
+          pitch < 0 ||
+          pitch > 127 ||
+          !Number.isFinite(start) ||
+          !Number.isFinite(end) ||
+          start < 0 ||
+          end <= start
+        ) {
+          status("音高と開始・終了時刻を確認してください。");
+          return;
+        }
+        rememberNotes();
+        Object.assign(state.notes[state.selected], {
+          pitch,
+          start,
+          end,
+          hand: $("hand").value,
+        });
+        render();
+        status("音符を変更しました。");
+      };
+      function stop() {
+        state.looping = false;
+        $("audio").pause();
+        for (let t of state.timers) clearTimeout(t);
+        state.timers = [];
+        if (state.context) {
+          state.context.close();
+          state.context = null;
+        }
+      }
+      $("stop").onclick = stop;
+      $("loop").onclick = () => {
+        stop();
+        const start = value("loopStart"),
+          end = value("loopEnd");
+        if (!(
+          start >= 0 &&
+          end > start &&
+          start < $("audio").duration &&
+          end <= $("audio").duration + 0.01
+        )) {
+          status("ループ範囲を確認してください。");
+          return;
+        }
+        state.looping = true;
+        $("audio").currentTime = start;
+        $("audio").playbackRate = value("rate");
+        $("audio").preservesPitch = true;
+        $("audio")
+          .play()
+          .catch((e) => {
+            state.looping = false;
+            status(e.message);
+          });
+      };
+      $("audio").ontimeupdate = () => {
+        if (
+          state.looping &&
+          $("audio").currentTime >=
+            Math.min(value("loopEnd"), $("audio").duration)
+        )
+          $("audio").currentTime = value("loopStart");
+      };
+      $("audio").onended = () => {
+        if (!state.looping) return;
+        $("audio").currentTime = value("loopStart");
+        $("audio")
+          .play()
+          .catch((error) => {
+            state.looping = false;
+            status(error.message);
+          });
+      };
+      $("audition").onclick = async () => {
+        stop();
+        let start = value("loopStart"),
+          end = value("loopEnd");
+        if (!(start >= 0 && end > start)) {
+          status("再生範囲を確認してください。");
+          return;
+        }
+        let ctx = (state.context = new AudioContext());
+        await ctx.resume();
+        let rate = value("rate");
+        for (let n of state.notes) {
+          let a = Math.max(start, n.start),
+            b = Math.min(end, n.end);
+          if (b <= a) continue;
+          let oscillator = ctx.createOscillator(),
+            gain = ctx.createGain();
+          oscillator.frequency.value = 440 * 2 ** ((n.pitch - 69) / 12);
+          gain.gain.value = 0.06;
+          oscillator.connect(gain).connect(ctx.destination);
+          oscillator.start(ctx.currentTime + (a - start) / rate);
+          oscillator.stop(ctx.currentTime + (b - start) / rate);
+        }
+        state.timers.push(
+          setTimeout(stop, ((end - start) / rate) * 1000 + 100),
+        );
+      };
+      function scoreInput() {
+        return {
+          notes: state.notes,
+          tempo: value("tempo"),
+          numerator: value("numerator"),
+          denominator: value("denominator"),
+          bar_start: value("barStart"),
+          pickup_steps: value("pickupSteps"),
+          instrument: $("instrument").value,
+        };
+      }
+      async function download(kind) {
+        let data = scoreInput();
+        try {
+          let r = await fetch("/" + kind, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+          });
+          if (!r.ok) {
+            let e = await r.json();
+            throw Error(e.error);
+          }
+          let u = URL.createObjectURL(await r.blob()),
+            a = document.createElement("a");
+          a.href = u;
+          a.download =
+            "transcription." + (kind === "midi" ? "mid" : "musicxml");
+          a.click();
+          setTimeout(() => URL.revokeObjectURL(u), 1000);
+          status("保存しました。");
+        } catch (e) {
+          status(e.message);
+        }
+      }
+      $("chords").onclick = () => {
+        let list = $("chordList");
+        let bassList = $("bassList");
+        list.replaceChildren();
+        bassList.replaceChildren();
+        let notes = state.notes
+          .filter((n) => n.hand === "left")
+          .sort((a, b) => a.start - b.start);
+        let groups = [];
+        for (let note of notes) {
+          let last = groups[groups.length - 1];
+          if (!last || note.start - last.time > value("chordWindow")) {
+            last = { time: note.start, pitches: new Set() };
+            groups.push(last);
+          }
+          last.pitches.add(note.pitch % 12);
+        }
+        let names = [
+          "C",
+          "C♯",
+          "D",
+          "E♭",
+          "E",
+          "F",
+          "F♯",
+          "G",
+          "A♭",
+          "A",
+          "B♭",
+          "B",
+        ];
+        let patterns = [
+          ["", [0, 4, 7]],
+          ["m", [0, 3, 7]],
+          ["7", [0, 4, 7, 10]],
+          ["7（5度省略）", [0, 4, 10]],
+          ["dim", [0, 3, 6]],
+        ];
+        for (let group of groups) {
+          if (group.pitches.size === 1) {
+            const item = document.createElement("li");
+            item.textContent =
+              group.time.toFixed(2) +
+              "秒　" +
+              names[group.pitches.values().next().value];
+            bassList.append(item);
+          }
+          let matches = [];
+          for (let root = 0; root < 12; root++)
+            for (let [suffix, intervals] of patterns) {
+              if (
+                group.pitches.size === intervals.length &&
+                intervals.every((i) => group.pitches.has((root + i) % 12))
+              )
+                matches.push(names[root] + suffix);
+            }
+          if (matches.length) {
+            let item = document.createElement("li");
+            item.textContent =
+              group.time.toFixed(2) + "秒　" + matches.join(" / ");
+            list.append(item);
+          }
+        }
+        if (!bassList.children.length) {
+          const item = document.createElement("li");
+          item.textContent = "一致する候補はありません。";
+          bassList.append(item);
+        }
+        if (!list.children.length) {
+          let item = document.createElement("li");
+          item.textContent = "一致する候補はありません。";
+          list.append(item);
+        }
+      };
+      $("preview").onclick = async () => {
+        const data = scoreInput();
+        const snapshot = JSON.stringify(data);
+        try {
+          const response = await fetch("/preview", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: snapshot,
+          });
+          if (!response.ok) throw Error((await response.json()).error);
+          const image = await response.blob();
+          const measureCount = Number(response.headers.get("X-Measure-Count"));
+          if (snapshot !== JSON.stringify(scoreInput()))
+            throw Error("音符や拍子が変わったため、楽譜を更新してください。");
+          clearPreview();
+          state.previewUrl = URL.createObjectURL(image);
+          state.previewMeta = { ...data, measure_count: measureCount };
+          $("scoreImage").src = state.previewUrl;
+          $("scoreImage").hidden = false;
+          $("measureLoop").disabled = false;
+          status("楽譜を表示しました。");
+        } catch (error) {
+          status(error.message);
+        }
+      };
+      $("measureLoop").onclick = () => {
+        const measure = value("measure"),
+          data = state.previewMeta;
+        if (
+          !data ||
+          !Number.isInteger(measure) ||
+          measure < 1 ||
+          measure > data.measure_count
+        ) {
+          status("小節番号を確認してください。");
+          return;
+        }
+        const beatSeconds = 60 / data.tempo;
+        const pickupSeconds = (data.pickup_steps * beatSeconds) / 4;
+        const barSeconds =
+          ((4 * data.numerator) / data.denominator) * beatSeconds;
+        const hasPickup = data.pickup_steps > 0;
+        const start =
+          hasPickup && measure === 1
+            ? data.bar_start - pickupSeconds
+            : data.bar_start + (measure - (hasPickup ? 2 : 1)) * barSeconds;
+        const end =
+          hasPickup && measure === 1 ? data.bar_start : start + barSeconds;
+        if (
+          !Number.isFinite($("audio").duration) ||
+          start < 0 ||
+          start >= $("audio").duration
+        ) {
+          status("録音と小節番号を確認してください。");
+          return;
+        }
+        $("loopStart").value = start.toFixed(3);
+        $("loopEnd").value = Math.min(end, $("audio").duration).toFixed(3);
+        status(`${measure}小節目をループ範囲に設定しました。`);
+      };
+      $("midi").onclick = () => download("midi");
+      $("musicxml").onclick = () => download("musicxml");
+      $("saveProject").onclick = () => {
+        let project = {
+          version: 1,
+          notes: state.notes,
+          boundaryCandidates: state.boundaryCandidates,
+          tempo: value("tempo"),
+          numerator: value("numerator"),
+          denominator: value("denominator"),
+          barStart: value("barStart"),
+          pickupSteps: value("pickupSteps"),
+          recordingSha256: state.expectedRecordingHash,
+          instrument: $("instrument").value,
+        };
+        let url = URL.createObjectURL(
+          new Blob([JSON.stringify(project, null, 2)], {
+            type: "application/json",
+          }),
+        );
+        let link = document.createElement("a");
+        link.href = url;
+        link.download = "transcription.json";
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      };
+      $("openProject").onchange = async () => {
+        try {
+          let project = JSON.parse(await $("openProject").files[0].text());
+          if (
+            project.version !== 1 ||
+            !Array.isArray(project.notes) ||
+            project.notes.length > 10000 ||
+            !project.notes.every(
+              (n) =>
+                Number.isInteger(n.pitch) &&
+                n.pitch >= 0 &&
+                n.pitch <= 127 &&
+                Number.isFinite(n.start) &&
+                Number.isFinite(n.end) &&
+                n.start >= 0 &&
+                n.end > n.start &&
+                ["left", "right"].includes(n.hand),
+            ) ||
+            (project.boundaryCandidates !== undefined &&
+              (!Array.isArray(project.boundaryCandidates) ||
+                project.boundaryCandidates.length > 10000 ||
+                !project.boundaryCandidates.every((candidate) => {
+                  const n = candidate?.note;
+                  return n && Number.isInteger(n.pitch) && n.pitch >= 0 && n.pitch <= 127 &&
+                    Number.isFinite(n.start) && Number.isFinite(n.end) && n.start >= 0 &&
+                    n.end > n.start && ["left", "right"].includes(n.hand) &&
+                    typeof n.context_limited === "boolean" && typeof candidate.added === "boolean";
+                }))) ||
+            !Number.isFinite(project.tempo) ||
+            project.tempo < 20 ||
+            project.tempo > 400 ||
+            !Number.isInteger(project.numerator) ||
+            project.numerator < 1 ||
+            project.numerator > 32 ||
+            ![2, 4, 8, 16].includes(project.denominator) ||
+            !Number.isFinite(project.barStart) ||
+            project.barStart < 0 ||
+            (project.recordingSha256 != null &&
+              (typeof project.recordingSha256 !== "string" ||
+                !/^[0-9a-f]{64}$/.test(project.recordingSha256))) ||
+            (project.pickupSteps !== undefined &&
+              (!Number.isInteger(project.pickupSteps) ||
+                project.pickupSteps < 0 ||
+                project.pickupSteps > 255))
+          )
+            throw Error("編集内容の形式を確認してください。");
+          $("pickupSteps").value = project.pickupSteps ?? 0;
+          state.notes = project.notes;
+          state.boundaryCandidates = project.boundaryCandidates ?? [];
+          state.expectedRecordingHash = project.recordingSha256 ?? null;
+          updateRecordingStatus();
+          clearCandidates();
+          clearPreview();
+          state.undo = [];
+          $("instrument").value =
+            project.instrument === "accordion" ? "accordion" : "piano";
+          for (let key of ["tempo", "numerator", "denominator", "barStart"])
+            $(key).value = project[key];
+          select(-1);
+          status(
+            "編集内容を読み込みました。同じ録音を選んで照合してください。",
+          );
+        } catch (e) {
+          status(e.message);
+        }
+      };
+      render();
+      $("roll").parentElement.scrollTop = 700;
+    </script>
+  </body>
+</html>
