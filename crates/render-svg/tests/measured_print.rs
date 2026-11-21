@@ -130,7 +130,7 @@ fn cross_staff_above_lyric_extender_follows_written_staff_across_pages() {
     score.parts[0].staves.push(lower);
     let output = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
     assert_eq!(output.pages.len(), 2);
-    for svg in &output.pages {
+    for (page_index, svg) in output.pages.iter().enumerate() {
         let doc = roxmltree::Document::parse(svg).unwrap();
         let staves: Vec<_> = doc
             .descendants()
@@ -150,6 +150,40 @@ fn cross_staff_above_lyric_extender_follows_written_staff_across_pages() {
             .find(|n| n.attribute("class") == Some("acorde-lyric-extender"))
             .unwrap();
         let y: f32 = extender.attribute("y1").unwrap().parse().unwrap();
+        assert_eq!(extender.attribute("data-print-staff"), Some("1"));
+        if page_index == 0 {
+            let text = doc
+                .descendants()
+                .find(|n| n.attribute("data-text") == Some("Hold"))
+                .unwrap();
+            let size: f32 = text.attribute("data-font-size").unwrap().parse().unwrap();
+            let baseline: f32 = text
+                .children()
+                .find(|n| n.has_tag_name("path"))
+                .unwrap()
+                .attribute("transform")
+                .unwrap()
+                .trim_end_matches(')')
+                .split_whitespace()
+                .last()
+                .unwrap()
+                .parse()
+                .unwrap();
+            let ink = TextFont::new(FONT, 0)
+                .unwrap()
+                .measure("Hold", size)
+                .unwrap();
+            assert!(
+                upper_bottom < baseline + ink.top_mm && baseline + ink.bottom_mm < lower_top,
+                "lyric ink {}..{}, staff bounds {upper_bottom}..{lower_top}",
+                baseline + ink.top_mm,
+                baseline + ink.bottom_mm
+            );
+            assert!(
+                (baseline - y).abs() < 0.1,
+                "lyric baseline {baseline}, extender {y}"
+            );
+        }
         assert!(
             upper_bottom < y && y < lower_top,
             "extender {y}, staff bounds {upper_bottom}..{lower_top}"

@@ -1022,6 +1022,18 @@ clearance, and broader visual cases remain unverified. The previous 34-input
 screen predates this change and was not rerun for this checkpoint. Final parity
 and platform gates remain open.
 
+The follow-up [34-input screen](archive/print-parity-cross-staff-lyrics-screen-20261122.json)
+used the same input hashes and the release printer with SHA-256
+`29429ce85fb7ac0cd2df7117edda419f3d1d1eb5f59071e164500a1a849b62ef`.
+All 310 pages and per-input page counts matched the earlier run. Its selected
+text/notation, text/text, lyric/staff, lyric-baseline, dynamic/staff and
+text/curve checks found no candidates; no elements crossed a page edge. The
+314 margin candidates comprised 310 page numbers and four titles, matching the
+previous screen. The synthetic regression additionally measures the first
+syllable's font ink and verifies that it lies between the staves and shares
+the extender baseline. This screen is not a complete visual review, and the
+corpus does not establish comprehensive cross-staff lyric coverage.
+
 ### Reuse of measured row geometry
 
 Profiling the 643-measure chamber input showed repeated pagination attempts:
