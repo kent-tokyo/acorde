@@ -198,24 +198,8 @@ pub(crate) fn render(
                             let Some(&(left, right)) = extents.get(row) else {
                                 continue;
                             };
-                            // All verses on a staff have fixed baselines within each measured row.
                             let above = text.placement_above == Some(true);
                             let lane = if above { upper_baselines } else { baselines };
-                            let print_staff = events[i..last_index]
-                                .iter()
-                                .rev()
-                                .find(|e| e.point.3 <= row)
-                                .and_then(|e| e.note.cross_staff.as_ref())
-                                .map_or(s, |c| c.target_staff);
-                            let Some(&first_baseline) = lane.get(&(p, print_staff, row)) else {
-                                continue;
-                            };
-                            let direction = if above { -1.0 } else { 1.0 };
-                            let baseline = first_baseline
-                                + direction
-                                    * f32::from(verse.saturating_sub(1))
-                                    * crate::render::lyric_verse_spacing_u()
-                                    * space;
                             let x1 = if row == start_row {
                                 start_x
                             } else {
@@ -235,19 +219,47 @@ pub(crate) fn render(
                             } else {
                                 right - 0.3 * space
                             };
-                            line(
-                                body,
-                                "extender",
-                                verse,
-                                event.key,
-                                end_key,
-                                row,
-                                print_staff,
-                                x1,
-                                x2,
-                                baseline,
-                                space,
-                            );
+                            let written_staff = |e: &Event<'_>| {
+                                e.note.cross_staff.as_ref().map_or(s, |c| c.target_staff)
+                            };
+                            let span = &events[i..last_index];
+                            let mut current = span
+                                .iter()
+                                .rev()
+                                .find(|e| e.point.3 < row)
+                                .or_else(|| span.iter().find(|e| e.point.3 == row))
+                                .map_or(s, written_staff);
+                            let mut segment_start = x1;
+                            let mut previous_x = None;
+                            let mut emit = |staff: usize, from: f32, to: f32| {
+                                if let Some(&first_baseline) = lane.get(&(p, staff, row)) {
+                                    let direction = if above { -1.0 } else { 1.0 };
+                                    let baseline = first_baseline
+                                        + direction
+                                            * f32::from(verse.saturating_sub(1))
+                                            * crate::render::lyric_verse_spacing_u()
+                                            * space;
+                                    line(
+                                        body, "extender", verse, event.key, end_key, row, staff,
+                                        from, to, baseline, space,
+                                    );
+                                }
+                            };
+                            for e in span.iter().filter(|e| e.point.3 == row) {
+                                let target = written_staff(e);
+                                if target != current {
+                                    let boundary = previous_x
+                                        .map_or(e.point.0, |previous: f32| {
+                                            (previous + e.point.0) / 2.0
+                                        })
+                                        .clamp(x1, x2.max(x1));
+                                    emit(current, segment_start, boundary);
+                                    current = target;
+                                    segment_start = boundary;
+                                }
+                                previous_x = Some(e.point.0);
+                            }
+                            emit(current, segment_start, x2);
                         }
                     }
                 }

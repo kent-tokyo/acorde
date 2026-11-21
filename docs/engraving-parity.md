@@ -1034,6 +1034,27 @@ syllable's font ink and verifies that it lies between the staves and shares
 the extender baseline. This screen is not a complete visual review, and the
 corpus does not establish comprehensive cross-staff lyric coverage.
 
+### Lyric extenders that change staff within a system
+
+An above-staff melisma can start on one staff and continue on notes written on
+another staff without a new syllable. Previously the whole system segment used
+the last note's staff, moving its start away from the syllable. Measured print
+now splits the horizontal continuation at the midpoint between the notes where
+staff ownership changes, and calculates an upper lane for a destination staff
+without its own syllable. A two-staff synthetic test verifies the two segments,
+correct staff metadata, clearance from both staff lines, and the transition
+point. Mixed-staff hyphens, mixed-side continuations and broader visual review
+remain open. The measured-print suite (53 tests), SVG structural suite (209
+tests), and all-feature SVG library Clippy passed on macOS.
+
+The [34-input screen](archive/print-parity-lyric-staff-switch-screen-20261122.json)
+used unchanged input hashes and release printer SHA-256
+`4437c8aadc2523b369b65ba4f56272a5581c80f5fa37957a7aab8ce78027ab3d`.
+The 310 pages and each input's page count matched the previous run. The selected
+text, lyric, dynamic, curve and page-edge checks found no candidates; the
+margin screen found the same 310 page numbers and four titles. The screen is
+not an all-page visual review or comprehensive coverage of staff changes.
+
 ### Reuse of measured row geometry
 
 Profiling the 643-measure chamber input showed repeated pagination attempts:

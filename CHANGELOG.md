@@ -3,7 +3,8 @@
 ## [Unreleased]
 
 - Keep measured cross-staff lyric continuations on their written staff across
-  page breaks and reserve their ink between staves.
+  page breaks and reserve their ink between staves. Split a continuation when
+  its notes move to another staff within a system.
 
 - Preserve the explicit MusicXML staff side of each lyric verse in the new
   serde-defaulted `Lyric::placement_above` field, through Score JSON and lyric

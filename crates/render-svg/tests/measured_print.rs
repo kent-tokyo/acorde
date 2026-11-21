@@ -192,6 +192,68 @@ fn cross_staff_above_lyric_extender_follows_written_staff_across_pages() {
 }
 
 #[test]
+fn above_lyric_extender_changes_staff_at_cross_staff_notes() {
+    let mut score = vocal_score("unused", 1);
+    let notes = &mut score.parts[0].staves[0].measures[0].voices[0];
+    for note in notes.iter_mut() {
+        note.lyric = None;
+    }
+    notes[0].lyric = Some(Lyric {
+        placement_above: Some(true),
+        text: "Hold".into(),
+        syllabic: "single".into(),
+        extend: true,
+    });
+    for note in &mut notes[2..] {
+        note.cross_staff = Some(acorde_core::CrossStaff {
+            target_staff: 1,
+            target_voice: None,
+        });
+    }
+    let mut lower = Staff::new(Clef::Bass);
+    lower.measures = vec![Measure::empty(4, 4)];
+    score.parts[0].staves.push(lower);
+    let output = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    let doc = roxmltree::Document::parse(&output.pages[0]).unwrap();
+    let lines: Vec<_> = doc
+        .descendants()
+        .filter(|n| n.attribute("class") == Some("acorde-lyric-extender"))
+        .collect();
+    assert_eq!(lines.len(), 2, "each written staff needs its own segment");
+    assert_eq!(lines[0].attribute("data-print-staff"), Some("0"));
+    assert_eq!(lines[1].attribute("data-print-staff"), Some("1"));
+    let staves: Vec<_> = doc
+        .descendants()
+        .filter(|n| n.attribute("class") == Some("acorde-staff"))
+        .collect();
+    let upper_bottom = staves[0]
+        .descendants()
+        .filter(|n| n.attribute("class") == Some("acorde-staff-line"))
+        .map(|n| n.attribute("y1").unwrap().parse::<f32>().unwrap())
+        .fold(f32::NEG_INFINITY, f32::max);
+    let lower_y: f32 = lines[1].attribute("y1").unwrap().parse().unwrap();
+    assert!(
+        lower_y > upper_bottom,
+        "lower extender {lower_y} overlaps upper staff ending at {upper_bottom}"
+    );
+    let first_end: f32 = lines[0].attribute("x2").unwrap().parse().unwrap();
+    let second_start: f32 = lines[1].attribute("x1").unwrap().parse().unwrap();
+    assert!((first_end - second_start).abs() < 0.01);
+    for (line, staff) in lines.iter().zip(staves) {
+        let top = staff
+            .descendants()
+            .filter(|n| n.attribute("class") == Some("acorde-staff-line"))
+            .map(|n| n.attribute("y1").unwrap().parse::<f32>().unwrap())
+            .fold(f32::INFINITY, f32::min);
+        let y: f32 = line.attribute("y1").unwrap().parse().unwrap();
+        assert!(
+            y < top - 1.0,
+            "extender {y} is not clear of staff top {top}"
+        );
+    }
+}
+
+#[test]
 fn imported_print_break_starts_the_containing_measure_on_the_next_page() {
     let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure><measure number="2"><note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure><measure number="3"><print new-page="yes"><system-layout/></print><note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure><measure number="4"><note><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure></part></score-partwise>"#;
     let score = acorde_io::parse_musicxml(xml).unwrap();

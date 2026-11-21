@@ -227,22 +227,19 @@ fn staff_lyric_baseline_u(staff: &acorde_core::Staff) -> (f32, u8) {
 
 /// Conservative upper lyric baseline, measured upward from the staff's top line.
 fn staff_upper_lyric_baseline_u(part: &acorde_core::Part, target: usize) -> f32 {
-    let has_above = part.staves.iter().enumerate().any(|(source, staff)| {
+    // A melisma may start on another staff and reach this staff without
+    // another syllable, so reserve a usable lane for every staff in the part.
+    let has_above = part.staves.iter().any(|staff| {
         staff
             .measures
             .iter()
             .flat_map(|m| &m.voices)
             .flatten()
             .any(|note| {
-                note.cross_staff
-                    .as_ref()
-                    .map_or(source, |cross| cross.target_staff)
-                    == target
-                    && note
-                        .lyric
-                        .iter()
-                        .chain(note.additional_lyrics.iter().map(|v| &v.lyric))
-                        .any(|lyric| lyric.placement_above == Some(true))
+                note.lyric
+                    .iter()
+                    .chain(note.additional_lyrics.iter().map(|v| &v.lyric))
+                    .any(|lyric| lyric.placement_above == Some(true))
             })
     });
     if !has_above {
