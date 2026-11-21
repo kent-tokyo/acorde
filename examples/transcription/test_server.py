@@ -15,14 +15,23 @@ class RecordingWindowTest(unittest.TestCase):
     def test_selected_attacks_keep_releases_beyond_selection(self):
         events = [(0.4, 1.5, 60), (1.5, 3.2, 64), (2.5, 5.0, 67),
                   (3.1, 3.5, 69), (1.7, 2.0, 30)]
-        notes, limited = recording_notes(events, 2.0, 6.0, 10.0, 3.0, 5.0, 48, 80)
+        notes, limited, boundary = recording_notes(events, 2.0, 6.0, 10.0, 3.0, 5.0, 48, 80)
         self.assertEqual([(n['pitch'], n['start'], n['end']) for n in notes],
                          [(64, 3.5, 5.2), (67, 4.5, 6.0)])
         self.assertEqual(limited, 1)
 
     def test_recording_end_is_not_a_context_cut(self):
-        notes, limited = recording_notes([(0.5, 3.0, 60)], 0.0, 3.0, 3.0, 0.0, 2.0, 0, 127)
+        notes, limited, boundary = recording_notes([(0.5, 3.0, 60)], 0.0, 3.0, 3.0, 0.0, 2.0, 0, 127)
         self.assertEqual(notes[0]['end'], 3.0)
+        self.assertEqual(limited, 0)
+        self.assertEqual(boundary, [])
+
+    def test_near_start_notes_are_reviewed_not_inserted(self):
+        events = [(1.94, 2.4, 60), (1.96, 2.5, 62), (2.0, 2.7, 64), (4.0, 4.5, 65)]
+        notes, limited, boundary = recording_notes(events, 0, 6, 10, 2, 4, 0, 127)
+        self.assertEqual([note['pitch'] for note in notes], [64])
+        self.assertEqual([note['pitch'] for note in boundary], [62])
+        self.assertEqual(boundary[0]['start'], 1.96)
         self.assertEqual(limited, 0)
 
 

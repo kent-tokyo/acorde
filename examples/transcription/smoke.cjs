@@ -120,6 +120,35 @@ async function main() {
         .sort((a, b) => a - b),
       [52, 56, 62],
     );
+    await page.unroute("**/transcribe");
+    await page.route("**/transcribe", (route) => route.fulfill({
+      json: {
+        notes: [{ start: 0.3, end: 1, pitch: 64, hand: "right" }],
+        boundary_notes: [{ start: 0.19, end: 1, pitch: 62, hand: "right", context_limited: true }],
+      },
+    }));
+    await page.locator("#loopStart").fill("0.2");
+    await page.locator("#analyze").click();
+    await page.locator("#boundaryPanel").getByText("近い音符あり", { exact: false }).waitFor();
+    await page.locator("#boundaryPanel").getByText("音の長さを確認", { exact: false }).waitFor();
+    await page.locator("#boundaryPanel button").click();
+    assert.equal(await page.locator("#boundaryPanel button").innerText(), "追加済み");
+    downloadPromise = page.waitForEvent("download");
+    await page.locator("#saveProject").click();
+    let boundarySaved = "";
+    for await (const chunk of await (await downloadPromise).createReadStream()) boundarySaved += chunk;
+    assert.equal(JSON.parse(boundarySaved).notes.filter((note) => note.pitch === 62).length, 2);
+    await page.locator("#undo").click();
+    assert.equal(await page.locator("#boundaryPanel button").innerText(), "追加");
+    downloadPromise = page.waitForEvent("download");
+    await page.locator("#saveProject").click();
+    let boundaryUndone = "";
+    for await (const chunk of await (await downloadPromise).createReadStream()) boundaryUndone += chunk;
+    assert.equal(JSON.parse(boundaryUndone).notes.filter((note) => note.pitch === 62).length, 1);
+    await page.unroute("**/transcribe");
+    await page.route("**/transcribe", (route) => route.fulfill({
+      json: { notes: [{ start: 0.2, end: 1, pitch: 64, hand: "right" }] },
+    }));
     const pickupProject = {
       version: 1,
       tempo: 120,

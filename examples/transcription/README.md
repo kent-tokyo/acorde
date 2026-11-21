@@ -18,7 +18,9 @@ candidates for that range. Creating candidates replaces notes whose starts and M
 fall in the selected ranges and preserves notes outside them. The models receive up to two seconds of context on each side, and only
 notes whose estimated attacks fall in the selected range are added. Their estimated releases can
 extend beyond that range. A detected note reaching the end of the context is flagged for review;
-longer held notes and attacks close to a range boundary still require checking. Restrict the
+longer held notes still require checking. Attacks in the 50 ms before the range appear as separate
+review candidates; they are not added automatically. A nearby existing note is flagged, and
+adding a candidate can be undone. This window does not catch every boundary error. Restrict the
 pitch range when
 investigating a melody or bass line. Select notes in the piano roll and edit their fields, or add
 and remove notes. The range buttons assign all notes whose starts and pitches fall in the selected

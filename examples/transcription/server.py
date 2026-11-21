@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parent
 MAX_AUDIO = 64 * 1024 * 1024
 MAX_JSON = 4 * 1024 * 1024
 CONTEXT_SECONDS = 2.0
+BOUNDARY_REVIEW_SECONDS = 0.05
 
 
 def whole_number(value, name):
@@ -101,19 +102,24 @@ def midi_bytes(data):
 def recording_notes(events, window_start, window_end, recording_end, selected_start, selected_end,
                     low, high):
     notes = []
+    boundary_notes = []
     context_limited = 0
     for onset, offset, pitch in events:
         onset = float(onset) + window_start
         offset = min(float(offset) + window_start, window_end)
         pitch = int(pitch)
-        if not (math.isfinite(onset) and math.isfinite(offset) and selected_start <= onset < selected_end
-                and offset > onset and low <= pitch <= high):
+        if not (math.isfinite(onset) and math.isfinite(offset) and offset > onset
+                and low <= pitch <= high and 0 <= onset < selected_end):
             continue
-        if window_end < recording_end and offset >= window_end - 0.02:
-            context_limited += 1
-        notes.append({'start': onset, 'end': offset, 'pitch': pitch,
-                      'hand': 'left' if pitch < 60 else 'right'})
-    return notes, context_limited
+        note = {'start': onset, 'end': offset, 'pitch': pitch,
+                'hand': 'left' if pitch < 60 else 'right'}
+        limited = window_end < recording_end and offset >= window_end - 0.02
+        if selected_start <= onset:
+            notes.append(note)
+            context_limited += int(limited)
+        elif selected_start - BOUNDARY_REVIEW_SECONDS <= onset:
+            boundary_notes.append({**note, 'context_limited': limited})
+    return notes, context_limited, boundary_notes
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -193,10 +199,11 @@ class Handler(BaseHTTPRequestHandler):
                         events = [(a, b, p) for a, b, p, _, _ in raw]
                     else:
                         raise ValueError('Unknown transcription model')
-                notes, context_limited = recording_notes(events, window_start, window_end,
+                notes, context_limited, boundary_notes = recording_notes(events, window_start, window_end,
                                                          info.duration, start, end, low, high)
                 self.respond(200, 'application/json', json.dumps({
                     'notes': notes, 'context_limited_notes': context_limited,
+                    'boundary_notes': boundary_notes,
                 }).encode())
             elif self.path in ('/midi', '/musicxml', '/preview'):
                 data = json.loads(payload)

@@ -198,6 +198,15 @@
             >音符を選んで下の値を変更できます。横軸は録音の秒数です。</small
           >
         </p>
+        <div id="boundaryPanel" hidden>
+          <p><strong>開始位置の手前にある候補</strong></p>
+          <p>
+            <small
+              >開始位置の50ミリ秒前までの音です。既存の音符と聴き比べて追加してください。</small
+            >
+          </p>
+          <ul id="boundaryList"></ul>
+        </div>
         <div class="scroll">
           <div id="ruler" aria-hidden="true"></div>
           <canvas
@@ -310,6 +319,7 @@
       const $ = (id) => document.getElementById(id);
       const state = {
         notes: [],
+        boundaryCandidates: [],
         undo: [],
         selected: -1,
         url: null,
@@ -368,6 +378,10 @@
         clearPreview();
         state.undo.push({
           notes: state.notes.map((note) => ({ ...note })),
+          boundaryCandidates: state.boundaryCandidates.map((candidate) => ({
+            note: { ...candidate.note },
+            added: candidate.added,
+          })),
           expectedRecordingHash: state.expectedRecordingHash,
         });
         if (state.undo.length > 50) state.undo.shift();
@@ -376,6 +390,7 @@
         const previous = state.undo.pop();
         if (previous) {
           state.notes = previous.notes;
+          state.boundaryCandidates = previous.boundaryCandidates;
           state.expectedRecordingHash = previous.expectedRecordingHash;
           updateRecordingStatus();
           clearCandidates();
@@ -384,6 +399,48 @@
           status("音符の変更を元に戻しました。");
         }
       };
+      function renderBoundaryCandidates() {
+        const panel = $("boundaryPanel");
+        const list = $("boundaryList");
+        list.replaceChildren();
+        panel.hidden = state.boundaryCandidates.length === 0;
+        state.boundaryCandidates.forEach((candidate, index) => {
+          const note = candidate.note;
+          const exact = state.notes.some(
+            (existing) =>
+              existing.pitch === note.pitch &&
+              existing.start === note.start &&
+              existing.end === note.end,
+          );
+          const near = state.notes.some(
+            (existing) =>
+              existing.pitch === note.pitch &&
+              Math.abs(existing.start - note.start) <= 0.075 &&
+              existing.end > note.start &&
+              note.end > existing.start,
+          );
+          const item = document.createElement("li");
+          const text = document.createElement("span");
+          text.textContent =
+            `${note.start.toFixed(3)}〜${note.end.toFixed(3)}秒　MIDI ${note.pitch}` +
+            (near ? "　近い音符あり" : "") +
+            (note.context_limited ? "　音の長さを確認" : "");
+          const button = document.createElement("button");
+          button.textContent = candidate.added && exact ? "追加済み" : "追加";
+          button.disabled = candidate.added && exact;
+          button.onclick = () => {
+            rememberNotes();
+            const { context_limited, ...newNote } =
+              state.boundaryCandidates[index].note;
+            state.notes.push(newNote);
+            state.boundaryCandidates[index].added = true;
+            select(state.notes.length - 1);
+            status("開始位置の手前の候補を追加しました。");
+          };
+          item.append(text, " ", button);
+          list.append(item);
+        });
+      }
       function render() {
         const canvas = $("roll"),
           context = canvas.getContext("2d");
@@ -442,6 +499,7 @@
         });
         $("remove").disabled = $("apply").disabled = state.selected < 0;
         $("undo").disabled = state.undo.length === 0;
+        renderBoundaryCandidates();
       }
       function select(i) {
         state.selected = i;
@@ -456,6 +514,8 @@
         if (state.url) URL.revokeObjectURL(state.url);
         state.url = null;
         state.recordingHash = null;
+        state.boundaryCandidates = [];
+        state.undo.forEach((snapshot) => (snapshot.boundaryCandidates = []));
         $("audio").removeAttribute("src");
         $("analyze").disabled = true;
         clearPreview();
@@ -551,6 +611,9 @@
                 n.pitch > high,
             )
             .concat(data.notes);
+          state.boundaryCandidates = (data.boundary_notes || []).map(
+            (note) => ({ note, added: false }),
+          );
           select(-1);
           const boundaryMessage = data.context_limited_notes
             ? ` ${data.context_limited_notes}音は解析範囲の端まで続いています。長さを確認してください。`
@@ -963,6 +1026,7 @@
             throw Error("編集内容の形式を確認してください。");
           $("pickupSteps").value = project.pickupSteps ?? 0;
           state.notes = project.notes;
+          state.boundaryCandidates = [];
           state.expectedRecordingHash = project.recordingSha256 ?? null;
           updateRecordingStatus();
           clearCandidates();
