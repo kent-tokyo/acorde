@@ -33,6 +33,9 @@ tempo as a whole-number BPM, meter and time of the first complete bar before exp
 sixteenth notes. The pickup begins before that first bar, and notes before the pickup begins
 must be removed or the bar position changed. MusicXML marks the shortened first bar as implicit.
 MIDI represents it using a short initial time signature followed by the chosen meter. The editor
+rejects export and preview when overlapping notes of the same pitch are assigned to the same
+hand, including overlap introduced by MIDI tick rounding. Adjust their durations or hand assignments
+before exporting; otherwise MIDI note-off messages cannot unambiguously represent them. The editor
 retains recording times. Acorde's MIDI importer quantizes the MusicXML output, so compare the
 output with the original and correct notation errors. The importer supports four voices per
 staff and may shorten or merge overlapping notes when that limit is exceeded. MusicXML uses one part with treble and

@@ -196,6 +196,25 @@ async function main() {
     for await (const chunk of await (await freshDownload).createReadStream())
       freshSaved += chunk;
     assert.equal(JSON.parse(freshSaved).recordingSha256, recordingHash);
+    await freshPage.locator("#openProject").setInputFiles({
+      name: "overlap.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(JSON.stringify({
+        ...pickupProject, barStart: 0, pickupSteps: 0,
+        notes: [
+          { start: 0, end: 1, pitch: 60, hand: "right" },
+          { start: 0.5, end: 1.5, pitch: 60, hand: "right" },
+        ],
+      })),
+    });
+    await freshPage.locator("#midi").click();
+    await freshPage.getByText(/右手のMIDI 60が0.500秒付近で重なっています/).waitFor();
+    const previewFailure = freshPage.waitForResponse((response) =>
+      response.url().endsWith("/preview") && response.status() === 400,
+    );
+    await freshPage.locator("#preview").click();
+    await previewFailure;
+    await freshPage.getByText(/右手のMIDI 60が0.500秒付近で重なっています/).waitFor();
     await freshPage.close();
     await page.locator("#openProject").setInputFiles({
       name: "matched.json",

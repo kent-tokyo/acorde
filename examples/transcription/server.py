@@ -64,6 +64,7 @@ def midi_bytes(data):
     else:
         conductor.append(mido.MetaMessage('time_signature', numerator=numerator, denominator=denominator))
     tracks = {'right': [], 'left': []}
+    intervals = {'right': {}, 'left': {}}
     for note in notes:
         pitch = whole_number(note['pitch'], '音高')
         start = float(note['start'])
@@ -74,7 +75,18 @@ def midi_bytes(data):
             raise ValueError('Invalid note or note before the selected bar start')
         start_tick = round((start - origin) * tempo * 480 / 60)
         end_tick = max(start_tick + 1, round((end - origin) * tempo * 480 / 60))
+        intervals[hand].setdefault(pitch, []).append((start_tick, end_tick, start))
         tracks[hand].extend([(start_tick, 1, pitch), (end_tick, 0, pitch)])
+    for hand, pitches in intervals.items():
+        for pitch, notes_at_pitch in pitches.items():
+            ordered = sorted(notes_at_pitch)
+            previous_end = -1
+            for start_tick, end_tick, start in ordered:
+                if start_tick < previous_end:
+                    label = '右手' if hand == 'right' else '左手'
+                    raise ValueError(f'{label}のMIDI {pitch}が{start:.3f}秒付近で重なっています。'
+                                     '音の長さまたは手の割り当てを修正してください。')
+                previous_end = max(previous_end, end_tick)
     max_ticks = pickup_steps * 120 + (10_000 - bool(pickup_steps)) * 480 * 4 * numerator / denominator
     if any(tick > max_ticks for events in tracks.values() for tick, _, _ in events):
         raise ValueError('The selected notes exceed Acorde’s 10,000-measure limit')

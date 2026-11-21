@@ -93,6 +93,23 @@ class MidiExportTest(unittest.TestCase):
         self.assertEqual([message.type for message in track[2:5]], ['note_on', 'note_off', 'note_on'])
         self.assertEqual(track[4].time, 0)
 
+    def test_rejects_overlapping_same_pitch_in_one_hand(self):
+        data = {'tempo': 120, 'bar_start': 0, 'numerator': 4, 'denominator': 4,
+                'notes': [{'start': 0, 'end': 1, 'pitch': 60, 'hand': 'right'},
+                          {'start': 0.5, 'end': 1.5, 'pitch': 60, 'hand': 'right'}]}
+        with self.assertRaisesRegex(ValueError, '右手のMIDI 60'):
+            midi_bytes(data)
+        data['notes'].reverse()
+        with self.assertRaisesRegex(ValueError, '右手のMIDI 60'):
+            midi_bytes(data)
+
+    def test_rejects_overlap_created_by_tick_rounding(self):
+        data = {'tempo': 120, 'bar_start': 0, 'numerator': 4, 'denominator': 4,
+                'notes': [{'start': 0, 'end': 0.0001, 'pitch': 60, 'hand': 'left'},
+                          {'start': 0.0002, 'end': 0.5, 'pitch': 60, 'hand': 'left'}]}
+        with self.assertRaisesRegex(ValueError, '左手のMIDI 60'):
+            midi_bytes(data)
+
 
     @unittest.skipUnless(os.environ.get('ACORDE_TRANSCRIPTION_CONVERTER'), 'converter not built')
     def test_musicxml_contains_two_staves_and_accordion_instrument(self):
