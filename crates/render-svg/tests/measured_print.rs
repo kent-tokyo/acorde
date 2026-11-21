@@ -489,7 +489,12 @@ fn measured_part_names_keep_readable_size_and_paper_clearance() {
             .measure("Violoncello", size)
             .unwrap()
             .left_mm;
-    assert!(ink_left / 4.0 >= 2.95, "left edge {} mm", ink_left / 4.0);
+    assert!(
+        ink_left / 4.0 >= config.margin_left_mm - 0.05,
+        "left edge {} mm, required margin {} mm",
+        ink_left / 4.0,
+        config.margin_left_mm
+    );
     assert_eq!(
         output.layout.pages[0].content_left_mm,
         config.margin_left_mm
@@ -506,6 +511,7 @@ fn measured_part_names_keep_readable_size_and_paper_clearance() {
     let mut no_labels = config.clone();
     no_labels.publication.show_part_names = false;
     let output = engrave_print_pages(&score, &no_labels, FONT).unwrap();
+    assert_eq!(output.first_system_inset_mm, 0.0);
     assert_eq!(
         output.layout.pages[0].content_left_mm,
         config.margin_left_mm
@@ -559,7 +565,12 @@ fn repeated_long_part_name_only_indents_page_start_systems() {
         score.parts[0].staves[0].measures[index].system_break = true;
     }
     score.parts[0].staves[0].measures[3].page_break = true;
-    let output = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    let config = PrintConfig {
+        margin_left_mm: 20.0,
+        safe_left_mm: 2.0,
+        ..PrintConfig::default()
+    };
+    let output = engrave_print_pages(&score, &config, FONT).unwrap();
     assert!(output.layout.pages.len() >= 2);
     assert_eq!(
         output.system_insets_mm.len(),
@@ -589,6 +600,26 @@ fn repeated_long_part_name_only_indents_page_start_systems() {
                 / 4.0
                 >= 2.7
         );
+        let size: f32 = label.attribute("data-font-size").unwrap().parse().unwrap();
+        let transform = label
+            .children()
+            .find(|n| n.has_tag_name("path"))
+            .unwrap()
+            .attribute("transform")
+            .unwrap();
+        let values: Vec<f32> = transform
+            .trim_start_matches("matrix(")
+            .trim_end_matches(')')
+            .split_whitespace()
+            .map(|s| s.parse().unwrap())
+            .collect();
+        let ink_left = values[4]
+            + TextFont::new(FONT, 0)
+                .unwrap()
+                .measure(label.attribute("data-text").unwrap(), size)
+                .unwrap()
+                .left_mm;
+        assert!(ink_left / 4.0 >= config.margin_left_mm + config.safe_left_mm - 0.05);
         for (index, system) in page.systems.iter().enumerate() {
             let inset = output.system_insets_mm[system.system_index];
             if index == 0 {
@@ -600,6 +631,91 @@ fn repeated_long_part_name_only_indents_page_start_systems() {
         }
     }
     assert!(found_unindented);
+}
+
+#[test]
+fn lyric_clears_the_next_staff_beam_after_label_reflow() {
+    let score = acorde_io::parse_mxl(include_bytes!(
+        "../../../tests/fixtures/openscore_lieder_just_for_today.mxl"
+    ))
+    .unwrap();
+    let config = PrintConfig {
+        measures_per_system: 8,
+        ..PrintConfig::default()
+    };
+    let output = engrave_print_pages(&score, &config, FONT).unwrap();
+    let page = output
+        .pages
+        .iter()
+        .find(|page| page.contains("data-text=\"guide\""))
+        .unwrap();
+    let doc = roxmltree::Document::parse(page).unwrap();
+    let lyric = doc
+        .descendants()
+        .find(|n| {
+            n.attribute("class") == Some("acorde-lyric")
+                && n.attribute("data-text") == Some("guide")
+        })
+        .unwrap();
+    let size: f32 = lyric.attribute("data-font-size").unwrap().parse().unwrap();
+    let transform = lyric
+        .children()
+        .find(|n| n.has_tag_name("path"))
+        .unwrap()
+        .attribute("transform")
+        .unwrap();
+    let values: Vec<f32> = transform
+        .trim_start_matches("matrix(")
+        .trim_end_matches(')')
+        .split_whitespace()
+        .map(|s| s.parse().unwrap())
+        .collect();
+    let ink = TextFont::new(FONT, 0)
+        .unwrap()
+        .measure("guide", size)
+        .unwrap();
+    let lyric_bounds = (
+        values[4] + ink.left_mm,
+        values[4] + ink.right_mm,
+        values[5] + ink.bottom_mm,
+    );
+    let beams = doc
+        .descendants()
+        .filter(|n| n.attribute("class") == Some("acorde-beam"));
+    let mut found = false;
+    for beam in beams {
+        let numbers: Vec<f32> = beam
+            .attribute("points")
+            .unwrap()
+            .split(|c: char| c == ',' || c.is_whitespace())
+            .filter_map(|s| s.parse().ok())
+            .collect();
+        let left = numbers
+            .iter()
+            .step_by(2)
+            .copied()
+            .fold(f32::INFINITY, f32::min);
+        let right = numbers
+            .iter()
+            .step_by(2)
+            .copied()
+            .fold(f32::NEG_INFINITY, f32::max);
+        let top = numbers
+            .iter()
+            .skip(1)
+            .step_by(2)
+            .copied()
+            .fold(f32::INFINITY, f32::min);
+        if left < lyric_bounds.1 && right > lyric_bounds.0 && top > values[5] - 20.0 {
+            found = true;
+            assert!(
+                top > lyric_bounds.2 + 0.2,
+                "beam top={top}, lyric bottom={}",
+                lyric_bounds.2
+            );
+        }
+    }
+    assert!(found, "expected a beam under the lyric");
 }
 
 #[test]
@@ -1783,6 +1899,24 @@ fn gossec_grace_slur_ends_at_notehead_before_the_stem() {
     assert!(
         (outer_coordinates[1] + outer_coordinates[5]) / 2.0 - outer_coordinates[3] < 4.0 * 7.2,
         "grace stem must not force an oversized bow: {outer_coordinates:?}"
+    );
+    let grace = first_page
+        .descendants()
+        .find(|n| n.attribute("data-note-addr") == Some("0:0:1:0:1"))
+        .unwrap()
+        .descendants()
+        .find(|n| n.attribute("class") == Some("acorde-notehead"))
+        .unwrap();
+    let number = |name| grace.attribute(name).unwrap().parse::<f32>().unwrap();
+    let (head_x, head_y, head_radius_y) = (number("cx"), number("cy"), number("ry"));
+    let t = (head_x - outer_coordinates[0]) / (outer_coordinates[4] - outer_coordinates[0]);
+    assert!((0.0..1.0).contains(&t));
+    let curve_y = (1.0 - t).powi(2) * outer_coordinates[1]
+        + 2.0 * t * (1.0 - t) * outer_coordinates[3]
+        + t.powi(2) * outer_coordinates[5];
+    assert!(
+        curve_y < head_y - head_radius_y,
+        "slur crosses grace notehead"
     );
 }
 

@@ -90,10 +90,18 @@ pub fn engrave_print_pages(
             }
         }
     }
-    let existing = config.margin_left_mm + config.safe_left_mm - 1.5 - 3.0;
-    let label_width = config.publication.show_part_names.then_some(existing);
-    let first_row_inset_mm = (first_width - existing).max(0.0);
-    let repeated_row_inset_mm = (repeated_width - existing).max(0.0);
+    // Keep all label ink inside the configured content margin. Only page-start
+    // systems need the label lane, so reserve it through the existing reflow.
+    let label_width = config.publication.show_part_names.then_some(0.0);
+    let inset_for = |width: f32| {
+        if width > 0.0 {
+            width + crate::print::PART_LABEL_GAP_MM
+        } else {
+            0.0
+        }
+    };
+    let first_row_inset_mm = inset_for(first_width);
+    let repeated_row_inset_mm = inset_for(repeated_width);
     let _text = crate::font_metrics::PrintTextScope::new(render_score, &font)?;
     let logical = compute_layout(render_score, &LayoutConfig::default());
     let (measures, headers_mm) = crate::render::measured_print_widths(render_score, &logical, 1.8)?;

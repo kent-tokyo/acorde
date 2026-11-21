@@ -867,6 +867,46 @@ the release printer SHA-256 is
 This printer predates the diagnostic-only addition described above. The
 corpus remains development evidence and all final gates remain pending.
 
+### Part-name margins and lyric/beam clearance
+
+Measured print now reserves a name lane inside the configured content margin
+on each page's first system. It sizes names to at least 2.7 mm, wraps on words,
+and leaves non-page-start systems unindented. Tests cover the default margin,
+a 20 mm left margin with an additional 2 mm safe area, repeated page labels,
+and disabled labels. This changes measured pagination; legacy rendering is
+unchanged.
+
+In the first candidate, the narrower systems exposed two defects. A Gossec
+grace-note phrase formed an excessive slur bow because it reserved full-size
+notehead clearance for a smaller grace head. The measured path now scales that
+clearance; the regression also checks that the slur stays clear of the head.
+In `Just for To-day`, the syllable `guide` touched a piano beam. Preflight now
+reserves the actual ink of individually displaced lyrics and ordinary beams
+when calculating the gap between staves. Beams in measures containing
+cross-staff notes are excluded from this new beam reservation to avoid assigning
+their ink to the wrong staff; that case remains to be solved separately. The
+rendered page 3 was inspected
+after the fix: the beam clears `guide`, but that syllable remains visibly below
+the verse baseline, an unresolved readability defect. The page raster SHA-256
+is `a70e9989bd810444d3aa42b15dfce03501a02809708a04313af0fe65c951cbd8`.
+
+All 34 development/fixed inputs rendered, producing 310 pages versus 303 before
+this change. Four scores gained pages: the largest, `chamber-sq8812200`, rose
+from 51 to 55. The [text and margin screen](archive/print-parity-label-margin-screen-20261122.json)
+reports no part-label shapes beyond its left-margin threshold (13.5 mm for the
+14 mm setting), no page-edge candidates and no candidates in its selected
+text/notation, text/text, lyric/staff or text/curve classes. The remaining 314
+margin shapes are 310 page numbers and four titles. The separate
+[barline screen](archive/print-parity-label-margin-barline-20261122.json)
+reports zero candidates. These limited screens do not establish visual parity.
+The release printer SHA-256 is
+`0feb32eb424947b2975bbaef15b3c7ad82e0f276ad2c8d1ce445ae4eefa2356c`, and
+the four-file production diff against `c0024fce` has SHA-256
+`455d05e88bb7c87fcc57cb33e1636fd9f4416cf2608b4c44dfc96a6d88225537`.
+The measured-print suite passed 49 tests, the structural suite 209, and scoped
+all-feature SVG library Clippy passed on macOS. Full visual, platform, WASM,
+performance and reserved-corpus gates remain open.
+
 ### Reuse of measured row geometry
 
 Profiling the 643-measure chamber input showed repeated pagination attempts:

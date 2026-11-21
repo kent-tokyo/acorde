@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- Reserve page-start part names inside the configured left print margin in
+  measured engraving. Reserve actual displaced lyric and ordinary beam ink
+  between staves, and size grace-note slur clearance to the smaller glyphs.
+
 - Interpret MusicXML print breaks before their containing measure and handle
   both empty and paired print elements. Export reports an unrepresentable
   trailing break; import reports unsupported no-break and page-number settings.

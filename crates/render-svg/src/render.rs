@@ -9413,7 +9413,14 @@ fn same_row_slur_geometry(
                     continue;
                 }
                 let remaining = 1.0 - t;
-                let desired_note = y + offset + side * 0.8 * space;
+                // Grace and cue heads are drawn smaller; a full-size head's
+                // clearance near a slur endpoint can force a disproportionate bow.
+                let head_scale = if measured_print_active() && (note.is_grace || note.is_cue) {
+                    GRACE_SCALE
+                } else {
+                    1.0
+                };
+                let desired_note = y + offset + side * 0.8 * head_scale * space;
                 let desired = if *stem_up == above && !(measured_print_active() && note.is_grace) {
                     beam_tip_points.get(key).map_or(desired_note, |tip| {
                         select(desired_note, tip + offset + side * 0.6 * space)

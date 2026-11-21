@@ -713,7 +713,7 @@ fn write_publication(
             }
             let part_middle = (*first_top + *last_top + *last_height) / 2.0;
             let available_mm = measured_label_width_mm
-                .map(|width| width + first_inset)
+                .map(|width| (width + first_inset - PART_LABEL_GAP_MM).max(0.0))
                 .unwrap_or(page.content_left_mm - PART_LABEL_GAP_MM - PART_LABEL_PAPER_MM);
             let measured_lines =
                 render::measured_print_active().then(|| measured_label_lines(text, available_mm));
@@ -808,7 +808,7 @@ fn write_publication(
     }
 }
 
-const PART_LABEL_GAP_MM: f32 = 1.5;
+pub(crate) const PART_LABEL_GAP_MM: f32 = 1.5;
 const PART_LABEL_PAPER_MM: f32 = 3.0;
 
 /// Lines of a part label: its own line breaks, else a long two-word name split at the space

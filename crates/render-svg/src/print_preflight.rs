@@ -296,13 +296,97 @@ pub(crate) fn resolve(
             }
             let x = numbers.as_chunks::<2>().0.iter().map(|p| p[0]);
             let y = numbers.as_chunks::<2>().0.iter().map(|p| p[1]);
-            ink_obstacles.push((
-                row,
+            let (left, right, top, bottom) = (
                 x.clone().fold(f32::INFINITY, f32::min),
                 x.fold(f32::NEG_INFINITY, f32::max),
                 y.clone().fold(f32::INFINITY, f32::min),
                 y.fold(f32::NEG_INFINITY, f32::max),
-            ));
+            );
+            ink_obstacles.push((row, left, right, top, bottom));
+            let part = index(owner, "data-part")?;
+            let staff = index(owner, "data-staff")?;
+            let measure = index(owner, "data-measure")?;
+            let bar = score
+                .parts
+                .get(part)
+                .and_then(|p| p.staves.get(staff))
+                .and_then(|s| s.measures.get(measure))
+                .ok_or(Error::InvalidGeneratedGeometry)?;
+            // A beam joining staves belongs in their gap; assigning it to one
+            // side as exterior ink could make reflow diverge. Ordinary beams
+            // must reserve their actual overhang against neighboring lyrics.
+            if !bar
+                .voices
+                .iter()
+                .flatten()
+                .any(|note| note.cross_staff.is_some())
+            {
+                let physical = refs
+                    .iter()
+                    .position(|r| *r == (part, staff))
+                    .ok_or(Error::InvalidGeneratedGeometry)?;
+                reserve_ink(
+                    &mut upper_ink,
+                    &mut lower_ink,
+                    &tops,
+                    &bottoms,
+                    (row, physical, left, right, top, bottom),
+                );
+            }
+        }
+        // Individual syllables can be moved below the nominal verse baseline
+        // by annotation collision resolution. Reserve their actual ink.
+        for text in doc.descendants().filter(|n| {
+            n.has_tag_name("text")
+                && matches!(
+                    n.attribute("class"),
+                    Some("acorde-lyric" | "acorde-lyric-verse")
+                )
+        }) {
+            let Some(owner) = text
+                .ancestors()
+                .find(|n| n.attribute("data-acorde-kind") == Some("measure"))
+            else {
+                continue;
+            };
+            let part = index(owner, "data-part")?;
+            let staff = index(owner, "data-staff")?;
+            let row = *row_for_measure
+                .get(&index(owner, "data-measure")?)
+                .ok_or(Error::InvalidGeneratedGeometry)?;
+            let physical = refs
+                .iter()
+                .position(|r| *r == (part, staff))
+                .ok_or(Error::InvalidGeneratedGeometry)?;
+            let number = |name| {
+                text.attribute(name)
+                    .and_then(|v| v.parse::<f32>().ok())
+                    .filter(|v| v.is_finite())
+                    .ok_or(Error::InvalidGeneratedGeometry)
+            };
+            let (x, y, size) = (number("x")?, number("y")?, number("font-size")?);
+            let ink = font.measure(text.text().unwrap_or(""), size)?;
+            let start = x - match text.attribute("text-anchor") {
+                Some("middle") => ink.advance_mm / 2.0,
+                Some("end") => ink.advance_mm,
+                _ => 0.0,
+            };
+            if ink.has_ink {
+                reserve_ink(
+                    &mut upper_ink,
+                    &mut lower_ink,
+                    &tops,
+                    &bottoms,
+                    (
+                        row,
+                        physical,
+                        start + ink.left_mm,
+                        start + ink.right_mm,
+                        y + ink.top_mm,
+                        y + ink.bottom_mm,
+                    ),
+                );
+            }
         }
         for tie in doc
             .descendants()
