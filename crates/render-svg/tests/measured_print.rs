@@ -358,6 +358,45 @@ fn rehearsal_enclosure_defaults_to_square_and_respects_explicit_none() {
 }
 
 #[test]
+fn repeated_rehearsal_directions_are_all_printed() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Part</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions></attributes><direction><direction-type><rehearsal>A</rehearsal></direction-type></direction><direction><direction-type><rehearsal enclosure="none">B</rehearsal></direction-type><offset>1</offset></direction><direction><direction-type><rehearsal>A</rehearsal></direction-type><offset>2</offset></direction><note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration><type>whole</type></note></measure></part></score-partwise>"#;
+    let score = acorde_io::parse_musicxml(xml).unwrap();
+    let score = acorde_io::parse_musicxml(&acorde_io::serialize_musicxml(&score).unwrap()).unwrap();
+    let output = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    let doc = roxmltree::Document::parse(&output.pages[0]).unwrap();
+    let marks: Vec<_> = doc
+        .descendants()
+        .filter(|n| {
+            n.attribute("class")
+                .is_some_and(|c| c.contains("acorde-measure-text-rehearsal-mark"))
+        })
+        .collect();
+    assert_eq!(
+        marks
+            .iter()
+            .filter(|n| n.attribute("data-text") == Some("A"))
+            .count(),
+        2
+    );
+    assert_eq!(
+        marks
+            .iter()
+            .filter(|n| n.attribute("data-text") == Some("B"))
+            .count(),
+        1
+    );
+    assert_eq!(
+        marks
+            .iter()
+            .filter(|n| n
+                .children()
+                .any(|c| c.attribute("class") == Some("acorde-text-enclosure")))
+            .count(),
+        2
+    );
+}
+
+#[test]
 fn continued_volta_stays_within_top_margin_on_each_page() {
     use acorde_core::VoltaBracket;
     let mut score = Score::new("Volta", 120, 4, 4, 0, 8);

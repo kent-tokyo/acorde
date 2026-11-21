@@ -252,3 +252,38 @@ fn text_and_rehearsal_in_one_direction_keep_distinct_enclosures() {
             .any(|text| text.text == "A" && text.enclosure.as_deref() == Some("oval"))
     );
 }
+
+#[test]
+fn multiple_rehearsals_in_one_measure_survive_roundtrip() {
+    let input = score(
+        r#"<direction placement="above"><direction-type><rehearsal>A</rehearsal></direction-type></direction><direction placement="below"><direction-type><rehearsal enclosure="none">B</rehearsal></direction-type><offset>1</offset></direction><direction><direction-type><rehearsal enclosure="square">A</rehearsal></direction-type><offset>2</offset></direction><note><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice><type>half</type></note>"#,
+        1,
+    );
+    let parsed = parse_musicxml(&input).unwrap();
+    let measure = &parsed.parts[0].staves[0].measures[0];
+    assert_eq!(measure.rehearsal.as_deref(), Some("A"));
+    let marks: Vec<_> = measure
+        .texts
+        .iter()
+        .filter(|t| t.style == acorde_core::TextStyle::RehearsalMark)
+        .cloned()
+        .collect();
+    assert_eq!(marks.len(), 3);
+    assert_eq!(
+        marks.iter().map(|t| t.text.as_str()).collect::<Vec<_>>(),
+        ["A", "B", "A"]
+    );
+    assert_eq!(marks[1].enclosure.as_deref(), Some("none"));
+    assert_eq!(marks[1].placement.as_deref(), Some("below"));
+    assert_eq!(marks[1].position_beats, Some(1.0));
+    assert_eq!(marks[2].enclosure.as_deref(), Some("square"));
+    assert_eq!(marks[2].position_beats, Some(2.0));
+    let restored = parse_musicxml(&serialize_musicxml(&parsed).unwrap()).unwrap();
+    let restored_marks: Vec<_> = restored.parts[0].staves[0].measures[0]
+        .texts
+        .iter()
+        .filter(|t| t.style == acorde_core::TextStyle::RehearsalMark)
+        .cloned()
+        .collect();
+    assert_eq!(restored_marks, marks);
+}

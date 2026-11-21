@@ -2482,10 +2482,10 @@ pub(crate) fn parse_musicxml_collecting(
                                     relative_y: pending_direction_relative_y,
                                 });
                             }
-                            if let Some(reh) = pending_rehearsal.take()
-                                && m.rehearsal.is_none()
-                            {
-                                m.rehearsal = Some(reh.clone());
+                            if let Some(reh) = pending_rehearsal.take() {
+                                if m.rehearsal.is_none() {
+                                    m.rehearsal = Some(reh.clone());
+                                }
                                 m.texts.push(StyledText {
                                     enclosure: pending_rehearsal_enclosure.clone(),
                                     position_beats: pending_direction_position_beats,

@@ -494,6 +494,20 @@ The original printed edition has not been inspected, and the source rehearsal
 font weight and size are not preserved in the current model. Full-page review,
 final reserved validation, performance and the overall parity gates remain open.
 
+### Multiple rehearsal directions in one measure
+
+The MusicXML parser previously kept only the first rehearsal direction in a
+measure. Separate later directions are now retained in `Measure.texts`, while
+`Measure.rehearsal` remains the first mark for legacy consumers. A synthetic
+round-trip test covers three directions in one measure, including a repeated
+label, beat offsets, placement and enclosure; a measured-print test verifies
+that all three appear and only the two boxed marks have frames. This does not
+test multiple rehearsal elements inside a single direction. The 34-input corpus
+has not been rerendered after this parser change. On the earlier `sq8812200`
+page 35, source measures 623 and 624 each have their own `rit.`; measure 625
+has `KK` and `a tempo`. These are not duplicate additions. The original MXL
+specifies bold text, which remains outside the current model's fidelity.
+
 ### Reuse of measured row geometry
 
 Profiling the 643-measure chamber input showed repeated pagination attempts:
