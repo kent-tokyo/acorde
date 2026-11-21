@@ -522,6 +522,19 @@ were scanned: none contains multiple rehearsals within one direction or leading/
 trailing whitespace in rehearsal elements. That scan is not a rerender or a
 full source-fidelity audit.
 
+### Rerender after rehearsal import changes
+
+The release printer built at `e1ed75bba121a8c79c7109026780e17e278c087f`
+rerendered all 24 prepared development and ten fixed inputs with the same
+font and measured A4 settings. The [receipt](archive/print-parity-rerender-rehearsals-e1ed75bb.json)
+records the verified input, binary and font hashes. All 34 Acorde SVG page sets
+and PDFs match the earlier `036c70f4` candidate byte for byte: 209 development
+and 16 fixed pages. This establishes unchanged outputs on these inputs, not
+visual correctness, source fidelity or equality with Verovio. Verovio was not
+rerun. The branch push does not trigger CI: the workflow runs on main pushes and
+pull requests, and no pull request was present at the time of this check. Linux,
+Windows, WASM and the final reserved-corpus gates remain unverified.
+
 ### Reuse of measured row geometry
 
 Profiling the 643-measure chamber input showed repeated pagination attempts:
