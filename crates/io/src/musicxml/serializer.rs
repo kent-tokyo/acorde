@@ -23,6 +23,13 @@ fn serialize_musicxml_inner(
     score: &Score,
     auto_beam_unmarked_voices: bool,
 ) -> Result<String, Error> {
+    for part in &score.parts {
+        if part.staff_groups.iter().any(|group| {
+            group.first_staff > group.last_staff || group.last_staff >= part.staves.len()
+        }) {
+            return Err(Error::Xml("staff group range is out of bounds".into()));
+        }
+    }
     for styled in score
         .parts
         .iter()
@@ -109,6 +116,7 @@ fn serialize_musicxml_inner(
             if g.first_part == pi {
                 let sym = match g.symbol {
                     PartGroupSymbol::None => "none",
+                    PartGroupSymbol::Square => "square",
                     PartGroupSymbol::Brace => "brace",
                     PartGroupSymbol::Line => "line",
                     PartGroupSymbol::Bracket => "bracket",
@@ -377,6 +385,18 @@ fn serialize_musicxml_inner(
                     // Declare every canonical staff, including an empty one, so the staff
                     // count and note staff ownership survive a MusicXML round-trip.
                     xml.push_str(&format!("        <staves>{}</staves>\n", part.staves.len()));
+                }
+                if i == 0
+                    && let Some(group) = part.staff_groups.first()
+                {
+                    let symbol = match group.symbol {
+                        PartGroupSymbol::None => "none",
+                        PartGroupSymbol::Brace => "brace",
+                        PartGroupSymbol::Line => "line",
+                        PartGroupSymbol::Bracket => "bracket",
+                        PartGroupSymbol::Square => "square",
+                    };
+                    xml.push_str(&format!("        <part-symbol top-staff=\"{}\" bottom-staff=\"{}\">{symbol}</part-symbol>\n", group.first_staff + 1, group.last_staff + 1));
                 }
                 if i == 0 || measure.clef.is_some() {
                     let clef = measure.clef.as_ref().unwrap_or(&staff.clef);

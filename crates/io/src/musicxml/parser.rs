@@ -6,8 +6,8 @@ use acorde_core::{
     HarpPedalPosition, KeySignature, Lyric, Measure, MeasureLength, MetronomeMark,
     MidiControlChange, MidiProgramChange, NotationSpanner, NotationSpannerKind, Note, NoteAddr,
     NoteHead, OttavaKind, Part, PartGroup, PartGroupSymbol, PercussionInstrument, Pitch, Score,
-    Staff, StaffKind, Step, StyledText, TextStyle, TimeSignature, TimeSymbol, TupletBoundary,
-    TupletInfo, VerseLyric, VoltaBracket,
+    Staff, StaffGroup, StaffKind, Step, StyledText, TextStyle, TimeSignature, TimeSymbol,
+    TupletBoundary, TupletInfo, VerseLyric, VoltaBracket,
 };
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
@@ -54,6 +54,7 @@ const MAX_STAVES: usize = 32;
 const MAX_NOTES_PER_VOICE: usize = 50_000;
 const MAX_SOURCE_VOICE_NUMBER: u32 = 1_000_000;
 const MAX_DEPTH: usize = 64;
+type ParsedPartSymbol = (PartGroupSymbol, Option<usize>, Option<usize>);
 
 /// Accept only the conventional external MusicXML DTD declaration.
 ///
@@ -691,6 +692,9 @@ pub(crate) fn parse_musicxml_collecting(
     let mut in_barline = false;
     let mut barline_location = String::new();
     let mut in_direction = false;
+    // Acorde currently stores a part's connector globally; later changes are diagnosed.
+    let mut part_symbols: Vec<Option<ParsedPartSymbol>> = Vec::new();
+    let mut part_symbol_bounds: Option<(Option<usize>, Option<usize>)> = None;
     let mut in_direction_type = false;
     // Direction dynamics are resolved by written time after parsing all voices; inline
     // notations belong to their note.
@@ -1337,6 +1341,7 @@ pub(crate) fn parse_musicxml_collecting(
                             part_percussion.remove(&id).unwrap_or_default();
                         part.staves.push(Staff::new(Clef::Treble));
                         score.parts.push(part);
+                        part_symbols.push(None);
                         part_index = Some(score.parts.len() - 1);
                         current_divisions = 480;
                         current_time = TimeSignature::default();
@@ -1349,6 +1354,43 @@ pub(crate) fn parse_musicxml_collecting(
                         source_voice_slots.clear();
                         preferred_source_voice_slots.clear();
                         measure_repeat_active = None;
+                    }
+                    "part-symbol" => {
+                        if [
+                            b"default-x".as_slice(),
+                            b"default-y",
+                            b"relative-x",
+                            b"relative-y",
+                            b"color",
+                        ]
+                        .iter()
+                        .any(|name| attr_present(e, name))
+                        {
+                            let mut diagnostic = crate::Diagnostic::warning(
+                                "musicxml.part-symbol-formatting-not-preserved",
+                                "part-symbol position and color are not represented",
+                            );
+                            diagnostic.source_location = Some(format!(
+                                "/score-partwise/measure[{current_measure_number}]/attributes/part-symbol"
+                            ));
+                            tolerated.push(diagnostic);
+                        }
+                        let parse_staff = |name: &[u8]| -> Result<Option<usize>, Error> {
+                            attr_str(e, name)
+                                .map(|value| {
+                                    value
+                                        .parse::<usize>()
+                                        .ok()
+                                        .filter(|v| (1..=MAX_STAVES).contains(v))
+                                        .map(|v| v - 1)
+                                        .ok_or_else(|| {
+                                            Error::Xml("invalid part-symbol staff number".into())
+                                        })
+                                })
+                                .transpose()
+                        };
+                        part_symbol_bounds =
+                            Some((parse_staff(b"top-staff")?, parse_staff(b"bottom-staff")?));
                     }
                     "measure" => {
                         current_measure_number = attr_str(e, b"number")
@@ -1423,6 +1465,7 @@ pub(crate) fn parse_musicxml_collecting(
                     }
                 }
                 match tag.as_str() {
+                    "part-symbol" => return Err(Error::Xml("empty part-symbol".into())),
                     "per-minute" if in_metronome => {
                         metronome_per_minute = Some(String::new());
                     }
@@ -2140,10 +2183,41 @@ pub(crate) fn parse_musicxml_collecting(
                     "group-symbol" if in_part_group => {
                         part_group_symbol = match current_text.trim() {
                             "none" => PartGroupSymbol::None,
+                            "square" => PartGroupSymbol::Square,
                             "brace" => PartGroupSymbol::Brace,
                             "line" => PartGroupSymbol::Line,
                             _ => PartGroupSymbol::Bracket,
                         };
+                    }
+                    "part-symbol" => {
+                        let symbol = match current_text.trim() {
+                            "none" => PartGroupSymbol::None,
+                            "brace" => PartGroupSymbol::Brace,
+                            "line" => PartGroupSymbol::Line,
+                            "bracket" => PartGroupSymbol::Bracket,
+                            "square" => PartGroupSymbol::Square,
+                            _ => return Err(Error::Xml("invalid part-symbol value".into())),
+                        };
+                        if let (Some(pi), Some((top, bottom))) =
+                            (part_index, part_symbol_bounds.take())
+                        {
+                            let value = (symbol, top, bottom);
+                            if let Some(previous) = &part_symbols[pi] {
+                                if previous != &value {
+                                    let mut diagnostic = crate::Diagnostic::warning(
+                                        "musicxml.part-symbol-change-not-preserved",
+                                        "later part-symbol changes are not represented",
+                                    );
+                                    diagnostic.source_location = Some(format!(
+                                        "/score-partwise/part[{}]/measure[{current_measure_number}]/attributes/part-symbol",
+                                        pi + 1
+                                    ));
+                                    tolerated.push(diagnostic);
+                                }
+                            } else {
+                                part_symbols[pi] = Some(value);
+                            }
+                        }
                     }
                     "group-barline" if in_part_group => {
                         part_group_barlines = current_text.trim() == "yes";
@@ -4216,8 +4290,31 @@ pub(crate) fn parse_musicxml_collecting(
             tolerated.push(diagnostic);
         }
     }
-    for part in &mut score.parts {
+    for (part, symbol) in score.parts.iter_mut().zip(part_symbols) {
         pad_declared_staff_measures(part);
+        let count = part.staves.len();
+        if let Some((symbol, top, bottom)) = symbol {
+            let first_staff = top.unwrap_or(0);
+            let last_staff = bottom.unwrap_or_else(|| count.saturating_sub(1));
+            if count == 0 || first_staff > last_staff || last_staff >= count {
+                return Err(Error::Xml(
+                    "part-symbol staff range is out of bounds".into(),
+                ));
+            }
+            part.staff_groups.push(StaffGroup {
+                first_staff,
+                last_staff,
+                symbol,
+                barlines_connect: true,
+            });
+        } else if count > 1 {
+            part.staff_groups.push(StaffGroup {
+                first_staff: 0,
+                last_staff: count - 1,
+                symbol: PartGroupSymbol::Brace,
+                barlines_connect: true,
+            });
+        }
         // The first staff's opening clef is read into its first bar; mirror it on the staff.
         if let Some(staff) = part.staves.first_mut()
             && let Some(clef) = staff

@@ -87,6 +87,7 @@ impl Default for ScoreSettings {
 pub enum PartGroupSymbol {
     None,    // no group symbol; barline grouping may still apply
     Bracket, // square bracket — orchestral strings, woodwinds
+    Square,  // square-cornered bracket
     Brace,   // curly brace — piano grand staff
     Line,    // thin vertical line
 }

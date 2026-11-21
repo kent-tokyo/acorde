@@ -677,6 +677,43 @@ MusicXML round-trip, old-JSON/patch, mixed visibility and glyph tests passed;
 all-feature scoped library Clippy passed on macOS. The full visual, platform,
 WASM and reserved-cohort gates remain pending.
 
+### MusicXML multistaff part symbols
+
+[MusicXML](https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/part-symbol/)
+defaults a multistaff part to a brace, and `part-symbol` can choose a symbol
+and a subset of staves. Import now records a static connector, including an
+explicit `none`, in `Part.staff_groups` and exports its first connector as
+MusicXML. A missing connector becomes the MusicXML default brace for any
+multistaff part. `square` is represented separately from the curved `bracket`,
+including MEI `bracketsq` interchange, and both are drawn with distinct end
+shapes. `PartGroupSymbol::Square` extends the public JSON/Rust enum and needs
+semver review.
+
+A synthesized three-staff organ example places a square bracket on staves 1–2;
+the assistant inspected its PDF raster. Source and raster SHA-256 values are
+`a77b8e340cfdc4379334850f209738e4dac1a4f4f9c09e151d4acad81b9a4dd7` and
+`948b5a60bd7f67b4d457b5fa787c2f36d4a69e8a7fa795fe4e4dd443daad76ee`.
+The example also exposes an unresolved defect: measure barlines currently span
+the entire visible system even when a connector applies to only some staves or
+a group requests separate barlines. Connector geometry is not proof of correct
+barline grouping. Later changes of `part-symbol` are diagnosed but not modeled;
+position and color are diagnosed but not preserved. MusicXML export represents
+only the first static staff group and reports loss for additional groups or an
+independent disconnected-barline setting.
+
+All [34 prepared inputs](archive/print-parity-part-symbol-corpus-20261122.json)
+rendered with 225 Acorde pages, unchanged in aggregate relative to the older
+baseline; that baseline predates several fixes and is not a direct attribution
+of visual changes. None of those shared inputs contains an explicit part-symbol;
+19 explicitly declare a multistaff part. The new explicit-symbol and range
+checks therefore use synthetic inputs. Five focused IO tests, 264 all-feature
+IO round-trip tests, 43 measured-print tests and scoped all-feature Clippy
+passed on macOS. The source diff fingerprint in the receipt excludes the then
+untracked IO test, whose SHA-256 is
+`257762954e9c8be67eb05685f712c33657250a6efcb79b3d75b24f4ef2253edd`.
+Full page review, barline grouping, cross-platform/WASM and reserved-cohort
+gates remain pending.
+
 ### Reuse of measured row geometry
 
 Profiling the 643-measure chamber input showed repeated pagination attempts:

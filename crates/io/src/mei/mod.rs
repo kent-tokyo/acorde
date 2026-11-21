@@ -295,6 +295,7 @@ fn parse_staff_group_symbol(value: Option<String>) -> PartGroupSymbol {
         .as_str()
     {
         "none" => PartGroupSymbol::None,
+        "bracketsq" => PartGroupSymbol::Square,
         "brace" => PartGroupSymbol::Brace,
         "line" => PartGroupSymbol::Line,
         _ => PartGroupSymbol::Bracket,
@@ -4660,6 +4661,7 @@ fn push_articulation(note: &mut Note, articulation: Articulation) {
 fn mei_staff_group_symbol(symbol: &PartGroupSymbol) -> &'static str {
     match symbol {
         PartGroupSymbol::None => "none",
+        PartGroupSymbol::Square => "bracketsq",
         PartGroupSymbol::Brace => "brace",
         PartGroupSymbol::Line => "line",
         PartGroupSymbol::Bracket => "bracket",

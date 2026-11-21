@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+- Import and export one static MusicXML part symbol, including its staff range,
+  and apply the MusicXML default brace to multistaff parts. Distinguish square
+  group brackets from curved brackets. The new `PartGroupSymbol::Square` variant
+  requires semver review. Later part-symbol changes and multiple nested staff
+  groups remain lossy and are reported by the corresponding import/export reports.
+
 - Preserve MusicXML part-name and abbreviation visibility and the `none`
   part-group symbol, including its absent default. The new serde-defaulted
   `Part` and `PartLabel` fields and `PartGroupSymbol` variant require semver

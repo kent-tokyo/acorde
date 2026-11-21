@@ -2735,7 +2735,7 @@ fn render_part_groups(
             let (Some(first), Some(last)) = (first, last) else {
                 continue;
             };
-            if first >= last {
+            if first > last {
                 continue;
             }
             let top = staff_y[first];
@@ -2758,6 +2758,7 @@ fn write_group_connector(
     let class = match symbol {
         acorde_core::PartGroupSymbol::None => return,
         acorde_core::PartGroupSymbol::Bracket => "bracket",
+        acorde_core::PartGroupSymbol::Square => "square",
         acorde_core::PartGroupSymbol::Brace => "brace",
         acorde_core::PartGroupSymbol::Line => "line",
     };
@@ -2779,6 +2780,32 @@ fn write_group_connector(
             f(x),
             f(bottom)
         ),
+        acorde_core::PartGroupSymbol::Bracket => format!(
+            "M {},{} Q {},{} {},{} L {},{} Q {},{} {},{}",
+            f(x + 0.3 * space),
+            f(top - 0.2 * space),
+            f(x),
+            f(top - 0.2 * space),
+            f(x),
+            f(top + 0.3 * space),
+            f(x),
+            f(bottom - 0.3 * space),
+            f(x),
+            f(bottom + 0.2 * space),
+            f(x + 0.3 * space),
+            f(bottom + 0.2 * space)
+        ),
+        acorde_core::PartGroupSymbol::Square => format!(
+            "M {},{} L {},{} L {},{} L {},{}",
+            f(x + 0.3 * space),
+            f(top),
+            f(x),
+            f(top),
+            f(x),
+            f(bottom),
+            f(x + 0.3 * space),
+            f(bottom)
+        ),
         _ => format!("M {},{} L {},{}", f(x), f(top), f(x), f(bottom)),
     };
     let _ = write!(
@@ -2790,6 +2817,7 @@ fn write_group_connector(
         f(match symbol {
             acorde_core::PartGroupSymbol::None => return,
             acorde_core::PartGroupSymbol::Bracket => 0.16 * space,
+            acorde_core::PartGroupSymbol::Square => 0.16 * space,
             acorde_core::PartGroupSymbol::Brace => 0.15 * space,
             acorde_core::PartGroupSymbol::Line => 0.1 * space,
         })

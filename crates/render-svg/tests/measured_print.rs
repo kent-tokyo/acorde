@@ -9,6 +9,61 @@ use acorde_render_svg::{
 const FONT: &[u8] = include_bytes!("fixtures/Tuffy.ttf");
 
 #[test]
+fn imported_part_symbol_controls_connector_and_staff_range() {
+    let make_score = |name: &str, count: usize, symbol: &str| {
+        let xml = format!(
+            r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>{name}</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><staves>{count}</staves>{symbol}</attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure></part></score-partwise>"#
+        );
+        acorde_io::parse_musicxml(&xml).unwrap()
+    };
+    let organ = make_score(
+        "Organ",
+        3,
+        r#"<part-symbol top-staff="1" bottom-staff="2">square</part-symbol>"#,
+    );
+    let result = engrave_print_pages(&organ, &PrintConfig::default(), FONT).unwrap();
+    let doc = roxmltree::Document::parse(&result.pages[0]).unwrap();
+    let square = doc
+        .descendants()
+        .find(|n| n.attribute("class") == Some("acorde-staff-square"))
+        .unwrap();
+    let staves: Vec<_> = doc
+        .descendants()
+        .filter(|n| n.attribute("class") == Some("acorde-staff"))
+        .collect();
+    assert_eq!(staves.len(), 3);
+    let edges = |staff: roxmltree::Node<'_, '_>| -> (f32, f32) {
+        let lines: Vec<f32> = staff
+            .descendants()
+            .filter(|n| n.attribute("class") == Some("acorde-staff-line"))
+            .map(|n| n.attribute("y1").unwrap().parse().unwrap())
+            .collect();
+        (
+            lines.iter().copied().fold(f32::INFINITY, f32::min),
+            lines.iter().copied().fold(f32::NEG_INFINITY, f32::max),
+        )
+    };
+    let nums: Vec<f32> = square
+        .attribute("d")
+        .unwrap()
+        .split(|c: char| c.is_ascii_alphabetic() || c == ',' || c.is_whitespace())
+        .filter_map(|v| v.parse().ok())
+        .collect();
+    assert!((nums[1] - edges(staves[0]).0).abs() < 0.1);
+    assert!((nums[5] - edges(staves[1]).1).abs() < 0.1);
+    let no_brace = make_score("Piano", 2, "<part-symbol>none</part-symbol>");
+    let page = &engrave_print_pages(&no_brace, &PrintConfig::default(), FONT)
+        .unwrap()
+        .pages[0];
+    assert!(!page.contains("acorde-staff-brace"));
+    let default_organ = make_score("Organ", 3, "");
+    let page = &engrave_print_pages(&default_organ, &PrintConfig::default(), FONT)
+        .unwrap()
+        .pages[0];
+    assert!(page.contains("acorde-staff-brace"));
+}
+
+#[test]
 fn hidden_part_name_does_not_require_a_glyph() {
     let mut score = Score::new("Work", 120, 4, 4, 0, 1);
     score.parts[0].name = "𠀀".into();
