@@ -489,6 +489,32 @@ memory qualification. The measured cached runs remain slower than the
 5.447–5.525 s observed in the earlier benchmark before staff-gap relaxation,
 which was a separate run and cannot establish a controlled percentage change.
 
+### Page-fragment parsing and default tests
+
+In a diagnostic run of `sq8812200`, a print pass rendered roughly 5,800
+fragments; extracting their vertical extents took about 45–49 ms of an
+approximately 180 ms page-render operation. The extent parser constructed
+short attribute-search strings for every tag. It now uses equivalent static
+prefixes, with tests for text, arcs, rectangles, circles, ellipses, polygons,
+and similarly named unrelated attributes. `roxmltree` is also declared as a
+test dependency so the existing bowing-sign test compiles when `font-metrics`
+is disabled; no runtime feature was added.
+
+The [exact-output comparison](archive/print-parity-fragment-prefix-exact-20261122.json)
+covered the 24 development and ten fixed inputs: all 34 PDFs and 224 SVG pages
+matched the reference artifacts byte for byte. The reference artifacts precede
+the row-cache optimization, whose own exact-output receipt establishes their
+identity with the immediate baseline. Default-feature renderer unit tests
+passed. The existing collision and margin screens apply to those same bytes,
+within their previously stated limitations.
+
+The [same-host benchmark](archive/print-parity-fragment-prefix-benchmark-20261122.json)
+recorded two alternating runs each on `sq8812200`: 7.846 and 8.802 s before,
+7.566 and 8.158 s after. The ranges overlap, so these few observations do not
+establish a reliable speedup. Maximum RSS was about 323 MB before and 316 MB
+after; all four PDF hashes matched. Full visual, cross-platform and final
+reserved-corpus gates remain open.
+
 This program targets conventional keyboard, vocal, chamber-score, and extracted-part
 engraving against **Verovio 6.4.1**. The starting source is Acorde
 `f48944024039cce2abb404af60d9ffc9dedc1502`, not a newly released artifact.

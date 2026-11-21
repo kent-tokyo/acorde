@@ -876,26 +876,28 @@ fn fragment_y_extent(fragment: &str) -> Option<(f32, f32)> {
         if tag.starts_with('/') {
             continue;
         }
-        let attribute = |name: &str| {
-            tag.split_once(&format!(" {name}=\""))
+        // Prefixes include the exact space and quote previously built by
+        // `format!`; using static strings avoids allocations for every SVG tag.
+        let attribute = |prefix: &str| {
+            tag.split_once(prefix)
                 .and_then(|(_, rest)| rest.split('"').next())
         };
         let number = |name: &str| attribute(name).and_then(|value| value.parse::<f32>().ok());
-        let pad = number("font-size").unwrap_or(0.0);
-        for name in ["y", "y1", "y2"] {
+        let pad = number(" font-size=\"").unwrap_or(0.0);
+        for name in [" y=\"", " y1=\"", " y2=\""] {
             if let Some(y) = number(name) {
                 add(y - pad, y + pad);
             }
         }
-        if let (Some(y), Some(height)) = (number("y"), number("height")) {
+        if let (Some(y), Some(height)) = (number(" y=\""), number(" height=\"")) {
             add(y, y + height);
         }
-        if let Some(cy) = number("cy") {
-            let radius = number("ry").or_else(|| number("r")).unwrap_or(0.0);
+        if let Some(cy) = number(" cy=\"") {
+            let radius = number(" ry=\"").or_else(|| number(" r=\"")).unwrap_or(0.0);
             add(cy - radius, cy + radius);
         }
         // Absolute path commands: `A` carries seven values with y last, the others x,y pairs.
-        for name in ["d", "points"] {
+        for name in [" d=\"", " points=\""] {
             let (mut arity, mut y_slot, mut slot) = (2, 1, 0);
             for token in attribute(name)
                 .into_iter()
@@ -944,6 +946,30 @@ mod tests {
         assert_eq!(fragment_y_extent(fragments[1]), Some((32.0, 48.0)));
         assert_eq!(fragment_y_extent(fragments[2]), Some((5.0, 5.0)));
         assert!(top_level_fragments("<g><g></g>").is_none());
+    }
+
+    #[test]
+    fn page_split_reads_shape_bounds_without_matching_similar_attributes() {
+        assert_eq!(
+            fragment_y_extent(r#"<rect y="4" height="11"/>"#),
+            Some((4.0, 15.0))
+        );
+        assert_eq!(
+            fragment_y_extent(r#"<circle cy="20" r="3"/>"#),
+            Some((17.0, 23.0))
+        );
+        assert_eq!(
+            fragment_y_extent(r#"<ellipse cy="30" ry="5"/>"#),
+            Some((25.0, 35.0))
+        );
+        assert_eq!(
+            fragment_y_extent(r#"<polygon points="0,4 2,11 3,7"/>"#),
+            Some((4.0, 11.0))
+        );
+        assert_eq!(
+            fragment_y_extent(r#"<g data-y="99" data-height="7"/>"#),
+            None
+        );
     }
 
     #[test]
