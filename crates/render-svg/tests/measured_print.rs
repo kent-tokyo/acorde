@@ -157,6 +157,77 @@ fn repeated_long_part_name_only_indents_page_start_systems() {
 }
 
 #[test]
+fn authored_pizzicato_text_clears_the_spanning_barline() {
+    // Wolf, Italian Serenade, measures 636–643, OpenScore/StringQuartets, CC0.
+    let score = acorde_io::parse_musicxml(include_str!(
+        "fixtures/wolf_italian_serenade_pizz_excerpt.musicxml"
+    ))
+    .unwrap();
+    let config = PrintConfig {
+        measures_per_system: 8,
+        ..Default::default()
+    };
+    let output = engrave_print_pages(&score, &config, FONT).unwrap();
+    let doc = roxmltree::Document::parse(&output.pages[0]).unwrap();
+    let text = doc
+        .descendants()
+        .find(|n| {
+            n.attribute("data-text") == Some("pizz.")
+                && n.ancestors().any(|parent| {
+                    parent.attribute("data-acorde-kind") == Some("measure")
+                        && parent.attribute("data-part") == Some("2")
+                        && parent.attribute("data-measure") == Some("1")
+                })
+        })
+        .unwrap();
+    let path = text.children().find(|n| n.has_tag_name("path")).unwrap();
+    let matrix = path
+        .attribute("transform")
+        .unwrap()
+        .strip_prefix("matrix(")
+        .unwrap()
+        .trim_end_matches(')')
+        .split_whitespace()
+        .map(|v| v.parse::<f32>().unwrap())
+        .collect::<Vec<_>>();
+    let size = text
+        .attribute("data-font-size")
+        .unwrap()
+        .parse::<f32>()
+        .unwrap();
+    let metrics = TextFont::new(FONT, 0)
+        .unwrap()
+        .measure("pizz.", size)
+        .unwrap();
+    let shift = text
+        .ancestors()
+        .take_while(|n| n.attribute("data-acorde-kind") != Some("measure"))
+        .find_map(|n| {
+            n.attribute("transform")
+                .and_then(|t| t.strip_prefix("translate("))
+                .and_then(|t| t.strip_suffix(')'))
+                .and_then(|t| t.split_whitespace().next())
+                .and_then(|v| v.parse::<f32>().ok())
+        })
+        .unwrap_or(0.0);
+    let ink_right = matrix[4]
+        + shift
+        + metrics.right_mm
+        + (matrix[2] * metrics.top_mm).max(matrix[2] * metrics.bottom_mm);
+    let line_x = doc
+        .descendants()
+        .filter(|n| n.attribute("class") == Some("acorde-barline"))
+        .filter_map(|n| n.attribute("x1")?.parse::<f32>().ok())
+        .filter(|&x| x > matrix[4] && x < matrix[4] + 50.0)
+        .min_by(f32::total_cmp)
+        .unwrap();
+    assert!(
+        ink_right + 0.33 < line_x,
+        "pizz. right={ink_right}, barline={line_x}"
+    );
+}
+
+#[test]
 fn continued_volta_stays_within_top_margin_on_each_page() {
     use acorde_core::VoltaBracket;
     let mut score = Score::new("Volta", 120, 4, 4, 0, 8);

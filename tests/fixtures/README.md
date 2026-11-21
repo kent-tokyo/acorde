@@ -163,3 +163,5 @@ representative corpus. Verovio 6.3.0 and Acorde were rendered from this same inp
 a wedge/note collision in this example, while Acorde used more inter-staff space.
 
 - `openscore_gossec_quartet_rh189.mxl`: OpenScore StringQuartets, Gossec RH 189 (CC0-1.0), pinned revision and hash in the manifest. Full-score regression for hidden notation layers and second-violin fingerings near adjacent staff notation.
+
+- `crates/render-svg/tests/fixtures/wolf_italian_serenade_pizz_excerpt.musicxml`: measures 636–643 from Hugo Wolf, *Italian Serenade*, OpenScore/StringQuartets revision `2614b0b2958dd1ce3f52e172a43e5f4d0e29570f`, `scores/Wolf,_Hugo/Italian_Serenade/sq8812200.mxl` (CC0-1.0). Initial attributes are copied from measure 1 for this isolated regression excerpt.

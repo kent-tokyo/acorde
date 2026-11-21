@@ -144,8 +144,33 @@ pub(crate) fn resolve(
     let mut note_bounds = Vec::new();
     let mut rolls = Vec::new();
     let mut ink_obstacles = Vec::new();
+    let mut barlines = Vec::new();
     for svg in pages.iter() {
         let doc = roxmltree::Document::parse(svg).map_err(|_| Error::InvalidGeneratedGeometry)?;
+        // System barlines can span the spaces between staves. Their geometry is
+        // emitted outside measure groups, so associate each with its physical row.
+        for line in doc
+            .descendants()
+            .filter(|n| n.attribute("class") == Some("acorde-barline"))
+        {
+            let number = |name: &str| {
+                line.attribute(name)
+                    .and_then(|v| v.parse::<f32>().ok())
+                    .filter(|v| v.is_finite())
+                    .ok_or(Error::InvalidGeneratedGeometry)
+            };
+            let x1 = number("x1")?;
+            let x2 = number("x2")?;
+            let y1 = number("y1")?;
+            let y2 = number("y2")?;
+            let half = number("stroke-width")? / 2.0;
+            let (top, bottom) = (y1.min(y2), y1.max(y2));
+            for row in 0..tops.len() {
+                if top <= bottoms[row][bottoms[row].len() - 1] && bottom >= tops[row][0] {
+                    barlines.push((row, x1.min(x2) - half, x1.max(x2) + half, top, bottom));
+                }
+            }
+        }
         // Continued volta brackets are drawn outside their originating measure and can
         // extend above a later system's notes. Reserve the actual bracket height on
         // every system, including systems with no local start or stop marker.
@@ -1018,6 +1043,14 @@ pub(crate) fn resolve(
                     })
                     .map(|&(_, l, r, _, _)| (l - width - CLEARANCE, r + CLEARANCE))
                     .collect();
+                for &(bar_row, bar_left, bar_right, bar_top, bar_bottom) in &barlines {
+                    if bar_row == row
+                        && y + metrics.bottom_mm + CLEARANCE > bar_top
+                        && y + metrics.top_mm - CLEARANCE < bar_bottom
+                    {
+                        blocked.push((bar_left - width - CLEARANCE, bar_right + CLEARANCE));
+                    }
+                }
                 for curve in curves.iter().filter(|c| {
                     c.row == row
                         && c.first_staff != c.last_staff

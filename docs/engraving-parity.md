@@ -311,6 +311,39 @@ similar placement is visible in the earlier default rendering, but exact ink
 bounds and original-source intent have not yet been assessed. This one-page
 review is not a corpus-wide or original-to-output fidelity audit.
 
+### Text clearance from spanning barlines
+
+The apparent contact on the final page was confirmed at 300 dpi: the dot of
+viola `pizz.` at measure 637 crossed the system barline. The independent MXL
+source contains that text above the viola with `relative-x="-60.00"` and
+`enclosure="rectangle"`; the latter is rendered by Verovio but currently
+omitted by Acorde and remains a source-fidelity defect. This finding is based
+on the original MXL content and Verovio SVG, not a comparison to the original
+engraved page.
+
+The measured preflight now includes actual barline strokes as horizontal
+obstacles for text when their vertical ink ranges overlap. It preserves the
+measure ownership and moves the text only as needed for the nearest available
+clearance; later collision passes still apply. A licensed
+[regression excerpt](../crates/render-svg/tests/fixtures/wolf_italian_serenade_pizz_excerpt.musicxml)
+retains source measures 636–643, with initial attributes copied from measure 1.
+The test failed on the prior code with a conservative italic-ink right edge of
+196.70 against a barline at 194.59 internal units, and passes with the fix.
+On the full score's default-layout final page, Chrome measured the outlined
+text's right edge at 246.91 and the barline center at 247.98 in a 840-pixel
+page view; the line stroke was 0.65 units wide. This verifies clearance for
+this case, not every line and glyph in the corpus.
+
+Both engines completed the [24 development](archive/print-parity-development-barline-20261121.json)
+and [ten fixed](archive/print-parity-fixed-ten-barline-20261121.json) inputs;
+each Acorde page count was unchanged from the preceding candidate, totaling
+214 and 16 respectively. The [34-input margin audit](archive/print-parity-margin-barline-20261121.json)
+again classified 993 candidates as 758 part labels, 230 page numbers and five
+titles; label font size and paper-edge minima remained 2.75 mm and 3.06 mm.
+This is not a complete collision or source-fidelity audit. The final-pass
+PNG of the excerpt has SHA-256
+`9ca26fd49ca51108fe84183c1fc4c2b6a1698bfae60cba59b78760df37081f5a`.
+
 This program targets conventional keyboard, vocal, chamber-score, and extracted-part
 engraving against **Verovio 6.4.1**. The starting source is Acorde
 `f48944024039cce2abb404af60d9ffc9dedc1502`, not a newly released artifact.
