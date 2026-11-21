@@ -99,6 +99,8 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
       - name: Test default IO round trips
         run: cargo test -p acorde-io --test roundtrip --locked
+      - name: Test MEI without ABC and MSCZ
+        run: cargo test -p acorde-io --test roundtrip --features mei --locked
       - name: Test ABC and MSCZ without MEI
         run: cargo test -p acorde-io --features "abc mscz" --locked
 

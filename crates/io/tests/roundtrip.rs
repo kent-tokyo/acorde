@@ -2222,10 +2222,13 @@ fn scheduled_ensemble_roles_keep_playback_through_musicxml_and_mscz() {
     let from_xml = acorde_io::parse_musicxml(&xml).unwrap();
     assert_eq!(from_xml.parts.len(), 4);
     assert_eq!(signature(&from_xml), expected);
-    let mscz = acorde_io::serialize_mscz(&score).unwrap();
-    let from_mscz = acorde_io::parse_mscz(&mscz).unwrap();
-    assert_eq!(from_mscz.parts.len(), 4);
-    assert_eq!(signature(&from_mscz), expected);
+    #[cfg(feature = "mscz")]
+    {
+        let mscz = acorde_io::serialize_mscz(&score).unwrap();
+        let from_mscz = acorde_io::parse_mscz(&mscz).unwrap();
+        assert_eq!(from_mscz.parts.len(), 4);
+        assert_eq!(signature(&from_mscz), expected);
+    }
 
     let mut performance_options = options;
     performance_options
@@ -2266,8 +2269,11 @@ fn scheduled_ensemble_roles_keep_playback_through_musicxml_and_mscz() {
         signature(&acorde_io::parse_musicxml(&xml).unwrap()),
         expected
     );
-    let mscz = acorde_io::serialize_mscz(&performance).unwrap();
-    assert_eq!(signature(&acorde_io::parse_mscz(&mscz).unwrap()), expected);
+    #[cfg(feature = "mscz")]
+    {
+        let mscz = acorde_io::serialize_mscz(&performance).unwrap();
+        assert_eq!(signature(&acorde_io::parse_mscz(&mscz).unwrap()), expected);
+    }
 }
 
 #[cfg(all(feature = "musicxml", feature = "mscz"))]
@@ -6871,20 +6877,26 @@ fn hidden_notes_and_rests_round_trip_through_every_notation_format() {
         hidden(&acorde_io::parse_mei(&mei).expect("mei back")),
         expected
     );
-    let mscx = acorde_io::serialize_mscx(&score).expect("mscx");
-    assert_eq!(
-        hidden(&acorde_io::parse_mscx(&mscx).expect("mscx back")),
-        expected
-    );
-    let abc = acorde_io::parse_abc("X:1\nM:4/4\nL:1/4\nK:C\nx2 c d|X|\n").expect("abc");
-    assert_eq!(
-        abc.parts[0].staves[0]
-            .measures
-            .iter()
-            .flat_map(|m| m.voices[0].iter().map(|n| (n.is_rest, n.hidden)))
-            .collect::<Vec<_>>(),
-        vec![(true, true), (false, false), (false, false), (true, true)]
-    );
+    #[cfg(feature = "mscz")]
+    {
+        let mscx = acorde_io::serialize_mscx(&score).expect("mscx");
+        assert_eq!(
+            hidden(&acorde_io::parse_mscx(&mscx).expect("mscx back")),
+            expected
+        );
+    }
+    #[cfg(feature = "abc")]
+    {
+        let abc = acorde_io::parse_abc("X:1\nM:4/4\nL:1/4\nK:C\nx2 c d|X|\n").expect("abc");
+        assert_eq!(
+            abc.parts[0].staves[0]
+                .measures
+                .iter()
+                .flat_map(|m| m.voices[0].iter().map(|n| (n.is_rest, n.hidden)))
+                .collect::<Vec<_>>(),
+            vec![(true, true), (false, false), (false, false), (true, true)]
+        );
+    }
 }
 
 #[test]
@@ -7362,12 +7374,15 @@ fn octave_and_c_clefs_round_trip_through_musicxml_mei_and_mscx() {
     let mei = acorde_io::serialize_mei(&score).expect("MEI");
     assert!(mei.contains(r#"clef.dis="8" clef.dis.place="below""#));
     check(&acorde_io::parse_mei(&mei).expect("MEI reparses"), "MEI");
-    let mscx = acorde_io::serialize_mscx(&score).expect("MSCX");
-    assert!(mscx.contains("G8vb"));
-    check(
-        &acorde_io::parse_mscx(&mscx).expect("MSCX reparses"),
-        "MSCX",
-    );
+    #[cfg(feature = "mscz")]
+    {
+        let mscx = acorde_io::serialize_mscx(&score).expect("MSCX");
+        assert!(mscx.contains("G8vb"));
+        check(
+            &acorde_io::parse_mscx(&mscx).expect("MSCX reparses"),
+            "MSCX",
+        );
+    }
 }
 
 #[cfg(feature = "mei")]
@@ -7387,9 +7402,7 @@ fn musicxml_transpose_keeps_its_octave_change() {
     let mei = acorde_io::serialize_mei(&score).expect("MEI");
     assert!(mei.contains(r#"trans.diat="-8" trans.semi="-14""#));
     let from_mei = acorde_io::parse_mei(&mei).expect("MEI reparses");
-    let from_mscx =
-        acorde_io::parse_mscx(&acorde_io::serialize_mscx(&score).expect("MSCX")).expect("MSCX");
-    for (format, back) in [("MEI", from_mei), ("MSCX", from_mscx)] {
+    let check = |format: &str, back: &acorde_core::Score| {
         let staff = &back.parts[0].staves[0];
         assert_eq!(staff.transpose_semitones, -14, "{format}");
         let pitch = &staff.measures[0].voices[0][0].pitches[0];
@@ -7398,6 +7411,13 @@ fn musicxml_transpose_keeps_its_octave_change() {
             (acorde_core::Step::D, 5),
             "{format}"
         );
+    };
+    check("MEI", &from_mei);
+    #[cfg(feature = "mscz")]
+    {
+        let from_mscx =
+            acorde_io::parse_mscx(&acorde_io::serialize_mscx(&score).expect("MSCX")).expect("MSCX");
+        check("MSCX", &from_mscx);
     }
 }
 
@@ -7423,19 +7443,22 @@ fn ghost_noteheads_round_trip_per_chord_member() {
     );
     let mei = acorde_io::serialize_mei(&score).expect("MEI");
     check(&acorde_io::parse_mei(&mei).expect("MEI reparses"), "MEI");
-    let mscx = acorde_io::serialize_mscx(&score).expect("MSCX");
-    assert!(mscx.contains("<ghost>1</ghost>"));
-    let report = acorde_io::parse_mscx_with_report(&mscx).expect("MSCX reparses");
-    check(&report.score, "MSCX");
-    assert!(
-        report.diagnostics.iter().all(|d| !d
-            .source_location
-            .as_deref()
-            .unwrap_or("")
-            .contains("ghost")),
-        "{:?}",
-        report.diagnostics
-    );
+    #[cfg(feature = "mscz")]
+    {
+        let mscx = acorde_io::serialize_mscx(&score).expect("MSCX");
+        assert!(mscx.contains("<ghost>1</ghost>"));
+        let report = acorde_io::parse_mscx_with_report(&mscx).expect("MSCX reparses");
+        check(&report.score, "MSCX");
+        assert!(
+            report.diagnostics.iter().all(|d| !d
+                .source_location
+                .as_deref()
+                .unwrap_or("")
+                .contains("ghost")),
+            "{:?}",
+            report.diagnostics
+        );
+    }
 }
 
 #[cfg(feature = "mei")]
@@ -7479,11 +7502,14 @@ fn breves_and_hundred_twenty_eighths_round_trip() {
     let mei = acorde_io::serialize_mei(&score).expect("MEI");
     assert!(mei.contains(r#"dur="breve""#) && mei.contains(r#"dur="128""#));
     check(&acorde_io::parse_mei(&mei).expect("MEI reparses"), "MEI");
-    let mscx = acorde_io::serialize_mscx(&score).expect("MSCX");
-    check(
-        &acorde_io::parse_mscx(&mscx).expect("MSCX reparses"),
-        "MSCX",
-    );
+    #[cfg(feature = "mscz")]
+    {
+        let mscx = acorde_io::serialize_mscx(&score).expect("MSCX");
+        check(
+            &acorde_io::parse_mscx(&mscx).expect("MSCX reparses"),
+            "MSCX",
+        );
+    }
 }
 
 #[cfg(feature = "mei")]
@@ -7510,12 +7536,15 @@ fn longa_round_trips_through_musicxml_mei_and_mscx() {
     let mei = acorde_io::serialize_mei(&score).expect("MEI serializes");
     assert!(mei.contains(r#"dur="long""#));
     check(&acorde_io::parse_mei(&mei).expect("MEI reparses"), "MEI");
-    let mscx = acorde_io::serialize_mscx(&score).expect("MSCX serializes");
-    assert!(mscx.contains("<durationType>longa</durationType>"));
-    check(
-        &acorde_io::parse_mscx(&mscx).expect("MSCX reparses"),
-        "MSCX",
-    );
+    #[cfg(feature = "mscz")]
+    {
+        let mscx = acorde_io::serialize_mscx(&score).expect("MSCX serializes");
+        assert!(mscx.contains("<durationType>longa</durationType>"));
+        check(
+            &acorde_io::parse_mscx(&mscx).expect("MSCX reparses"),
+            "MSCX",
+        );
+    }
 }
 
 #[test]
@@ -7570,9 +7599,12 @@ fn scoops_plops_doits_and_falloffs_round_trip() {
         &acorde_io::parse_mei(&acorde_io::serialize_mei(&score).expect("MEI")).expect("MEI"),
         "MEI",
     );
-    let mscx = acorde_io::serialize_mscx(&score).expect("MSCX");
-    assert!(mscx.contains("<ChordLine><subtype>4</subtype></ChordLine>"));
-    check(&acorde_io::parse_mscx(&mscx).expect("MSCX"), "MSCX");
+    #[cfg(feature = "mscz")]
+    {
+        let mscx = acorde_io::serialize_mscx(&score).expect("MSCX");
+        assert!(mscx.contains("<ChordLine><subtype>4</subtype></ChordLine>"));
+        check(&acorde_io::parse_mscx(&mscx).expect("MSCX"), "MSCX");
+    }
 }
 
 #[test]
@@ -7650,9 +7682,12 @@ fn endings_for_several_passes_round_trip_and_play() {
         &acorde_io::parse_mei(&acorde_io::serialize_mei(&score).expect("MEI")).expect("MEI"),
         "MEI",
     );
-    let mscx = acorde_io::serialize_mscx(&score).expect("MSCX");
-    assert!(mscx.contains("<endings>1,2</endings>"));
-    check(&acorde_io::parse_mscx(&mscx).expect("MSCX"), "MSCX");
+    #[cfg(feature = "mscz")]
+    {
+        let mscx = acorde_io::serialize_mscx(&score).expect("MSCX");
+        assert!(mscx.contains("<endings>1,2</endings>"));
+        check(&acorde_io::parse_mscx(&mscx).expect("MSCX"), "MSCX");
+    }
 }
 
 #[test]
