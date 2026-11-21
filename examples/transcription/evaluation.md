@@ -782,12 +782,12 @@ larger. MIDI key releases need not coincide with the ends of sustained sound.
 | 23 | 72 | 71 / 0 | 72 / 0 | 0.923 / 0.944 |
 | 24 | 80 | 80 / 1 | 80 / 0 | 0.870 / 0.963 |
 | 25 | 37 | 37 / 3 | 37 / 0 | 0.727 / 0.946 |
-| 26 | 49 | 48 / 5 | 49 / 0 | 0.549 / 0.939 |
+| 26 | 49 | 48 / 4 | 49 / 0 | 0.549 / 0.939 |
 | 27 | 52 | 52 / 5 | 52 / 0 | 0.771 / 0.904 |
 | 5 | 83 | 83 / 10 | 83 / 0 | 0.795 / 0.952 |
-| Total | 476 | 473 / 44 | 476 / 0 | — |
+| Total | 476 | 473 / 43 | 476 / 0 | — |
 
-On this small sample the candidate has 44 fewer unmatched notes and matches three more
+On this small sample the candidate has 43 fewer unmatched notes and matches three more
 reference onsets. It does not establish performance on acoustic pianos recorded by phone,
 other performers, independently identified compositions, or other recording devices.
 `sighttosound-comparison.json` fixes the excerpts and hashes for original video, original
@@ -865,19 +865,19 @@ piece titles were examined earlier, and training-set overlap remains unknown.
 
 | Video | Reference | Earlier matched / extra | Transkun matched / extra | Recall change (percentage points) | Earlier / Transkun onset-and-end F1 |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| 10 | 78 | 78 / 8 | 77 / 0 | -1.28 | 0.683 / 0.981 |
+| 10 | 78 | 78 / 8 | 78 / 0 | 0.00 | 0.683 / 0.987 |
 | 21 | 67 | 66 / 7 | 67 / 1 | +1.49 | 0.614 / 0.978 |
 | 23 | 108 | 108 / 2 | 108 / 0 | 0.00 | 0.835 / 0.935 |
-| 24 | 114 | 113 / 1 | 113 / 0 | 0.00 | 0.868 / 0.819 |
+| 24 | 114 | 114 / 1 | 114 / 0 | 0.00 | 0.873 / 0.825 |
 | 25 | 47 | 47 / 5 | 47 / 0 | 0.00 | 0.566 / 0.957 |
 | 26 | 61 | 58 / 10 | 61 / 0 | +4.92 | 0.636 / 0.918 |
 | 27 | 75 | 75 / 8 | 75 / 0 | 0.00 | 0.810 / 0.973 |
 | 5 | 86 | 85 / 9 | 86 / 0 | +1.16 | 0.833 / 0.930 |
-| Total | 636 | 630 / 50 | 634 / 1 | +0.63 | — |
+| Total | 636 | 631 / 50 | 636 / 1 | +0.79 | — |
 
 The candidate produced 49 fewer unmatched onsets (98% fewer) in aggregate, while matching
-four additional reference onsets. One excerpt's onset recall dropped 1.28 percentage points.
-Video 24 also shows a lower onset-and-end F1 with Transkun. These are recordings of
+five additional reference onsets. Video 24 shows a lower onset-and-end F1 with Transkun.
+These are recordings of
 one performer on one digital piano through one phone. They do not establish performance on
 other performers, acoustic pianos or phones. The 50 ms fixed alignment and the model-derived
 key-release estimates limit interpretation of the end scores.
@@ -889,3 +889,14 @@ named `sighttosound-second-window`, `--piano-checkpoint` and `--transkun`; place
 directory beside `sighttosound` under `examples/transcription` and run `compare_corpus.py`
 on the continuation manifest. The 30–60 second clips and resulting MIDI are external and
 are not included in this repository.
+
+The onset counts in both Sight to Sound tables were corrected after finding that independently
+truncating the reference and estimate at the window boundary could classify a matched note as
+a miss or extra. `compare_corpus.py` now matches notes within 50 ms on either side of the
+window before counting its reference onsets and unmatched in-window estimates. The previously
+reported 44 extras in the first window is 43 under this rule. In the continuation, the old
+630/636 baseline and 634/636 candidate totals become 631/636 and 636/636. Video 10's apparent
+1.28-point candidate recall loss was caused by a matched onset falling just before the selected
+start. Earlier tables produced with the previous version of `evaluate.py` retain the old
+half-open, independently truncated convention and should not be read as boundary-aware
+comparisons. Both tools now match the boundary context before counting windowed notes.

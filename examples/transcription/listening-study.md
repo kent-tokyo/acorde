@@ -20,8 +20,9 @@ needed in both conditions.
    alignment before interpreting the error counts. The exported MIDI starts at the first pickup
    boundary, so pass `--estimate-offset` with the recording time of that boundary. This equals
    `barStart - pickupSteps * 15 / tempo` seconds. Pass the same `--start` and `--end` recording
-   times for both conditions. The start is inclusive and the end is exclusive; the evaluator
-   selects notes by onset and retains their original end times.
+   times for both conditions. The start is inclusive and the end is exclusive for reference
+   onsets. The evaluator considers estimates within the 50 ms tolerance outside that range
+   when matching boundary notes, and retains their original end times.
 5. With multiple participants, alternate which passage uses each condition and the order of the
    conditions. Report each time and precision/recall separately, along with the corrections made
    and the participant's observations. Compare time only for outputs of comparable accuracy.

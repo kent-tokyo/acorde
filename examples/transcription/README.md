@@ -102,6 +102,9 @@ The evaluator also lists unmatched reference notes, unmatched estimated notes, a
 errors for onset-matched notes. Unmatched estimates carry proximity flags for a reference
 onset an octave away and for a nearby onset-matched estimate of the same pitch. These flags
 identify notes to inspect and do not establish whether a note is a harmonic or duplicate.
+For a bounded range, reference onsets use the half-open range. Matching considers a 50 ms
+margin so a corresponding estimate just outside the range is not incorrectly counted as a miss.
+In-range estimates matched to reference notes outside the range are not counted as extras.
 Interpret offset errors only when reference note releases have been independently validated.
 For a MusicXML export, save `acorde playback-report score.musicxml` as JSON and pass that
 file as the estimate with `--estimate-playback-report`. Use `--estimate-offset` to align
