@@ -63,6 +63,44 @@ fn measured_part_names_keep_readable_size_and_paper_clearance() {
 }
 
 #[test]
+fn opening_long_name_indents_only_the_first_system() {
+    let mut score = Score::new("Names", 120, 4, 4, 0, 4);
+    score.parts[0].name = "Harpsichord".into();
+    score.parts[0].short_name = "Hch.".into();
+    score.parts[0].staves[0].measures[2].system_break = true;
+    let config = PrintConfig::default();
+    let output = engrave_print_pages(&score, &config, FONT).unwrap();
+    assert_eq!(
+        output.layout.pages[0].content_left_mm,
+        config.margin_left_mm
+    );
+    assert!(output.first_system_inset_mm > 0.0);
+    let doc = roxmltree::Document::parse(&output.pages[0]).unwrap();
+    let lines = doc
+        .descendants()
+        .filter(|node| node.attribute("class") == Some("acorde-staff-line"))
+        .collect::<Vec<_>>();
+    assert!(lines.len() >= 10, "expected at least two systems");
+    let x = |node: roxmltree::Node<'_, '_>| node.attribute("x1").unwrap().parse::<f32>().unwrap();
+    let first = x(lines[0]);
+    let second = x(lines[5]);
+    assert!((first - second - output.first_system_inset_mm * 4.0).abs() < 0.03);
+    let label = doc
+        .descendants()
+        .find(|node| {
+            node.attribute("class") == Some("acorde-print-part-label")
+                && node.attribute("data-text") == Some("Harpsichord")
+        })
+        .unwrap();
+    let size = label
+        .attribute("data-font-size")
+        .unwrap()
+        .parse::<f32>()
+        .unwrap();
+    assert!(size / 4.0 >= 2.7);
+}
+
+#[test]
 fn continued_volta_stays_within_top_margin_on_each_page() {
     use acorde_core::VoltaBracket;
     let mut score = Score::new("Volta", 120, 4, 4, 0, 8);

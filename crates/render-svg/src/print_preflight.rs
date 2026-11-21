@@ -87,6 +87,7 @@ pub(crate) fn resolve(
     geometry: &mut [MeasuredRowGeometry],
     pages: &mut [String],
     font: &TextFont<'_>,
+    first_row_inset_mm: f32,
 ) -> Result<bool, Error> {
     let refs: Vec<_> = score
         .parts
@@ -961,12 +962,17 @@ pub(crate) fn resolve(
                     .bottom_mm
                     .max(value("data-print-bottom")? - original_y);
             }
-            if right - left > row_widths[row] - 0.5 * SPACE {
+            let row_left = if row == 0 {
+                first_row_inset_mm * 4.0
+            } else {
+                0.0
+            };
+            if right - left > row_widths[row] - row_left - 0.5 * SPACE {
                 return Err(Error::DirectionTooWide);
             }
             let mut shift_x = (row_widths[row] - 0.25 * SPACE - right)
                 .min(0.0)
-                .max(0.25 * SPACE - left);
+                .max(row_left + 0.25 * SPACE - left);
             left += shift_x;
             right += shift_x;
             let mut y = original_y;
@@ -1032,7 +1038,7 @@ pub(crate) fn resolve(
                 }
                 if let Some(next) = crate::render::nearest_text_gap(
                     left,
-                    0.25 * SPACE,
+                    row_left + 0.25 * SPACE,
                     row_widths[row] - 0.25 * SPACE - width,
                     blocked,
                 ) {

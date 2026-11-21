@@ -131,6 +131,7 @@ struct DeferredMeasureText {
 pub(crate) struct PrintRowPlacement<'a> {
     pub row_tops_px: &'a [f32],
     pub row_width_factors: &'a [f32],
+    pub row_left_offsets_px: &'a [f32],
     pub canvas_height_px: f32,
     pub row_staff_gaps_u: Option<&'a [Vec<f32>]>,
     pub row_lyric_baselines_u: Option<&'a [Vec<f32>]>,
@@ -704,6 +705,11 @@ pub(crate) fn build_svg_with_metadata_placement(
     let total_height = if let Some(placement) = print_placement {
         if placement.row_tops_px.len() != layout.rows.len()
             || placement.row_width_factors.len() != layout.rows.len()
+            || placement.row_left_offsets_px.len() != layout.rows.len()
+            || placement
+                .row_left_offsets_px
+                .iter()
+                .any(|x| !x.is_finite() || *x < 0.0)
             || placement.row_staff_gaps_u.is_some_and(|rows| {
                 rows.len() != layout.rows.len()
                     || rows.iter().any(|gaps| {
@@ -763,6 +769,10 @@ pub(crate) fn build_svg_with_metadata_placement(
             continue;
         }
         let row_top_y = row_tops[row_idx];
+        let left_margin_u = left_margin_u
+            + print_placement.map_or(0.0, |placement| {
+                placement.row_left_offsets_px[row_idx] / space
+            });
         let row_content_width = content_width
             * print_placement.map_or(1.0, |placement| placement.row_width_factors[row_idx]);
 

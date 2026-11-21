@@ -37,6 +37,8 @@ pub struct MeasuredPrintOutput {
     pub layout: PrintLayoutResult,
     pub pages: Vec<String>,
     pub staff_space_mm: f32,
+    /// Additional indentation of the opening system beyond its page content inset.
+    pub first_system_inset_mm: f32,
     pub measurements: PrintMeasurements,
 }
 
@@ -64,25 +66,35 @@ pub fn engrave_print_pages(
         }
     };
     let font = TextFont::for_print(font_bytes)?;
-    // Expand the notation inset only when the longest label word cannot fit
-    // at the minimum label size in the existing label lane.
-    let mut label_width: Option<f32> = None;
+    // A full name is shown only on the first system; subsequent pages use the
+    // abbreviation when available. Reserve the latter globally and indent only
+    // the opening system for any additional space needed by the full name.
+    let mut first_width = 0.0_f32;
+    let mut repeated_width = 0.0_f32;
     if config.publication.show_part_names {
-        for word in render_score.parts.iter().flat_map(|part| {
-            part.name
-                .split_whitespace()
-                .chain(part.short_name.split_whitespace())
-        }) {
-            let width = font.measure(word, 2.7)?.occupied_width_mm();
-            label_width = Some(label_width.unwrap_or(0.0).max(width + 0.25));
+        for part in &render_score.parts {
+            for word in part.name.split_whitespace() {
+                first_width = first_width.max(font.measure(word, 2.7)?.occupied_width_mm() + 0.25);
+            }
+            let repeated = if part.short_name.is_empty() {
+                &part.name
+            } else {
+                &part.short_name
+            };
+            for word in repeated.split_whitespace() {
+                repeated_width =
+                    repeated_width.max(font.measure(word, 2.7)?.occupied_width_mm() + 0.25);
+            }
         }
     }
+    let existing = config.margin_left_mm + config.safe_left_mm - 1.5 - 3.0;
     let mut measured_config = config.clone();
-    if let Some(width) = label_width.as_mut() {
-        let existing = config.margin_left_mm + config.safe_left_mm - 1.5 - 3.0;
-        measured_config.safe_left_mm += (*width - existing).max(0.0);
-        *width = width.max(existing);
-    }
+    measured_config.safe_left_mm += (repeated_width - existing).max(0.0);
+    let label_width = config
+        .publication
+        .show_part_names
+        .then_some(existing.max(repeated_width));
+    let first_row_inset_mm = (first_width - existing.max(repeated_width)).max(0.0);
     let config = &measured_config;
     let _text = crate::font_metrics::PrintTextScope::new(render_score, &font)?;
     let logical = compute_layout(render_score, &LayoutConfig::default());
@@ -119,7 +131,13 @@ pub fn engrave_print_pages(
         headers_mm,
         system_height_mm: (top + system + bottom) * 1.8 + 0.001,
     };
-    let rows = break_measured_print_systems(score, config, &measurements)?;
+    // The breaking solver accepts header widths per starting measure. Its private
+    // copy includes the opening inset while exported measurements stay physical.
+    let mut breaking_measurements = measurements.clone();
+    if let Some(first_header) = breaking_measurements.headers_mm.first_mut() {
+        *first_header += first_row_inset_mm;
+    }
+    let rows = break_measured_print_systems(score, config, &breaking_measurements)?;
     let mut geometry = rows
         .iter()
         .map(|row| crate::render::measured_row_geometry(render_score, row))
@@ -153,9 +171,16 @@ pub fn engrave_print_pages(
             &crate::SvgGlyphSource::Vector,
             Some(&geometry),
             label_width,
+            first_row_inset_mm,
         )?;
-        if crate::print_preflight::resolve(render_score, &layout, &mut geometry, &mut pages, &font)?
-        {
+        if crate::print_preflight::resolve(
+            render_score,
+            &layout,
+            &mut geometry,
+            &mut pages,
+            &font,
+            first_row_inset_mm,
+        )? {
             continue;
         }
         let pages = pages
@@ -166,6 +191,7 @@ pub fn engrave_print_pages(
             layout,
             pages,
             staff_space_mm: 1.8,
+            first_system_inset_mm: first_row_inset_mm,
             measurements,
         });
     }

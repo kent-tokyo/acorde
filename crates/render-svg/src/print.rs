@@ -119,7 +119,7 @@ pub fn render_print_page_svgs_with_glyphs(
     layout: &PrintLayoutResult,
     glyphs: &SvgGlyphSource,
 ) -> Result<Vec<String>, PrintRenderError> {
-    render_print_page_svgs_with_geometry(score, layout, glyphs, None, None)
+    render_print_page_svgs_with_geometry(score, layout, glyphs, None, None, 0.0)
 }
 
 pub(crate) fn render_print_page_svgs_with_geometry(
@@ -128,6 +128,7 @@ pub(crate) fn render_print_page_svgs_with_geometry(
     glyphs: &SvgGlyphSource,
     supplied_geometry: Option<&[render::MeasuredRowGeometry]>,
     measured_label_width_mm: Option<f32>,
+    first_row_inset_mm: f32,
 ) -> Result<Vec<String>, PrintRenderError> {
     layout.validate()?;
     // Match the staff-aware layout's extra page reservation for an additional
@@ -362,8 +363,17 @@ pub(crate) fn render_print_page_svgs_with_geometry(
                     * space_px
         })
         .collect::<Vec<_>>();
-    let row_width_factors =
+    let mut row_width_factors =
         print_row_width_factors(score, &score_layout.rows, first.content_width_mm, space_mm)?;
+    let mut row_left_offsets_px = vec![0.0; score_layout.rows.len()];
+    if let (Some(factor), Some(offset)) = (
+        row_width_factors.first_mut(),
+        row_left_offsets_px.first_mut(),
+    ) {
+        *factor =
+            factor.min((first.content_width_mm - first_row_inset_mm) / first.content_width_mm);
+        *offset = first_row_inset_mm * PX_PER_MM;
+    }
     let row_staff_gaps = measured_geometry
         .as_ref()
         .map(|rows| rows.iter().map(|r| r.gaps_u.clone()).collect::<Vec<_>>());
@@ -375,6 +385,7 @@ pub(crate) fn render_print_page_svgs_with_geometry(
     let placement = PrintRowPlacement {
         row_tops_px: &row_tops_px,
         row_width_factors: &row_width_factors,
+        row_left_offsets_px: &row_left_offsets_px,
         canvas_height_px: offset_mm * PX_PER_MM,
         row_staff_gaps_u: row_staff_gaps.as_deref(),
         row_lyric_baselines_u: row_lyric_baselines.as_deref(),
@@ -468,6 +479,7 @@ pub(crate) fn render_print_page_svgs_with_geometry(
             space_px,
             measured_staff_offsets.as_ref().unwrap_or(&staff_offsets),
             measured_label_width_mm,
+            first_row_inset_mm,
         );
         svg.push_str("</svg>");
         pages.push(svg);
@@ -555,6 +567,7 @@ fn write_publication(
     space_px: f32,
     staff_offsets: &[(usize, f32, f32)],
     measured_label_width_mm: Option<f32>,
+    first_row_inset_mm: f32,
 ) {
     if page.page_index == 0
         && !page.publication.is_title_page
@@ -637,7 +650,12 @@ fn write_publication(
             else {
                 continue;
             };
-            let text = if page.page_index > 0 && !label.short_name.is_empty() {
+            let first_inset = if system.system_index == 0 {
+                first_row_inset_mm
+            } else {
+                0.0
+            };
+            let text = if system.system_index > 0 && !label.short_name.is_empty() {
                 &label.short_name
             } else {
                 &label.name
@@ -647,6 +665,7 @@ fn write_publication(
             }
             let part_middle = (*first_top + *last_top + *last_height) / 2.0;
             let available_mm = measured_label_width_mm
+                .map(|width| width + first_inset)
                 .unwrap_or(page.content_left_mm - PART_LABEL_GAP_MM - PART_LABEL_PAPER_MM);
             let measured_lines =
                 render::measured_print_active().then(|| measured_label_lines(text, available_mm));
@@ -694,7 +713,7 @@ fn write_publication(
                 let _ = write!(
                     svg,
                     "<text class=\"acorde-print-part-label\" x=\"{:.3}\" y=\"{:.3}\" text-anchor=\"end\" font-family=\"serif\" font-size=\"{:.3}\"{width_limit}>{}</text>",
-                    (page.content_left_mm - PART_LABEL_GAP_MM) * scale,
+                    (page.content_left_mm + first_inset - PART_LABEL_GAP_MM) * scale,
                     row_top - offset_px + first_baseline + index as f32 * leading * scale,
                     size_mm * scale,
                     escape_xml(line)

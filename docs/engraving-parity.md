@@ -218,6 +218,37 @@ only on each page's first system. Variable system widths and per-page label
 requirements need further work before accepting this candidate. Actual printer
 clearance also remains unverified.
 
+### Opening-system label inset
+
+The measured path now measures full and repeated names separately. When the
+full name is wider than its abbreviation, only the opening system receives
+the additional inset; later systems retain their width. The measured output
+reports `first_system_inset_mm`, and collision preflight uses that inset as
+the opening row's left boundary. This is still a partial solution: the widest
+repeated name or fallback full name reserves space on *all* systems, rather
+than just the first system on each page.
+
+The [24-input rerender](archive/print-parity-development-first-row-20261121.json)
+and [fixed-ten rerender](archive/print-parity-fixed-ten-first-row-20261121.json)
+completed in both engines, using the same prepared inputs as the previous
+experiment. The Acorde development total decreased from 218 to 217 pages;
+`piano-wq117n11` returned from two pages to one with four systems. Its PDF
+SHA-256 is `2e5b30676395daa104d91cf8293542b94dc2874702c419193c5b92d1d0aaff6d`.
+The assistant reviewed its full page raster: the full name is on the opening
+system and later systems start farther left, with no empty second page. This
+is not a note-by-note original comparison. The other 23 development inputs
+had unchanged page counts relative to the previous experiment. Relative to
+the 212-page pre-label-reservation baseline, four chamber inputs still add
+five pages in total.
+
+The [margin audit](archive/print-parity-margin-first-row-20261121.json)
+recorded 1,008 candidates across the 34 inputs: 770 part labels, 233 page
+numbers, and five titles. Among the labels outside the nominal margins, the
+minimum measured font size was 2.75 mm and the minimum ink-to-paper-edge
+clearance was 3.06 mm. This is not a general collision audit, a full visual
+review, or proof of printer clearance. The development inputs remain unsuitable
+as a final unseen acceptance set.
+
 This program targets conventional keyboard, vocal, chamber-score, and extracted-part
 engraving against **Verovio 6.4.1**. The starting source is Acorde
 `f48944024039cce2abb404af60d9ffc9dedc1502`, not a newly released artifact.
