@@ -264,6 +264,12 @@ consistent with the observed octave pattern for this written note. It illustrate
 octaves cannot automatically be treated as separate key presses; it does not establish that every
 additional detected octave elsewhere in the recording is an intended reed tone.
 
+As a browser functional check, the master response was loaded into the editor as an accordion
+project. Selecting MIDI 53 at 1.382 seconds displayed MIDI 41 and 65 in the octave review list;
+selecting MIDI 41 from that list moved the editor selection to that note. This uses the same
+development example that motivated the 120 ms grouping window and does not establish accuracy,
+ease of correction, or performance on other recordings.
+
 ## Overlap export check
 
 The same-hand, same-pitch overlap guard was checked against five existing model outputs. Each
