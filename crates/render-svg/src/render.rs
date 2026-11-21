@@ -4651,9 +4651,14 @@ fn render_measure(
 
     let mut opened = String::new();
     if interactive || measured_print_active() {
+        let print_left = if measured_print_active() {
+            format!(r#" data-print-measure-left="{x:.4}""#)
+        } else {
+            String::new()
+        };
         let _ = write!(
             opened,
-            r#"<g class="acorde-measure" data-acorde-kind="measure" data-part="{part}" data-staff="{staff}" data-measure="{measure_idx}">"#
+            r#"<g class="acorde-measure" data-acorde-kind="measure" data-part="{part}" data-staff="{staff}" data-measure="{measure_idx}"{print_left}>"#
         );
     } else {
         opened.push_str(r#"<g class="acorde-measure">"#);

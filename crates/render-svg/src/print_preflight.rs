@@ -1007,12 +1007,25 @@ pub(crate) fn resolve(
                 .copied()
                 .ok_or(Error::InvalidGeneratedGeometry)?
                 * 4.0;
-            if right - left > row_widths[row] - row_left - 0.5 * SPACE {
+            let mut minimum_left = row_left + 0.25 * SPACE;
+            if text.attribute("data-acorde-enclosure") == Some("rectangle")
+                && let Some(measure_left) = owner
+                    .attribute("data-print-measure-left")
+                    .and_then(|v| v.parse::<f32>().ok())
+                    .filter(|v| v.is_finite())
+                && (left + right) / 2.0 < measure_left
+            {
+                // A boxed direction whose center falls before its own
+                // barline can read as applying to the previous measure. Keep
+                // its authored offset when it already points into this measure.
+                minimum_left = minimum_left.max(measure_left + 0.25 * SPACE);
+            }
+            if right - left > row_widths[row] - minimum_left - 0.25 * SPACE {
                 return Err(Error::DirectionTooWide);
             }
             let mut shift_x = (row_widths[row] - 0.25 * SPACE - right)
                 .min(0.0)
-                .max(row_left + 0.25 * SPACE - left);
+                .max(minimum_left - left);
             left += shift_x;
             right += shift_x;
             let mut y = original_y;
@@ -1086,7 +1099,7 @@ pub(crate) fn resolve(
                 }
                 if let Some(next) = crate::render::nearest_text_gap(
                     left,
-                    row_left + 0.25 * SPACE,
+                    minimum_left,
                     row_widths[row] - 0.25 * SPACE - width,
                     blocked,
                 ) {

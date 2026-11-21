@@ -226,15 +226,12 @@ fn authored_pizzicato_text_clears_the_spanning_barline() {
         .find(|n| n.attribute("class") == Some("acorde-text-enclosure"))
         .expect("MusicXML rectangle must be drawn");
     let number = |name| enclosure.attribute(name).unwrap().parse::<f32>().unwrap();
-    let frame_right = number("x") + number("width") + number("stroke-width") / 2.0 + shift;
+    let frame_left = number("x") - number("stroke-width") / 2.0 + shift;
     assert!(
-        frame_right + 0.33 < line_x,
-        "frame right={frame_right}, barline={line_x}"
+        frame_left > line_x + 0.33,
+        "frame left={frame_left}, barline={line_x}"
     );
-    assert!(
-        ink_right + 0.33 < line_x,
-        "pizz. right={ink_right}, barline={line_x}"
-    );
+    assert!(ink_right > line_x, "pizz. must be in its owning measure");
 }
 
 #[test]

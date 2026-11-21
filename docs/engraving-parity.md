@@ -381,6 +381,49 @@ render, the parser was corrected to keep words and rehearsal enclosures separate
 when they share a direction; a scan found no such mixed direction in these 34
 prepared inputs. This is not an exhaustive collision or cross-platform verification.
 
+### Boxed direction and owning measure
+
+The original OpenScore MXL assigns the boxed viola `pizz.` to measure 637
+with `relative-x="-60.00"`. Verovio 6.4.1 places the box inside that measure.
+An independent import of the same MXL by MuseScore Studio 4.7.5 also places it
+inside measure 637. MuseScore wrote a readable 19-page PDF (SHA-256
+`eae8c98efe735a1d0d66f468e01f302e0df592dcef40e9f679ae2741e91471d4`),
+although its log reported a mutex exception at teardown; this is not a clean
+export success. The assistant reviewed its last page (PNG SHA-256
+`dfdd6020ed0a6090929a1d8327ef9f01d3abc307d0c403bcdb1f584b388db9be`)
+and Verovio's last page (PNG SHA-256
+`b4604ea4c85ef307c6bacb5d008be11233c6dcb8f042b67f0bb5cb03ac09c35f`).
+The original typeset source referenced by the transcription is IMSLP #40911;
+its [catalogue record](https://imslp.org/wiki/Italian_Serenade_(Wolf,_Hugo))
+identifies the 1903 Lauterbach & Kuhn score, but that source PDF was not
+available to the web tool and has not been visually inspected. MuseScore is
+an independent rendering of the MusicXML, not the original engraved source.
+
+Measured print now records each measure's physical left boundary. When the
+center of a rectangular text enclosure would lie before the boundary of its
+own measure, preflight keeps the frame inside that measure and clears the
+barline. Other text and boxed text already centered in their measure retain
+their existing positioning policy. This deliberately overrides a large
+negative visual offset in the affected case; the MusicXML offset remains in
+the model and serialization. The excerpt regression failed before the fix
+and passes afterward. In the full Acorde final-page output, Chrome measured the
+box left at 251.88 and its barline center at 247.98 in an 840-pixel page view
+(barline stroke width 0.65). The assistant reviewed the Acorde final page
+(PNG SHA-256 `faeb5f0a6e062ceb6f09a83a6a7e1599e9c282e3225cf29a22fb80702a2b7b66`).
+This resolves the observed measure association in this input; it does not prove
+that overriding every such authored offset is always musically appropriate.
+
+The [24-input](archive/print-parity-development-owned-box-20261121.json) and
+[fixed-ten](archive/print-parity-fixed-ten-owned-box-20261121.json) runs
+completed in both engines with unchanged Acorde totals of 214 and 16 pages.
+The [margin audit](archive/print-parity-margin-owned-box-20261121.json) found
+993 candidates, classified as 758 part labels, 230 page numbers and five titles;
+label minima were 2.75 mm and 3.06 mm to the paper edge. In the pictured
+score Acorde still uses 36 pages and Verovio 25 under the recorded renderer
+settings; the full-page comparison and same-staff-size attribution remain
+open, as do the single-system final-page issue under the default policy and
+the complete original-source review.
+
 This program targets conventional keyboard, vocal, chamber-score, and extracted-part
 engraving against **Verovio 6.4.1**. The starting source is Acorde
 `f48944024039cce2abb404af60d9ffc9dedc1502`, not a newly released artifact.
