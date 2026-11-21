@@ -255,6 +255,15 @@ The common score is useful context, but it is not an independently time-aligned 
 event counts do not distinguish extra octave reeds, repeated detections, missed keys, or actual
 performance differences. This observation does not measure note accuracy or two-hand separation.
 
+The first written note in the score is F3 (MIDI 53). Looking only at the first detected sustained
+pitch group, the clarinet response contains 53 at 1.881 seconds; the bandoneon response contains
+53 at 1.080 and 41 at 1.126 seconds; the master response contains 65 at 1.347, 53 at 1.382,
+and 41 at 1.451 seconds. These are model onset estimates, not independently annotated onset times.
+The article identifies the three stops as 8′, 16′+8′, and 16′+8′+8′+4′, respectively, which is
+consistent with the observed octave pattern for this written note. It illustrates why all detected
+octaves cannot automatically be treated as separate key presses; it does not establish that every
+additional detected octave elsewhere in the recording is an intended reed tone.
+
 ## Overlap export check
 
 The same-hand, same-pitch overlap guard was checked against five existing model outputs. Each
