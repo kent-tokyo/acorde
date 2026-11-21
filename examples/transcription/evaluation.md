@@ -244,3 +244,20 @@ neither reported a context-limited release. The JSON response SHA-256 values wer
 This is one recording and does not measure correction time, score quality, or the effect of
 manually reviewing boundary candidates. The first range was not selected independently of
 the previously inspected recording.
+
+For the 10–20 second range, its 136 raw API notes were also sent through `/midi` and
+`/musicxml`. The export settings were 120 BPM, 4/4, no pickup, and a first bar at recording
+time 10 seconds. These are fixed test settings, not verified beat annotations. MIDI times were
+shifted back by 10 seconds for evaluation. MusicXML was read using Acorde's `playback-report`;
+its playback events were shifted by the same amount. All 136 notes appeared in that report,
+but one onset moved outside the 10–20 second scoring window after quantization.
+
+| Output | Estimated onsets in window | Onset P / R / F1 | Onset + offset F1 |
+| --- | ---: | --- | ---: |
+| MIDI | 136 | 0.963 / 0.956 / 0.960 | 0.725 |
+| MusicXML playback events | 135 | 0.963 / 0.949 / 0.956 | 0.669 |
+
+The MIDI SHA-256 is `31183611b5d4ec226ef88df16046aa5405d898ce9aee9f1c92333a008ccc24e2`;
+the MusicXML SHA-256 is `979e966c1fdf65145fb979ec3f0dec0167394a591f8c2935c5a04962f80dc829`.
+This evaluates playback events on one excerpt with a chosen tempo, not notation readability,
+correct beat alignment, or general MusicXML conversion accuracy.
