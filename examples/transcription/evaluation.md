@@ -288,6 +288,17 @@ reference recordings. A specific solo demonstration must first be located, check
 matching score and annotated independently; left-hand chord symbols alone do not specify all
 sounding reed octaves. No transcription score or two-hand result is claimed from this source yet.
 
+For lesson 8, a preliminary signal screen ranked 696–708 seconds highly for concentrated
+spectral energy. A 35-second excerpt starting at 690 seconds was decoded from the MP3 to 22.05 kHz
+mono WAV (SHA-256 `045e1ebebd33cb4415cc6814a47dd6be9b3fd7c80e632eb7cfd173cc49675a3d`) and
+processed with default Basic Pitch over the entire excerpt. The JSON response SHA-256 is
+`2821ab1efdf756facd0d3c7a0c1319452223a604e2dc1fa2cafe006b6bc09d7c`. Among its detections,
+MIDI pitches 55, 57, 55, 53, 52 occur around source seconds 695.8–698.0 and again around
+705.9–708.4. This suggests a repeated pitched passage worth checking against the score; both
+the passage selection and this observation derive from model output and are not independent
+annotation. Speech, exact performance boundaries, the played hands and score correspondence
+remain unverified. Do not use the candidate as ground truth or compute accuracy from it yet.
+
 ## Overlap export check
 
 The same-hand, same-pitch overlap guard was checked against five existing model outputs. Each
