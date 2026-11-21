@@ -270,6 +270,24 @@ selecting MIDI 41 from that list moved the editor selection to that note. This u
 development example that motivated the 120 ms grouping window and does not establish accuracy,
 ease of correction, or performance on other recordings.
 
+### Candidate source for acoustic two-hand evaluation
+
+[Duane Schnur's free accordion lessons](https://duaneschnur.com/accordion/lessons.htm) provide
+downloadable lesson PDFs and narrated MP3s. The PDF in lesson 8 contains a two-staff arrangement
+of “Carnival in Venice” with written right-hand notes and left-hand bass/chord symbols; lesson 12
+contains a similar arrangement of “Come to the Sea”. The lesson 8 archive SHA-256 is
+`4c78d82cafc1592dfc3fdc5bd4f29ddabb35fee728d1a3aaea4c7b480eac9762`, its MP3 SHA-256 is
+`94cd7d11cf0357d4af289d5dcf7b3775d1d8879012f257ba2c311d77b7c047fb`, and PDF SHA-256 is
+`74e9fb966bb5834fbd7675cf373b056b1334a199c758f2dbae38c33c37703736`. The lesson 12 archive
+SHA-256 is `a358099ce78e591e79eb55933a0c81370bab4c3d2892ba445935fb65c11a0b9c`, MP3 SHA-256
+`9aa0d6e67659000a92ea3abc979f466ec0792d9fba860877eb7c33b64d2eb52a`, and PDF SHA-256
+`5f8ebea2e864c54ae7f2f06f30776123ac07667dafd64d11d2982326fab1fae8`.
+
+These materials remain outside the repository. The MP3s are long narrated lessons, not aligned
+reference recordings. A specific solo demonstration must first be located, checked against the
+matching score and annotated independently; left-hand chord symbols alone do not specify all
+sounding reed octaves. No transcription score or two-hand result is claimed from this source yet.
+
 ## Overlap export check
 
 The same-hand, same-pitch overlap guard was checked against five existing model outputs. Each
