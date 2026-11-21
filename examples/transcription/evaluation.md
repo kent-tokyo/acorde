@@ -42,6 +42,38 @@ The settings and metric are the same as above.
 Basic Pitch output SHA-256 `b17040acb12a8970f93ad25f15e0b108e269f83b75d16119480adb02e0b3118a`.
 Piano output SHA-256 `c2e87d355bdf99b60d23c02a976db564b7d87c56bd77535f8cf3ed206d80565f`.
 
+## PianoVAM independent performance excerpts
+
+Three previously unexamined compositions were selected before inference from the test split
+of [PianoVAM](https://huggingface.co/datasets/PianoVAM/PianoVAM_v1) revision `7aa7368`.
+The associated [paper](https://arxiv.org/abs/2509.08800) describes amateur performances
+recorded with a dedicated microphone and Disklavier MIDI, refined through audio/MIDI
+alignment. This is a single recording setup, not a smartphone test. The source's MIDI is
+used as the key-on and key-release reference. Model training-set overlap is unaudited.
+The dataset card at the selected revision states CC BY-NC-SA 4.0; source recordings and
+MIDI files are not included here.
+
+The first 30 seconds of each recording were selected before model output was inspected.
+The `Last Carnival` excerpt includes approximately 10.75 seconds before the first reference
+onset. Each WAV was read as 16-bit PCM and the same excerpt was sent to the two models.
+Onsets were matched within 50 ms and 50 cents. End matching additionally uses the greater
+of 50 ms or 20% of reference note duration. Pedal-extended acoustical sound may persist
+after the reference key release.
+
+| Test performance | Reference onsets | Earlier model onset P / R / F1 | Transkun onset P / R / F1 | Earlier / Transkun onset-and-end F1 |
+| --- | ---: | --- | --- | --- |
+| Tsuru, Last Carnival | 80 | 0.878 / 0.988 / 0.929 | 1.000 / 1.000 / 1.000 | 0.047 / 0.325 |
+| Bishop, Home Sweet Home | 35 | 0.972 / 1.000 / 0.986 | 1.000 / 1.000 / 1.000 | 0.986 / 0.829 |
+| Haydn, Surprise Symphony | 43 | 0.977 / 1.000 / 0.989 | 1.000 / 1.000 / 1.000 | 0.989 / 1.000 |
+
+Transkun matched all 158 reference onsets and produced no unmatched onsets in these three
+short excerpts, whereas the earlier model matched 157 and produced 13 unmatched onsets.
+The end metric for Home Sweet Home was lower with Transkun, and neither model scored well
+on note endings in Last Carnival. These excerpts do not establish general performance.
+`pianovam-comparison.json` fixes source audio, reference MIDI and model output hashes for
+repeating the onset comparison. The source metadata SHA-256 is
+`5be4f26ffd1119128ad956dae46898be6abb955a39c12a7e26ef8934fbba5a8e`.
+
 ## Accordion single-note screening
 
 Eight natural accordion samples from [TinySOL 5.0](https://zenodo.org/records/3685331) were

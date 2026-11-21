@@ -1,0 +1,47 @@
+[
+  {
+    "id": "2024-02-15_20-47-59",
+    "audio": "pianovam/acorde-pianovam-2024-02-15_20-47-59.wav",
+    "reference": "pianovam/acorde-pianovam-2024-02-15_20-47-59.mid",
+    "baseline": "pianovam/acorde-pianovam-2024-02-15_20-47-59.piano.mid",
+    "candidate": "pianovam/acorde-pianovam-2024-02-15_20-47-59.transkun.mid",
+    "start": 0,
+    "end": 30,
+    "sha256": {
+      "audio": "41e4e208e89ffccfa04c8e1ade2bf874234850bae37c5cb90a839ffec37c6b98",
+      "reference": "2a95005b3d8d23d6bab42bb3e7d5a139c43f851ee33639b253c389a99e5e9a6a",
+      "baseline": "e2a5a770259650292cbd224c9ed6924570321c02f4139645ea1443ea6e6b342f",
+      "candidate": "0d1848e84cbb2e016b73da73fce9d6b304e9dd65cd9545af7a9074259ce76092"
+    }
+  },
+  {
+    "id": "2024-09-04_17-02-04",
+    "audio": "pianovam/acorde-pianovam-2024-09-04_17-02-04.wav",
+    "reference": "pianovam/acorde-pianovam-2024-09-04_17-02-04.mid",
+    "baseline": "pianovam/acorde-pianovam-2024-09-04_17-02-04.piano.mid",
+    "candidate": "pianovam/acorde-pianovam-2024-09-04_17-02-04.transkun.mid",
+    "start": 0,
+    "end": 30,
+    "sha256": {
+      "audio": "1e1cafbdfcca3b4bb3fbd9150b4b9e128d2126fa9850c9ba95b1287f84aad593",
+      "reference": "ba7d691065c610f135b90338f14d86f5ec371034f4357240eb6c9bbad946b9fd",
+      "baseline": "189c82fa3404f6262c4de044ebe53d6d4077b1f9a946ed5475cfd15f40249252",
+      "candidate": "3c1ad64c7777b4552b278fdddd9a3437486e255de6f6a03480b3f7735a55e160"
+    }
+  },
+  {
+    "id": "2024-09-04_17-07-59",
+    "audio": "pianovam/acorde-pianovam-2024-09-04_17-07-59.wav",
+    "reference": "pianovam/acorde-pianovam-2024-09-04_17-07-59.mid",
+    "baseline": "pianovam/acorde-pianovam-2024-09-04_17-07-59.piano.mid",
+    "candidate": "pianovam/acorde-pianovam-2024-09-04_17-07-59.transkun.mid",
+    "start": 0,
+    "end": 30,
+    "sha256": {
+      "audio": "99a364931585f7cc4f40d62cc0e40538e2d10c79659e10230192ffed5221c618",
+      "reference": "555b80a605a8d4c8992c616ccc0dda5e95c9544d07e61338d30e648909d496c5",
+      "baseline": "4185aef28a0e2a649b2447dbc4a3d182dacd21e6656f2d348a0999889e3c8b7e",
+      "candidate": "291d8fc5a3da3210436e5f6330de86d32eeb2e94a5e30683849f939735f7cfe3"
+    }
+  }
+]

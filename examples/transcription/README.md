@@ -142,6 +142,9 @@ rounds absolute positions to 960 ticks per beat. The manifest checks the resulti
 `idmt-room8-comparison.json` similarly fixes four additional IDMT-PIANO-MM room8
 performances and includes the source audio hashes. Its external files belong in a `room8`
 directory beside the manifest. See `evaluation.md` for the conditions and split limitations.
+`pianovam-comparison.json` fixes three 30-second PianoVAM excerpts. Its external files
+belong in a `pianovam` directory beside the manifest. This comparison uses a dedicated
+microphone and does not measure smartphone recording quality.
 
 For independently annotated accordion performances, `evaluate_accordion.py reference.json
 estimate.json` evaluates right-hand key onsets, bass-button onsets and chord-button onsets
