@@ -639,6 +639,21 @@ pub fn export_loss_diagnostics(score: &acorde_core::Score) -> Vec<crate::Diagnos
         diagnostics.push(diagnostic);
     }
     for (part_index, part) in score.parts.iter().enumerate() {
+        if let Some(last) = part.staves.first().and_then(|staff| staff.measures.last())
+            && (last.system_break || last.page_break)
+        {
+            let mut diagnostic = crate::Diagnostic::warning(
+                "musicxml.export-trailing-print-break",
+                "a break after the final measure has no following MusicXML measure on which to write a print directive",
+            );
+            diagnostic.source_location =
+                Some(format!("/score/part/{}/final-measure", part_index + 1));
+            diagnostic.preserved_value = Some(format!(
+                "system={};page={}",
+                last.system_break, last.page_break
+            ));
+            diagnostics.push(diagnostic);
+        }
         if part.staff_groups.len() > 1
             || part
                 .staff_groups

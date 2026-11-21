@@ -9,6 +9,23 @@ use acorde_render_svg::{
 const FONT: &[u8] = include_bytes!("fixtures/Tuffy.ttf");
 
 #[test]
+fn imported_print_break_starts_the_containing_measure_on_the_next_page() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure><measure number="2"><note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure><measure number="3"><print new-page="yes"><system-layout/></print><note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure><measure number="4"><note><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure></part></score-partwise>"#;
+    let score = acorde_io::parse_musicxml(xml).unwrap();
+    let output = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    assert_eq!(output.layout.pages.len(), 2);
+    let indices = |page: usize| {
+        output.layout.pages[page]
+            .systems
+            .iter()
+            .flat_map(|s| s.measure_indices.iter().copied())
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(indices(0), [0, 1]);
+    assert_eq!(indices(1), [2, 3]);
+}
+
+#[test]
 fn displaced_opening_voices_clear_the_measure_barline() {
     let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>2</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>D</step><octave>5</octave></pitch><duration>3</duration><voice>1</voice><type>quarter</type><dot/></note><backup><duration>3</duration></backup><forward><duration>3</duration></forward><note><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration><voice>2</voice><type>eighth</type></note><backup><duration>4</duration></backup><note><pitch><step>F</step><alter>1</alter><octave>4</octave></pitch><duration>1</duration><voice>5</voice><type>eighth</type></note></measure></part></score-partwise>"#;
     let score = acorde_io::parse_musicxml(xml).unwrap();

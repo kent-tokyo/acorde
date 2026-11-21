@@ -803,6 +803,41 @@ The layout suite passed 143 tests and scoped all-feature layout library Clippy
 passed on macOS. This does not address the extra pages or complete the visual,
 cross-platform, WASM, performance or reserved-corpus gates.
 
+### MusicXML print break boundaries
+
+[MusicXML `print`](https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/print/)
+specifies a break before its containing measure, while the score model stores
+one after the preceding measure. Import and export now convert that boundary
+in both directions, and import handles paired as well as empty `print` tags.
+A first-measure break needs no preceding boundary. A trailing model break has
+no following MusicXML measure and is reported as export loss. Explicit
+`new-system="no"`, `new-page="no"`, `blank-page`, and `page-number` settings
+are reported as unsupported pagination constraints rather than silently claimed
+as preserved.
+
+This also corrects the interpretation of the preceding page-balancing
+experiment: the inserted MusicXML directive belonged *before* measure index 22,
+but the earlier importer incorrectly placed the break after it. With the fix,
+the same modified input places index 22 at the start of page 3; source-authored
+paired print directives also take effect, and this output has four pages.
+Its PDF SHA-256 is
+`7793626b9a0c06a9e1b2a9e9f810887c4cb82accfd4255a96e7fc9079bb31c68`.
+The former three-page result remains evidence of the balancing algorithm only,
+not of correct MusicXML boundary fidelity.
+
+Of the 34 development/fixed inputs, 24 contain 1,517 break-bearing `print`
+elements with children, including duplicate directives across parts. Earlier
+page-count and visual assessments did not reflect those directives. The
+[same limited screen](archive/print-parity-musicxml-break-screen-20261122.json)
+completed all 34 inputs, now 303 pages, with zero candidates in the selected
+barline/notation element classes. This is not an all-page visual or full
+collision audit. The release binary used for that run had SHA-256
+`3da64e778ce2c903653414676652f73b1d6e9faf301e0915aba8857ebdd6afd3`;
+the later diagnostic-only addition for unsupported attributes does not alter
+the geometry tested. Three focused IO tests, 264 round-trip tests, an
+import-to-measured-pagination test, and scoped all-feature IO library Clippy
+passed on macOS. All final parity gates remain pending.
+
 ### Reuse of measured row geometry
 
 Profiling the 643-measure chamber input showed repeated pagination attempts:

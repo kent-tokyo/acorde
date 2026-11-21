@@ -263,14 +263,17 @@ fn serialize_musicxml_inner(
                 measure.number
             ));
 
-            // System / page break (written before barlines, as a print element)
-            if measure.system_break || measure.page_break {
-                let ns = if measure.system_break {
+            // MusicXML starts a new system/page at this measure; the model
+            // records that boundary on the preceding measure.
+            if let Some(previous) = i.checked_sub(1).and_then(|index| staff.measures.get(index))
+                && (previous.system_break || previous.page_break)
+            {
+                let ns = if previous.system_break {
                     " new-system=\"yes\""
                 } else {
                     ""
                 };
-                let np = if measure.page_break {
+                let np = if previous.page_break {
                     " new-page=\"yes\""
                 } else {
                     ""

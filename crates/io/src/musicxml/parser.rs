@@ -9,12 +9,56 @@ use acorde_core::{
     Staff, StaffGroup, StaffKind, Step, StyledText, TextStyle, TimeSignature, TimeSymbol,
     TupletBoundary, TupletInfo, VerseLyric, VoltaBracket,
 };
-use quick_xml::events::Event;
+use quick_xml::events::{BytesStart, Event};
 use quick_xml::reader::Reader;
 use std::collections::HashMap;
 
 use super::attributes::{attr_is_yes, attr_present, attr_str};
 use super::{pan_to_cc, volume_to_cc};
+
+// MusicXML puts a new-page/new-system directive at the start of the next
+// measure, whereas the score model stores a break after the previous one.
+fn apply_print_breaks(
+    score: &mut Score,
+    part_index: Option<usize>,
+    print: &BytesStart<'_>,
+    diagnostics: &mut Vec<crate::Diagnostic>,
+) {
+    for (attribute, value) in [
+        (
+            "new-system",
+            attr_str(print, b"new-system").filter(|s| s == "no"),
+        ),
+        (
+            "new-page",
+            attr_str(print, b"new-page").filter(|s| s == "no"),
+        ),
+        ("blank-page", attr_str(print, b"blank-page")),
+        ("page-number", attr_str(print, b"page-number")),
+    ] {
+        if let Some(value) = value {
+            let mut diagnostic = crate::Diagnostic::warning(
+                "musicxml.unsupported-print-pagination-attribute",
+                "this print pagination constraint is not represented by the score model",
+            );
+            diagnostic.source_location =
+                Some(format!("/score-partwise/part/measure/print/@{attribute}"));
+            diagnostic.preserved_value = Some(value);
+            diagnostics.push(diagnostic);
+        }
+    }
+    let Some(staff) = part_index
+        .and_then(|index| score.parts.get_mut(index))
+        .and_then(|part| part.staves.first_mut())
+    else {
+        return;
+    };
+    let Some(previous) = staff.measures.len().checked_sub(2) else {
+        return;
+    };
+    staff.measures[previous].system_break |= attr_is_yes(print, b"new-system");
+    staff.measures[previous].page_break |= attr_is_yes(print, b"new-page");
+}
 
 fn attach_pending_figured_bass(
     measure: &mut Measure,
@@ -821,6 +865,7 @@ pub(crate) fn parse_musicxml_collecting(
 
                 match tag.as_str() {
                     "identification" => in_identification = true,
+                    "print" => apply_print_breaks(&mut score, part_index, e, tolerated),
                     "creator" if in_identification => {
                         creator_type = attr_str(e, b"type").unwrap_or_default();
                     }
@@ -1488,18 +1533,7 @@ pub(crate) fn parse_musicxml_collecting(
                         // An empty start marker repeats one measure.
                         measure_repeat_active = Some(1);
                     }
-                    "print" => {
-                        if let Some(pi) = part_index
-                            && let Some(m) = score.parts[pi].staves[0].measures.last_mut()
-                        {
-                            if attr_is_yes(e, b"new-system") {
-                                m.system_break = true;
-                            }
-                            if attr_is_yes(e, b"new-page") {
-                                m.page_break = true;
-                            }
-                        }
-                    }
+                    "print" => apply_print_breaks(&mut score, part_index, e, tolerated),
                     "rest" if in_note => {
                         note_rest = true;
                         note_is_measure_rest = attr_is_yes(e, b"measure");
