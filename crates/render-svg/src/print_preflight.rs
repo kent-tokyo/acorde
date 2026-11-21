@@ -79,8 +79,8 @@ fn index(node: roxmltree::Node<'_, '_>, name: &str) -> Result<usize, Error> {
         .ok_or(Error::InvalidGeneratedGeometry)
 }
 
-/// Returns true when the row reservations changed. Text translations are applied to `pages`
-/// every pass, including the final pass whose reservations no longer change.
+/// Returns whether reservations changed and the gaps required by the observed ink.
+/// Text translations are applied to `pages` on every pass.
 pub(crate) fn resolve(
     score: &Score,
     layout: &PrintLayoutResult,
@@ -88,7 +88,7 @@ pub(crate) fn resolve(
     pages: &mut [String],
     font: &TextFont<'_>,
     system_insets_mm: &[f32],
-) -> Result<bool, Error> {
+) -> Result<(bool, Vec<Vec<f32>>), Error> {
     let refs: Vec<_> = score
         .parts
         .iter()
@@ -1223,6 +1223,7 @@ pub(crate) fn resolve(
         }
     }
     let mut changed = false;
+    let mut observed_gaps = Vec::with_capacity(geometry.len());
     for (row, g) in geometry.iter_mut().enumerate() {
         for staff in 0..refs.len() {
             let verses = lyric_verses[row][staff];
@@ -1244,23 +1245,30 @@ pub(crate) fn resolve(
         }
         g.top_u = g.top_u.max(above[row][0] + 0.6);
         g.bottom_u = g.bottom_u.max(below[row][refs.len() - 1] + 0.6);
+        let mut row_observed_gaps = Vec::with_capacity(g.gaps_u.len());
         for (staff, gap) in g.gaps_u.iter_mut().enumerate() {
             let required = adjacent_gap(&lower_ink[row][staff], &upper_ink[row][staff + 1]);
-            if required > *gap + 0.01 {
-                let extra = required - *gap;
-                *gap += extra;
-                g.system_u += extra;
+            let target = required.max(g.minimum_gaps_u[staff]);
+            row_observed_gaps.push(target);
+            if target > *gap + 0.01 {
+                g.system_u += target - *gap;
+                *gap = target;
             }
         }
+        observed_gaps.push(row_observed_gaps);
         changed |= (g.top_u - old[row].top_u).abs() > 0.01
             || (g.bottom_u - old[row].bottom_u).abs() > 0.01
             || (g.system_u - old[row].system_u).abs() > 0.01
+            || g.gaps_u
+                .iter()
+                .zip(&old[row].gaps_u)
+                .any(|(a, b)| (a - b).abs() > 0.01)
             || g.lyric_baselines_u
                 .iter()
                 .zip(&old[row].lyric_baselines_u)
                 .any(|(a, b)| (a - b).abs() > 0.01);
     }
-    Ok(changed)
+    Ok((changed, observed_gaps))
 }
 
 #[cfg(test)]

@@ -25,7 +25,7 @@ pub enum MeasuredEngravingError {
     InvalidPart,
     #[error("generated print geometry is inconsistent")]
     InvalidGeneratedGeometry,
-    #[error("print collision reflow did not converge within 16 passes")]
+    #[error("print collision reflow did not converge within 32 passes")]
     CollisionReflowLimit,
     #[error("a direction is wider than the available system width")]
     DirectionTooWide,
@@ -148,10 +148,12 @@ pub fn engrave_print_pages(
             .map(|row| crate::render::measured_row_geometry(render_score, row))
             .collect::<Result<Vec<_>, _>>()?;
         let mut needs_new_breaks = false;
-        for _ in 0..16 {
+        let mut relaxation_attempted = false;
+        for _ in 0..32 {
+            // Cover two sub-threshold (0.01 staff-space) top/bottom changes.
             let heights = geometry
                 .iter()
-                .map(|g| (g.top_u + g.system_u + g.bottom_u) * 1.8 + 0.001)
+                .map(|g| (g.top_u + g.system_u + g.bottom_u) * 1.8 + 0.05)
                 .collect::<Vec<_>>();
             let layout = acorde_layout::paginate_measured_systems(score, config, &rows, &heights)?;
             let mut system_insets_mm = vec![0.0; rows.len()];
@@ -201,15 +203,35 @@ pub fn engrave_print_pages(
                 label_width,
                 Some(&system_insets_mm),
             )?;
-            if crate::print_preflight::resolve(
+            let (changed, observed_gaps) = crate::print_preflight::resolve(
                 render_score,
                 &layout,
                 &mut geometry,
                 &mut pages,
                 &font,
                 &system_insets_mm,
-            )? {
+            )?;
+            if changed {
                 continue;
+            }
+            if !relaxation_attempted {
+                // Try shrinking once after the ink has stabilized. Subsequent
+                // passes may grow gaps again but never shrink them, preventing
+                // the feedback oscillations seen with repeated relaxation.
+                relaxation_attempted = true;
+                let mut relaxed = false;
+                for (row, observed) in geometry.iter_mut().zip(observed_gaps) {
+                    for (gap, target) in row.gaps_u.iter_mut().zip(observed) {
+                        if target < *gap - 0.01 {
+                            row.system_u += target - *gap;
+                            *gap = target;
+                            relaxed = true;
+                        }
+                    }
+                }
+                if relaxed {
+                    continue;
+                }
             }
             let pages = pages
                 .iter()

@@ -143,6 +143,7 @@ pub(crate) struct MeasuredRowGeometry {
     pub system_u: f32,
     pub bottom_u: f32,
     pub gaps_u: Vec<f32>,
+    pub minimum_gaps_u: Vec<f32>,
     pub lyric_baselines_u: Vec<f32>,
 }
 
@@ -189,6 +190,7 @@ pub(crate) fn measured_row_geometry(
         top_u,
         system_u,
         bottom_u,
+        minimum_gaps_u: gaps_u.clone(),
         gaps_u,
         lyric_baselines_u,
     })

@@ -1159,6 +1159,26 @@ fn gossec_grace_slur_ends_at_notehead_before_the_stem() {
     )
     .unwrap();
     let first_page = roxmltree::Document::parse(&output.pages[0]).unwrap();
+    // In this score the initial crowded draft reserves excessive space between
+    // the second violin and viola. The final curves and fingerings must remain
+    // clear without retaining that obsolete reservation.
+    let staff_lines = first_page
+        .descendants()
+        .filter(|node| node.attribute("class") == Some("acorde-staff-line"))
+        .collect::<Vec<_>>();
+    let staff_top = |index: usize| {
+        staff_lines[index * 5]
+            .attribute("y1")
+            .unwrap()
+            .parse::<f32>()
+            .unwrap()
+    };
+    let upper_staff_distance_mm = (staff_top(2) - staff_top(1)) / 4.0;
+    assert!(
+        upper_staff_distance_mm < 21.0,
+        "second violin to viola: {upper_staff_distance_mm} mm"
+    );
+
     let principal = first_page
         .descendants()
         .find(|n| n.attribute("data-note-addr") == Some("0:0:1:0:2"))

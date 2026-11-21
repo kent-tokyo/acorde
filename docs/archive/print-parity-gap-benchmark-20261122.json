@@ -1,0 +1,47 @@
+{
+  "classification": "development only; two alternating runs per version, not a final performance gate",
+  "architecture": "arm64",
+  "system": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "input_sha256": "9c1a19ede6f1eba3bb12760aa4f5f3639d677c84f4eeb52e7a745ed5b79bf3ad",
+  "font_sha256": "b97cd5005278b24aabb69b8b6ead98860955599558f6e8119483b575a5fdce98",
+  "baseline_commit": "5b74cc55",
+  "baseline_binary_sha256": "549114cb7766b7da5efa085d4a235d9700196815e6ebd8ff29836334a29cc0dc",
+  "candidate_binary_sha256": "5959fc7a6405e2f572d178a59fafec20311a8e47197ca585770a1925216907eb",
+  "candidate_source_diff_sha256": "1df515db373c2a0157c93b389b2d1a62e5643467a9cad25177a1c7d15e924a9e",
+  "baseline_pdf_sha256": "0d6b3cd9b391793c800b3eeabdd7128c6f04449ef933e18eef34fd085e865cc0",
+  "candidate_pdf_sha256": "4082a4b30dd0468759f7ecd3f539195b0c72cedae14781e4e72897ba7f5ee6d6",
+  "results": [
+    {
+      "order": 1,
+      "kind": "baseline",
+      "exit": 0,
+      "seconds": 5.525,
+      "pages": "wrote 36 physical pages",
+      "rss": "270106624  maximum resident set size"
+    },
+    {
+      "order": 2,
+      "kind": "candidate",
+      "exit": 0,
+      "seconds": 7.569,
+      "pages": "wrote 35 physical pages",
+      "rss": "323108864  maximum resident set size"
+    },
+    {
+      "order": 3,
+      "kind": "candidate",
+      "exit": 0,
+      "seconds": 7.5,
+      "pages": "wrote 35 physical pages",
+      "rss": "321486848  maximum resident set size"
+    },
+    {
+      "order": 4,
+      "kind": "baseline",
+      "exit": 0,
+      "seconds": 5.447,
+      "pages": "wrote 36 physical pages",
+      "rss": "257540096  maximum resident set size"
+    }
+  ]
+}

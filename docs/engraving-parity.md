@@ -424,6 +424,44 @@ settings; the full-page comparison and same-staff-size attribution remain
 open, as do the single-system final-page issue under the default policy and
 the complete original-source review.
 
+### One-shot staff-gap relaxation
+
+On `chamber-sq8812200`, browser measurements of the first system showed a
+1.8 mm staff space in both Acorde and Verovio. In Acorde, early crowded
+placements caused staff-gap reservations to grow; after ink moved, the former
+monotone algorithm retained reservations larger than the final ink required.
+Simply shrinking on every pass failed to converge on two Gossec tests and was
+reverted. The current measured path first converges with growth-only reflow,
+then tries one shrink to observed ink requirements, bounded by the initial
+gaps. Subsequent passes only grow gaps again. Each reserved system height
+includes 0.05 mm for sub-threshold top/bottom adjustments. This can still
+increase some gaps: on `sq8812200` page 1, the first inter-staff distance
+increased from 25.58 to 27.84 mm, and on `sq14387632` some other gaps also
+increased. The approach is a candidate, not an optimal packing proof.
+
+All [24 development inputs](archive/print-parity-development-gap-relax-20261122.json)
+and [ten fixed inputs](archive/print-parity-fixed-ten-gap-relax-20261122.json)
+rendered in both engines. The Acorde development total changed from 214 to
+208 pages, with four chamber inputs changing 28→27, 19→16, 20→19 and 36→35.
+The fixed ten remained 16 pages. A [limited before/after collision screen](archive/print-parity-screen-gap-relax-20261122.json)
+of the four changed scores found zero candidates for its text/notation,
+text/text, lyric/staff, dynamic/staff and text/curve checks in either version.
+It does not cover all possible engraving collisions. The [margin audit](archive/print-parity-margin-gap-relax-20261122.json)
+found 963 candidates, comprising 734 part labels, 224 page numbers and five
+titles; label minima were 2.75 mm and 3.06 mm from the edge.
+
+Two alternating release runs per version on the same ARM64 macOS host and
+`sq8812200` input are recorded in the [benchmark receipt](archive/print-parity-gap-benchmark-20261122.json).
+Baseline elapsed 5.447–5.525 s with maximum RSS 257.5–270.1 MB; this candidate
+elapsed 7.500–7.569 s with RSS 321.5–323.1 MB. These few runs do not establish
+performance parity. The assistant inspected Acorde's first and final pages
+(raster SHA-256 `4560cd265528b8a40dd370db4f203a0bc0c970a0200f6ba93166baae0fa61946`
+and `9774bb0b214d5848fe1fe8195f0f266d4bf2afc06b9c6ffe1cccd4d5e40b6ace`);
+the final page still has a single system under the default policy. The Gossec
+regression checks that the second-violin-to-viola distance in the first system
+stays below 21 mm while retaining its existing slur and fingering checks.
+Complete page review, performance work, and final reserved validation remain open.
+
 This program targets conventional keyboard, vocal, chamber-score, and extracted-part
 engraving against **Verovio 6.4.1**. The starting source is Acorde
 `f48944024039cce2abb404af60d9ffc9dedc1502`, not a newly released artifact.
