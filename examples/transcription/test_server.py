@@ -3,12 +3,50 @@ import json
 import os
 import subprocess
 import tempfile
+import threading
 import unittest
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 import mido
-from server import midi_bytes, recording_notes
+import numpy as np
+import soundfile as sf
+from server import Handler, midi_bytes, recording_notes
+
+
+class TranskunRequestTest(unittest.TestCase):
+    def test_float_audio_is_converted_and_model_notes_are_returned(self):
+        wav = io.BytesIO()
+        sf.write(wav, np.zeros(16000), 16000, format='WAV', subtype='FLOAT')
+        payload = wav.getvalue()
+        handler = Handler.__new__(Handler)
+        handler.path = '/transcribe'
+        handler.headers = {'Origin': 'http://127.0.0.1:8765', 'Content-Length': str(len(payload)),
+                           'X-Transcription-Model': 'transkun'}
+        handler.server = SimpleNamespace(server_port=8765, inference_lock=threading.Lock(),
+                                         transkun='/test/transkun')
+        handler.rfile = io.BytesIO(payload)
+        responses = []
+        handler.respond = lambda code, kind, body: responses.append((code, json.loads(body)))
+
+        def run(command, **kwargs):
+            self.assertEqual(command[0], '/test/transkun')
+            self.assertEqual(sf.info(command[1]).subtype, 'PCM_16')
+            midi = mido.MidiFile(ticks_per_beat=480)
+            track = mido.MidiTrack()
+            midi.tracks.append(track)
+            track.append(mido.Message('note_on', note=60, velocity=80, time=0))
+            track.append(mido.Message('note_off', note=60, time=480))
+            midi.save(command[2])
+            return SimpleNamespace(returncode=0, stderr='')
+
+        with patch('server.subprocess.run', side_effect=run):
+            handler.do_POST()
+        self.assertEqual(responses[0][0], 200)
+        self.assertEqual(responses[0][1]['notes'][0]['pitch'], 60)
+        self.assertAlmostEqual(responses[0][1]['notes'][0]['end'], 0.5)
 
 
 class RecordingWindowTest(unittest.TestCase):

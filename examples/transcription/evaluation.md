@@ -42,6 +42,38 @@ The settings and metric are the same as above.
 Basic Pitch output SHA-256 `b17040acb12a8970f93ad25f15e0b108e269f83b75d16119480adb02e0b3118a`.
 Piano output SHA-256 `c2e87d355bdf99b60d23c02a976db564b7d87c56bd77535f8cf3ed206d80565f`.
 
+## PianoVAM independent performance excerpts
+
+Three previously unexamined compositions were selected before inference from the test split
+of [PianoVAM](https://huggingface.co/datasets/PianoVAM/PianoVAM_v1) revision `7aa7368`.
+The associated [paper](https://arxiv.org/abs/2509.08800) describes amateur performances
+recorded with a dedicated microphone and Disklavier MIDI, refined through audio/MIDI
+alignment. This is a single recording setup, not a smartphone test. The source's MIDI is
+used as the key-on and key-release reference. Model training-set overlap is unaudited.
+The dataset card at the selected revision states CC BY-NC-SA 4.0; source recordings and
+MIDI files are not included here.
+
+The first 30 seconds of each recording were selected before model output was inspected.
+The `Last Carnival` excerpt includes approximately 10.75 seconds before the first reference
+onset. Each WAV was read as 16-bit PCM and the same excerpt was sent to the two models.
+Onsets were matched within 50 ms and 50 cents. End matching additionally uses the greater
+of 50 ms or 20% of reference note duration. Pedal-extended acoustical sound may persist
+after the reference key release.
+
+| Test performance | Reference onsets | Earlier model onset P / R / F1 | Transkun onset P / R / F1 | Earlier / Transkun onset-and-end F1 |
+| --- | ---: | --- | --- | --- |
+| Tsuru, Last Carnival | 80 | 0.878 / 0.988 / 0.929 | 1.000 / 1.000 / 1.000 | 0.047 / 0.325 |
+| Bishop, Home Sweet Home | 35 | 0.972 / 1.000 / 0.986 | 1.000 / 1.000 / 1.000 | 0.986 / 0.829 |
+| Haydn, Surprise Symphony | 43 | 0.977 / 1.000 / 0.989 | 1.000 / 1.000 / 1.000 | 0.989 / 1.000 |
+
+Transkun matched all 158 reference onsets and produced no unmatched onsets in these three
+short excerpts, whereas the earlier model matched 157 and produced 13 unmatched onsets.
+The end metric for Home Sweet Home was lower with Transkun, and neither model scored well
+on note endings in Last Carnival. These excerpts do not establish general performance.
+`pianovam-comparison.json` fixes source audio, reference MIDI and model output hashes for
+repeating the onset comparison. The source metadata SHA-256 is
+`5be4f26ffd1119128ad956dae46898be6abb955a39c12a7e26ef8934fbba5a8e`.
+
 ## Accordion single-note screening
 
 Eight natural accordion samples from [TinySOL 5.0](https://zenodo.org/records/3685331) were
@@ -110,7 +142,199 @@ The grouping window was made adjustable after inspecting the C-sharp seventh rec
 The additional candidates show that repeated false attacks still need review. These three
 recordings use the same instrument and recording source as the C minor sample.
 
+The browser now marks a bass or chord candidate when each pitch class in its group also
+appears in an earlier note still sounding at that time. The mark asks the listener to
+check for a repeated attack and does not delete the candidate. In a browser check using
+the already-inspected C major and C-sharp seventh outputs with a 0.4 s grouping window,
+the later C-sharp seventh candidates were marked, while the C-major source's second
+take at 3.36 s remained unmarked. This is a functional check selected from development
+recordings. The source labels do not supply note-level timing, and the mark can also occur
+on a genuine repeated key or button. Its accuracy on two-hand performances is unmeasured.
+
+An additional recording was chosen after implementing the hint, without inspecting its
+model output: [C-sharp minor by juskiddink](https://freesound.org/people/juskiddink/sounds/120693/),
+CC BY 4.0. This is a separate recording on the same instrument by the same player. The
+public MP3 preview was converted to 22.05 kHz mono WAV and processed by Basic Pitch 0.4.0
+ONNX at default settings. All estimated notes were manually assigned to the left hand and
+the 0.4 s grouping window was selected. The browser displayed C♯m at 0.05 s, followed by
+three further C♯m and four E bass candidates carrying the continuation hint. The source
+describes a single chord but gives no aligned note or button events. Thus this checks
+the source's chord name and presentation of candidate overlap; it does not establish
+note-level precision, recall, attack accuracy or two-hand performance.
+
+The browser's evaluation export was checked with this project after manually assigning all
+notes to the left hand. With 0.4 s grouping it wrote four bass and four C♯ minor candidates.
+The JSON was accepted by `evaluate_accordion.py`. Comparing the file with itself matched all
+eight events; this is a format and one-to-one matching check, not an accuracy result. The
+exported candidate JSON SHA-256 is
+`8e5811ec25a19b6b28a670515daa7879cc2a5fa52bbc18866853a7baed043dcd`.
+
+The preview, derived WAV and model MIDI SHA-256 values respectively are
+`46373ab56997d013eada463cb50e783d368b620fbb093a374bd3764770d2115a`,
+`cf9196b83088b7b1fa1387b6409aef7844ce84212a60497db5b18f9a419abe73` and
+`b775def074ceb92c75257ac7bf28a63da6dd783b863e1c396ab787a8e174696e`.
+
 ## iPhone piano recordings
+
+### Transkun comparison on previously examined phone recordings
+
+Transkun 2.0.1 with its bundled 2.0 model was run on CPU on the nine full recordings
+below. Its checkpoint SHA-256 is
+`50a80010effc2a59ffcd068a95cd2b29bd7f23a27a3515bc3ccd209c89a3d44c` and its config is
+`d3d989214eb148230ee5df476d994dcde6af595904d3f968f1221d2e3bea5ac6`.
+The comparison model is Piano Transcription Inference 0.0.6, as described above.
+These recordings were already evaluated during filter development. The model's training
+set overlap with these recordings has not been audited. The model was chosen after the
+previous results were examined. Reported onset scores use the dataset's 50 ms alignment
+limitation and do not assess reference offsets.
+
+| Room, piece, device | Reference / Transkun notes | Transkun P / R / F1 | Earlier piano model P / R / F1 |
+| --- | ---: | --- | --- |
+| 1, Beethoven 1, iPhone | 212 / 211 | 0.972 / 0.967 / 0.969 | 0.727 / 0.967 / 0.830 |
+| 1, chords, iPhone | 54 / 55 | 0.982 / 1.000 / 0.991 | 0.828 / 0.981 / 0.898 |
+| 1, scale, iPhone | 88 / 85 | 0.800 / 0.773 / 0.786 | 0.305 / 0.727 / 0.430 |
+| 2, Bartók, iPhone | 70 / 70 | 1.000 / 1.000 / 1.000 | 0.886 / 1.000 / 0.940 |
+| 3, Mozart, Redmi | 131 / 136 | 0.926 / 0.962 / 0.944 | 0.438 / 0.939 / 0.597 |
+| 4, Joplin, LG | 546 / 506 | 0.945 / 0.875 / 0.909 | 0.603 / 0.850 / 0.706 |
+| 6, swing, iPhone | 176 / 179 | 0.983 / 1.000 / 0.992 | 0.872 / 0.972 / 0.919 |
+| 5, Beethoven 2, iPhone | 272 / 277 | 0.931 / 0.949 / 0.940 | 0.826 / 0.945 / 0.882 |
+| 7, Pachelbel, Redmi | 175 / 174 | 0.994 / 0.989 / 0.991 | 0.876 / 0.971 / 0.921 |
+
+The new range API was also tested on Beethoven 1 from 10 to 20 seconds with two seconds'
+context, yielding 45 events and onset P / R / F1 of 0.978 / 0.978 / 0.978 against 45
+reference events. The response SHA-256 is
+`03e86b9c4e2e4ca13d9094b04b1a1993026a9544686280c40caedb1b24fc4ea0`.
+The recording has already been inspected, so this is a functional development check.
+
+### Additional room8 phone performances
+
+After selecting Transkun, four room8 performances were fixed before either model was run:
+Bartók and swing on iPhone, Beethoven 2 on LG, and chords on Redmi. Room8 contains a
+grand piano and a larger room than the prior development samples. These are separate
+recorded performances, but their pieces were previously examined in other rooms. Therefore
+this comparison checks a new recording environment, not a composition-disjoint test set.
+The relationship of either model's training data to the recordings is unknown. Both models
+processed the entire recordings and were compared to the corresponding room8 aligned MIDI
+using the same 50 ms onset and 50-cent pitch tolerances. As elsewhere for IDMT, note-end
+accuracy is not evaluated.
+
+| Performance | Reference | Earlier model P / R / F1 | Transkun P / R / F1 |
+| --- | ---: | --- | --- |
+| Bartók, iPhone | 70 | 0.959 / 1.000 / 0.979 | 1.000 / 1.000 / 1.000 |
+| Beethoven 2, LG | 272 | 0.967 / 0.982 / 0.974 | 0.974 / 0.982 / 0.978 |
+| Chords, Redmi | 54 | 0.877 / 0.926 / 0.901 | 0.982 / 1.000 / 0.991 |
+| Swing, iPhone | 176 | 0.903 / 0.955 / 0.928 | 0.989 / 1.000 / 0.994 |
+
+Across these four performances the earlier model produced 37 false positives and matched
+555 of 572 reference notes. Transkun produced 10 false positives and matched 567 reference
+notes. That is a 73.0% reduction in false positives, with recall increasing from 97.0% to
+99.1%; recall did not decline on any of the four recordings. This does not establish the
+target on composition-disjoint mobile recordings. `idmt-room8-comparison.json` fixes the
+four audio files, reference MIDIs and model output hashes for `compare_corpus.py`.
+
+### MAPS real-piano comparison after model selection
+
+After choosing Transkun, the first three alphabetically sorted `MUS` recordings in the
+[MAPS ENSTDkCl archive](https://zenodo.org/records/18160555) were selected before their
+outputs were examined. Each model received the first 30 seconds of the original recording.
+These are Disklavier recordings generated from MIDI, captured with a close microphone,
+not phone recordings. The model training sets have not been audited for these files.
+MAPS is distributed under CC BY-NC-SA 2.0 France; its source files are not included here.
+The original high-resolution MIDI was rescaled from 32767 to 960 ticks per beat by rounding
+absolute ticks before scoring, because `pretty_midi` rejects its large maximum tick. Events
+were evaluated by onset in the half-open 0–30 s window with the same pitch and onset criteria.
+
+| Recording | Reference notes | Earlier model P / R / F1 (false positives) | Transkun P / R / F1 (false positives) |
+| --- | ---: | --- | --- |
+| alb_se2 | 173 | 0.908 / 0.971 / 0.939 (17) | 0.944 / 0.983 / 0.963 (10) |
+| bk_xmas1 | 236 | 0.910 / 0.945 / 0.927 (22) | 0.957 / 0.932 / 0.944 (10) |
+| bk_xmas4 | 212 | 0.786 / 0.986 / 0.875 (57) | 0.977 / 0.986 / 0.981 (5) |
+
+Across the three excerpts, false positives fell from 96 to 25 and matched reference notes
+fell from 600 to 599 out of 621. The aggregate reduction is 74.0% and recall fell 0.16
+percentage points. On bk_xmas1 alone recall fell 1.27 percentage points, exceeding the
+proposed one-point guard for that excerpt. These numbers do not establish the separate
+mobile-recording target or performance on unseen acoustic instruments.
+
+| Recording | Source WAV SHA-256 | Source MIDI SHA-256 | Transkun MIDI SHA-256 |
+| --- | --- | --- | --- |
+| alb_se2 | `68de7c0b9182ad77df8707c91523b7541f0da22653a82d1f9e641b2d79d2cd67` | `333d5f0751ae66f3cb9f02ddc46c5b81a8770870659343236dbedb88a7e3a1cd` | `0e6560dc5d9f2b57e61eac36b614eb9acd14761ee992de70c3adaffafe92ce2b` |
+| bk_xmas1 | `02b6be62c39b48f40352d3eaccd1c492f55592fa116f0b4448d26e1e41a4a8d1` | `9616860640c8553af2e1e84d92f405488b82c843ee58a97d0c6d318402e244aa` | `f1aac0002a0808ca5235d669092e2eebc44780078bf8073474281d0d6e510fd3` |
+| bk_xmas4 | `c3659b98b0dba1e981d9e45ac5e24007f3d0902cf1ba22102be4c200534aad5b` | `1d18e5cc88adc18f85cf58a5230a74a3b68a91fcc2bd0b97c99e86bf67734c62` | `64535f7b7f79dea2f1dcc3390ac3efc38ebe7d8ea8f2c05d0b9b8ed2ef506469` |
+
+### Development investigation of short events
+
+Using the full recordings and the same matching criteria below, the scale recording's
+piano-model output has 64 matched notes, 24 missed notes and 146 unmatched estimates.
+Of the unmatched estimates, 13 start within 50 ms of a reference note exactly one octave
+away (within 50 cents). None starts within 100 ms of a matched estimate at the same pitch.
+These proximity counts describe the output and do not establish the causes of the errors.
+
+Removing estimates shorter than 50 ms from these already-inspected outputs gives the
+following development results. This threshold was selected after examining the scale
+output and has not been evaluated on held-out recordings. The matched reference counts
+are unchanged on these three recordings. Onsets alone are evaluated here because this
+dataset's reference offsets are not reliable.
+
+| Recording | Before P / R / F1 | After P / R / F1 | Estimates before / after |
+| --- | --- | --- | ---: |
+| Scale | 0.305 / 0.727 / 0.430 | 0.427 / 0.727 / 0.538 | 210 / 150 |
+| Chords | 0.828 / 0.981 / 0.898 | 0.855 / 0.981 / 0.914 | 64 / 62 |
+| Beethoven 1 | 0.727 / 0.967 / 0.830 | 0.756 / 0.967 / 0.849 | 282 / 271 |
+
+This is an offline diagnostic of raw MIDI outputs, not a change to the browser or an
+evaluation of short staccato notes on independent performances.
+
+### Independent check of the 50 ms filter
+
+Before running the model, four other pieces were selected from separate rooms and three
+different phone types in IDMT-PIANO-MM. The same fixed 50 ms duration filter was applied
+to the full-recording piano-model output. These recordings were not used to choose the
+threshold. Onset matching retains the 50 ms tolerance and the dataset's alignment limit.
+
+| Room, piece, device | Reference / estimates before / after | Before P / R / F1 | After P / R / F1 |
+| --- | ---: | --- | --- |
+| room2, Bartók, iPhone | 70 / 79 / 76 | 0.886 / 1.000 / 0.940 | 0.921 / 1.000 / 0.959 |
+| room3, Mozart, Redmi | 131 / 281 / 266 | 0.438 / 0.939 / 0.597 | 0.462 / 0.939 / 0.620 |
+| room4, Joplin, LG | 546 / 769 / 633 | 0.603 / 0.850 / 0.706 | 0.652 / 0.756 / 0.701 |
+| room6, swing, iPhone | 176 / 196 / 184 | 0.872 / 0.972 / 0.919 | 0.880 / 0.920 / 0.900 |
+
+The filter removes matched events in the Joplin and swing recordings and fails the
+proposed recall gate. It is not applied to transcription. The evaluation excludes
+reference offsets, which are not reliable in this dataset.
+
+| Piece | Audio SHA-256 | Reference MIDI SHA-256 | Model output MIDI SHA-256 |
+| --- | --- | --- | --- |
+| Bartók | `12d4fdf3985e47ddfde98ee6187fc5ff37d072314790db4ec3451f752424acec` | `c3bc072ef3308d13576721ac2f527e8db850f8707a8c28bd0a912cc9649d3690` | `373cb56b87a0e00643bd189007d343a53107fa96341a294da9ae985187764dcf` |
+| Mozart | `18d308d0fb2cb03d2f3e18aa8ff7cd7229e41fcba5da7d222d65b97a144020a5` | `f29aef7d0735f03ba82165a26807914ce1d3fb1bcc6a3268101b00f0b7e49501` | `fdca8c6b6289a398f28089655478e45565cbd6b4b33d6f0370ef50ce5bdc76bd` |
+| Joplin | `a17aae5f2a249b035a8c8d5a833d87e6d9183429fdda86fdd9910e2dc7fd9eb6` | `3b6cc6c88bc44b546431ab4889d9980f6f4210fad8243c2cf4ba7745db6d1b77` | `6a8e5b85ebf01991d5f8a09001b63150583a826c3a9572089e8bc94b96dc712a` |
+| Swing | `4cce130a45659fd470924791c45311212ee5a578ca73e233ba5978c6f9d8f81c` | `71eda87e865e3c4a7df14f2fcdea8881cf9700119b1feedb1114ad8b5d534e99` | `c6674a58e756a67c0e105b8a54e1199b2d411835141a3788d03c0882145ff7d5` |
+
+### Short and low-velocity diagnostic
+
+After inspecting the seven recordings above, a second filter was selected for investigation:
+remove estimated events shorter than 50 ms whose model-predicted MIDI velocity is below 40.
+On those seven recordings it removed 84 unmatched events and no onset-matched events. These
+recordings are now development data for this filter, including the previous independent set.
+
+Before testing this second filter, two further recordings were chosen: room5 `beethoven2`
+on iPhone and room7 `pachelbel` on Redmi. `beethoven2` is a different excerpt of the same
+composition as the earlier `beethoven1`, so only Pachelbel is a previously unseen piece.
+Neither recording was used to choose this filter. The model predicted three events satisfying
+the filter on Beethoven and none on Pachelbel. Their reference / predicted / matched counts
+were 272 / 311 / 257 and 175 / 194 / 170, respectively. After filtering, Beethoven onset
+precision / recall / F1 changed from 0.826 / 0.945 / 0.882 to 0.834 / 0.945 / 0.886.
+Pachelbel remained 0.876 / 0.971 / 0.921. Combined false positives fell from 78 to 75,
+well short of the proposed 20% reduction. This filter has not been integrated.
+
+The SHA-256 values for Beethoven audio, reference, and model output, in that order, are
+`1f9a37753a0c52e043bc888c41cd91f8d0babd58ba5cb2959cd59f5ec0bb8c4b`,
+`1c9fc6eb3111f6baccc2cc6a345f79b09bb1c77cab88401940ec01f12bcdec0b`, and
+`ac4adadea6c6049bade5d12e8cca31155b80f77a12c7e7fbb5ca24c4ad088884`.
+For Pachelbel they are
+`161e2ccf2b9ae93df8d3e83c786a2029d99c64119340578bea7dbbefff34a1f9`,
+`8ba39f7e09c5a0e5d20a678c65bd734594866b78d7b5fed77a4c0a1467fe81af`, and
+`4eae8c9e8657e98bdb9159b643e9d0545a6610018541ec4fe141bccecf8799a0`.
 
 Three room 1 recordings from [IDMT-PIANO-MM 1.0.0](https://zenodo.org/records/7544248)
 were recorded using an iPhone 6S Plus. The dataset is by Jakob Abeßer, Franca Bittner,
@@ -202,6 +426,76 @@ For future acoustic two-hand and register evaluation, Lucas Mrowskovsky Paim's 2
 describes FoleDataset, including paired audio/MIDI and some repeated performances with different
 registers and isolated hands. A public download of the dataset itself was not identified in this
 investigation. It was not used for any of the results above.
+
+### Thesis-linked two-hand recording
+
+The dissertation links an audio example titled `First Waltz All 120BPM` from its discussion
+of three opening measures. Its text describes the right-hand sequence E–G–E and G bass and
+G-major chord components in the spectrogram. The linked SoundCloud MP3 was retrieved for
+local analysis; it is not included in this repository. Its SHA-256 is
+`8e1f3437075c45de274cc9504d5e6868e2d6ee14677c337a0f2acc9961821d67`. The first eight
+seconds were converted to 22.05 kHz mono WAV, SHA-256
+`020448312519fd0478870931fa92edb5c4aefc1919d6ff90eb6c31e7ed1d8f15`. Basic Pitch 0.4.0
+ONNX, default settings, produced MIDI SHA-256
+`d656b64a388fa82048d9c2eceeaaaf456a9e8d3ce5c3a4a9ef188e1559e327da`.
+
+In that output, MIDI 64 spans 1.811–2.730 s, MIDI 67 spans 3.252–3.705 s, and MIDI 64
+appears again at 5.065 s, consistent in pitch class with the stated E–G–E sequence. The
+model also returned MIDI 48 near 1.881, 3.264 and 4.728 s, and combinations of 55, 60 and
+64 near 2.73, 4.23 and 5.73 s. These suggest C bass and C-major pitch classes, whereas
+the dissertation text describes G bass and G major. As an additional signal observation,
+200 ms Hann-window FFTs centered at 2.85 and 5.85 s show strong peaks near 329, 391 and
+521 Hz, compatible with E4, G4 and C5 or their harmonics. The windows were chosen after
+model inspection, so they are not independent note annotations. Register combinations,
+soundtrack alignment and the apparent difference from the written G labels require further
+checking. The source does not specify note-level onset or release times in the excerpt,
+and no button or key annotations have been verified. Do not use this output as ground truth
+or derive note-level accuracy from it.
+
+The first three written measures can also be checked against page 17 of the source method,
+[Mário Mascarenhas's accordion method](https://www.cursosprofec.com.br/escola/apostilas/basico-em-acordeon-pfc-4.pdf).
+The method's opening specifies right-hand E4, G4, E4, and each of the three bars has C bass
+followed by two C-major button indications. The accessible PDF SHA-256 is
+`811b41aabf1d0f8c27bdb0464be43a45793c9c3d86c1101c666108c454f886bf`; the score is not
+included here. The written bass and chord agree with the C pitch-class evidence above, while
+the dissertation's prose says G. This is a source discrepancy, not proof of which physical
+buttons were pressed in the linked audio.
+
+As a timing screen, librosa's `onset_detect` on the 22.05 kHz excerpt with a 128-sample hop
+reported transients near 1.840, 2.305, 2.728, 3.175, 3.709, 4.197, 4.644, 5.195 and
+5.695 seconds. These nine times resemble three groups of three beats at the stated tempo.
+They were selected after the recording had already been inspected. Spectral transients need
+not coincide with button presses, and the source provides no aligned event times. Treat the
+proposed association with the written bars as a hypothesis requiring independent listening
+or key/button observation, not as a reference suitable for note-level scoring.
+
+The provisional nine-beat alignment was used as a diagnostic of the current default
+workflow, not as a measured accuracy result. The Basic Pitch output for the first eight
+seconds was filtered to note onsets before 6.15 s, with notes below MIDI 60 assigned to
+the left hand and all others to the right, matching the editor's initial split. The browser
+exported candidates using its default 0.2 s chord grouping. When compared within 100 ms to
+the score-derived E4/G4/E4, three C basses and six C-major chord-button hypotheses, the
+export contained 32 right-hand candidates, seven bass candidates and no chord candidates.
+Two of the three hypothesized right-hand onsets and all three hypothesized bass onsets
+matched. None of the six chord hypotheses could match. The right-hand output contains
+many additional events, including octaves, and is not a reliable count of played keys.
+
+This diagnostic exposes a limitation of the initial split: the detected notes for the
+C-major pitch classes cross the fixed MIDI-60 boundary, so they cannot appear together in
+the left-hand grouping without reassignment. The comparison does not validate those
+hypothesized onset times or confirm the physical buttons. The provisional input and browser
+output SHA-256 values were `8fc805d899031f21d4bf1fd026266f3d9dc7d0d66039dff28f166266e8df8ba3`
+and `ab9dc03c8e75269d7d20fb027c9cdf5b0d2011edde91bc65b639c15c4ce7a867` respectively.
+
+An optional candidate source now permits grouping all estimated notes across the initial
+hand split. On the same provisional example with the same 0.2 s window, this produced four
+chord candidates, two of which matched the six hypothesized chord events within 100 ms.
+However, none of the three hypothesized C bass events matched the five bass candidates:
+grouping the melody with the bass can prevent a single-pitch bass candidate from appearing.
+This mode is a review aid and does not assign notes to hands or infer a pressed button. It
+is not an established improvement in automatic two-hand transcription. The exported
+all-notes candidate JSON SHA-256 is
+`4ae7e463b234efb87c28f713cbd85bc89ea4c6d5b6061f2ba26c8e640b8428bf`.
 
 ## Real accordion register screening
 
@@ -332,6 +626,67 @@ requires human listening and independent annotation.
 
 ## Overlap export check
 
+### Four-bar MusicXML playback comparison
+
+The two candidate excerpts from `listening-study.md` were generated by the piano model and
+exported with the 3/8 score settings documented there. The same IDMT reference, exported
+MIDI and MusicXML playback events were aligned to recording time. The score settings were
+chosen from the reference and published score, and the excerpts have previously been
+inspected, so these are development observations. No participant correction was included.
+
+| Excerpt | Reference / MIDI / MusicXML events in window | MIDI onset P / R / F1 | MusicXML onset P / R / F1 |
+| --- | ---: | --- | --- |
+| A, 9.5–15.5 s | 27 / 32 / 31 | 0.844 / 1.000 / 0.915 | 0.871 / 1.000 / 0.931 |
+| B, 15.5–21.5 s | 28 / 30 / 30 | 0.867 / 0.929 / 0.897 | 0.833 / 0.893 / 0.862 |
+
+Taking the exported MIDI as reference to isolate conversion differences, A has one unmatched
+MIDI onset and B has three unmatched onsets on each side under the 50 ms matcher. A's
+MusicXML playback has two onset-matched notes whose endings differ by 106 ms from MIDI;
+B has two with ending differences of +85 ms and −81 ms. These are conversion differences,
+not comparisons to verified key-release annotations. Quantization can also move an onset
+across the selected scoring boundary. Musical notation and its readability were not rated.
+In A, MIDI A4 at 15.483 s was rounded to the next bar at 15.500 s and therefore fell
+outside the half-open scoring window. In B, D5 at 19.808 s, E5 at 20.063 s and C3 at
+20.075 s moved to 19.750 s, 20.000 s and 20.000 s respectively. The MIDI importer's
+sixteenth-note grid is 250 ms at the selected 60 quarter-note BPM, so those offsets are
+consistent with grid snapping. This does not establish whether the resulting notation is
+musically preferable, because the source performance itself may deviate from the beat.
+
+The MIDI and MusicXML SHA-256 values for A are
+`0326f5a92f3eaab217ff9e5a3a0ac3a791da08cd1f7a7937d12b2fa2553affe8` and
+`7b26c639856a68d644f1cb227bed5f8a368e051e4c21f6babdaf35d5dd7c18f3`.
+For B they are `c81f2d2bad374bc7db17d473d31fb3f2a07645d39132a1151f34a2d406cc6f20`
+and `20de204d4da1164832b5cee1a2e19eb5e43e41ce93828adbf4d357230dfb3444`.
+
+The same two excerpts were reanalyzed through the browser's range API using Transkun 2.0.1,
+up to two seconds of context and the same hand split and score settings. The returned
+start-boundary review candidate for B was not added. These excerpts were previously
+inspected and used during development. The reference is the same aligned IDMT MIDI,
+whose onset tolerance is approximately 50 ms and whose releases are not verified.
+
+| Excerpt | Reference notes | Stage | Estimated onsets | Onset P / R / F1 |
+| --- | ---: | --- | ---: | --- |
+| A | 27 | API | 28 | 0.964 / 1.000 / 0.982 |
+| A | 27 | MIDI | 28 | 0.964 / 1.000 / 0.982 |
+| A | 27 | MusicXML playback | 27 | 1.000 / 1.000 / 1.000 |
+| B | 28 | API | 27 | 0.963 / 0.929 / 0.945 |
+| B | 28 | MIDI | 27 | 0.963 / 0.929 / 0.945 |
+| B | 28 | MusicXML playback | 27 | 0.926 / 0.893 / 0.909 |
+
+Comparing MusicXML playback to the exported MIDI, A has one unmatched MIDI onset at
+15.492 s that was rounded to the next bar outside the 15.5 s scoring boundary. B has three
+unmatched events in each direction: D5 at 19.806 s, E5 at 20.065 s and C3 at 20.077 s
+became 19.750, 20.000 and 20.000 s respectively. Five onset-matched note endings differ
+from MIDI by more than the evaluator's duration-relative tolerance in each excerpt. These
+are differences from model-produced MIDI releases, not validated key-release errors. The
+0.25 s grid at the chosen tempo explains the three B onset changes, while the score alone
+does not prove which timing is musically preferable. No participant corrected these outputs.
+
+| Excerpt | API response SHA-256 | MIDI SHA-256 | MusicXML SHA-256 |
+| --- | --- | --- | --- |
+| A | `45b77856ca8dcd35b5362330af2507738f63bf495c3a3602e210dc01dd0c38de` | `305b9a15c6448b67fe8a1e9ce88952b6ed94fee7398d79d43df89cdc8eaa7d83` | `459c5b80b5ecbb72cb0f61af2c67483066bbdeb6b2a33ec424d1487e3ae7212b` |
+| B | `e579ff645673651160a9877942c68d2d20037b3eec607581fdbb6afcd57083e5` | `ccd787d773837b1917cb629078b926568c4ace63e00e828751b5c59e0e48359b` | `5ecf0d1204ca39f2c820cd03cb269aee99916d72dc6b5b7770cc5432eef39b2d` |
+
 The same-hand, same-pitch overlap guard was checked against five existing model outputs. Each
 MIDI was loaded with `pretty_midi`; its note times and pitches were passed to `midi_bytes` at
 120 BPM, 4/4, with a zero bar start and the editor's initial hand split at MIDI 60. All five
@@ -388,3 +743,149 @@ The MIDI SHA-256 is `31183611b5d4ec226ef88df16046aa5405d898ce9aee9f1c92333a008cc
 the MusicXML SHA-256 is `979e966c1fdf65145fb979ec3f0dec0167394a591f8c2935c5a04962f80dc829`.
 This evaluates playback events on one excerpt with a chosen tempo, not notation readability,
 correct beat alignment, or general MusicXML conversion accuracy.
+
+## Phone recording of digital piano: Sight to Sound MIDI test set
+
+The [Sight to Sound MIDI test set](https://www.robots.ox.ac.uk/~vgg/research/sighttosound/)
+contains eight videos of a single amateur playing a digital piano. The authors describe a
+phone-camera recording and a MIDI reference captured by the instrument, aligned to the
+video audio. This is a separate performer and recording setup from the preceding development
+and evaluation data. The eight numbered files are all included; their individual piece
+names are not supplied, so composition-level separation has not been verified. Model
+training-set overlap is also unknown. The source is by A. S. Koepke, O. Wiles, Y. Moses and
+A. Zisserman, ICASSP 2020, and is licensed CC BY 4.0. Neither videos nor MIDI are included
+here. The downloaded `MIDItest.zip` had SHA-256
+`0e440b140af7fb5d53d8ec34a17adff26479b2fada537688c36e5386d25a8a1b`.
+
+Before inspecting either model's output, all eight videos were fixed and each video's first
+30 seconds were decoded with ffmpeg to mono 16 kHz PCM16; both models used the same audio.
+Initial comparisons produced almost no matches because the provided MIDI is approximately
+0.2–0.4 seconds later than the decoded audio. After discovering this, an alignment procedure
+was added: `align_phone_reference.py` scores a grid of constant shifts from -0.8 to 0.2 s
+in 5 ms steps against the 16 kHz audio's spectral-flux onset envelope and reference MIDI
+onsets between seconds 1 and 9. The best shift is applied to the reference MIDI; no model
+output enters this calculation. Librosa 0.11.0, NumPy 2.4.6, and pretty_midi 0.2.11.post0
+were used. The offsets in file order below were -0.375, -0.355, -0.205, -0.225, -0.270,
+-0.390, -0.300 and -0.180 seconds. The following results use only onsets in seconds 10–30,
+outside the alignment window. Because the alignment procedure was introduced after seeing
+the initial comparisons, this is an exploratory evaluation, not a preregistered test.
+
+The earlier piano model and Transkun were run with the same versions and settings as the
+PianoVAM evaluation. Matching uses 50 ms onset tolerance and 50-cent pitch tolerance;
+end matching also uses a tolerance of 20% of reference duration or 50 ms, whichever is
+larger. MIDI key releases need not coincide with the ends of sustained sound.
+
+| Video | Reference | Earlier matched / extra | Transkun matched / extra | Earlier / Transkun onset-and-end F1 |
+| --- | ---: | ---: | ---: | ---: |
+| 10 | 60 | 60 / 9 | 60 / 0 | 0.667 / 0.933 |
+| 21 | 43 | 42 / 11 | 43 / 0 | 0.792 / 0.814 |
+| 23 | 72 | 71 / 0 | 72 / 0 | 0.923 / 0.944 |
+| 24 | 80 | 80 / 1 | 80 / 0 | 0.870 / 0.963 |
+| 25 | 37 | 37 / 3 | 37 / 0 | 0.727 / 0.946 |
+| 26 | 49 | 48 / 5 | 49 / 0 | 0.549 / 0.939 |
+| 27 | 52 | 52 / 5 | 52 / 0 | 0.771 / 0.904 |
+| 5 | 83 | 83 / 10 | 83 / 0 | 0.795 / 0.952 |
+| Total | 476 | 473 / 44 | 476 / 0 | — |
+
+On this small sample the candidate has 44 fewer unmatched notes and matches three more
+reference onsets. It does not establish performance on acoustic pianos recorded by phone,
+other performers, independently identified compositions, or other recording devices.
+`sighttosound-comparison.json` fixes the excerpts and hashes for original video, original
+and aligned reference, decoded audio and both outputs. To reproduce, unpack the archive as
+`examples/transcription/sighttosound/`, use ffmpeg's `-t 30 -ac 1 -ar 16000 -c:a pcm_s16le`
+to write each `.excerpt.wav`, generate `.aligned.mid` with `align_phone_reference.py`, run
+the two models into the manifest's paths, then pass the manifest to `compare_corpus.py`.
+
+### Identifying two phone-recorded pieces after evaluation
+
+After the eight-file results were known, two recordings were identified by matching their
+reference MIDI pitches against independently named files in the
+[MIDI Classical Music collection](https://huggingface.co/datasets/drengskapur/midi-classical-music).
+For this identification only, notes at MIDI pitch 65 and above were sorted by their start time
+(rounded to 0.01 seconds for ordering) and pitch. Python's `difflib.SequenceMatcher`, with
+`autojunk=False`, found these longest contiguous matching pitch sequences:
+
+- Video 5: 51 notes matching
+  [Bach, Invention No. 7, BWV 778](https://huggingface.co/datasets/drengskapur/midi-classical-music/resolve/main/data/bach-bwv772-786_two_part_inventions-bwv778_invention_n07.mid)
+  (named MIDI SHA-256 `d92f1716ab57afc5f469b03dffe8aa09a3c958126010541592f21d27bab810f2`).
+- Video 27: 46 notes matching
+  [Schumann, Kinderszenen Op. 15 No. 1](https://huggingface.co/datasets/drengskapur/midi-classical-music/resolve/main/data/schumann-scenes_from_childhood_op15_n01.mid)
+  (named MIDI SHA-256 `29f60cbb5bc95f222226e9d865f9c0d802a6b4375e9c88e971a83abd7cbea6ac`).
+
+Both pieces are also listed as examples in the Sight to Sound paper. These two compositions
+are different from the pieces used in this project's earlier model selection and IDMT phone
+comparisons. On their combined 10–30 second excerpts, the earlier model matched 135 of
+135 reference onsets and produced 15 unmatched estimates; Transkun matched 135 and produced
+none. The excerpts and timing alignment are the same as in the eight-file table above.
+This subset was selected after the model results were available, and identification is based
+on pitch sequences rather than original file titles. It is exploratory evidence for two
+composition-distinct phone recordings of a digital piano, not a preregistered confirmation or
+an acoustic-piano test. Neither model's training-set overlap has been audited.
+
+### MIDI and MusicXML export for the identified phone recordings
+
+For the two identified video excerpts, the Transkun output notes starting in seconds
+10–30 were exported through the same `midi_bytes` and `transcription_score` helpers used
+by the workspace. A fixed 120 BPM, 4/4, first-bar time of 10 seconds, no pickup, and the
+initial MIDI-60 hand split were used. These are test settings, not verified musical tempo,
+meter, hand or bar annotations. Acorde's `playback-report` was compared against the same
+aligned instrument MIDI reference; exported MIDI and MusicXML playback times were shifted
+back by 10 seconds. No boundary candidates or human corrections were added.
+
+| Video | Reference | Exported MIDI onset P / R / F1 | MusicXML playback onset P / R / F1 |
+| --- | ---: | --- | --- |
+| 5 | 83 | 1.000 / 1.000 / 1.000 | 1.000 / 1.000 / 1.000 |
+| 27 | 52 | 1.000 / 1.000 / 1.000 | 1.000 / 1.000 / 1.000 |
+
+At 50 ms onset tolerance, all exported MIDI onsets matched a MusicXML playback onset in
+both windows; no matched endings exceeded the evaluator's relative-duration tolerance.
+This allows smaller timing changes and does not establish correct notation, readability,
+voice or hand assignment, or improvement in correction time. These two pieces were
+identified after results were inspected, so the comparison remains exploratory.
+
+Export MIDI SHA-256: video 5 `00beb5cc14dfe45e32944b1e116051b650a591fd50104fa4735fd08434effc33`;
+video 27 `6eb69d51cf95aea72b573eff7d301efa7901e6eb38b300fd24cf67c113d2130e`.
+Playback-report SHA-256: video 5 `54b2d2019b8aae747d3756b81d6ae57092f50a298a23d369e2be7cdb28dda2db`;
+video 27 `239d35298d8a49efab2fdfe00776204e2c4a8ad85fb497805d8eca63f941b32b`.
+MusicXML file hashes changed across repeated exports even though the playback-report hashes
+and comparison results remained unchanged.
+
+### Previously unprocessed continuations of the phone recordings
+
+All eight Sight to Sound videos were selected before examining any results for this test.
+The audio from seconds 30–60 was decoded to mono 16 kHz PCM16; both models processed that
+same 30-second clip without earlier context. The outputs were shifted forward by 30 seconds.
+The references use the same per-recording constant shifts calibrated from seconds 1–9 in
+the preceding experiment; they were not adjusted against the new outputs. To reduce clip
+boundary effects, onsets from seconds 32 inclusive through 59 exclusive were scored using
+the same 50 ms and 50-cent matching tolerances. Model versions and checkpoints match the
+previous experiment. These are new portions of the same eight performances, not new
+performers or recordings. The first 30 seconds of these recordings and the two identified
+piece titles were examined earlier, and training-set overlap remains unknown.
+
+| Video | Reference | Earlier matched / extra | Transkun matched / extra | Recall change (percentage points) | Earlier / Transkun onset-and-end F1 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 10 | 78 | 78 / 8 | 77 / 0 | -1.28 | 0.683 / 0.981 |
+| 21 | 67 | 66 / 7 | 67 / 1 | +1.49 | 0.614 / 0.978 |
+| 23 | 108 | 108 / 2 | 108 / 0 | 0.00 | 0.835 / 0.935 |
+| 24 | 114 | 113 / 1 | 113 / 0 | 0.00 | 0.868 / 0.819 |
+| 25 | 47 | 47 / 5 | 47 / 0 | 0.00 | 0.566 / 0.957 |
+| 26 | 61 | 58 / 10 | 61 / 0 | +4.92 | 0.636 / 0.918 |
+| 27 | 75 | 75 / 8 | 75 / 0 | 0.00 | 0.810 / 0.973 |
+| 5 | 86 | 85 / 9 | 86 / 0 | +1.16 | 0.833 / 0.930 |
+| Total | 636 | 630 / 50 | 634 / 1 | +0.63 | — |
+
+The candidate produced 49 fewer unmatched onsets (98% fewer) in aggregate, while matching
+four additional reference onsets. One excerpt's onset recall dropped 1.28 percentage points.
+Video 24 also shows a lower onset-and-end F1 with Transkun. These are recordings of
+one performer on one digital piano through one phone. They do not establish performance on
+other performers, acoustic pianos or phones. The 50 ms fixed alignment and the model-derived
+key-release estimates limit interpretation of the end scores.
+
+`sighttosound-continuation-comparison.json` fixes file paths, window and hashes. With the
+same dataset layout and aligned references as in the previous experiment, run
+`evaluate_phone_continuation.py` with the unpacked `MIDItest` directory, an output directory
+named `sighttosound-second-window`, `--piano-checkpoint` and `--transkun`; place that output
+directory beside `sighttosound` under `examples/transcription` and run `compare_corpus.py`
+on the continuation manifest. The 30–60 second clips and resulting MIDI are external and
+are not included in this repository.
