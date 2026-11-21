@@ -748,6 +748,33 @@ remains unresolved. The other two candidates have not been compared with the
 older output. The full visual, cross-platform, WASM and reserved-cohort gates
 remain pending; these checks do not establish parity with Verovio.
 
+### Displaced voice spacing
+
+Measured column footprints now include voice separation and authored horizontal
+note offsets. They reserve both the opening lead and inter-column space using
+the conservative separation needed when shared voice alignment is disabled.
+A synthetic three-voice regression reproduced a notehead crossing the opening
+barline before this change and clears it after. The measured-print suite passed
+47 tests, the structural suite 209, and scoped all-feature SVG library Clippy
+passed on macOS.
+
+The same [34-input screen](archive/print-parity-voice-spacing-screen-20261122.json)
+completed with 228 pages and no candidates in its selected element classes,
+compared with 16 candidates on 225 pages before this change. The method and
+limitations are described in the preceding section; this is not a complete
+collision audit. `piano-BI105-1op30-1`, `vocal-lc6810863`, and
+`vocal-lc5133602` each gained one page, so pagination efficiency needs further
+review. On the reviewed `piano-n07` page 2, the previously confirmed measure 16
+notehead clears the barline, but the final page has substantial unused space.
+The raster SHA-256 is
+`fde66777c8d98a7cb2e7226641cd7c2f1181a90bb043d07ed912f25f99096b3d`.
+The release printer SHA-256 is
+`f25b6e37768f68f3542cc71a044ec8be7f4714c979c7fbeee6901d86a80e4068`;
+the production source diff against `52f97f9c` has SHA-256
+`48ac8661116782a4470d61ac9f1aa03c11ff37d1a09395aac7ca75819305a95a`.
+All four final gates remain pending, including complete visual review and
+cross-platform/WASM and reserved-cohort verification.
+
 ### Reuse of measured row geometry
 
 Profiling the 643-measure chamber input showed repeated pagination attempts:

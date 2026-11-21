@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- Account for voice separation and authored horizontal note offsets when
+  measuring print columns, so displaced noteheads have room at barlines.
+
 - Draw measure barlines in connected staff and part groups, keeping distinct
   barline styles and repeat dots on their own visible staves. MusicXML import
   copies each part-level barline to the correct measure of padded staves.

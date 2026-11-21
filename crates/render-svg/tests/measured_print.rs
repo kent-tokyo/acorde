@@ -9,6 +9,30 @@ use acorde_render_svg::{
 const FONT: &[u8] = include_bytes!("fixtures/Tuffy.ttf");
 
 #[test]
+fn displaced_opening_voices_clear_the_measure_barline() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>2</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>D</step><octave>5</octave></pitch><duration>3</duration><voice>1</voice><type>quarter</type><dot/></note><backup><duration>3</duration></backup><forward><duration>3</duration></forward><note><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration><voice>2</voice><type>eighth</type></note><backup><duration>4</duration></backup><note><pitch><step>F</step><alter>1</alter><octave>4</octave></pitch><duration>1</duration><voice>5</voice><type>eighth</type></note></measure></part></score-partwise>"#;
+    let score = acorde_io::parse_musicxml(xml).unwrap();
+    let result = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    let doc = roxmltree::Document::parse(&result.pages[0]).unwrap();
+    let measure = doc
+        .descendants()
+        .find(|n| n.attribute("data-acorde-kind") == Some("measure"))
+        .unwrap();
+    let left: f32 = measure
+        .attribute("data-print-measure-left")
+        .unwrap()
+        .parse()
+        .unwrap();
+    let head = measure
+        .descendants()
+        .find(|n| n.attribute("class") == Some("acorde-notehead"))
+        .unwrap();
+    let x: f32 = head.attribute("cx").unwrap().parse().unwrap();
+    let rx: f32 = head.attribute("rx").unwrap().parse().unwrap();
+    assert!(x - rx > left + 0.2, "head left={}, barline={left}", x - rx);
+}
+
+#[test]
 fn connected_barlines_skip_cutaway_staff_repeat_dots() {
     use acorde_core::Barline;
     let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Organ</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><staves>3</staves></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure></part></score-partwise>"#;

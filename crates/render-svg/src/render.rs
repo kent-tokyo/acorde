@@ -5951,6 +5951,12 @@ fn measured_columns(
             let Some(bar) = staff.measures.get(measure_idx) else {
                 continue;
             };
+            let voice_slots: Vec<usize> = bar
+                .voices
+                .iter()
+                .enumerate()
+                .filter_map(|(index, voice)| (!voice.is_empty()).then_some(index))
+                .collect();
             for (voice_index, voice) in bar.voices.iter().enumerate() {
                 let mut lane = Vec::new();
                 let mut beat = 0.0;
@@ -5983,8 +5989,24 @@ fn measured_columns(
                         // Accidentals occupy the left side of the anchor. Adding
                         // half their width to the right as well double-counted
                         // that space between successive rhythmic columns.
-                        let left = notation / 2.0 + accidental + grace_width;
-                        let right = notation / 2.0;
+                        // Rendering may separate concurrent voices around the shared
+                        // rhythmic anchor, or apply an authored note offset. Include
+                        // that displacement when reserving both bar-edge and
+                        // inter-column ink. Use the unshared separation here so the
+                        // reservation remains safe even if shared alignment is disabled.
+                        let voice_offset = if voice_slots.len() > 1 {
+                            let rank = voice_slots
+                                .iter()
+                                .position(|&i| i == voice_index)
+                                .unwrap_or(0);
+                            (rank as f32 - voice_slots.len().saturating_sub(1) as f32 / 2.0)
+                                * voice_separation_u(bar, &voice_slots, beat, false)
+                        } else {
+                            0.0
+                        };
+                        let offset = voice_offset + note_placement_offsets_u(note).0;
+                        let left = (notation / 2.0 + accidental + grace_width - offset).max(0.0);
+                        let right = (notation / 2.0 + offset).max(0.0);
                         let physical_staff = note
                             .cross_staff
                             .as_ref()
