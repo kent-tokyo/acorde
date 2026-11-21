@@ -17,7 +17,11 @@ needed in both conditions.
    transcription ready. Record interruptions and any later changes.
 4. Export MIDI and compare pitch and onset with the same aligned reference using `evaluate.py`.
    Save the participant's project JSON and MIDI alongside the timing record. Check the audio
-   alignment before interpreting the error counts.
+   alignment before interpreting the error counts. The exported MIDI starts at the first pickup
+   boundary, so pass `--estimate-offset` with the recording time of that boundary. This equals
+   `barStart - pickupSteps * 15 / tempo` seconds. Pass the same `--start` and `--end` recording
+   times for both conditions. The start is inclusive and the end is exclusive; the evaluator
+   selects notes by onset and retains their original end times.
 5. With multiple participants, alternate which passage uses each condition and the order of the
    conditions. Report each time and precision/recall separately, along with the corrections made
    and the participant's observations. Compare time only for outputs of comparable accuracy.

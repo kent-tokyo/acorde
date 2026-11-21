@@ -52,8 +52,9 @@ should be reviewed for the intended distribution.
 
 ## Checks
 
-The Python tests cover MIDI timing, hand assignment, repeated notes, grand-staff output and a
-pickup that crosses the first full bar. Build the converter example first, then run:
+The Python tests cover MIDI timing, hand assignment, repeated notes, grand-staff output, a
+pickup that crosses the first full bar, and evaluation alignment. `evaluate.py` accepts
+`--estimate-offset`, `--start` and `--end` in recording seconds. Build the converter example first, then run:
 
 ```sh
 ACORDE_TRANSCRIPTION_CONVERTER=target/debug/examples/transcription_score \
