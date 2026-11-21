@@ -9,6 +9,18 @@ use acorde_render_svg::{
 const FONT: &[u8] = include_bytes!("fixtures/Tuffy.ttf");
 
 #[test]
+fn harpsichord_two_staff_musicxml_prints_a_brace() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Harpsichord</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><staves>2</staves><clef number="1"><sign>G</sign><line>2</line></clef><clef number="2"><sign>F</sign><line>4</line></clef></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><staff>1</staff></note><backup><duration>1</duration></backup><note><pitch><step>C</step><octave>3</octave></pitch><duration>1</duration><voice>2</voice><type>quarter</type><staff>2</staff></note></measure></part></score-partwise>"#;
+    let score = acorde_io::parse_musicxml(xml).unwrap();
+    let output = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    let doc = roxmltree::Document::parse(&output.pages[0]).unwrap();
+    assert!(
+        doc.descendants()
+            .any(|n| n.attribute("class") == Some("acorde-staff-brace"))
+    );
+}
+
+#[test]
 fn measured_part_names_keep_readable_size_and_paper_clearance() {
     let mut score = Score::template(acorde_core::ScoreTemplate::Piano);
     score.parts[0].name = "Violoncello".into();

@@ -535,6 +535,43 @@ rerun. The branch push does not trigger CI: the workflow runs on main pushes and
 pull requests, and no pull request was present at the time of this check. Linux,
 Windows, WASM and the final reserved-corpus gates remain unverified.
 
+### Harpsichord grand-staff brace and page review
+
+The assistant compared the full one-page Acorde and Verovio renderings of
+`piano-wq117n11` with the prepared MusicXML and inspected the relevant MuseScore
+source. The source MSCX explicitly groups its two staves with a brace; the shared
+MusicXML contains two staves but no explicit part symbol. Acorde inferred braces
+for named pianos, but not `Harpsichord`, so omitted the brace on every system.
+The existing conservative two-visible-standard-staff inference now also covers
+that name and harpsichord instrument IDs; explicit staff groups still take
+precedence. The assistant inspected the new Acorde PDF: all four systems show a
+brace. The pre-change Acorde and Verovio raster SHA-256 values are
+`45e7c16773ac3fadd34473441f1d106d139cef50b310ee126236b3a37060ee37` and
+`1de6fd6884438ee48208364225c98ddc9b5cb4e7676b89a6389f5d2fbebced0e`;
+the corrected Acorde raster is
+`ca27d72545697f0637d6c4a0e60160d16427db3716f40add6b221d6d2f10c08f`.
+Source MSCX SHA-256 is `a9e00d29a0adbb62286009b62928a0053bd61f495c56fd5f6f0f2331c0befdac`;
+the independently exported shared XML is
+`9cd06c88841fd1c3c5d5d454b5acd6a54f94aefd4c36f9f74746fb3dc215f50f`.
+MuseScore's export produced XML before its recorded teardown crash, so that
+output is not by itself proof of complete source fidelity.
+
+The [34-input Acorde rerender](archive/print-parity-harpsichord-corpus-20261122.json)
+completed with 225 total pages. Only `piano-wq117n11` and `piano-wq117n12`
+changed SVG/PDF hashes; each remains one page. The [limited collision screen](archive/print-parity-harpsichord-screen-20261122.json)
+found zero text/notation, text/text, lyric/staff, dynamic/staff and text/curve
+candidates for those two scores before and after. It does not test every
+collision or the physical printer edge. A focused MusicXML-to-measured-print test,
+keyboard inference tests and render-SVG library Clippy passed.
+
+This is not a passing page review: the original title text and prepared XML
+credit include `Wq.117/11`, which Acorde omits. Also, source and shared XML
+measure 12 attach `arpeggio` to staff 2, but Acorde prints it above staff 1;
+`adagio` belongs above staff 1. The parser currently attaches text directions
+to the first staff despite the MusicXML direction staff field. The two engines'
+remaining notation and source correspondence have not been checked note by note,
+and the single reviewer has prior familiarity with both outputs.
+
 ### Reuse of measured row geometry
 
 Profiling the 643-measure chamber input showed repeated pagination attempts:

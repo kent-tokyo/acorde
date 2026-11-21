@@ -2629,12 +2629,13 @@ fn validate_score_text(value: &str) -> Result<(), RenderError> {
     Ok(())
 }
 
-/// Piano names in the languages our licensed corpora use, plus a MuseScore-style
-/// `keyboard.piano` instrument id when import kept one.
+/// Keyboard names in the languages our licensed corpora use, plus a MuseScore-style
+/// instrument id when import kept one.
 // ponytail: fixed name list; extend it when a corpus shows another localized name.
 fn is_piano_part(part: &acorde_core::Part) -> bool {
     const NAMES: &[&str] = &[
         "piano",
+        "harpsichord",
         "pianoforte",
         "fortepiano",
         "klavier",
@@ -2649,10 +2650,10 @@ fn is_piano_part(part: &acorde_core::Part) -> bool {
     ];
     let name = part.name.trim().to_lowercase();
     NAMES.contains(&name.as_str())
-        || part
-            .instrument
-            .as_ref()
-            .is_some_and(|instrument| instrument.id.to_lowercase().ends_with("piano"))
+        || part.instrument.as_ref().is_some_and(|instrument| {
+            let id = instrument.id.to_lowercase();
+            id.ends_with("piano") || id == "harpsichord" || id.ends_with(".harpsichord")
+        })
 }
 
 /// Draw part and intra-part staff connectors at the system edge.
@@ -13739,7 +13740,7 @@ mod tests {
 mod piano_brace_tests {
     #[test]
     fn localized_piano_names_get_the_implicit_brace() {
-        for name in ["Piano", "Πιάνο", "Klavier", "ピアノ"] {
+        for name in ["Piano", "Πιάνο", "Klavier", "ピアノ", "Harpsichord"] {
             let mut score = acorde_core::Score::template(acorde_core::ScoreTemplate::Piano);
             score.parts[0].name = name.to_owned();
             assert!(super::implicit_piano_brace(&score.parts[0]), "{name}");
