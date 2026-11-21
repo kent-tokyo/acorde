@@ -9966,22 +9966,16 @@ fn render_ties(
                             continue;
                         };
                         let to_offsets = pitch_offsets_from_anchor(next, tablature, b.2, space);
+                        // Coordinates on another system are in a different horizontal lane.
+                        let partial_right_limit = if a.3 == b.3 {
+                            (b.0 - glyphs::NOTEHEAD_RX_U * space).min(row_edges[a.3].1)
+                        } else {
+                            row_edges[a.3].1
+                        };
                         let pairs = tied_pitch_pairs(current, next);
-                        if pairs.is_empty() {
-                            if measured_print_active() {
-                                render_outgoing_partial_ties(
-                                    body,
-                                    current,
-                                    a,
-                                    &from_offsets,
-                                    &started,
-                                    (b.0 - glyphs::NOTEHEAD_RX_U * space).min(row_edges[a.3].1),
-                                    space,
-                                );
-                            } else {
-                                // Preserve the legacy respelled-chord fallback.
-                                draw(body, a, b, None);
-                            }
+                        if pairs.is_empty() && !measured_print_active() {
+                            // Preserve the legacy respelled-chord fallback.
+                            draw(body, a, b, None);
                             continue;
                         }
                         // In a chord, ties on the upper notes bow up and on the lower notes down.
@@ -10025,9 +10019,14 @@ fn render_ties(
                                 })
                                 .find_map(|(key, note)| {
                                     let point = points.get(&key)?;
-                                    let to = note.pitches.iter().position(|pitch| {
-                                        !note.is_rest && pitch.to_midi() == midi
-                                    })?;
+                                    let to = note.pitches.iter().enumerate().position(
+                                        |(index, pitch)| {
+                                            !note.is_rest
+                                                && pitch.to_midi() == midi
+                                                && (!measured_print_active()
+                                                    || note.pitch_tie_end(index))
+                                        },
+                                    )?;
                                     ((point.0 - b.0).abs() < 0.5 && point.3 == b.3)
                                         .then_some((*point, note, to))
                                 });
@@ -10039,7 +10038,7 @@ fn render_ties(
                                         a,
                                         &from_offsets,
                                         &[from],
-                                        (b.0 - glyphs::NOTEHEAD_RX_U * space).min(row_edges[a.3].1),
+                                        partial_right_limit,
                                         space,
                                     );
                                 }

@@ -1055,6 +1055,29 @@ text, lyric, dynamic, curve and page-edge checks found no candidates; the
 margin screen found the same 310 page numbers and four titles. The screen is
 not an all-page visual review or comprehensive coverage of staff changes.
 
+### Tie starts at system breaks and voice changes
+
+A source-to-output check of `piano-n07` found an outgoing B-flat tie in source
+measure 16 whose next same-voice note occurs on the next system at a different
+pitch. The renderer incorrectly used that next system's x-coordinate as the
+right edge of the current system, suppressing the open tie. It now clips the
+stub to the current system. Separately, when the next same-voice note does not
+match, measured print searches other voices at the same onset for an explicitly
+tied destination of the same pitch before drawing an open stub. Focused tests
+cover both cases, and retain the existing same-system unmatched-tie check.
+
+For the source MusicXML SHA-256
+`88e680bee8d72008ef6b35d9b73e30c4ebed3984d70367ab4ad545400325607c`, the
+rerendered two-page score has 42 raw tie paths versus 41 previously; the
+missing open arc is present on page 1. The PDF SHA-256 is
+`487d9e449769c4261e18ceec19fc7dc43b2781c0b7b7ae6525eb3187b56d1de7` and
+printer SHA-256 is
+`cd6bbf742cfe60336a15385711c33bbb3eecd79bc96b8b095aa89f3354b11dda`.
+Raw counts include split arcs and do not prove source-to-output tie fidelity.
+The measured suite (55), structural suite (209), and SVG all-feature library
+Clippy passed on macOS. Other scores, voice changes involving rests, full-page
+review and the final parity gates remain open.
+
 ### Reuse of measured row geometry
 
 Profiling the 643-measure chamber input showed repeated pagination attempts:

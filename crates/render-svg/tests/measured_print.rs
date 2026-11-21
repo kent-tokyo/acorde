@@ -2064,6 +2064,88 @@ fn unmatched_outgoing_chord_ties_keep_each_pitch_without_joining_the_next_note()
 }
 
 #[test]
+fn tie_can_continue_in_another_voice_without_a_same_voice_match() {
+    let mut score = Score::new("tie changes voice", 120, 4, 4, 0, 1);
+    let mut start = Note::new(Pitch::new(Step::C, 5), Duration::Quarter);
+    start.tie_start = true;
+    let mut destination = Note::new(Pitch::new(Step::C, 5), Duration::Quarter);
+    destination.tie_end = true;
+    let measure = &mut score.parts[0].staves[0].measures[0];
+    measure.voices[0] = vec![start, Note::new(Pitch::new(Step::G, 5), Duration::Quarter)];
+    measure.voices[1] = vec![Note::rest(Duration::Quarter), destination];
+    let output = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    let doc = roxmltree::Document::parse(&output.pages[0]).unwrap();
+    let tie = doc
+        .descendants()
+        .find(|n| n.attribute("class") == Some("acorde-tie"))
+        .unwrap();
+    let coordinates: Vec<f32> = tie
+        .attribute("d")
+        .unwrap()
+        .split(|c: char| c == ',' || c.is_whitespace())
+        .filter_map(|s| s.parse().ok())
+        .collect();
+    let head = doc
+        .descendants()
+        .find(|n| n.attribute("data-note-addr") == Some("0:0:0:1:1"))
+        .unwrap()
+        .descendants()
+        .find(|n| n.attribute("class") == Some("acorde-notehead"))
+        .unwrap();
+    let target_x: f32 = head.attribute("cx").unwrap().parse().unwrap();
+    assert!(
+        (coordinates[6] - (target_x - 4.03)).abs() < 0.2,
+        "tie must reach destination, got {} and {target_x}",
+        coordinates[6]
+    );
+    score.parts[0].staves[0].measures[0].voices[1][1].tie_end = false;
+    let without_end = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    let doc = roxmltree::Document::parse(&without_end.pages[0]).unwrap();
+    let tie = doc
+        .descendants()
+        .find(|n| n.attribute("class") == Some("acorde-tie"))
+        .unwrap();
+    let coordinates: Vec<f32> = tie
+        .attribute("d")
+        .unwrap()
+        .split(|c: char| c == ',' || c.is_whitespace())
+        .filter_map(|s| s.parse().ok())
+        .collect();
+    assert!(
+        coordinates[6] < target_x - 8.0,
+        "a note without a tie end must not be connected"
+    );
+}
+
+#[test]
+fn unmatched_outgoing_tie_remains_visible_before_a_system_break() {
+    let mut score = Score::new("open tie across system", 120, 4, 4, 0, 1);
+    let mut start = Note::new(Pitch::new(Step::C, 5), Duration::Whole);
+    start.tie_start = true;
+    let first = &mut score.parts[0].staves[0].measures[0];
+    first.system_break = true;
+    first.voices[0] = vec![start];
+    let mut next = Measure::empty(4, 4);
+    next.voices[0] = vec![Note::new(Pitch::new(Step::D, 5), Duration::Whole)];
+    score.parts[0].staves[0].measures.push(next);
+    let output = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    let count: usize = output
+        .pages
+        .iter()
+        .map(|svg| {
+            let doc = roxmltree::Document::parse(svg).unwrap();
+            doc.descendants()
+                .filter(|n| n.attribute("class") == Some("acorde-tie"))
+                .count()
+        })
+        .sum();
+    assert_eq!(
+        count, 1,
+        "the unmatched start must leave an open arc on the first system"
+    );
+}
+
+#[test]
 fn outgoing_tie_at_the_end_of_a_voice_has_a_short_visible_stub() {
     let mut score = Score::new("ending tie", 120, 4, 4, 0, 1);
     let mut note = Note::new(Pitch::new(Step::C, 5), Duration::Whole);
