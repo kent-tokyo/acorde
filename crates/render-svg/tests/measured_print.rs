@@ -1270,7 +1270,9 @@ fn continued_volta_stays_within_top_margin_on_each_page() {
             .filter_map(|s| s.parse::<f32>().ok())
             .collect::<Vec<_>>();
         let top = values
-            .chunks_exact(2)
+            .as_chunks::<2>()
+            .0
+            .iter()
             .map(|pair| pair[1])
             .fold(f32::INFINITY, f32::min);
         let page_top = index as f32 * 297.0 * 4.0;
