@@ -299,6 +299,17 @@ the passage selection and this observation derive from model output and are not 
 annotation. Speech, exact performance boundaries, the played hands and score correspondence
 remain unverified. Do not use the candidate as ground truth or compute accuracy from it yet.
 
+The opening treble notes in the lesson 8 PDF are G4, A4, G4, F4, E4. As a second, non-model
+inspection, 8192-sample Hann-window FFTs at 11.025 kHz were taken from the lesson 8 audio at
+695.90, 696.42, 696.80, 697.75 and 698.20 seconds. Each window contained a strong peak near,
+respectively, 196.2, 219.7, 195.5, 174.3 and 164.5 Hz: approximately G3, A3, G3, F3 and E3.
+The analogous windows at 706.02, 706.88, 707.28, 708.20 and 708.55 seconds showed the same
+pitch-class sequence. These spectral observations support, but do not prove, correspondence
+with the printed opening, one sounding octave lower. The windows were selected after model
+inspection, several harmonics and other notes were present, and no independent onset or
+left-hand button annotation was made. Human listening and annotation are still required before
+using this passage as a note-level reference.
+
 ## Overlap export check
 
 The same-hand, same-pitch overlap guard was checked against five existing model outputs. Each
