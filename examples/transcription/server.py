@@ -20,13 +20,25 @@ MAX_AUDIO = 64 * 1024 * 1024
 MAX_JSON = 4 * 1024 * 1024
 
 
+def whole_number(value, name):
+    if isinstance(value, bool):
+        raise ValueError(f'{name}は整数で入力してください')
+    try:
+        number = float(value)
+    except (TypeError, ValueError, OverflowError) as error:
+        raise ValueError(f'{name}は整数で入力してください') from error
+    if not math.isfinite(number) or not number.is_integer():
+        raise ValueError(f'{name}は整数で入力してください')
+    return int(number)
+
+
 def midi_bytes(data):
-    tempo = float(data['tempo'])
+    tempo = whole_number(data['tempo'], 'テンポ')
     origin = float(data['bar_start'])
-    numerator = int(data['numerator'])
-    denominator = int(data['denominator'])
+    numerator = whole_number(data['numerator'], '拍子の分子')
+    denominator = whole_number(data['denominator'], '拍子の分母')
     notes = data['notes']
-    pickup_steps = int(data.get('pickup_steps', 0))
+    pickup_steps = whole_number(data.get('pickup_steps', 0), '弱起の長さ')
     instrument = data.get('instrument', 'piano')
     if instrument not in ('piano', 'accordion'):
         raise ValueError('Invalid instrument')
@@ -51,7 +63,7 @@ def midi_bytes(data):
         conductor.append(mido.MetaMessage('time_signature', numerator=numerator, denominator=denominator))
     tracks = {'right': [], 'left': []}
     for note in notes:
-        pitch = int(note['pitch'])
+        pitch = whole_number(note['pitch'], '音高')
         start = float(note['start'])
         end = float(note['end'])
         hand = note['hand']
@@ -169,8 +181,9 @@ class Handler(BaseHTTPRequestHandler):
                         source = Path(directory) / 'input.mid'
                         output = Path(directory) / 'output.musicxml'
                         source.write_bytes(midi)
-                        result = subprocess.run([self.server.score_converter, str(source), str(output), str(data['numerator']),
-                                                 str(data['denominator']), str(data.get('pickup_steps', 0))],
+                        result = subprocess.run([self.server.score_converter, str(source), str(output), str(whole_number(data['numerator'], '拍子の分子')),
+                                                 str(whole_number(data['denominator'], '拍子の分母')),
+                                                 str(whole_number(data.get('pickup_steps', 0), '弱起の長さ'))],
                                                 capture_output=True, text=True, timeout=60)
                         if result.returncode:
                             raise ValueError(result.stderr.strip() or 'Acorde conversion failed')

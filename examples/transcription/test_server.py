@@ -19,10 +19,22 @@ class MidiExportTest(unittest.TestCase):
         midi = mido.MidiFile(file=io.BytesIO(midi_bytes(data)))
         self.assertEqual(len(midi.tracks), 3)
         self.assertEqual(midi.tracks[0][1].numerator, 3)
-        self.assertEqual(midi.tracks[1][3].time, 480)
+        self.assertEqual(midi.tracks[1][2].time, 480)
         self.assertEqual(midi.tracks[1][3].time, 480)
         self.assertEqual(midi.tracks[2][2].note, 48)
         self.assertEqual(midi.tracks[2][3].time, 960)
+
+    def test_rejects_fractional_and_boolean_musical_integers(self):
+        data = {'tempo': 120, 'bar_start': 1, 'numerator': 4, 'denominator': 4,
+                'pickup_steps': 0,
+                'notes': [{'start': 1, 'end': 2, 'pitch': 60, 'hand': 'right'}]}
+        for field, invalid in [('tempo', 120.5), ('numerator', 3.5),
+                               ('denominator', 4.5), ('pickup_steps', 1.5),
+                               ('pickup_steps', True)]:
+            with self.subTest(field=field, invalid=invalid), self.assertRaises(ValueError):
+                midi_bytes({**data, field: invalid})
+        with self.assertRaises(ValueError):
+            midi_bytes({**data, 'notes': [{**data['notes'][0], 'pitch': 60.5}]})
 
     def test_rejects_note_before_bar_start(self):
         data = {'tempo': 120, 'bar_start': 1, 'numerator': 4, 'denominator': 4,

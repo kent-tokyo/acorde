@@ -23,7 +23,7 @@ matches on left-hand notes whose starts fall within the chosen time window. Grou
 just one pitch class are shown as bass candidates. Octaves are not distinguished in this list.
 
 Set the playback range and speed to compare the original with the candidate notes. Enter the
-tempo, meter and time of the first complete bar before export. For a pickup, enter its length in
+tempo as a whole-number BPM, meter and time of the first complete bar before export. For a pickup, enter its length in
 sixteenth notes. The pickup begins before that first bar, and notes before the pickup begins
 must be removed or the bar position changed. MusicXML marks the shortened first bar as implicit.
 MIDI represents it using a short initial time signature followed by the chosen meter. The editor
