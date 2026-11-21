@@ -196,3 +196,28 @@ hand assignments, edits, tempo, or other recordings can produce an overlap that 
 | MAESTRO test, piano model | 854 | `c2e87d355bdf99b60d23c02a976db564b7d87c56bd77535f8cf3ed206d80565f` |
 | Synthesized accordion with accompaniment, Basic Pitch | 49 | `faf676919c7a8aa73bd57c210bb89cd398ec9ed06ea7ed2058e01e6d85cd0471` |
 | Recorded C minor accordion chord, Basic Pitch | 5 | `3e7489ff6683e10c980dd2a5c5b192f410b56e95736a052c59f52bf236d27cdb` |
+
+## Range analysis on a piano recording
+
+Two adjacent selections of the MAESTRO test recording described above were submitted to the
+local `/transcribe` API with the piano model and pitch range 0–127. The server supplied up to
+two seconds of context on each side. The table compares raw returned notes with the same
+reference MIDI and, separately, the previous full-recording piano-model MIDI filtered to the
+same onset range. Metrics and tolerances are the same as in the first section. The reference
+and full-recording MIDI hashes and model checkpoint are given there. Boundary review candidates
+were not added to the window results, and note releases were not truncated at the selection end.
+
+| Selection (s) | Source of estimates | Reference / estimated notes | Onset P / R / F1 | Onset + offset F1 |
+| --- | --- | ---: | --- | ---: |
+| 10–20 | Range API | 137 / 136 | 0.963 / 0.956 / 0.960 | 0.725 |
+| 10–20 | Full recording | 137 / 135 | 0.970 / 0.956 / 0.963 | 0.735 |
+| 20–30 | Range API | 136 / 134 | 0.970 / 0.956 / 0.963 | 0.667 |
+| 20–30 | Full recording | 136 / 135 | 0.963 / 0.956 / 0.959 | 0.664 |
+
+The first response contained no boundary review candidates, and the second contained one;
+neither reported a context-limited release. The JSON response SHA-256 values were
+`65edd679cdf81b0ece033af6bd0391c808b573d0ec7cb4a6c82d418d7c25a7dd` and
+`35da4ef1251f83e8427c8ee779f035dbbb7101506f2c233fa414770bc4af7733`, respectively.
+This is one recording and does not measure correction time, score quality, or the effect of
+manually reviewing boundary candidates. The first range was not selected independently of
+the previously inspected recording.
