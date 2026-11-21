@@ -323,6 +323,13 @@ or other sources. The window and observations were selected after inspecting mod
 independent identification of button presses, note onsets, voice overlap or speech has been made,
 so this remains a candidate for listening and annotation, not a two-hand accuracy result.
 
+An additional check used shorter 2048-sample Hann windows at 11.025 kHz, centered every 0.1 s
+from 766.7 through 767.2 seconds. The approximately 220 Hz component persisted, while peaks
+near C and E were intermittent and varied in strength. In particular, the evidence is weaker
+than a continuously sounding C-major chord: the longer FFT windows above can mix neighboring
+events. This does not identify whether a bass or chord button was played, and the passage still
+requires human listening and independent annotation.
+
 ## Overlap export check
 
 The same-hand, same-pitch overlap guard was checked against five existing model outputs. Each
