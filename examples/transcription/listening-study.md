@@ -46,8 +46,11 @@ SHA-256 is `8b24a67aea7acf2dde747c29fa082fcd7d8f42431f4e4382a7f8cd764e2edbaa`.
 | B | 16 inclusive to 24 exclusive | 37 | MIDI 40–77 |
 
 No reference note strictly crosses the boundaries at 8, 16 or 24 seconds. Similar counts and
-pitch ranges do not establish equal listening or editing difficulty. The aligned MIDI contains
-no time-signature event; its 120 BPM tempo must not be treated as verified musical bar alignment.
+pitch ranges do not establish equal listening or editing difficulty. The dataset's
+[README](https://zenodo.org/records/7544248) identifies `beethoven1` as a section of Beethoven's
+*Für Elise* and lists 120 BPM. The aligned MIDI contains no time-signature event. A published
+[score](https://s9.imslp.org/files/imglnks/usimg/1/10/IMSLP926971-PMLP14377-Beethoven_Clavierst%C3%BCck_F%C3%BCrElise-WoO59.pdf)
+is in 3/8; neither the nominal tempo nor this score alone establishes the recording's bar alignment.
 Before the timed session, check the recording and an appropriate score to establish whether these
 are four-bar passages, and fix the first-bar time, tempo, meter and any pickup in advance. If the
 boundaries or passages change, recompute the counts and record the new conditions. These
