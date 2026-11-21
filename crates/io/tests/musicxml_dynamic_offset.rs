@@ -287,3 +287,26 @@ fn multiple_rehearsals_in_one_measure_survive_roundtrip() {
         .collect();
     assert_eq!(restored_marks, marks);
 }
+
+#[test]
+fn rehearsal_components_preserve_text_and_report_format_loss() {
+    let input = score(
+        r#"<direction><direction-type><rehearsal enclosure="none">Section </rehearsal><rehearsal enclosure="square">A</rehearsal></direction-type></direction><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type></note>"#,
+        1,
+    );
+    let report = acorde_io::parse_musicxml_with_report(&input).unwrap();
+    let measure = &report.score.parts[0].staves[0].measures[0];
+    assert_eq!(measure.rehearsal.as_deref(), Some("Section A"));
+    assert_eq!(measure.texts[0].enclosure.as_deref(), Some("none"));
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .any(|d| d.code == "musicxml.rehearsal-components-flattened")
+    );
+    let restored = parse_musicxml(&serialize_musicxml(&report.score).unwrap()).unwrap();
+    assert_eq!(
+        restored.parts[0].staves[0].measures[0].rehearsal.as_deref(),
+        Some("Section A")
+    );
+}

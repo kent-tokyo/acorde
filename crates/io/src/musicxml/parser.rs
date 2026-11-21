@@ -1057,8 +1057,12 @@ pub(crate) fn parse_musicxml_collecting(
                     // precedence over the legacy acorde placement on <direction>.
                     "words" | "rehearsal" if in_direction_type => {
                         if tag == "rehearsal" {
+                            // Spaces may separate successive formatted components.
+                            reader.config_mut().trim_text(false);
+                        }
+                        if tag == "rehearsal" && pending_rehearsal.is_none() {
                             pending_rehearsal_enclosure = attr_str(e, b"enclosure");
-                        } else {
+                        } else if tag == "words" {
                             pending_words_enclosure = attr_str(e, b"enclosure");
                         }
                         let position = |name: &[u8]| {
@@ -2690,9 +2694,21 @@ pub(crate) fn parse_musicxml_collecting(
                         pending_section_break = current_text.trim() == "acorde:section-break";
                     }
                     "rehearsal" if in_direction_type => {
-                        let text = current_text.trim().to_string();
-                        if !text.is_empty() {
-                            pending_rehearsal = Some(text);
+                        reader.config_mut().trim_text(true);
+                        if !current_text.is_empty() {
+                            if let Some(previous) = pending_rehearsal.as_mut() {
+                                previous.push_str(&current_text);
+                                let mut diagnostic = crate::Diagnostic::warning(
+                                    "musicxml.rehearsal-components-flattened",
+                                    "multiple rehearsal components are joined; individual formatting and positions are not preserved",
+                                );
+                                diagnostic.source_location = Some(format!(
+                                    "/score-partwise/measure[{current_measure_number}]/direction/rehearsal"
+                                ));
+                                tolerated.push(diagnostic);
+                            } else {
+                                pending_rehearsal = Some(current_text.clone());
+                            }
                         }
                     }
                     "work-title" if in_work => {

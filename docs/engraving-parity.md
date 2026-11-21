@@ -501,12 +501,26 @@ measure. Separate later directions are now retained in `Measure.texts`, while
 `Measure.rehearsal` remains the first mark for legacy consumers. A synthetic
 round-trip test covers three directions in one measure, including a repeated
 label, beat offsets, placement and enclosure; a measured-print test verifies
-that all three appear and only the two boxed marks have frames. This does not
-test multiple rehearsal elements inside a single direction. The 34-input corpus
+that all three appear and only the two boxed marks have frames. The 34-input corpus
 has not been rerendered after this parser change. On the earlier `sq8812200`
 page 35, source measures 623 and 624 each have their own `rit.`; measure 625
 has `KK` and `a tempo`. These are not duplicate additions. The original MXL
 specifies bold text, which remains outside the current model's fidelity.
+
+### Rehearsal text components inside a direction
+
+[MusicXML direction-type](https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/direction-type/)
+allows multiple rehearsal elements; the [direction specification](https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/direction/)
+says that such components follow one another visually by default. The parser used
+to discard all but the last. It now joins their text in source order and keeps
+spaces, while `parse_musicxml_with_report` emits `musicxml.rehearsal-components-flattened`.
+The first enclosure is retained but per-component formatting, relative positions,
+and grouping are not represented; this remains a known fidelity failure rather
+than full support. A focused test covers the joined text, mixed enclosures,
+diagnostic and serialized text. All 34 prepared development and fixed inputs
+were scanned: none contains multiple rehearsals within one direction or leading/
+trailing whitespace in rehearsal elements. That scan is not a rerender or a
+full source-fidelity audit.
 
 ### Reuse of measured row geometry
 
