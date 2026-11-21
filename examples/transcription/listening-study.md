@@ -34,7 +34,7 @@ current evaluation. Select and document passages before starting the timed compa
 
 ## Candidate passages for the pilot
 
-Two non-overlapping eight-second candidates have been identified in
+Two non-overlapping six-second candidates have been identified in
 `ROOM_room1_MUS_beethoven1_DEV_iphone.wav`, using the reference
 `ROOM_room1_MUS_beethoven1.mid` from the same dataset. The recording SHA-256 is
 `f8267f9416bd39304d7920ce90fa80f13932ed927fc5b70c31cd7ee9d529e45f`; the reference MIDI
@@ -42,18 +42,25 @@ SHA-256 is `8b24a67aea7acf2dde747c29fa082fcd7d8f42431f4e4382a7f8cd764e2edbaa`.
 
 | Candidate | Recording seconds | Reference onsets | Reference pitch range |
 | --- | --- | ---: | --- |
-| A | 8 inclusive to 16 exclusive | 36 | MIDI 40–76 |
-| B | 16 inclusive to 24 exclusive | 37 | MIDI 40–77 |
+| A | 9.5 inclusive to 15.5 exclusive | 27 | MIDI 40–76 |
+| B | 15.5 inclusive to 21.5 exclusive | 28 | MIDI 40–77 |
 
-No reference note strictly crosses the boundaries at 8, 16 or 24 seconds. Similar counts and
+No reference note strictly crosses the boundaries at 9.5, 15.5 or 21.5 seconds. Similar counts and
 pitch ranges do not establish equal listening or editing difficulty. The dataset's
 [README](https://zenodo.org/records/7544248) identifies `beethoven1` as a section of Beethoven's
 *Für Elise* and lists 120 BPM. The aligned MIDI contains no time-signature event. A published
 [score](https://s9.imslp.org/files/imglnks/usimg/1/10/IMSLP926971-PMLP14377-Beethoven_Clavierst%C3%BCck_F%C3%BCrElise-WoO59.pdf)
-is in 3/8; neither the nominal tempo nor this score alone establishes the recording's bar alignment.
-Before the timed session, check the recording and an appropriate score to establish whether these
-are four-bar passages, and fix the first-bar time, tempo, meter and any pickup in advance. If the
-boundaries or passages change, recompute the counts and record the new conditions. These
+is in 3/8. The first attacks and subsequent pitch sequences in the aligned MIDI match measures
+85–92 of the [OpenScore MusicXML edition](https://github.com/sightreader/sheet-music/blob/master/Beethoven%20-%20Bagatelle%20No.%2025%20%28Fur%20Elise%29.musicxml)
+(downloaded XML SHA-256 `f665fc5d0c8ad5c96e7e099a4bf927756d1087ea5a58d0d85816c2e8c3530f5c`).
+The corresponding reference onsets place measure 85 at 9.5 seconds and measure 89 at 15.5
+seconds; measure 93 begins around 21.5 seconds. This supports four bars per candidate, although
+the dataset's stated 50 ms onset tolerance limits alignment precision. A 3/8 meter at 60 quarter
+notes per minute gives 1.5 seconds per bar, consistent with these boundaries. This is an
+export-grid setting; the dataset's nominal 120 BPM does not specify its beat unit in the README.
+Set the first bar at 9.5 or 15.5 seconds and pickup
+to zero for the respective candidate. Check the audio before the timed session. If the boundaries
+or passages change, recompute the counts and record the new conditions. These
 development candidates were chosen after prior model testing and are not an independent test set.
 Assign condition order and candidate allocation before starting; do not use a participant's
 result to choose the easier condition. The user's participation is deferred, and no timing or
