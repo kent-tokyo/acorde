@@ -44,7 +44,11 @@ fn measured_part_names_keep_readable_size_and_paper_clearance() {
             .unwrap()
             .left_mm;
     assert!(ink_left / 4.0 >= 2.95, "left edge {} mm", ink_left / 4.0);
-    assert!(output.layout.pages[0].content_left_mm > config.margin_left_mm);
+    assert_eq!(
+        output.layout.pages[0].content_left_mm,
+        config.margin_left_mm
+    );
+    assert!(output.first_system_inset_mm > 0.0);
 
     score.parts[0].name = "Piano".into();
     let output = engrave_print_pages(&score, &config, FONT).unwrap();
@@ -98,6 +102,58 @@ fn opening_long_name_indents_only_the_first_system() {
         .parse::<f32>()
         .unwrap();
     assert!(size / 4.0 >= 2.7);
+}
+
+#[test]
+fn repeated_long_part_name_only_indents_page_start_systems() {
+    let mut score = Score::new("Page labels", 120, 4, 4, 0, 8);
+    score.parts[0].name = "Violoncello".into();
+    score.parts[0].short_name = "Violoncello".into();
+    for index in [1, 3, 5] {
+        score.parts[0].staves[0].measures[index].system_break = true;
+    }
+    score.parts[0].staves[0].measures[3].page_break = true;
+    let output = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    assert!(output.layout.pages.len() >= 2);
+    assert_eq!(
+        output.system_insets_mm.len(),
+        output
+            .layout
+            .pages
+            .iter()
+            .map(|page| page.systems.len())
+            .sum::<usize>()
+    );
+    let mut found_unindented = false;
+    for (page, svg) in output.layout.pages.iter().zip(&output.pages) {
+        if page.systems.is_empty() {
+            continue;
+        }
+        let doc = roxmltree::Document::parse(svg).unwrap();
+        let label = doc
+            .descendants()
+            .find(|node| node.attribute("class") == Some("acorde-print-part-label"))
+            .unwrap();
+        assert!(
+            label
+                .attribute("data-font-size")
+                .unwrap()
+                .parse::<f32>()
+                .unwrap()
+                / 4.0
+                >= 2.7
+        );
+        for (index, system) in page.systems.iter().enumerate() {
+            let inset = output.system_insets_mm[system.system_index];
+            if index == 0 {
+                assert!(inset > 0.0);
+            } else {
+                assert_eq!(inset, 0.0);
+                found_unindented = true;
+            }
+        }
+    }
+    assert!(found_unindented);
 }
 
 #[test]

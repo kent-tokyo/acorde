@@ -39,6 +39,8 @@ pub struct MeasuredPrintOutput {
     pub staff_space_mm: f32,
     /// Additional indentation of the opening system beyond its page content inset.
     pub first_system_inset_mm: f32,
+    /// Additional inset for each system, in system-index order.
+    pub system_insets_mm: Vec<f32>,
     pub measurements: PrintMeasurements,
 }
 
@@ -66,9 +68,8 @@ pub fn engrave_print_pages(
         }
     };
     let font = TextFont::for_print(font_bytes)?;
-    // A full name is shown only on the first system; subsequent pages use the
-    // abbreviation when available. Reserve the latter globally and indent only
-    // the opening system for any additional space needed by the full name.
+    // The first system uses full names. Later page-start systems use short
+    // names when present, falling back to the full name otherwise.
     let mut first_width = 0.0_f32;
     let mut repeated_width = 0.0_f32;
     if config.publication.show_part_names {
@@ -88,14 +89,9 @@ pub fn engrave_print_pages(
         }
     }
     let existing = config.margin_left_mm + config.safe_left_mm - 1.5 - 3.0;
-    let mut measured_config = config.clone();
-    measured_config.safe_left_mm += (repeated_width - existing).max(0.0);
-    let label_width = config
-        .publication
-        .show_part_names
-        .then_some(existing.max(repeated_width));
-    let first_row_inset_mm = (first_width - existing.max(repeated_width)).max(0.0);
-    let config = &measured_config;
+    let label_width = config.publication.show_part_names.then_some(existing);
+    let first_row_inset_mm = (first_width - existing).max(0.0);
+    let repeated_row_inset_mm = (repeated_width - existing).max(0.0);
     let _text = crate::font_metrics::PrintTextScope::new(render_score, &font)?;
     let logical = compute_layout(render_score, &LayoutConfig::default());
     let (measures, headers_mm) = crate::render::measured_print_widths(render_score, &logical, 1.8)?;
@@ -131,69 +127,107 @@ pub fn engrave_print_pages(
         headers_mm,
         system_height_mm: (top + system + bottom) * 1.8 + 0.001,
     };
-    // The breaking solver accepts header widths per starting measure. Its private
-    // copy includes the opening inset while exported measurements stay physical.
-    let mut breaking_measurements = measurements.clone();
-    if let Some(first_header) = breaking_measurements.headers_mm.first_mut() {
-        *first_header += first_row_inset_mm;
-    }
-    let rows = break_measured_print_systems(score, config, &breaking_measurements)?;
-    let mut geometry = rows
-        .iter()
-        .map(|row| crate::render::measured_row_geometry(render_score, row))
-        .collect::<Result<Vec<_>, _>>()?;
-    for _ in 0..16 {
-        let heights = geometry
+    // Page starts are discovered after pagination. Remember every start seen so
+    // far and reserve its inset in the next break pass. The set only grows, so
+    // changing page boundaries cannot cycle indefinitely; old starts may be
+    // conservatively narrower in the solver even if they move within a page.
+    let mut page_starts = std::collections::BTreeSet::new();
+    for _ in 0..=measurements.measures.len() {
+        let mut breaking_measurements = measurements.clone();
+        if let Some(first_header) = breaking_measurements.headers_mm.first_mut() {
+            *first_header += first_row_inset_mm;
+        }
+        for &measure in &page_starts {
+            if let Some(header) = breaking_measurements.headers_mm.get_mut(measure) {
+                *header += repeated_row_inset_mm;
+            }
+        }
+        let rows = break_measured_print_systems(score, config, &breaking_measurements)?;
+        let mut geometry = rows
             .iter()
-            .map(|g| (g.top_u + g.system_u + g.bottom_u) * 1.8 + 0.001)
-            .collect::<Vec<_>>();
-        let layout = acorde_layout::paginate_measured_systems(score, config, &rows, &heights)?;
-        // Publication labels use canonical part indices, while extracted notation
-        // is rendered from a one-part projection whose local part index is zero.
-        let mut projected_layout;
-        let render_layout =
-            if let PartLayoutPolicy::ExtractedPart { part_index } = config.part_layout {
-                projected_layout = layout.clone();
-                for page in &mut projected_layout.pages {
-                    for label in &mut page.publication.part_labels {
-                        if label.part_index == part_index {
-                            label.part_index = 0;
-                        }
+            .map(|row| crate::render::measured_row_geometry(render_score, row))
+            .collect::<Result<Vec<_>, _>>()?;
+        let mut needs_new_breaks = false;
+        for _ in 0..16 {
+            let heights = geometry
+                .iter()
+                .map(|g| (g.top_u + g.system_u + g.bottom_u) * 1.8 + 0.001)
+                .collect::<Vec<_>>();
+            let layout = acorde_layout::paginate_measured_systems(score, config, &rows, &heights)?;
+            let mut system_insets_mm = vec![0.0; rows.len()];
+            for page in &layout.pages {
+                if let Some(system) = page.systems.first() {
+                    let row = system.system_index;
+                    let inset = if row == 0 {
+                        first_row_inset_mm
+                    } else {
+                        repeated_row_inset_mm
+                    };
+                    system_insets_mm[row] = inset;
+                    if row != 0 && inset > 0.0 {
+                        let measure = *rows[row]
+                            .measure_indices
+                            .first()
+                            .ok_or(MeasuredEngravingError::InvalidGeneratedGeometry)?;
+                        needs_new_breaks |= page_starts.insert(measure);
                     }
                 }
-                &projected_layout
-            } else {
-                &layout
-            };
-        let mut pages = crate::print::render_print_page_svgs_with_geometry(
-            render_score,
-            render_layout,
-            &crate::SvgGlyphSource::Vector,
-            Some(&geometry),
-            label_width,
-            first_row_inset_mm,
-        )?;
-        if crate::print_preflight::resolve(
-            render_score,
-            &layout,
-            &mut geometry,
-            &mut pages,
-            &font,
-            first_row_inset_mm,
-        )? {
-            continue;
+            }
+            if needs_new_breaks {
+                break;
+            }
+            // Publication labels use canonical part indices, while extracted notation
+            // is rendered from a one-part projection whose local part index is zero.
+            let mut projected_layout;
+            let render_layout =
+                if let PartLayoutPolicy::ExtractedPart { part_index } = config.part_layout {
+                    projected_layout = layout.clone();
+                    for page in &mut projected_layout.pages {
+                        for label in &mut page.publication.part_labels {
+                            if label.part_index == part_index {
+                                label.part_index = 0;
+                            }
+                        }
+                    }
+                    &projected_layout
+                } else {
+                    &layout
+                };
+            let mut pages = crate::print::render_print_page_svgs_with_geometry(
+                render_score,
+                render_layout,
+                &crate::SvgGlyphSource::Vector,
+                Some(&geometry),
+                label_width,
+                Some(&system_insets_mm),
+            )?;
+            if crate::print_preflight::resolve(
+                render_score,
+                &layout,
+                &mut geometry,
+                &mut pages,
+                &font,
+                &system_insets_mm,
+            )? {
+                continue;
+            }
+            let pages = pages
+                .iter()
+                .map(|svg| crate::outline_text::outline_page_text(svg, &font))
+                .collect::<Result<Vec<_>, _>>()?;
+            return Ok(MeasuredPrintOutput {
+                layout,
+                pages,
+                staff_space_mm: 1.8,
+                first_system_inset_mm: first_row_inset_mm,
+                system_insets_mm,
+                measurements,
+            });
         }
-        let pages = pages
-            .iter()
-            .map(|svg| crate::outline_text::outline_page_text(svg, &font))
-            .collect::<Result<Vec<_>, _>>()?;
-        return Ok(MeasuredPrintOutput {
-            layout,
-            pages,
-            staff_space_mm: 1.8,
-            first_system_inset_mm: first_row_inset_mm,
-            measurements,
-        });
+        if !needs_new_breaks {
+            return Err(MeasuredEngravingError::CollisionReflowLimit);
+        }
     }
+
     Err(MeasuredEngravingError::CollisionReflowLimit)
 }

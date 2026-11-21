@@ -249,6 +249,34 @@ clearance was 3.06 mm. This is not a general collision audit, a full visual
 review, or proof of printer clearance. The development inputs remain unsuitable
 as a final unseen acceptance set.
 
+### Page-start label insets
+
+The next candidate reserves the full or repeated name only on each page's
+first system. It discovers page starts after pagination and repeats system
+breaking with the necessary insets. Previously observed starts remain reserved
+in the solver, so the set grows monotonically and terminates even when page
+boundaries move; stale starts can conservatively constrain later layouts.
+`MeasuredPrintOutput.system_insets_mm` records the applied system offsets.
+Cross-system ties, slurs, directions and tablature connections use the actual
+edges of their respective systems. Regression tests cover a multipage score
+and continuation ties and slurs on systems with different left edges.
+
+Both engines rendered all [24 development inputs](archive/print-parity-development-page-insets-20261121.json)
+and all [ten fixed inputs](archive/print-parity-fixed-ten-page-insets-20261121.json).
+Acorde's development total decreased from 217 to 214 pages; compared with the
+212-page baseline before label sizing, `chamber-sq7551068` and
+`chamber-sq8812200` each remain one page longer. The 34-input
+[margin audit](archive/print-parity-margin-page-insets-20261121.json) found
+993 candidates: 758 part labels, 230 page numbers and five titles. The measured
+labels outside nominal margins had a minimum size of 2.75 mm and minimum
+paper-edge distance of 3.06 mm. The assistant inspected page 2 of
+`chamber-sq8812200` (raster SHA-256
+`44d985cf6086115db110daee321868a03d0be8a8649ebffc793874db1436a9ef`):
+only its first system has the additional name inset. This is not a complete
+visual or source-fidelity review, and physical printer clearance remains
+unverified. The render report records the candidate source diff at render time;
+a subsequently added regression test does not alter the rendering code.
+
 This program targets conventional keyboard, vocal, chamber-score, and extracted-part
 engraving against **Verovio 6.4.1**. The starting source is Acorde
 `f48944024039cce2abb404af60d9ffc9dedc1502`, not a newly released artifact.

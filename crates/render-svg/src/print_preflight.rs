@@ -87,7 +87,7 @@ pub(crate) fn resolve(
     geometry: &mut [MeasuredRowGeometry],
     pages: &mut [String],
     font: &TextFont<'_>,
-    first_row_inset_mm: f32,
+    system_insets_mm: &[f32],
 ) -> Result<bool, Error> {
     let refs: Vec<_> = score
         .parts
@@ -962,11 +962,11 @@ pub(crate) fn resolve(
                     .bottom_mm
                     .max(value("data-print-bottom")? - original_y);
             }
-            let row_left = if row == 0 {
-                first_row_inset_mm * 4.0
-            } else {
-                0.0
-            };
+            let row_left = system_insets_mm
+                .get(row)
+                .copied()
+                .ok_or(Error::InvalidGeneratedGeometry)?
+                * 4.0;
             if right - left > row_widths[row] - row_left - 0.5 * SPACE {
                 return Err(Error::DirectionTooWide);
             }

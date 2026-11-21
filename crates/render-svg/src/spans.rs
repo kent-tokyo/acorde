@@ -317,9 +317,7 @@ pub(crate) fn resolve_lane_offsets(
     points: &HashMap<NoteKey, NotePoint>,
     beam_tips: &HashMap<NoteKey, f32>,
     staff_bottoms: &HashMap<(usize, usize, usize), f32>,
-    width: f32,
-    left_margin_u: f32,
-    right_margin_u: f32,
+    row_edges: &[(f32, f32)],
     space: f32,
     resolved_annotation_obstacles: &[GlyphPlacement],
 ) -> HashMap<(usize, usize), f32> {
@@ -398,8 +396,8 @@ pub(crate) fn resolve_lane_offsets(
         if row1 == row2 {
             add_segment(row1, x1, x2, (y1 + y2) / 2.0, up1 || up2);
         } else {
-            add_segment(row1, x1, width - right_margin_u * space, y1, up1);
-            add_segment(row2, left_margin_u * space, x2, y2, up2);
+            add_segment(row1, x1, row_edges[row1].1, y1, up1);
+            add_segment(row2, row_edges[row2].0, x2, y2, up2);
         }
     }
     if keys.is_empty() || owner.resolve(SVG_ANNOTATION_COLLISION_GAP_PX).is_err() {

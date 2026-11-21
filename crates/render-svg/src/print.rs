@@ -119,7 +119,7 @@ pub fn render_print_page_svgs_with_glyphs(
     layout: &PrintLayoutResult,
     glyphs: &SvgGlyphSource,
 ) -> Result<Vec<String>, PrintRenderError> {
-    render_print_page_svgs_with_geometry(score, layout, glyphs, None, None, 0.0)
+    render_print_page_svgs_with_geometry(score, layout, glyphs, None, None, None)
 }
 
 pub(crate) fn render_print_page_svgs_with_geometry(
@@ -128,7 +128,7 @@ pub(crate) fn render_print_page_svgs_with_geometry(
     glyphs: &SvgGlyphSource,
     supplied_geometry: Option<&[render::MeasuredRowGeometry]>,
     measured_label_width_mm: Option<f32>,
-    first_row_inset_mm: f32,
+    system_insets_mm: Option<&[f32]>,
 ) -> Result<Vec<String>, PrintRenderError> {
     layout.validate()?;
     // Match the staff-aware layout's extra page reservation for an additional
@@ -366,13 +366,21 @@ pub(crate) fn render_print_page_svgs_with_geometry(
     let mut row_width_factors =
         print_row_width_factors(score, &score_layout.rows, first.content_width_mm, space_mm)?;
     let mut row_left_offsets_px = vec![0.0; score_layout.rows.len()];
-    if let (Some(factor), Some(offset)) = (
-        row_width_factors.first_mut(),
-        row_left_offsets_px.first_mut(),
-    ) {
-        *factor =
-            factor.min((first.content_width_mm - first_row_inset_mm) / first.content_width_mm);
-        *offset = first_row_inset_mm * PX_PER_MM;
+    if let Some(insets) = system_insets_mm {
+        if insets.len() != score_layout.rows.len() {
+            return Err(RenderError::InvalidOptions {
+                reason: "system inset count must match the number of systems".into(),
+            }
+            .into());
+        }
+        for ((factor, offset), inset) in row_width_factors
+            .iter_mut()
+            .zip(&mut row_left_offsets_px)
+            .zip(insets)
+        {
+            *factor = factor.min((first.content_width_mm - inset) / first.content_width_mm);
+            *offset = inset * PX_PER_MM;
+        }
     }
     let row_staff_gaps = measured_geometry
         .as_ref()
@@ -479,7 +487,7 @@ pub(crate) fn render_print_page_svgs_with_geometry(
             space_px,
             measured_staff_offsets.as_ref().unwrap_or(&staff_offsets),
             measured_label_width_mm,
-            first_row_inset_mm,
+            system_insets_mm,
         );
         svg.push_str("</svg>");
         pages.push(svg);
@@ -567,7 +575,7 @@ fn write_publication(
     space_px: f32,
     staff_offsets: &[(usize, f32, f32)],
     measured_label_width_mm: Option<f32>,
-    first_row_inset_mm: f32,
+    system_insets_mm: Option<&[f32]>,
 ) {
     if page.page_index == 0
         && !page.publication.is_title_page
@@ -650,11 +658,10 @@ fn write_publication(
             else {
                 continue;
             };
-            let first_inset = if system.system_index == 0 {
-                first_row_inset_mm
-            } else {
-                0.0
-            };
+            let first_inset = system_insets_mm
+                .and_then(|insets| insets.get(system.system_index))
+                .copied()
+                .unwrap_or(0.0);
             let text = if system.system_index > 0 && !label.short_name.is_empty() {
                 &label.short_name
             } else {

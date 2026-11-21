@@ -752,6 +752,7 @@ pub(crate) fn build_svg_with_metadata_placement(
     let ottava_shifts = ottava_display_shifts(score);
     let mut resolved_annotation_obstacles = Vec::new();
     let mut row_extents = vec![(0.0, 0.0); layout.rows.len()];
+    let mut row_edges = vec![(0.0, 0.0); layout.rows.len()];
     let mut lyric_baselines = HashMap::new();
     // A volta (1st/2nd ending) still open at the end of a system, by ending number.
     let mut open_volta: Option<u8> = None;
@@ -775,6 +776,11 @@ pub(crate) fn build_svg_with_metadata_placement(
             });
         let row_content_width = content_width
             * print_placement.map_or(1.0, |placement| placement.row_width_factors[row_idx]);
+
+        row_edges[row_idx] = (
+            left_margin_u * space,
+            left_margin_u * space + row_content_width,
+        );
 
         // Effective clef/key/time per staff as of this row's first measure.
         let row_start_measure = row.measure_indices[0];
@@ -1610,9 +1616,7 @@ pub(crate) fn build_svg_with_metadata_placement(
         &mut body,
         score,
         &note_points,
-        options.width,
-        left_margin_u,
-        right_margin_u,
+        &row_edges,
         space,
         &resolved_annotation_obstacles,
     );
@@ -1625,9 +1629,7 @@ pub(crate) fn build_svg_with_metadata_placement(
         &row_tops,
         &staff_bottoms,
         &measure_lefts,
-        options.width,
-        left_margin_u,
-        right_margin_u,
+        &row_edges,
         space,
         options.interactive,
         &resolved_annotation_obstacles,
@@ -8128,9 +8130,7 @@ fn render_all_spans(
     row_tops: &[f32],
     staff_bottoms: &HashMap<(usize, usize, usize), f32>,
     measure_lefts: &HashMap<(usize, usize), f32>,
-    width: f32,
-    left_margin_u: f32,
-    right_margin_u: f32,
+    row_edges: &[(f32, f32)],
     space: f32,
     interactive: bool,
     resolved_annotation_obstacles: &[acorde_layout::GlyphPlacement],
@@ -8141,22 +8141,11 @@ fn render_all_spans(
         points,
         beam_tip_points,
         staff_bottoms,
-        width,
-        left_margin_u,
-        right_margin_u,
+        row_edges,
         space,
         resolved_annotation_obstacles,
     );
-    render_ties(
-        body,
-        score,
-        points,
-        measure_lefts,
-        width,
-        left_margin_u,
-        right_margin_u,
-        space,
-    );
+    render_ties(body, score, points, measure_lefts, row_edges, space);
     for (span_index, span) in layout.spans.iter().enumerate() {
         let (start, end) = match span {
             SpanMark::Hairpin { start, end, .. }
@@ -8185,7 +8174,7 @@ fn render_all_spans(
                 measure_lefts,
                 end,
                 (x1, x2, row2),
-                width - right_margin_u * space,
+                row_edges[row1].1,
                 space,
             )
         } else {
@@ -8276,12 +8265,12 @@ fn render_all_spans(
                 let left = if first {
                     x1 + 0.3 * space
                 } else {
-                    left_margin_u * space
+                    row_edges[row].0
                 };
                 let right = if last {
                     x2 - 0.3 * space
                 } else {
-                    width - right_margin_u * space
+                    row_edges[row].1
                 };
                 if right <= left {
                     continue;
@@ -8387,10 +8376,10 @@ fn render_all_spans(
                 body,
                 span,
                 x1,
-                hairpin_y(row1, x1, width - right_margin_u * space, y1) + start_offset,
+                hairpin_y(row1, x1, row_edges[row1].1, y1) + start_offset,
                 up1,
                 slur_above,
-                width - right_margin_u * space,
+                row_edges[row1].1,
                 space,
                 true,
                 (0.0, 1.0 / (row2 - row1 + 1) as f32),
@@ -8398,8 +8387,8 @@ fn render_all_spans(
             render_span_segment(
                 body,
                 span,
-                left_margin_u * space,
-                hairpin_y(row2, left_margin_u * space, x2, y2) + end_offset,
+                row_edges[row2].0,
+                hairpin_y(row2, row_edges[row2].0, x2, y2) + end_offset,
                 up2,
                 slur_above,
                 x2,
@@ -8412,16 +8401,16 @@ fn render_all_spans(
                 render_span_segment(
                     body,
                     span,
-                    left_margin_u * space,
+                    row_edges[middle_row].0,
                     hairpin_y(
                         middle_row,
-                        left_margin_u * space,
-                        width - right_margin_u * space,
+                        row_edges[middle_row].0,
+                        row_edges[middle_row].1,
                         y,
                     ),
                     up1,
                     slur_above,
-                    width - right_margin_u * space,
+                    row_edges[middle_row].1,
                     space,
                     false,
                     (
@@ -8514,12 +8503,12 @@ fn render_all_spans(
             let start_x = if row == row1 {
                 x1 + 1.5 * space
             } else {
-                left_margin_u * space
+                row_edges[row].0
             };
             let end_x = if row == row2 {
                 x2 + glyphs::NOTEHEAD_RX_U * space
             } else {
-                width - right_margin_u * space
+                row_edges[row].1
             };
             if end_x - start_x < space {
                 continue;
@@ -9552,9 +9541,7 @@ fn render_ties(
     score: &Score,
     points: &HashMap<NoteKey, NotePoint>,
     measure_lefts: &HashMap<(usize, usize), f32>,
-    width: f32,
-    left_margin_u: f32,
-    right_margin_u: f32,
+    row_edges: &[(f32, f32)],
     space: f32,
 ) {
     // A tie leaves the notehead on the side away from the stem (or the side given for a chord
@@ -9580,14 +9567,14 @@ fn render_ties(
                 body,
                 x1 + head,
                 y1 + lift,
-                width - right_margin_u * space,
+                row_edges[row1].1,
                 y1 + lift,
                 above,
                 space,
             );
             write_tie_curve(
                 body,
-                left_margin_u * space,
+                row_edges[row2].0,
                 y2 + lift,
                 x2 - head,
                 y2 + lift,
@@ -9636,7 +9623,7 @@ fn render_ties(
                                     a,
                                     &from_offsets,
                                     &started,
-                                    width - right_margin_u * space,
+                                    row_edges[a.3].1,
                                     space,
                                 );
                             }
@@ -9652,8 +9639,7 @@ fn render_ties(
                                     a,
                                     &from_offsets,
                                     &started,
-                                    (b.0 - glyphs::NOTEHEAD_RX_U * space)
-                                        .min(width - right_margin_u * space),
+                                    (b.0 - glyphs::NOTEHEAD_RX_U * space).min(row_edges[a.3].1),
                                     space,
                                 );
                             } else {
@@ -9717,8 +9703,7 @@ fn render_ties(
                                         a,
                                         &from_offsets,
                                         &[from],
-                                        (b.0 - glyphs::NOTEHEAD_RX_U * space)
-                                            .min(width - right_margin_u * space),
+                                        (b.0 - glyphs::NOTEHEAD_RX_U * space).min(row_edges[a.3].1),
                                         space,
                                     );
                                 }
@@ -11000,9 +10985,7 @@ fn render_cross_measure_tab_technique_connections(
     body: &mut String,
     score: &Score,
     note_points: &HashMap<NoteKey, NotePoint>,
-    width: f32,
-    left_margin_u: f32,
-    right_margin_u: f32,
+    row_edges: &[(f32, f32)],
     space: f32,
     obstacles: &[acorde_layout::GlyphPlacement],
 ) {
@@ -11113,7 +11096,7 @@ fn render_cross_measure_tab_technique_connections(
                                 end_addr: end_addr.clone(),
                                 start: x1 + 0.2 * space,
                                 y1,
-                                end: width - right_margin_u * space,
+                                end: row_edges[row1].1,
                                 y2: y1,
                             });
                             segments.push(tab_technique::OwnedSegment {
@@ -11121,7 +11104,7 @@ fn render_cross_measure_tab_technique_connections(
                                 string: current_position.string,
                                 start_addr: start_addr.clone(),
                                 end_addr: end_addr.clone(),
-                                start: left_margin_u * space,
+                                start: row_edges[row2].0,
                                 y1: y2,
                                 end: x2 - 0.2 * space,
                                 y2,
@@ -12583,6 +12566,93 @@ fn courtesy_wrapped(alter: i8, cx: f32, cy: f32, space: f32) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn cross_system_ties_use_each_system_edges() {
+        use acorde_core::{Duration, Note, Pitch, Score, Step};
+        use std::collections::HashMap;
+        let mut score = Score::new("Tie", 120, 4, 4, 0, 2);
+        let mut first = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+        first.tie_start = true;
+        let mut second = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+        second.tie_end = true;
+        score.parts[0].staves[0].measures[0].voices[0] = vec![first];
+        score.parts[0].staves[0].measures[1].voices[0] = vec![second];
+        let points = HashMap::from([
+            ((0, 0, 0, 0, 0), (50.0, 40.0, true, 0)),
+            ((0, 0, 1, 0, 0), (110.0, 100.0, true, 1)),
+        ]);
+        let mut svg = String::new();
+        super::render_ties(
+            &mut svg,
+            &score,
+            &points,
+            &HashMap::new(),
+            &[(10.0, 180.0), (73.0, 200.0)],
+            10.0,
+        );
+        let paths: Vec<_> = svg.split("<path ").skip(1).collect();
+        assert_eq!(paths.len(), 2, "{svg}");
+        assert!(paths[0].contains("180.00,"), "{svg}");
+        assert!(paths[1].contains("M 73.00,"), "{svg}");
+    }
+
+    #[cfg(feature = "font-metrics")]
+    #[test]
+    fn cross_system_slur_continues_from_the_indented_staff_edge() {
+        use acorde_core::{Duration, Note, Pitch, Score, Step};
+        let mut score = Score::new("Slur", 120, 4, 4, 0, 2);
+        let mut first = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+        first.slur_start = true;
+        let mut second = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+        second.slur_end = true;
+        score.parts[0].staves[0].measures[0].voices[0] = vec![first];
+        score.parts[0].staves[0].measures[1].voices[0] = vec![second];
+        let layout = acorde_layout::compute_layout(
+            &score,
+            &acorde_layout::LayoutConfig {
+                measures_per_row: 1,
+                ..Default::default()
+            },
+        );
+        let placement = super::PrintRowPlacement {
+            row_tops_px: &[200.0, 500.0],
+            row_width_factors: &[1.0, 0.8],
+            row_left_offsets_px: &[0.0, 100.0],
+            canvas_height_px: 900.0,
+            row_staff_gaps_u: None,
+            row_lyric_baselines_u: None,
+        };
+        let config = crate::SvgRenderConfig::new(crate::SvgRenderOptions::default());
+        let (svg, _) =
+            super::build_svg_with_metadata_placement(&score, &layout, &config, Some(&placement))
+                .unwrap();
+        let doc = roxmltree::Document::parse(&svg).unwrap();
+        let staff_lines = doc
+            .descendants()
+            .filter(|node| node.attribute("class") == Some("acorde-staff-line"))
+            .collect::<Vec<_>>();
+        let second_staff_x = staff_lines[5]
+            .attribute("x1")
+            .unwrap()
+            .parse::<f32>()
+            .unwrap();
+        let slurs = doc
+            .descendants()
+            .filter(|node| node.attribute("class") == Some("acorde-slur"))
+            .collect::<Vec<_>>();
+        assert_eq!(slurs.len(), 2);
+        let path = slurs[1].attribute("d").unwrap();
+        let start_x = path
+            .strip_prefix("M ")
+            .unwrap()
+            .split(',')
+            .next()
+            .unwrap()
+            .parse::<f32>()
+            .unwrap();
+        assert!((start_x - second_staff_x).abs() < 0.02, "{path}");
+    }
+
     #[test]
     fn repeat_marks_keep_visible_print_gaps_between_ink() {
         use acorde_core::Barline;
