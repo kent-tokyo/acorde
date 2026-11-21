@@ -22,10 +22,70 @@ def extract(path, *, shift=0.0, start=0.0, end=None):
     return intervals, pitches
 
 
+def extract_playback_report(path, *, shift=0.0, start=0.0, end=None):
+    events = json.loads(path.read_text())
+    notes = [(event['time_secs'] + shift, event['duration_secs'], event['pitch_midi'])
+             for event in events if event.get('pitch_midi') is not None
+             and not event.get('is_metronome', False)
+             and start <= event['time_secs'] + shift
+             and (end is None or event['time_secs'] + shift < end)]
+    intervals = np.array([[onset, onset + duration] for onset, duration, _ in notes],
+                         dtype=float).reshape(-1, 2)
+    pitches = np.array([pretty_midi.note_number_to_hz(pitch) for _, _, pitch in notes])
+    return intervals, pitches
+
+
+def error_details(reference, estimate):
+    """List unmatched notes and onset-matched notes with offset errors.
+
+    Octave and duplicate flags are proximity hints, not inferred causes.
+    """
+    ref_intervals, ref_pitches = reference
+    est_intervals, est_pitches = estimate
+    matches = mir_eval.transcription.match_notes(
+        ref_intervals, ref_pitches, est_intervals, est_pitches,
+        onset_tolerance=0.05, pitch_tolerance=50, offset_ratio=None)
+    matched_ref = {ref for ref, _ in matches}
+    matched_est = {est for _, est in matches}
+
+    def note(interval, frequency):
+        return {'start': float(interval[0]), 'end': float(interval[1]),
+                'pitch': int(round(pretty_midi.hz_to_note_number(frequency)))}
+
+    missed = [note(interval, pitch) for index, (interval, pitch)
+              in enumerate(zip(ref_intervals, ref_pitches)) if index not in matched_ref]
+    extra = []
+    for index, (interval, pitch) in enumerate(zip(est_intervals, est_pitches)):
+        if index in matched_est:
+            continue
+        item = note(interval, pitch)
+        item['near_reference_octave'] = any(
+            abs(interval[0] - ref_interval[0]) <= 0.05
+            and abs(abs(12 * math.log2(pitch / ref_pitch)) - 12) <= 0.5
+            for ref_interval, ref_pitch in zip(ref_intervals, ref_pitches))
+        item['near_matched_same_pitch'] = any(
+            abs(interval[0] - est_intervals[other][0]) <= 0.1
+            and abs(12 * math.log2(pitch / est_pitches[other])) <= 0.5
+            for other in matched_est)
+        extra.append(item)
+    offsets = []
+    for ref_index, est_index in matches:
+        ref_interval = ref_intervals[ref_index]
+        difference = float(est_intervals[est_index][1] - ref_interval[1])
+        tolerance = max(0.05, 0.2 * (ref_interval[1] - ref_interval[0]))
+        if abs(difference) > tolerance:
+            offsets.append({'reference': note(ref_interval, ref_pitches[ref_index]),
+                            'estimate': note(est_intervals[est_index], est_pitches[est_index]),
+                            'offset_error_seconds': difference})
+    return {'missed': missed, 'extra': extra, 'offset_errors': offsets}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('reference', type=Path)
     parser.add_argument('estimate', type=Path)
+    parser.add_argument('--estimate-playback-report', action='store_true',
+                        help='read estimate as JSON from acorde playback-report')
     parser.add_argument('--estimate-offset', type=float, default=0.0,
                         help='seconds to add to exported MIDI times to recover recording times')
     parser.add_argument('--start', type=float, default=0.0,
@@ -38,7 +98,8 @@ def main():
             or (args.end is not None and (not math.isfinite(args.end) or args.end <= args.start))):
         parser.error('offset and range must be finite, non-negative, and start must precede end')
     reference = extract(args.reference, start=args.start, end=args.end)
-    estimate = extract(args.estimate, shift=args.estimate_offset, start=args.start, end=args.end)
+    estimate_reader = extract_playback_report if args.estimate_playback_report else extract
+    estimate = estimate_reader(args.estimate, shift=args.estimate_offset, start=args.start, end=args.end)
     output = {'files': {str(path): hashlib.sha256(path.read_bytes()).hexdigest()
                         for path in (args.reference, args.estimate)},
               'reference_notes': len(reference[0]), 'estimated_notes': len(estimate[0]),
@@ -50,6 +111,7 @@ def main():
             *reference, *estimate, onset_tolerance=0.05, pitch_tolerance=50,
             offset_ratio=offset_ratio, offset_min_tolerance=0.05)
         output[name] = dict(precision=precision, recall=recall, f1=f1, average_overlap=overlap)
+    output['errors'] = error_details(reference, estimate)
     print(json.dumps(output, indent=2))
 
 

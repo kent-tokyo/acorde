@@ -13,6 +13,59 @@ async function main() {
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await page.goto(process.env.TRANSCRIPTION_URL || "http://127.0.0.1:8765/");
+    await page.locator("#openProject").setInputFiles({
+      name: "continuation.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(JSON.stringify({
+        version: 1, tempo: 120, numerator: 4, denominator: 4, barStart: 0,
+        instrument: "accordion", notes: [
+          { start: 0, end: 2, pitch: 60, hand: "left" },
+          { start: 0, end: 2, pitch: 64, hand: "left" },
+          { start: 0, end: 2, pitch: 67, hand: "left" },
+          { start: 1, end: 1.5, pitch: 72, hand: "left" },
+          { start: 3, end: 3.5, pitch: 60, hand: "left" },
+          { start: 0.25, end: 0.75, pitch: 69, hand: "right" },
+        ],
+      })),
+    });
+    await page.locator("#chords").click();
+    const bassCandidates = await page.locator("#bassList").innerText();
+    assert.match(bassCandidates, /1\.00秒　C　継続中の音と重複/);
+    assert.match(bassCandidates, /3\.00秒　C/);
+    assert.doesNotMatch(bassCandidates, /3\.00秒　C　継続中/);
+    const candidatesDownload = page.waitForEvent("download");
+    await page.locator("#exportAccordionEvents").click();
+    let candidatesText = "";
+    for await (const chunk of await (await candidatesDownload).createReadStream()) candidatesText += chunk;
+    const candidates = JSON.parse(candidatesText);
+    assert.deepEqual(candidates.right, [{ time: 0.25, pitch: 69 }]);
+    assert.deepEqual(candidates.bass, [{ time: 1, root: 0 }, { time: 3, root: 0 }]);
+    assert.deepEqual(candidates.chord, [{ time: 0, root: 0, quality: "major" }]);
+    await page.locator("#openProject").setInputFiles({
+      name: "split-chord.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(JSON.stringify({
+        version: 1, tempo: 120, numerator: 4, denominator: 4, barStart: 0,
+        instrument: "accordion", notes: [
+          { start: 0, end: 1, pitch: 55, hand: "left" },
+          { start: 0.01, end: 1, pitch: 60, hand: "right" },
+          { start: 0.02, end: 1, pitch: 64, hand: "right" },
+        ],
+      })),
+    });
+    await page.locator("#chords").click();
+    assert.equal(await page.locator("#chordList").innerText(), "一致する候補はありません。");
+    await page.locator("#chordSource").selectOption("all");
+    await page.locator("#chords").click();
+    assert.match(await page.locator("#chordList").innerText(), /0\.00秒　C/);
+    const mixedDownload = page.waitForEvent("download");
+    await page.locator("#exportAccordionEvents").click();
+    let mixedText = "";
+    for await (const chunk of await (await mixedDownload).createReadStream()) mixedText += chunk;
+    const mixed = JSON.parse(mixedText);
+    assert.deepEqual(mixed.chord, [{ time: 0, root: 0, quality: "major" }]);
+    assert.equal(mixed.right.length, 2);
+    await page.locator("#chordSource").selectOption("left");
     const project = {
       version: 1,
       tempo: 120,
