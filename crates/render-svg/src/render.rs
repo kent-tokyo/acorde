@@ -6004,7 +6004,8 @@ fn measured_columns(
                         } else {
                             0.0
                         };
-                        let offset = voice_offset + note_placement_offsets_u(note).0;
+                        let authored_offset = note_placement_offsets_u(note).0;
+                        let offset = voice_offset + authored_offset;
                         let left = (notation / 2.0 + accidental + grace_width - offset).max(0.0);
                         let right = (notation / 2.0 + offset).max(0.0);
                         let physical_staff = note
@@ -6012,9 +6013,15 @@ fn measured_columns(
                             .as_ref()
                             .map_or(staff_index, |c| c.target_staff);
                         events.push((beat, left, right, part_index, physical_staff));
-                        lane.push((beat, note));
-                        if beat < 1e-9 {
-                            text_lead = text_lead.max(note_annotation_width_u(note) / 2.0);
+                        // The renderer can switch between shared and separated
+                        // voice alignment. Reserve both possible endpoints so
+                        // adjacent syllables cannot be pushed onto different lines.
+                        let minimum_offset = authored_offset + voice_offset.min(0.0);
+                        let maximum_offset = authored_offset + voice_offset.max(0.0);
+                        lane.push((beat, note, minimum_offset, maximum_offset));
+                        let text_width = note_annotation_width_u(note);
+                        if beat < 1e-9 && text_width > 0.0 {
+                            text_lead = text_lead.max(text_width / 2.0 - minimum_offset);
                         }
                     }
                     grace_width = 0.0;
@@ -6095,24 +6102,33 @@ fn measured_columns(
     // Text in one lyric/annotation lane constrains the distance to the next event
     // in that voice, not the intervening piano notes on another staff.
     for lane in lanes {
-        for (position, &(beat, note)) in lane.iter().enumerate() {
+        for (position, &(beat, note, _, maximum_offset)) in lane.iter().enumerate() {
             let Some(from) = onsets.iter().position(|onset| (*onset - beat).abs() < 1e-9) else {
                 continue;
             };
             let (end, needed) = match lane.get(position + 1) {
-                Some(&(next_beat, next)) => (
+                Some(&(next_beat, next, next_minimum_offset, _)) => (
                     next_beat,
                     [true, false]
                         .into_iter()
                         .map(|above| {
-                            (note_annotation_lane_width_u(note, above)
-                                + note_annotation_lane_width_u(next, above))
-                                / 2.0
-                                + 0.18
+                            let left = note_annotation_lane_width_u(note, above);
+                            let right = note_annotation_lane_width_u(next, above);
+                            if left == 0.0 && right == 0.0 {
+                                0.0
+                            } else {
+                                (left + right) / 2.0 + 0.18 + maximum_offset - next_minimum_offset
+                            }
                         })
                         .fold(0.0_f32, f32::max),
                 ),
-                None => (total_beats, note_annotation_width_u(note) / 2.0 + 0.5),
+                None => {
+                    let width = note_annotation_width_u(note);
+                    (
+                        total_beats,
+                        width / 2.0 + 0.5 + if width > 0.0 { maximum_offset } else { 0.0 },
+                    )
+                }
             };
             if end <= beat {
                 continue;

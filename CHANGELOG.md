@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- Reserve measured lyric and annotation spacing for voice displacement so
+  syllables can share their baseline. MusicXML import now diagnoses lyric
+  placement values that the score model cannot preserve.
+
 - Reserve page-start part names inside the configured left print margin in
   measured engraving. Reserve actual displaced lyric and ordinary beam ink
   between staves, and size grace-note slur clearance to the smaller glyphs.

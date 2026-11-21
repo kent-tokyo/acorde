@@ -171,6 +171,27 @@ for (const svg of document.querySelectorAll('body > div > svg')) {
         dynamicStaffCandidates.push({text:t.label,textBox:b,lineBox:line});
     }
   }
+  // For Acorde's outlined first verse, compare baselines only within one
+  // measure and voice. Cross-measure/system and additional-verse alignment
+  // require separate ownership information and are outside this screen.
+  const lyricLanes = new Map(), lyricBaselineCandidates = [];
+  for (const t of texts) {
+    if (!t.el.matches('g.acorde-lyric[data-acorde-outlined-text]')) continue;
+    const owner = t.el.closest('[data-print-note-addr]');
+    const path = t.el.querySelector('path');
+    const address = owner?.getAttribute('data-print-note-addr')?.split(':');
+    if (!path || !address || address.length !== 5) continue;
+    const key = address.slice(0, 4).join(':');
+    const origin = new DOMPoint(0, 0).matrixTransform(path.getScreenCTM());
+    const lane = lyricLanes.get(key) || [];
+    lane.push({text:t.label, note:address[4], baseline_mm:(origin.y-page.top)*mm});
+    lyricLanes.set(key, lane);
+  }
+  for (const [address, lane] of lyricLanes) {
+    const ys = lane.map(item => item.baseline_mm);
+    if (ys.length > 1 && Math.max(...ys) - Math.min(...ys) > 0.15)
+      lyricBaselineCandidates.push({address, syllables:lane});
+  }
   const spaces = [];
   for (const staff of svg.querySelectorAll(SEL.staff)) {
     const ys = [...staff.querySelectorAll(SEL.staff_lines)].map(box).filter(b => b.x1 - b.x0 > 5)
@@ -183,6 +204,7 @@ for (const svg of document.querySelectorAll('body > div > svg')) {
     text_over_notation: textMark, text_over_text: textText,
     text_notation_candidates: textMarkCandidates,
     lyric_staff_candidates: lyricStaffCandidates,
+    lyric_baseline_candidates: lyricBaselineCandidates,
     dynamic_staff_candidates: dynamicStaffCandidates,
     text_curve_candidates: curveCandidates,
     systems: SEL.system ? svg.querySelectorAll(SEL.system).length : null,
@@ -265,6 +287,9 @@ def measure(svgs, selectors, html_path, page_width_mm=210, page_height_mm=297):
         "lyric_staff_candidates": [dict(page=index + 1, **candidate)
                                      for index, page in enumerate(pages)
                                      for candidate in page["lyric_staff_candidates"]],
+        "lyric_baseline_candidates": [dict(page=index + 1, **candidate)
+                                        for index, page in enumerate(pages)
+                                        for candidate in page["lyric_baseline_candidates"]],
         "dynamic_staff_candidates": [dict(page=index + 1, **candidate)
                                      for index, page in enumerate(pages)
                                      for candidate in page["dynamic_staff_candidates"]],

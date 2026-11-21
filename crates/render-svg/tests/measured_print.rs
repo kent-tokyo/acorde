@@ -670,6 +670,31 @@ fn lyric_clears_the_next_staff_beam_after_label_reflow() {
         .split_whitespace()
         .map(|s| s.parse().unwrap())
         .collect();
+    let previous = doc
+        .descendants()
+        .find(|n| n.attribute("data-print-note-addr") == Some("0:0:37:0:2"))
+        .unwrap()
+        .descendants()
+        .find(|n| n.attribute("class") == Some("acorde-lyric"))
+        .unwrap();
+    let previous_transform = previous
+        .children()
+        .find(|n| n.has_tag_name("path"))
+        .unwrap()
+        .attribute("transform")
+        .unwrap();
+    let previous_values: Vec<f32> = previous_transform
+        .trim_start_matches("matrix(")
+        .trim_end_matches(')')
+        .split_whitespace()
+        .map(|s| s.parse().unwrap())
+        .collect();
+    assert!(
+        (values[5] - previous_values[5]).abs() < 0.05,
+        "adjacent syllables have different baselines: {} and {}",
+        previous_values[5],
+        values[5]
+    );
     let ink = TextFont::new(FONT, 0)
         .unwrap()
         .measure("guide", size)

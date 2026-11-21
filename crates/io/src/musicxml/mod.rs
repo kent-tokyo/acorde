@@ -487,6 +487,10 @@ fn push_advanced_attribute_diagnostics(
                     "MusicXML direction placement is not above or below; the original value is preserved",
                 )
             }
+            "placement" if path.last().map(String::as_str) == Some("lyric") => (
+                "musicxml.unsupported-lyric-placement",
+                "the lyric placement is not preserved; engraving currently places lyrics below the staff",
+            ),
             "default-x" | "default-y" | "relative-x" | "relative-y"
                 if path.last().map(String::as_str) == Some("note") =>
             {

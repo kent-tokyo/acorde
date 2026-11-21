@@ -907,6 +907,45 @@ The measured-print suite passed 49 tests, the structural suite 209, and scoped
 all-feature SVG library Clippy passed on macOS. Full visual, platform, WASM,
 performance and reserved-corpus gates remain open.
 
+### Lyric alignment under voice displacement
+
+The `guide` syllable described above was lowered by the annotation collision
+solver because its preceding syllable's box overlapped after voice separation.
+Measured text-lane spacing now reserves the possible horizontal displacement
+of both adjacent events, including authored offsets, for shared and separated
+voice alignment. The `Just for To-day` regression checks that the two syllables
+share a baseline and that the lower staff's beam still clears the lyric ink.
+The assistant inspected its final page; `guide` is level with the surrounding
+words. The page raster SHA-256 is
+`67747d8360a488a5060502e9d31220f89b29c81f3c847a379844b52b73280957`.
+
+The comparison screen now reports first-verse baseline differences exceeding
+0.15 mm within each individual measure and voice. A synthetic regression and
+the earlier displaced `guide` output both trigger it. This limited screen does
+not cover other verses, cross-measure alignment, or source correctness. The
+[34-input result](archive/print-parity-lyric-baselines-20261122.json) contains
+one candidate, `Write` / `this` in `openscore_omr_score_1003`. Their baselines
+differ by 0.56 mm. The source specifies lyrics above the staff, but the current
+score model does not preserve that placement and the renderer places them
+below; this is a separate unresolved notation defect. MusicXML import now
+reports any authored lyric placement as a loss instead of silently dropping it.
+The OMR page raster SHA-256 is
+`4636aa35ee349a1c1623dda0237bf71b34f09bcc58cc87be38ce4783611a4826`.
+
+All 34 inputs rendered on 310 pages, unchanged in aggregate and per score from
+the preceding candidate. The selected text/notation, text/text, lyric/staff,
+text/curve and [barline](archive/print-parity-lyric-line-barline-20261122.json)
+screens found zero candidates; they are not complete visual or collision
+audits. The release printer SHA-256 is
+`6ef4655916c2a89a5549e886c47a4132dde3c571429796ed4e24358439e3ed6b`;
+the renderer diff against `3446e305` has SHA-256
+`335943c6affc7deefdd216a7e3fb7a48e6b88d54a9a52ad3a685acce6890f321`.
+The binary predates the diagnostic-only import change. The measured-print suite
+passed 49 tests, MusicXML round-trip passed 264 tests, the placement diagnostic
+and both Chrome screen tests passed, and scoped IO and SVG library Clippy
+passed on macOS. Full visual, native/WASM, platform, performance and reserved
+validation remain pending.
+
 ### Reuse of measured row geometry
 
 Profiling the 643-measure chamber input showed repeated pagination attempts:
