@@ -150,6 +150,7 @@
           /></label>
           <button id="analyze" disabled>指定範囲の音符候補を作る</button>
         </div>
+        <p id="recordingStatus" role="status"></p>
         <p class="status" id="status" role="status"></p>
         <audio id="audio" controls></audio>
       </section>
@@ -318,9 +319,28 @@
         scale: 90,
         previewUrl: null,
         previewMeta: null,
+        recordingHash: null,
+        expectedRecordingHash: null,
       };
       const status = (message) => ($("status").textContent = message);
       const value = (id) => Number($(id).value);
+      function updateRecordingStatus() {
+        const current = state.recordingHash;
+        const expected = state.expectedRecordingHash;
+        if (!current) {
+          $("recordingStatus").textContent = expected
+            ? "保存した編集内容に対応する録音を選んでください。"
+            : "";
+        } else if (!expected) {
+          $("recordingStatus").textContent =
+            "編集内容に元の録音の照合情報がありません。";
+        } else if (current === expected) {
+          $("recordingStatus").textContent = "録音が編集内容と一致しています。";
+        } else {
+          $("recordingStatus").textContent =
+            "選択した録音は編集内容の録音と異なります。保存済みの録音情報は保持します。";
+        }
+      }
       function clearCandidates() {
         $("bassList").replaceChildren();
         $("chordList").replaceChildren();
@@ -346,13 +366,18 @@
       function rememberNotes() {
         clearCandidates();
         clearPreview();
-        state.undo.push(state.notes.map((note) => ({ ...note })));
+        state.undo.push({
+          notes: state.notes.map((note) => ({ ...note })),
+          expectedRecordingHash: state.expectedRecordingHash,
+        });
         if (state.undo.length > 50) state.undo.shift();
       }
       $("undo").onclick = () => {
         const previous = state.undo.pop();
         if (previous) {
-          state.notes = previous;
+          state.notes = previous.notes;
+          state.expectedRecordingHash = previous.expectedRecordingHash;
+          updateRecordingStatus();
           clearCandidates();
           clearPreview();
           select(-1);
@@ -426,16 +451,52 @@
         }
         render();
       }
-      $("file").onchange = () => {
+      $("file").onchange = async () => {
         stop();
         if (state.url) URL.revokeObjectURL(state.url);
-        const f = $("file").files[0];
+        state.url = null;
+        state.recordingHash = null;
+        $("audio").removeAttribute("src");
+        $("analyze").disabled = true;
         clearPreview();
         select(-1);
-        if (!f) return;
-        state.url = URL.createObjectURL(f);
+        const file = $("file").files[0];
+        if (!file) {
+          $("saveProject").disabled = false;
+          updateRecordingStatus();
+          return;
+        }
+        state.url = URL.createObjectURL(file);
         $("audio").src = state.url;
-        $("analyze").disabled = false;
+        if (file.size > 64 * 1024 * 1024) {
+          $("saveProject").disabled = false;
+          $("recordingStatus").textContent =
+            "録音が64 MiBを超えているため解析できません。";
+          return;
+        }
+        $("saveProject").disabled = true;
+        $("recordingStatus").textContent = "録音を照合しています。";
+        try {
+          const bytes = await file.arrayBuffer();
+          const digest = await crypto.subtle.digest("SHA-256", bytes);
+          if (file !== $("file").files[0]) return;
+          state.recordingHash = Array.from(new Uint8Array(digest), (byte) =>
+            byte.toString(16).padStart(2, "0"),
+          ).join("");
+          if (!state.expectedRecordingHash && state.notes.length === 0) {
+            state.expectedRecordingHash = state.recordingHash;
+          }
+          updateRecordingStatus();
+        } catch (error) {
+          if (file !== $("file").files[0]) return;
+          $("recordingStatus").textContent =
+            "録音の照合情報を計算できませんでした。";
+        } finally {
+          if (file === $("file").files[0]) {
+            $("saveProject").disabled = false;
+            $("analyze").disabled = false;
+          }
+        }
         status("録音を読み込みました。既存の音符は保持しています。");
       };
       $("audio").onloadedmetadata = () => {
@@ -448,7 +509,7 @@
           end = value("loopEnd"),
           low = value("low"),
           high = value("high"),
-          original = JSON.stringify(state.notes);
+          original = JSON.stringify([state.notes, state.expectedRecordingHash]);
         if (!file) return;
         $("analyze").disabled = true;
         status("音符候補を解析中です。");
@@ -468,9 +529,19 @@
           if (!response.ok) throw Error(data.error);
           if (file !== $("file").files[0])
             throw Error("録音が変更されたため、解析結果を破棄しました。");
-          if (original !== JSON.stringify(state.notes))
+          if (
+            original !==
+            JSON.stringify([state.notes, state.expectedRecordingHash])
+          )
             throw Error("音符が変更されたため、解析結果を破棄しました。");
           rememberNotes();
+          if (
+            state.expectedRecordingHash &&
+            state.recordingHash !== state.expectedRecordingHash
+          ) {
+            state.expectedRecordingHash = null;
+            updateRecordingStatus();
+          }
           state.notes = state.notes
             .filter(
               (n) =>
@@ -837,6 +908,7 @@
           denominator: value("denominator"),
           barStart: value("barStart"),
           pickupSteps: value("pickupSteps"),
+          recordingSha256: state.expectedRecordingHash,
           instrument: $("instrument").value,
         };
         let url = URL.createObjectURL(
@@ -877,6 +949,9 @@
             ![2, 4, 8, 16].includes(project.denominator) ||
             !Number.isFinite(project.barStart) ||
             project.barStart < 0 ||
+            (project.recordingSha256 != null &&
+              (typeof project.recordingSha256 !== "string" ||
+                !/^[0-9a-f]{64}$/.test(project.recordingSha256))) ||
             (project.pickupSteps !== undefined &&
               (!Number.isInteger(project.pickupSteps) ||
                 project.pickupSteps < 0 ||
@@ -885,6 +960,8 @@
             throw Error("編集内容の形式を確認してください。");
           $("pickupSteps").value = project.pickupSteps ?? 0;
           state.notes = project.notes;
+          state.expectedRecordingHash = project.recordingSha256 ?? null;
+          updateRecordingStatus();
           clearCandidates();
           clearPreview();
           state.undo = [];

@@ -36,7 +36,11 @@ that file can merge overlapping equal pitches across the staves. Generate the sc
 set the corresponding recording loop. After changing notes or score settings, regenerate the
 preview before selecting a measure.
 
-The editor can save its note data as JSON. Select the same WAV again when restoring a session.
+The editor can save its note data as JSON with a SHA-256 hash of the original recording when
+available. After restoring a session, selecting the same WAV verifies that hash. A different
+file is reported without changing the saved fingerprint. Analyzing the different file alongside
+existing notes clears the fingerprint because the session no longer has a single known source;
+undo restores it. Older sessions without a hash remain usable and are marked as unverified.
 The WAV stays in the browser and is temporarily written on the local machine for inference.
 The server accepts files up to 64 MiB and listens on localhost.
 

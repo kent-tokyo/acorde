@@ -1,5 +1,6 @@
 // Run against the local server with Playwright installed and CHROME set if needed.
 const assert = require("node:assert/strict");
+const { createHash } = require("node:crypto");
 const { chromium } = require("playwright");
 
 async function main() {
@@ -145,6 +146,51 @@ async function main() {
     assert.match(pickupXml, /<measure number="1" implicit="yes">/);
     assert.match(pickupXml, /<tie type="start"\/>/);
     assert.match(pickupXml, /<tie type="stop"\/>/);
+    const recordingHash = createHash("sha256").update(wav).digest("hex");
+    const freshPage = await browser.newPage();
+    await freshPage.goto(
+      process.env.TRANSCRIPTION_URL || "http://127.0.0.1:8765/",
+    );
+    await freshPage
+      .locator("#file")
+      .setInputFiles({ name: "fresh.wav", mimeType: "audio/wav", buffer: wav });
+    await freshPage.getByText("録音が編集内容と一致しています。").waitFor();
+    const freshDownload = freshPage.waitForEvent("download");
+    await freshPage.locator("#saveProject").click();
+    let freshSaved = "";
+    for await (const chunk of await (await freshDownload).createReadStream())
+      freshSaved += chunk;
+    assert.equal(JSON.parse(freshSaved).recordingSha256, recordingHash);
+    await freshPage.close();
+    await page.locator("#openProject").setInputFiles({
+      name: "matched.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(
+        JSON.stringify({ ...pickupProject, recordingSha256: recordingHash }),
+      ),
+    });
+    await page.getByText("録音が編集内容と一致しています。").waitFor();
+    const altered = Buffer.from(wav);
+    altered[altered.length - 1] = 1;
+    await page.locator("#file").setInputFiles({
+      name: "different.wav",
+      mimeType: "audio/wav",
+      buffer: altered,
+    });
+    await page.getByText(/選択した録音は編集内容の録音と異なります/).waitFor();
+    downloadPromise = page.waitForEvent("download");
+    await page.locator("#saveProject").click();
+    let mismatchSave = "";
+    for await (const chunk of await (await downloadPromise).createReadStream())
+      mismatchSave += chunk;
+    assert.equal(JSON.parse(mismatchSave).recordingSha256, recordingHash);
+    await page.locator("#analyze").click();
+    await page.getByText("1音の候補を作りました。", { exact: false }).waitFor();
+    await page
+      .getByText("編集内容に元の録音の照合情報がありません。")
+      .waitFor();
+    await page.locator("#undo").click();
+    await page.getByText(/選択した録音は編集内容の録音と異なります/).waitFor();
     assert.deepEqual(errors, []);
     console.log(
       "Session restore, chord candidate, MusicXML, and range editing passed.",
