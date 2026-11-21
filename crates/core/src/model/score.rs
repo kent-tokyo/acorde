@@ -12,6 +12,10 @@ use crate::Error;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+fn is_false(value: &bool) -> bool {
+    !*value
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScoreMetadata {
     pub title: String,
@@ -21,10 +25,10 @@ pub struct ScoreMetadata {
     pub work_number: String,
     pub movement_title: String,
     /// Authored first-page title credit, distinct from the work title.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub print_title: String,
     /// Authored first-page subtitle credit, when a print title is supplied.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub print_subtitle: String,
 }
 
@@ -1872,10 +1876,10 @@ pub struct Part {
     pub name: String,
     pub short_name: String,
     /// Whether the full part name is suppressed in the source score.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "is_false")]
     pub name_hidden: bool,
     /// Whether the abbreviated part name is suppressed in the source score.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "is_false")]
     pub short_name_hidden: bool,
     pub staves: Vec<Staff>,
     /// MIDI channel (0–15). Channel 9 is conventionally used for percussion.
@@ -7134,6 +7138,32 @@ mod tests {
             .remove("short_name_hidden");
         let restored: Score = serde_json::from_value(old).unwrap();
         assert!(!restored.parts[0].name_hidden && !restored.parts[0].short_name_hidden);
+    }
+
+    #[test]
+    fn print_defaults_are_omitted_but_authored_values_round_trip() {
+        let mut score = Score::new("Work", 120, 4, 4, 0, 1);
+        let json = serde_json::to_value(&score).unwrap();
+        assert!(json["metadata"].get("print_title").is_none());
+        assert!(json["metadata"].get("print_subtitle").is_none());
+        assert!(json["parts"][0].get("name_hidden").is_none());
+        assert!(json["parts"][0].get("short_name_hidden").is_none());
+        score.metadata.print_title = "Print title".into();
+        score.metadata.print_subtitle = "Subtitle".into();
+        score.parts[0].name_hidden = true;
+        score.parts[0].short_name_hidden = true;
+        let json = serde_json::to_value(&score).unwrap();
+        assert_eq!(json["metadata"]["print_title"], "Print title");
+        assert_eq!(json["metadata"]["print_subtitle"], "Subtitle");
+        assert_eq!(json["parts"][0]["name_hidden"], true);
+        assert_eq!(json["parts"][0]["short_name_hidden"], true);
+        let decoded: Score = serde_json::from_value(json).unwrap();
+        assert_eq!(decoded.metadata.print_title, score.metadata.print_title);
+        assert_eq!(
+            decoded.metadata.print_subtitle,
+            score.metadata.print_subtitle
+        );
+        assert!(decoded.parts[0].name_hidden && decoded.parts[0].short_name_hidden);
     }
 
     #[test]

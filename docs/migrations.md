@@ -14,7 +14,9 @@ and variants to public enums including `PartGroupSymbol` and notation spanner
 kinds. Complete Rust struct literals and exhaustive `match` expressions must
 be updated for the new fields and variants. Prefer the available constructors
 and defaults where appropriate. Additive Score JSON fields use serde defaults;
-this does not make Rust source literals compatible. New enum values may require
+this does not make Rust source literals compatible. Empty print titles and
+false part-name visibility flags are omitted on serialization and default when
+absent; authored non-default values are retained. New enum values may require
 updates in consumers that validate or match serialized values.
 
 Measured printing is opt-in: it uses caller-supplied text-font bytes and does
