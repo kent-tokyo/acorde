@@ -63,6 +63,7 @@ struct Event<'a> {
     point: NotePoint,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn render(
     body: &mut String,
     score: &Score,
@@ -70,6 +71,7 @@ pub(crate) fn render(
     placements: &[GlyphPlacement],
     extents: &[(f32, f32)],
     baselines: &HashMap<(usize, usize, usize), f32>,
+    upper_baselines: &HashMap<(usize, usize, usize), f32>,
     space: f32,
 ) {
     let placed: HashMap<_, _> = placements
@@ -186,11 +188,15 @@ pub(crate) fn render(
                                 continue;
                             };
                             // All verses on a staff have fixed baselines within each measured row.
-                            let Some(&first_baseline) = baselines.get(&(p, s, row)) else {
+                            let above = text.placement_above == Some(true);
+                            let lane = if above { upper_baselines } else { baselines };
+                            let Some(&first_baseline) = lane.get(&(p, s, row)) else {
                                 continue;
                             };
+                            let direction = if above { -1.0 } else { 1.0 };
                             let baseline = first_baseline
-                                + f32::from(verse.saturating_sub(1))
+                                + direction
+                                    * f32::from(verse.saturating_sub(1))
                                     * crate::render::lyric_verse_spacing_u()
                                     * space;
                             let x1 = if row == start_row {

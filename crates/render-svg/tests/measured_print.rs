@@ -9,6 +9,104 @@ use acorde_render_svg::{
 const FONT: &[u8] = include_bytes!("fixtures/Tuffy.ttf");
 
 #[test]
+fn explicit_lyric_sides_are_drawn_outside_their_staff() {
+    let xml = r#"<score-partwise><part-list><score-part id="P1"><part-name>Voice</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><lyric number="1" placement="above"><text>Above</text></lyric><lyric number="2" placement="below"><text>Below</text></lyric></note></measure></part></score-partwise>"#;
+    let mut score = acorde_io::parse_musicxml(xml).unwrap();
+    score.parts[0].staves[0].measures[0].voices[0]
+        .push(Note::new(Pitch::new(Step::C, 7), Duration::Quarter));
+    let output = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    let doc = roxmltree::Document::parse(&output.pages[0]).unwrap();
+    let mut ys: Vec<f32> = doc
+        .descendants()
+        .filter(|n| n.attribute("class") == Some("acorde-staff-line"))
+        .map(|n| n.attribute("y1").unwrap().parse().unwrap())
+        .collect();
+    ys.sort_by(f32::total_cmp);
+    let bounds = |word: &str| {
+        let text = doc
+            .descendants()
+            .find(|n| n.attribute("data-text") == Some(word))
+            .unwrap();
+        let size: f32 = text.attribute("data-font-size").unwrap().parse().unwrap();
+        let path = text.children().find(|n| n.has_tag_name("path")).unwrap();
+        let baseline: f32 = path
+            .attribute("transform")
+            .unwrap()
+            .trim_end_matches(')')
+            .split_whitespace()
+            .last()
+            .unwrap()
+            .parse()
+            .unwrap();
+        let ink = TextFont::new(FONT, 0).unwrap().measure(word, size).unwrap();
+        (baseline + ink.top_mm, baseline + ink.bottom_mm)
+    };
+    assert!(bounds("Above").1 < ys[0]);
+    assert!(bounds("Below").0 > *ys.last().unwrap());
+    assert!(bounds("Above").0 >= 16.0 * 4.0 - 0.1);
+    let highest_head = doc
+        .descendants()
+        .filter(|n| n.attribute("class") == Some("acorde-notehead"))
+        .map(|n| {
+            n.attribute("cy").unwrap().parse::<f32>().unwrap()
+                - n.attribute("ry").unwrap().parse::<f32>().unwrap()
+        })
+        .fold(f32::INFINITY, f32::min);
+    assert!(bounds("Above").1 < highest_head);
+}
+
+#[test]
+fn above_lyric_extender_stays_above_across_systems() {
+    let mut score = vocal_score("unused", 2);
+    for bar in &mut score.parts[0].staves[0].measures {
+        for note in &mut bar.voices[0] {
+            note.lyric = None;
+        }
+    }
+    let first = &mut score.parts[0].staves[0].measures[0];
+    first.system_break = true;
+    first.voices[0][0].lyric = Some(Lyric {
+        placement_above: Some(true),
+        text: "Hold".into(),
+        syllabic: "begin".into(),
+        extend: true,
+    });
+    score.parts[0].staves[0].measures[1].voices[0][3].lyric = Some(Lyric {
+        placement_above: Some(true),
+        text: "end".into(),
+        syllabic: "end".into(),
+        extend: false,
+    });
+    let output = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    let doc = roxmltree::Document::parse(&output.pages[0]).unwrap();
+    let staves: Vec<_> = doc
+        .descendants()
+        .filter(|n| n.attribute("class") == Some("acorde-staff"))
+        .collect();
+    assert!(staves.len() >= 2);
+    let lines: Vec<_> = doc
+        .descendants()
+        .filter(|n| n.attribute("class") == Some("acorde-lyric-extender"))
+        .collect();
+    assert!(lines.len() >= 2);
+    let hyphens: Vec<_> = doc
+        .descendants()
+        .filter(|n| n.attribute("class") == Some("acorde-lyric-hyphen"))
+        .collect();
+    assert!(!hyphens.is_empty());
+    for line in lines.into_iter().chain(hyphens) {
+        let row: usize = line.attribute("data-row").unwrap().parse().unwrap();
+        let top = staves[row]
+            .descendants()
+            .filter(|n| n.attribute("class") == Some("acorde-staff-line"))
+            .map(|n| n.attribute("y1").unwrap().parse::<f32>().unwrap())
+            .fold(f32::INFINITY, f32::min);
+        let y: f32 = line.attribute("y1").unwrap().parse().unwrap();
+        assert!(y < top, "row {row}: extender {y}, staff top {top}");
+    }
+}
+
+#[test]
 fn imported_print_break_starts_the_containing_measure_on_the_next_page() {
     let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure><measure number="2"><note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure><measure number="3"><print new-page="yes"><system-layout/></print><note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure><measure number="4"><note><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure></part></score-partwise>"#;
     let score = acorde_io::parse_musicxml(xml).unwrap();

@@ -48,6 +48,7 @@ pub(crate) struct StaffBand {
     pub(crate) top_y: f32,
     pub(crate) bottom_y: f32,
     pub(crate) lyric_baseline_y: Option<f32>,
+    pub(crate) lyric_above_baseline_y: Option<f32>,
 }
 
 /// Where an articulation belongs, following engraving practice: staccato, staccatissimo,
@@ -218,11 +219,23 @@ pub(crate) fn render_measure_semantic_annotations(
                             height_mm: 1.25 * lyric_font_size_u * space,
                         },
                         x_mm: x,
-                        y_mm: lyric_baseline,
+                        y_mm: if lyric.placement_above == Some(true)
+                            && crate::render::measured_print_active()
+                        {
+                            band.lyric_above_baseline_y
+                                .unwrap_or(band.top_y - 8.0 * space)
+                        } else {
+                            lyric_baseline
+                        },
                         priority: 1,
                     },
                     GlyphCollisionClass::Annotation,
-                    GlyphCollisionDirection::Down,
+                    if lyric.placement_above == Some(true) && crate::render::measured_print_active()
+                    {
+                        GlyphCollisionDirection::Up
+                    } else {
+                        GlyphCollisionDirection::Down
+                    },
                 );
             }
             if kinds.lyrics {
@@ -256,11 +269,25 @@ pub(crate) fn render_measure_semantic_annotations(
                                 height_mm: 1.25 * lyric_font_size_u * space,
                             },
                             x_mm: x,
-                            y_mm: lyric_baseline + verse_offset * space,
+                            y_mm: if entry.lyric.placement_above == Some(true)
+                                && crate::render::measured_print_active()
+                            {
+                                band.lyric_above_baseline_y
+                                    .unwrap_or(band.top_y - 8.0 * space)
+                                    - verse_offset * space
+                            } else {
+                                lyric_baseline + verse_offset * space
+                            },
                             priority: 1,
                         },
                         GlyphCollisionClass::Annotation,
-                        GlyphCollisionDirection::Down,
+                        if entry.lyric.placement_above == Some(true)
+                            && crate::render::measured_print_active()
+                        {
+                            GlyphCollisionDirection::Up
+                        } else {
+                            GlyphCollisionDirection::Down
+                        },
                     );
                 }
             }

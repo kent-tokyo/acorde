@@ -974,6 +974,41 @@ library test passed after removing one inactive, ignored incremental cache.
 No new corpus or platform run was performed for this data-only stage, and all
 final parity gates remain pending.
 
+### Above-staff lyrics in measured print
+
+The measured print path now places lyrics explicitly marked `above` on an upper
+lane and leaves below/unspecified lyrics on the lower lane. It reserves the
+actual upper lyric ink in the system and adjacent-staff gap, uses the note
+height of the staff for a conservative upper baseline, and places additional
+above verses outward. Above-side hyphens and extenders use the upper baseline
+across systems. Synthetic regressions check mixed above/below verses, clearance
+from a high note and the paper margin, and above-side hyphen/extender segments
+over a system break.
+
+The assistant inspected `openscore_omr_score_1003`, whose shared MusicXML has
+nine above-side lyrics: they now appear above the staff and the previously
+recorded `Write` / `this` baseline discrepancy is absent. The page raster
+SHA-256 is `d0973e12bda1cde35efb9570608e3b689870694f117109e2fc6e7e8e90c2e655`.
+The [34-input screen](archive/print-parity-upper-lyrics-screen-20261122.json)
+completed at 310 pages, unchanged per input; it found no candidates in its
+selected text, first-verse same-measure baseline, staff-line or curve checks.
+The [barline screen](archive/print-parity-upper-lyrics-barline-20261122.json)
+also found zero candidates. These screens do not establish full fidelity or
+complete collision freedom. The release printer SHA-256 is
+`d9930834c2649fabfe6007de05872a939e45b833e7eafa0e19ec1f5bbd200215`;
+the four renderer source-file diff against `deabcf2e` has SHA-256
+`68f931cacb86fa662b9cf1c440b81c348afd95a9a68cbe532b01e29df3bb1657`.
+
+This is partial support: ordinary non-measured SVG still puts these lyrics
+below, and cross-staff lyrics, mixed-side continuations, cross-page placement,
+and interactions with unusually high spans have not received comprehensive
+verification. The upper baseline currently uses a conservative whole-staff
+bound, which can waste space. The import warning remains. The measured-print
+suite passed 51 tests, plus focused high-note and continuation tests; 209 SVG
+structural tests, three MusicXML placement tests and scoped all-feature IO/SVG
+library Clippy passed on macOS. Full visual, platform, WASM, performance and
+reserved-corpus gates remain open.
+
 ### Reuse of measured row geometry
 
 Profiling the 643-measure chamber input showed repeated pagination attempts:

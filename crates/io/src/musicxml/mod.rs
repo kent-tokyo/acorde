@@ -494,7 +494,7 @@ fn push_advanced_attribute_diagnostics(
                 if value == "above" {
                     (
                         "musicxml.lyric-above-rendering-unsupported",
-                        "the above placement is retained in the score and MusicXML, but SVG and print rendering do not yet apply it",
+                        "the above placement is retained in the score and MusicXML; measured print support is partial, and other SVG rendering still places lyrics below",
                     )
                 } else {
                     (

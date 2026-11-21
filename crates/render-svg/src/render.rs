@@ -204,8 +204,16 @@ fn staff_lyric_baseline_u(staff: &acorde_core::Staff) -> (f32, u8) {
             let last = note
                 .additional_lyrics
                 .iter()
+                .filter(|v| !measured_print_active() || v.lyric.placement_above != Some(true))
                 .map(|v| v.verse)
-                .chain(note.lyric.as_ref().map(|_| 1))
+                .chain(
+                    note.lyric
+                        .as_ref()
+                        .filter(|lyric| {
+                            !measured_print_active() || lyric.placement_above != Some(true)
+                        })
+                        .map(|_| 1),
+                )
                 .max()
                 .unwrap_or(0);
             verses = verses.max(last);
@@ -215,6 +223,53 @@ fn staff_lyric_baseline_u(staff: &acorde_core::Staff) -> (f32, u8) {
         }
     }
     (baseline, verses)
+}
+
+/// Conservative upper lyric baseline, measured upward from the staff's top line.
+fn staff_upper_lyric_baseline_u(staff: &acorde_core::Staff) -> f32 {
+    let has_above = staff
+        .measures
+        .iter()
+        .flat_map(|measure| &measure.voices)
+        .flatten()
+        .any(|note| {
+            note.lyric
+                .iter()
+                .chain(note.additional_lyrics.iter().map(|entry| &entry.lyric))
+                .any(|lyric| lyric.placement_above == Some(true))
+        });
+    if !has_above {
+        return 0.0;
+    }
+    let mut baseline = 8.0_f32;
+    let mut clef = &staff.clef;
+    for measure in &staff.measures {
+        if let Some(change) = &measure.clef {
+            clef = change;
+        }
+        for voice in &measure.voices {
+            let mut beat = 0.0;
+            for note in voice {
+                let note_clef = measure.clef_at(clef, beat);
+                beat += note.beats();
+                let Ok(bottom) = geometry::clef_bottom_line(&note_clef) else {
+                    continue;
+                };
+                if note.is_rest || note.pitches.is_empty() {
+                    continue;
+                }
+                let high = note
+                    .pitches
+                    .iter()
+                    .map(|pitch| geometry::staff_position(&pitch.step, pitch.octave, bottom))
+                    .fold(i32::MIN, i32::max);
+                // Reserve for an upward stem even when automatic voice rules
+                // choose a direction later in the rendering pass.
+                baseline = baseline.max(((high - 8).max(0) as f32) * 0.5 + 3.5 + 3.0);
+            }
+        }
+    }
+    baseline
 }
 
 /// Reserve inter-staff space for a hairpin and notes on the adjacent staff.
@@ -756,6 +811,11 @@ pub(crate) fn build_svg_with_metadata_placement(
     let mut row_extents = vec![(0.0, 0.0); layout.rows.len()];
     let mut row_edges = vec![(0.0, 0.0); layout.rows.len()];
     let mut lyric_baselines = HashMap::new();
+    let mut upper_lyric_baselines = HashMap::new();
+    let upper_lyric_offsets: Vec<f32> = staff_refs
+        .iter()
+        .map(|&(part, staff)| staff_upper_lyric_baseline_u(&score.parts[part].staves[staff]))
+        .collect();
     // A volta (1st/2nd ending) still open at the end of a system, by ending number.
     let mut open_volta: Option<u8> = None;
 
@@ -1077,6 +1137,14 @@ pub(crate) fn build_svg_with_metadata_placement(
                 (part, staff, row_idx),
                 staff_y[i] + (staff_heights_u[i] + relative) * space,
             );
+            let top = staff_y[i]
+                + (staff_heights_u[i]
+                    - f32::from(
+                        staff_line_count(&score.parts[part].staves[staff]).saturating_sub(1),
+                    ) * score.parts[part].staves[staff].presentation.line_distance)
+                    * space;
+            upper_lyric_baselines
+                .insert((part, staff, row_idx), top - upper_lyric_offsets[i] * space);
         }
         let system_top_y = row_top_y;
         // The actual staff-line bounds are also the repeat-dot bounds. Keep one
@@ -1312,6 +1380,7 @@ pub(crate) fn build_svg_with_metadata_placement(
                             .and_then(|rows| rows.get(row_idx))
                             .and_then(|staffs| staffs.get(si_idx))
                             .map(|offset| bottom_y + offset * space),
+                        upper_lyric_baselines.get(&(pi, si, row_idx)).copied(),
                         options.interactive,
                         &mandatory,
                         &courtesy,
@@ -1587,6 +1656,7 @@ pub(crate) fn build_svg_with_metadata_placement(
             &resolved_annotation_obstacles,
             &row_extents,
             &lyric_baselines,
+            &upper_lyric_baselines,
             space,
         );
     }
@@ -3012,11 +3082,17 @@ fn note_annotation_margins(note: &Note, voice_stem_up: bool) -> (f32, f32) {
         top = top.max(4.8);
         bottom = bottom.max(4.8);
     }
-    if note.lyric.is_some() {
-        bottom = bottom.max(6.7);
-    }
-    if let Some(last) = note.additional_lyrics.last() {
-        bottom = bottom.max(6.7 + lyric_verse_spacing_u() * f32::from(last.verse - 1));
+    for (verse, lyric) in note.lyric.iter().map(|lyric| (1, lyric)).chain(
+        note.additional_lyrics
+            .iter()
+            .map(|entry| (entry.verse, &entry.lyric)),
+    ) {
+        let extent = 6.7 + lyric_verse_spacing_u() * f32::from(verse - 1);
+        if measured_print_active() && lyric.placement_above == Some(true) {
+            top = top.max(extent);
+        } else {
+            bottom = bottom.max(extent);
+        }
     }
     if note.technique_text.is_some()
         || note.guitar_technique.is_some()
@@ -4614,6 +4690,7 @@ fn render_measure(
     lyric_font_size_u: f32,
     lyric_char_width_u: f32,
     lyric_baseline_y: Option<f32>,
+    lyric_above_baseline_y: Option<f32>,
     interactive: bool,
     mandatory: &HashMap<AccKey, i8>,
     courtesy: &HashMap<AccKey, i8>,
@@ -4902,6 +4979,7 @@ fn render_measure(
                     top_y: bottom - staff_height_u(score, part, target) * space,
                     bottom_y: bottom,
                     lyric_baseline_y: None,
+                    lyric_above_baseline_y: None,
                 },
             )
         })
@@ -4928,6 +5006,7 @@ fn render_measure(
                 ) * space,
             bottom_y,
             lyric_baseline_y,
+            lyric_above_baseline_y,
         },
         &cross_bands,
         (total_beats, x + width - space),
@@ -8212,12 +8291,12 @@ fn note_annotation_lane_width_u(note: &Note, above: bool) -> f32 {
             width = width.max(fingering_width);
         }
     }
-    if !above {
-        for lyric in note
-            .lyric
-            .iter()
-            .chain(note.additional_lyrics.iter().map(|entry| &entry.lyric))
-        {
+    for lyric in note
+        .lyric
+        .iter()
+        .chain(note.additional_lyrics.iter().map(|entry| &entry.lyric))
+    {
+        if (measured_print_active() && lyric.placement_above == Some(true)) == above {
             width = width.max(lyric_width_u(&lyric.text));
         }
     }

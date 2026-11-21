@@ -131,8 +131,14 @@ pub(crate) fn resolve(
                 let last = note
                     .additional_lyrics
                     .iter()
+                    .filter(|v| v.lyric.placement_above != Some(true))
                     .map(|v| v.verse)
-                    .chain(note.lyric.as_ref().map(|_| 1))
+                    .chain(
+                        note.lyric
+                            .as_ref()
+                            .filter(|lyric| lyric.placement_above != Some(true))
+                            .map(|_| 1),
+                    )
                     .max()
                     .unwrap_or(0);
                 lyric_verses[row][staff] = lyric_verses[row][staff].max(last);
@@ -372,6 +378,8 @@ pub(crate) fn resolve(
                 _ => 0.0,
             };
             if ink.has_ink {
+                above[row][physical] =
+                    above[row][physical].max((tops[row][physical] - (y + ink.top_mm)) / SPACE);
                 reserve_ink(
                     &mut upper_ink,
                     &mut lower_ink,
@@ -453,7 +461,16 @@ pub(crate) fn resolve(
                 .ok_or(Error::InvalidGeneratedGeometry)?;
             let verse = u8::try_from(index(line, "data-verse")?)
                 .map_err(|_| Error::InvalidGeneratedGeometry)?;
-            lyric_verses[row][staff] = lyric_verses[row][staff].max(verse);
+            let y = line
+                .attribute("y1")
+                .and_then(|v| v.parse::<f32>().ok())
+                .filter(|v| v.is_finite())
+                .ok_or(Error::InvalidGeneratedGeometry)?;
+            if y < tops[row][staff] {
+                above[row][staff] = above[row][staff].max((tops[row][staff] - y) / SPACE + 0.1);
+            } else {
+                lyric_verses[row][staff] = lyric_verses[row][staff].max(verse);
+            }
         }
         for roll in doc
             .descendants()
