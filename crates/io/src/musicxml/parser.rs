@@ -719,6 +719,8 @@ pub(crate) fn parse_musicxml_collecting(
     let mut pending_direction_offset_y: Option<f64> = None;
     let mut pending_direction_relative_x: Option<f64> = None;
     let mut pending_direction_relative_y: Option<f64> = None;
+    let mut pending_words_enclosure: Option<String> = None;
+    let mut pending_rehearsal_enclosure: Option<String> = None;
     let mut pending_direction_position_beats: Option<f64> = None;
     let mut pending_harp_pedal_diagrams: Vec<HarpPedalDiagram> = Vec::new();
     let mut pending_harp_pedal_diagram: Option<HarpPedalDiagram> = None;
@@ -1009,6 +1011,8 @@ pub(crate) fn parse_musicxml_collecting(
                     }
                     "direction" => {
                         in_direction = true;
+                        pending_words_enclosure = None;
+                        pending_rehearsal_enclosure = None;
                         pending_direction_position_beats = (measure_cursor_ticks != 0).then(|| {
                             f64::from(measure_cursor_ticks) / f64::from(current_divisions.max(1))
                         });
@@ -1052,6 +1056,11 @@ pub(crate) fn parse_musicxml_collecting(
                     // Print-style position attributes belong on the text element; they take
                     // precedence over the legacy acorde placement on <direction>.
                     "words" | "rehearsal" if in_direction_type => {
+                        if tag == "rehearsal" {
+                            pending_rehearsal_enclosure = attr_str(e, b"enclosure");
+                        } else {
+                            pending_words_enclosure = attr_str(e, b"enclosure");
+                        }
                         let position = |name: &[u8]| {
                             attr_str(e, name)
                                 .and_then(|value| value.parse::<f64>().ok())
@@ -2315,6 +2324,7 @@ pub(crate) fn parse_musicxml_collecting(
                         }
                         if !figured_bass_text.trim().is_empty() {
                             pending_figured_texts.push(StyledText {
+                                enclosure: None,
                                 position_beats: Some(figured_bass_offset_beats),
                                 style: TextStyle::FiguredBass,
                                 text: figured_bass_text.trim().to_string(),
@@ -2445,6 +2455,7 @@ pub(crate) fn parse_musicxml_collecting(
                                         m.tempo_text = Some(text.clone());
                                     }
                                     m.texts.push(StyledText {
+                                        enclosure: pending_words_enclosure.clone(),
                                         position_beats: pending_direction_position_beats,
                                         style: TextStyle::Generic,
                                         text,
@@ -2460,6 +2471,7 @@ pub(crate) fn parse_musicxml_collecting(
                                     m.expression_text = Some(text.clone());
                                 }
                                 m.texts.push(StyledText {
+                                    enclosure: pending_words_enclosure.clone(),
                                     position_beats: pending_direction_position_beats,
                                     style: TextStyle::Expression,
                                     text,
@@ -2475,6 +2487,7 @@ pub(crate) fn parse_musicxml_collecting(
                             {
                                 m.rehearsal = Some(reh.clone());
                                 m.texts.push(StyledText {
+                                    enclosure: pending_rehearsal_enclosure.clone(),
                                     position_beats: pending_direction_position_beats,
                                     style: TextStyle::RehearsalMark,
                                     text: reh,
@@ -2553,6 +2566,8 @@ pub(crate) fn parse_musicxml_collecting(
                         pending_direction_offset_y = None;
                         pending_direction_relative_x = None;
                         pending_direction_relative_y = None;
+                        pending_words_enclosure = None;
+                        pending_rehearsal_enclosure = None;
                         pending_tempo_text = None;
                         pending_expression_text = None;
                         pending_rehearsal = None;

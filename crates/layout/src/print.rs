@@ -2219,6 +2219,7 @@ fn measure_text_entries(measure: &acorde_core::Measure) -> Vec<StyledText> {
             continue;
         }
         entries.push(StyledText {
+            enclosure: None,
             position_beats: None,
             style,
             text: text.to_owned(),
@@ -4660,6 +4661,7 @@ mod tests {
                 rehearsal: Some("B".to_string()),
                 text_annotations: vec![
                     acorde_core::StyledText {
+                        enclosure: None,
                         position_beats: None,
                         style: acorde_core::TextStyle::RehearsalMark,
                         text: "B".to_string(),
@@ -4670,6 +4672,7 @@ mod tests {
                         relative_y: None,
                     },
                     acorde_core::StyledText {
+                        enclosure: None,
                         position_beats: None,
                         style: acorde_core::TextStyle::Generic,
                         text: "ToCoda".to_string(),
@@ -4690,6 +4693,7 @@ mod tests {
         score.parts[0].staves[0].measures[0]
             .texts
             .push(acorde_core::StyledText {
+                enclosure: None,
                 position_beats: None,
                 style: acorde_core::TextStyle::Expression,
                 text: "dolce".to_string(),
@@ -5306,6 +5310,7 @@ mod tests {
         score.parts[0].staves[0].measures[0]
             .texts
             .push(acorde_core::StyledText {
+                enclosure: None,
                 position_beats: None,
                 style: acorde_core::TextStyle::Expression,
                 text: "poco cresc.".to_owned(),
@@ -5902,6 +5907,7 @@ mod tests {
     fn title_page_is_inserted_without_consuming_music_page_capacity() {
         let mut score = score_with_measures(3);
         score.texts.push(StyledText {
+            enclosure: None,
             position_beats: None,
             style: TextStyle::Expression,
             text: "Dedication".into(),

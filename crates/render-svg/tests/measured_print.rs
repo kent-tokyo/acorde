@@ -221,9 +221,78 @@ fn authored_pizzicato_text_clears_the_spanning_barline() {
         .filter(|&x| x > matrix[4] && x < matrix[4] + 50.0)
         .min_by(f32::total_cmp)
         .unwrap();
+    let enclosure = text
+        .children()
+        .find(|n| n.attribute("class") == Some("acorde-text-enclosure"))
+        .expect("MusicXML rectangle must be drawn");
+    let number = |name| enclosure.attribute(name).unwrap().parse::<f32>().unwrap();
+    let frame_right = number("x") + number("width") + number("stroke-width") / 2.0 + shift;
+    assert!(
+        frame_right + 0.33 < line_x,
+        "frame right={frame_right}, barline={line_x}"
+    );
     assert!(
         ink_right + 0.33 < line_x,
         "pizz. right={ink_right}, barline={line_x}"
+    );
+}
+
+#[test]
+fn musicxml_text_enclosure_survives_score_json_and_musicxml_roundtrip() {
+    let source = include_str!("fixtures/wolf_italian_serenade_pizz_excerpt.musicxml");
+    let score = acorde_io::parse_musicxml(source).unwrap();
+    let styled = &score.parts[2].staves[0].measures[1].texts;
+    assert!(
+        styled
+            .iter()
+            .any(|t| t.text == "pizz." && t.enclosure.as_deref() == Some("rectangle"))
+    );
+    let screen =
+        acorde_render_svg::render_svg(&score, &acorde_render_svg::SvgRenderOptions::default())
+            .unwrap();
+    assert!(screen.contains("class=\"acorde-text-enclosure\""));
+    let json = serde_json::to_string(&score).unwrap();
+    let decoded: Score = serde_json::from_str(&json).unwrap();
+    let xml = acorde_io::serialize_musicxml(&decoded).unwrap();
+    assert!(xml.contains("enclosure=\"rectangle\""));
+    let reimported = acorde_io::parse_musicxml(&xml).unwrap();
+    assert!(
+        reimported.parts[2].staves[0].measures[1]
+            .texts
+            .iter()
+            .any(|t| t.text == "pizz." && t.enclosure.as_deref() == Some("rectangle"))
+    );
+    let legacy: acorde_core::StyledText =
+        serde_json::from_value(serde_json::json!({"style":"Expression", "text":"pizz."})).unwrap();
+    assert_eq!(legacy.enclosure, None);
+}
+
+#[test]
+fn unsupported_text_enclosure_roundtrips_but_rendering_reports_it() {
+    let mut score = acorde_io::parse_musicxml(include_str!(
+        "fixtures/wolf_italian_serenade_pizz_excerpt.musicxml"
+    ))
+    .unwrap();
+    let text = score.parts[2].staves[0].measures[1]
+        .texts
+        .iter_mut()
+        .find(|t| t.text == "pizz.")
+        .unwrap();
+    text.enclosure = Some("oval".to_string());
+    let xml = acorde_io::serialize_musicxml(&score).unwrap();
+    let parsed = acorde_io::parse_musicxml(&xml).unwrap();
+    assert!(
+        parsed.parts[2].staves[0].measures[1]
+            .texts
+            .iter()
+            .any(|t| t.enclosure.as_deref() == Some("oval"))
+    );
+    let error = engrave_print_pages(&parsed, &PrintConfig::default(), FONT).unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("unsupported text enclosure: oval"),
+        "{error}"
     );
 }
 

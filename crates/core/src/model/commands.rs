@@ -5514,6 +5514,7 @@ mod tests {
             measure_index: 0,
             text_index: 0,
             text: Some(StyledText {
+                enclosure: Some("rectangle".to_string()),
                 position_beats: None,
                 style: crate::TextStyle::Technique,
                 text: "dolce".to_string(),
@@ -5528,6 +5529,7 @@ mod tests {
         assert_eq!(
             engine.score.parts[0].staves[0].measures[0].texts[0],
             StyledText {
+                enclosure: Some("rectangle".to_string()),
                 position_beats: None,
                 style: crate::TextStyle::Technique,
                 text: "dolce".to_string(),
@@ -5543,6 +5545,7 @@ mod tests {
             .apply(Command::SetMeasureText(SetMeasureTextCmd {
                 text_index: 0,
                 text: Some(StyledText {
+                    enclosure: Some("rectangle".to_string()),
                     position_beats: None,
                     style: crate::TextStyle::RehearsalMark,
                     text: "A".to_string(),
@@ -5582,6 +5585,12 @@ mod tests {
         assert!(engine.score.parts[0].staves[0].measures[0].texts.is_empty());
         engine.undo().unwrap();
         assert_eq!(engine.score.parts[0].staves[0].measures[0].texts.len(), 1);
+        assert_eq!(
+            engine.score.parts[0].staves[0].measures[0].texts[0]
+                .enclosure
+                .as_deref(),
+            Some("rectangle")
+        );
         engine.redo().unwrap();
         assert!(engine.score.parts[0].staves[0].measures[0].texts.is_empty());
     }
@@ -5596,6 +5605,7 @@ mod tests {
             measure_index: 0,
             text_index: 2,
             text: Some(StyledText {
+                enclosure: None,
                 position_beats: None,
                 style: crate::TextStyle::Expression,
                 text: "espressivo".to_string(),
@@ -5623,6 +5633,7 @@ mod tests {
     fn set_score_text_supports_append_replace_remove_and_undo_redo() {
         let mut engine = crate::ScoreEngine::new();
         let text = StyledText {
+            enclosure: None,
             position_beats: None,
             style: crate::TextStyle::Expression,
             text: "Title".to_string(),
@@ -5702,6 +5713,7 @@ mod tests {
     fn set_object_style_overrides_is_undoable_and_requires_existing_target() {
         let mut engine = crate::ScoreEngine::new();
         engine.score.texts.push(StyledText {
+            enclosure: None,
             position_beats: None,
             style: crate::TextStyle::Expression,
             text: "Allegro".into(),

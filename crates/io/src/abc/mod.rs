@@ -823,6 +823,7 @@ fn parse_body_line(line: &str, context: AbcBodyContext<'_>) -> Result<(), Error>
                     && !annotation.trim().is_empty()
                 {
                     measure.texts.push(StyledText {
+                        enclosure: None,
                         position_beats: None,
                         style: TextStyle::Expression,
                         text: annotation.trim().to_string(),

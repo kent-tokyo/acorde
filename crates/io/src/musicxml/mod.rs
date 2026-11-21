@@ -1175,6 +1175,7 @@ mod tests {
 
         let mut score = acorde_core::Score::new("Styled", 120, 4, 4, 0, 1);
         score.texts.push(StyledText {
+            enclosure: None,
             position_beats: None,
             text: "dolce".into(),
             style: TextStyle::Expression,

@@ -20,6 +20,7 @@ fn example_score() -> Score {
         Note::new(Pitch::new(Step::B, 3), Duration::Quarter),
     ];
     measure.texts.push(StyledText {
+        enclosure: None,
         position_beats: None,
         style: TextStyle::Expression,
         text: "aaaaaaaa".into(),

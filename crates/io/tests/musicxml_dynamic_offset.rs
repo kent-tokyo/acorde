@@ -221,3 +221,34 @@ fn directions_target_the_written_staff_of_a_cross_staff_beam() {
     assert_eq!(marked[0].pitches[0].step, acorde_core::Step::D);
     assert_eq!(marked[0].dynamic_above, Some(true));
 }
+
+#[test]
+fn text_and_rehearsal_in_one_direction_keep_distinct_enclosures() {
+    let input = score(
+        "<direction><direction-type><words enclosure=\"rectangle\">pizz.</words><rehearsal enclosure=\"oval\">A</rehearsal></direction-type></direction><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type></note>",
+        1,
+    );
+    let parsed = parse_musicxml(&input).unwrap();
+    let texts = &parsed.parts[0].staves[0].measures[0].texts;
+    let find = |name: &str| {
+        texts
+            .iter()
+            .find(|text| text.text == name)
+            .and_then(|text| text.enclosure.as_deref())
+    };
+    assert_eq!(find("pizz."), Some("rectangle"));
+    assert_eq!(find("A"), Some("oval"));
+    let xml = serialize_musicxml(&parsed).unwrap();
+    let parsed_again = parse_musicxml(&xml).unwrap();
+    let texts = &parsed_again.parts[0].staves[0].measures[0].texts;
+    assert!(
+        texts
+            .iter()
+            .any(|text| text.text == "pizz." && text.enclosure.as_deref() == Some("rectangle"))
+    );
+    assert!(
+        texts
+            .iter()
+            .any(|text| text.text == "A" && text.enclosure.as_deref() == Some("oval"))
+    );
+}

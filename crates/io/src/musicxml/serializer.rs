@@ -2645,6 +2645,9 @@ fn styled_text_position_attrs(styled: Option<&acorde_core::StyledText>) -> Strin
         return String::new();
     };
     let mut attrs = String::new();
+    if let Some(enclosure) = &styled.enclosure {
+        attrs.push_str(&format!(" enclosure=\"{}\"", escape_xml(enclosure)));
+    }
     if let Some(offset_x) = styled.offset_x {
         attrs.push_str(&format!(" default-x=\"{}\"", offset_x));
     }

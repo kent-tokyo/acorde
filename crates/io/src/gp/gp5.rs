@@ -640,6 +640,7 @@ impl Reader<'_> {
             let measure = &mut measures[measure_index];
             if !measure.texts.iter().any(|existing| existing.text == text) {
                 measure.texts.push(StyledText {
+                    enclosure: None,
                     position_beats: None,
                     style: TextStyle::Generic,
                     text,

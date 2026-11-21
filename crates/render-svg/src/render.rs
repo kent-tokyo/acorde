@@ -2365,6 +2365,11 @@ fn validate_score_content(score: &Score) -> Result<(), RenderError> {
     validate_score_text(&score.metadata.title)?;
     for styled in &score.texts {
         validate_score_text(&styled.text)?;
+        if styled.enclosure.as_deref().is_some_and(|v| v != "none") {
+            return Err(RenderError::InvalidOptions {
+                reason: "score-level text enclosures are not yet supported".into(),
+            });
+        }
     }
     for part in &score.parts {
         validate_score_text(&part.name)?;
@@ -2385,6 +2390,18 @@ fn validate_score_content(score: &Score) -> Result<(), RenderError> {
                 }
                 for styled in measure_text_entries(measure) {
                     validate_score_text(&styled.text)?;
+                    if styled
+                        .enclosure
+                        .as_deref()
+                        .is_some_and(|v| v != "rectangle" && v != "none")
+                    {
+                        return Err(RenderError::InvalidOptions {
+                            reason: format!(
+                                "unsupported text enclosure: {}",
+                                styled.enclosure.as_deref().unwrap_or_default()
+                            ),
+                        });
+                    }
                 }
                 for value in [
                     measure.tempo_text.as_deref(),
@@ -3497,6 +3514,7 @@ pub(crate) fn measure_text_entries(measure: &Measure) -> Vec<StyledText> {
             continue;
         }
         entries.push(StyledText {
+            enclosure: None,
             position_beats: None,
             style,
             text: text.to_owned(),
@@ -3514,6 +3532,7 @@ pub(crate) fn measure_text_entries(measure: &Measure) -> Vec<StyledText> {
                 .any(|entry| entry.style == TextStyle::FiguredBass && entry.text == text)
         {
             entries.push(StyledText {
+                enclosure: None,
                 position_beats: None,
                 style: TextStyle::FiguredBass,
                 text,
@@ -3543,6 +3562,7 @@ pub(crate) fn measure_text_entries(measure: &Measure) -> Vec<StyledText> {
                 used[index] = true;
             } else {
                 entries.push(StyledText {
+                    enclosure: None,
                     position_beats: Some(group.position_beats),
                     style: TextStyle::FiguredBass,
                     text,
@@ -3558,6 +3578,7 @@ pub(crate) fn measure_text_entries(measure: &Measure) -> Vec<StyledText> {
     }
     for pedal in measure.timed_pedals.iter().filter(|pedal| !pedal.hide_sign) {
         entries.push(StyledText {
+            enclosure: None,
             position_beats: Some(pedal.position_beats),
             style: TextStyle::Technique,
             text: if pedal.down { "Ped." } else { "*" }.to_owned(),
@@ -7248,9 +7269,27 @@ fn render_measure_text(
         let displayed = mark
             .and_then(|m| m.written.as_ref())
             .map_or(styled.text.as_str(), |w| w.before.as_str());
+        let enclosure = if styled.enclosure.as_deref() == Some("rectangle") {
+            if !measured_print_active() {
+                let size = 0.78 * space * text_scale;
+                let width = print_text_advance(displayed, size) + 0.4 * size;
+                let _ = write!(
+                    body,
+                    r#"<rect class="acorde-text-enclosure" x="{}" y="{}" width="{}" height="{}" fill="none" stroke="black" stroke-width="{}"/>"#,
+                    f(text_x - 0.2 * size),
+                    f(y - 1.0 * size),
+                    f(width),
+                    f(1.3 * size),
+                    f(0.04 * size)
+                );
+            }
+            " data-acorde-enclosure=\"rectangle\""
+        } else {
+            ""
+        };
         let _ = write!(
             body,
-            r#"<text class="{class}" x="{x}" y="{y}" text-anchor="start" font-family="serif" font-size="{size}"{style}{attributes}>{text}</text>"#,
+            r#"<text class="{class}" x="{x}" y="{y}" text-anchor="start" font-family="serif" font-size="{size}"{style}{attributes}{enclosure}>{text}</text>"#,
             class = class,
             x = f(text_x),
             y = f(y),
@@ -12711,6 +12750,7 @@ mod tests {
     fn text_render_reports_when_no_horizontal_gap_remains() {
         let mut measure = acorde_core::Measure::empty(4, 4);
         measure.texts.push(acorde_core::StyledText {
+            enclosure: None,
             position_beats: None,
             style: acorde_core::TextStyle::Expression,
             text: "a long instruction".into(),
@@ -12944,6 +12984,7 @@ mod tests {
             .map(|_| Note::new(Pitch::new(Step::C, 4), Duration::Quarter))
             .collect();
         measure.texts.push(StyledText {
+            enclosure: None,
             style: TextStyle::Expression,
             text: "L.H.".into(),
             position_beats: Some(1.0),
@@ -13228,6 +13269,7 @@ mod tests {
     fn measure_text_escapes_resolved_annotation_obstacle() {
         let mut measure = Measure::empty(4, 4);
         measure.texts.push(StyledText {
+            enclosure: None,
             position_beats: None,
             style: TextStyle::Expression,
             text: "dolce".into(),

@@ -131,12 +131,33 @@ pub(crate) fn outline_page_text(
                 );
             }
         }
-        let _ = write!(
-            output,
-            "><title>{}</title><path d=\"{path}\" transform=\"matrix({x_scale} 0 {slant} 1 {} {y})\"",
-            crate::render::escape_xml(text),
-            x - offset
-        );
+        if node.attribute("data-acorde-enclosure") == Some("rectangle") {
+            let left = x - offset
+                + metrics.left_mm
+                + (slant * metrics.top_mm).min(slant * metrics.bottom_mm)
+                - size * 0.16;
+            let right = x - offset
+                + metrics.right_mm
+                + (slant * metrics.top_mm).max(slant * metrics.bottom_mm)
+                + size * 0.16;
+            let top = y + metrics.top_mm - size * 0.16;
+            let height = metrics.bottom_mm - metrics.top_mm + size * 0.32;
+            let _ = write!(
+                output,
+                "><title>{}</title><rect class=\"acorde-text-enclosure\" x=\"{left}\" y=\"{top}\" width=\"{}\" height=\"{height}\" fill=\"none\" stroke=\"black\" stroke-width=\"{}\"/><path d=\"{path}\" transform=\"matrix({x_scale} 0 {slant} 1 {} {y})\"",
+                crate::render::escape_xml(text),
+                right - left,
+                size * 0.04,
+                x - offset
+            );
+        } else {
+            let _ = write!(
+                output,
+                "><title>{}</title><path d=\"{path}\" transform=\"matrix({x_scale} 0 {slant} 1 {} {y})\"",
+                crate::render::escape_xml(text),
+                x - offset
+            );
+        }
         if weight > 0.0 {
             let _ = write!(
                 output,

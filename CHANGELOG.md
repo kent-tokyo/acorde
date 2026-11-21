@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Preserve MusicXML text enclosure values in `StyledText::enclosure`; older Score JSON defaults to no enclosure. Adding this public field requires a semver release review for Rust struct-literal consumers.
+
 - Add the optional `Measure::timed_dynamics` score-time representation and
   `SetTimedDynamics` command. MusicXML directions between note onsets keep
   their timing through export, playback and measured engraving. Composite

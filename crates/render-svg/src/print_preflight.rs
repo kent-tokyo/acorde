@@ -961,6 +961,21 @@ pub(crate) fn resolve(
             } else {
                 font.measure(text.text().unwrap_or(""), number("font-size")?)?
             };
+            if text.attribute("data-acorde-enclosure") == Some("rectangle") {
+                let size = number("font-size")?;
+                let slant = if matches!(text.attribute("font-style"), Some("italic" | "oblique")) {
+                    -0.212_556_56
+                } else {
+                    0.0
+                };
+                let left_slant = (slant * metrics.top_mm).min(slant * metrics.bottom_mm);
+                let right_slant = (slant * metrics.top_mm).max(slant * metrics.bottom_mm);
+                let pad = size * 0.18;
+                metrics.left_mm += left_slant - pad;
+                metrics.right_mm += right_slant + pad;
+                metrics.top_mm -= pad;
+                metrics.bottom_mm += pad;
+            }
             let anchor = match text.attribute("text-anchor") {
                 Some("middle") => metrics.advance_mm / 2.0,
                 Some("end") => metrics.advance_mm,

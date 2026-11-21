@@ -715,6 +715,9 @@ impl VerseLyric {
 pub struct StyledText {
     pub style: TextStyle,
     pub text: String,
+    /// MusicXML enclosure value on the text element, when explicitly supplied.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enclosure: Option<String>,
     /// Position in quarter-note beats from the start of the measure. This is a
     /// semantic direction anchor; it is independent of engraved x offsets.
     #[serde(default, skip_serializing_if = "Option::is_none")]

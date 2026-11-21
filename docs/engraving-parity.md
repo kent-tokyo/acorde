@@ -344,6 +344,43 @@ This is not a complete collision or source-fidelity audit. The final-pass
 PNG of the excerpt has SHA-256
 `9ca26fd49ca51108fe84183c1fc4c2b6a1698bfae60cba59b78760df37081f5a`.
 
+### MusicXML rectangular text enclosures
+
+`StyledText.enclosure` now preserves the authored MusicXML enclosure value in
+Score JSON and through MusicXML import/export. Its default is absent for old
+JSON. The existing `SetMeasureText` command carries the field through
+undo/redo. This adds a public Rust struct field: callers using struct literals
+need to add it, so release versioning needs review. Other enclosure values are
+preserved in MusicXML but currently cause an explicit renderer error; score-level
+text enclosures are also not yet supported. Non-MusicXML interchange fidelity
+for the new field has not been established.
+
+For measure-level `rectangle`, measured print uses the supplied font's ink
+bounds, synthetic italic slant and padding for the frame; collision preflight
+moves the frame and its text together. Screen SVG has an approximate frame.
+The source excerpt test checks JSON and MusicXML round trips and confirms the
+frame and its stroke clear the barline. A 1500-pixel assistant review of the
+full score's final page (PNG SHA-256
+`406a3b1dc87a6fd14d5ca259abebe38742e177433065f7201b630b6f4baf51a0`)
+shows the viola's boxed `pizz.`. Chrome measured its frame's right edge at
+244.08 against the barline center at 247.98 in an 840-pixel page view; the
+line stroke width was 0.65. The resulting box is to the left of the barline
+that begins its owning measure, whereas the MusicXML attaches the direction
+to the following measure and gives it a negative relative-x offset. Whether
+this position communicates the intended onset requires comparison against the
+original engraving; Verovio places the text within its owning measure. This
+addresses the omitted rectangle, not that unresolved placement difference,
+every possible enclosure, or a full original-page audit.
+
+Both engines rendered all [24 development inputs](archive/print-parity-development-enclosure-20261121.json)
+and [ten fixed inputs](archive/print-parity-fixed-ten-enclosure-20261121.json).
+The Acorde page totals remain 214 and 16. The [margin audit](archive/print-parity-margin-enclosure-20261121.json)
+again found 993 candidates: 758 part labels, 230 page numbers and five titles;
+minimum label size and edge distance remained 2.75 mm and 3.06 mm. After this
+render, the parser was corrected to keep words and rehearsal enclosures separate
+when they share a direction; a scan found no such mixed direction in these 34
+prepared inputs. This is not an exhaustive collision or cross-platform verification.
+
 This program targets conventional keyboard, vocal, chamber-score, and extracted-part
 engraving against **Verovio 6.4.1**. The starting source is Acorde
 `f48944024039cce2abb404af60d9ffc9dedc1502`, not a newly released artifact.
