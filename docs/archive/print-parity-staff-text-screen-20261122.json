@@ -1,0 +1,2266 @@
+[
+  {
+    "score": "piano-wq117n11",
+    "candidate": "before",
+    "pages": 1,
+    "metrics": {
+      "pages": 1,
+      "marks": {
+        "noteheads": 254,
+        "rests": 14,
+        "slurs": 0,
+        "ties": 2,
+        "lyrics": 0,
+        "dynamics": 6,
+        "hairpins": 0,
+        "articulations": 22
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 2,
+      "text_over_notation": 0,
+      "text_over_text": 0,
+      "edge_candidates": [],
+      "text_text_candidates": [],
+      "lyric_staff_candidates": [],
+      "dynamic_staff_candidates": [],
+      "text_curve_candidates": [],
+      "text_notation_candidates": [],
+      "staff_space_mm": 1.8,
+      "staff_space_samples_mm": [
+        {
+          "page": 1,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 1,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 3,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 5,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 6,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 7,
+          "space_mm": 1.8
+        }
+      ],
+      "min_staff_space_mm": 1.8,
+      "max_staff_space_mm": 1.8,
+      "lyric_font_mm": null,
+      "text_font_mm": 3.24,
+      "min_text_font_mm": 2.7,
+      "systems": null
+    }
+  },
+  {
+    "score": "piano-wq117n11",
+    "candidate": "after",
+    "pages": 1,
+    "metrics": {
+      "pages": 1,
+      "marks": {
+        "noteheads": 254,
+        "rests": 14,
+        "slurs": 0,
+        "ties": 2,
+        "lyrics": 0,
+        "dynamics": 6,
+        "hairpins": 0,
+        "articulations": 22
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 2,
+      "text_over_notation": 0,
+      "text_over_text": 0,
+      "edge_candidates": [],
+      "text_text_candidates": [],
+      "lyric_staff_candidates": [],
+      "dynamic_staff_candidates": [],
+      "text_curve_candidates": [],
+      "text_notation_candidates": [],
+      "staff_space_mm": 1.8,
+      "staff_space_samples_mm": [
+        {
+          "page": 1,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 1,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 3,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 5,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 6,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 7,
+          "space_mm": 1.8
+        }
+      ],
+      "min_staff_space_mm": 1.8,
+      "max_staff_space_mm": 1.8,
+      "lyric_font_mm": null,
+      "text_font_mm": 3.24,
+      "min_text_font_mm": 2.7,
+      "systems": null
+    }
+  },
+  {
+    "score": "piano-wq117n12",
+    "candidate": "before",
+    "pages": 1,
+    "metrics": {
+      "pages": 1,
+      "marks": {
+        "noteheads": 214,
+        "rests": 25,
+        "slurs": 0,
+        "ties": 3,
+        "lyrics": 0,
+        "dynamics": 0,
+        "hairpins": 0,
+        "articulations": 30
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 2,
+      "text_over_notation": 0,
+      "text_over_text": 0,
+      "edge_candidates": [],
+      "text_text_candidates": [],
+      "lyric_staff_candidates": [],
+      "dynamic_staff_candidates": [],
+      "text_curve_candidates": [],
+      "text_notation_candidates": [],
+      "staff_space_mm": 1.8,
+      "staff_space_samples_mm": [
+        {
+          "page": 1,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 1,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 3,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 5,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 6,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 7,
+          "space_mm": 1.8
+        }
+      ],
+      "min_staff_space_mm": 1.8,
+      "max_staff_space_mm": 1.8,
+      "lyric_font_mm": null,
+      "text_font_mm": 3.24,
+      "min_text_font_mm": 2.7,
+      "systems": null
+    }
+  },
+  {
+    "score": "piano-wq117n12",
+    "candidate": "after",
+    "pages": 1,
+    "metrics": {
+      "pages": 1,
+      "marks": {
+        "noteheads": 214,
+        "rests": 25,
+        "slurs": 0,
+        "ties": 3,
+        "lyrics": 0,
+        "dynamics": 0,
+        "hairpins": 0,
+        "articulations": 30
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 2,
+      "text_over_notation": 0,
+      "text_over_text": 0,
+      "edge_candidates": [],
+      "text_text_candidates": [],
+      "lyric_staff_candidates": [],
+      "dynamic_staff_candidates": [],
+      "text_curve_candidates": [],
+      "text_notation_candidates": [],
+      "staff_space_mm": 1.8,
+      "staff_space_samples_mm": [
+        {
+          "page": 1,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 1,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 3,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 5,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 6,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 7,
+          "space_mm": 1.8
+        }
+      ],
+      "min_staff_space_mm": 1.8,
+      "max_staff_space_mm": 1.8,
+      "lyric_font_mm": null,
+      "text_font_mm": 3.24,
+      "min_text_font_mm": 2.7,
+      "systems": null
+    }
+  },
+  {
+    "score": "piano-n07",
+    "candidate": "before",
+    "pages": 2,
+    "metrics": {
+      "pages": 2,
+      "marks": {
+        "noteheads": 402,
+        "rests": 12,
+        "slurs": 44,
+        "ties": 47,
+        "lyrics": 0,
+        "dynamics": 2,
+        "hairpins": 8,
+        "articulations": 4
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 4,
+      "text_over_notation": 0,
+      "text_over_text": 0,
+      "edge_candidates": [],
+      "text_text_candidates": [],
+      "lyric_staff_candidates": [],
+      "dynamic_staff_candidates": [],
+      "text_curve_candidates": [],
+      "text_notation_candidates": [],
+      "staff_space_mm": 1.8,
+      "staff_space_samples_mm": [
+        {
+          "page": 1,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 1,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 3,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 5,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 1,
+          "space_mm": 1.8
+        }
+      ],
+      "min_staff_space_mm": 1.8,
+      "max_staff_space_mm": 1.8,
+      "lyric_font_mm": null,
+      "text_font_mm": 3.24,
+      "min_text_font_mm": 1.26,
+      "systems": null
+    }
+  },
+  {
+    "score": "piano-n07",
+    "candidate": "after",
+    "pages": 2,
+    "metrics": {
+      "pages": 2,
+      "marks": {
+        "noteheads": 402,
+        "rests": 12,
+        "slurs": 44,
+        "ties": 47,
+        "lyrics": 0,
+        "dynamics": 2,
+        "hairpins": 8,
+        "articulations": 4
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 4,
+      "text_over_notation": 0,
+      "text_over_text": 0,
+      "edge_candidates": [],
+      "text_text_candidates": [],
+      "lyric_staff_candidates": [],
+      "dynamic_staff_candidates": [],
+      "text_curve_candidates": [],
+      "text_notation_candidates": [],
+      "staff_space_mm": 1.8,
+      "staff_space_samples_mm": [
+        {
+          "page": 1,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 1,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 3,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 5,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 1,
+          "space_mm": 1.8
+        }
+      ],
+      "min_staff_space_mm": 1.8,
+      "max_staff_space_mm": 1.8,
+      "lyric_font_mm": null,
+      "text_font_mm": 3.24,
+      "min_text_font_mm": 1.26,
+      "systems": null
+    }
+  },
+  {
+    "score": "vocal-lc6302395",
+    "candidate": "before",
+    "pages": 13,
+    "metrics": {
+      "pages": 13,
+      "marks": {
+        "noteheads": 1785,
+        "rests": 348,
+        "slurs": 301,
+        "ties": 118,
+        "lyrics": 168,
+        "dynamics": 25,
+        "hairpins": 109,
+        "articulations": 4
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 66,
+      "text_over_notation": 0,
+      "text_over_text": 0,
+      "edge_candidates": [],
+      "text_text_candidates": [],
+      "lyric_staff_candidates": [],
+      "dynamic_staff_candidates": [],
+      "text_curve_candidates": [],
+      "text_notation_candidates": [],
+      "staff_space_mm": 1.8,
+      "staff_space_samples_mm": [
+        {
+          "page": 1,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 1,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 3,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 5,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 6,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 7,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 1,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 3,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 5,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 6,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 7,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 1,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 3,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 5,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 6,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 7,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 1,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 2,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 3,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 5,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 6,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 7,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 0,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 1,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 2,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 3,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 5,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 6,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 7,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 0,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 1,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 2,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 3,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 5,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 6,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 7,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 0,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 1,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 2,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 3,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 5,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 6,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 7,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 0,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 1,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 2,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 3,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 5,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 6,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 7,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 0,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 1,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 2,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 3,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 5,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 6,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 7,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 0,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 1,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 2,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 3,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 5,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 6,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 7,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 0,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 1,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 2,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 3,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 5,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 6,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 7,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 12,
+          "staff_ordinal": 0,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 12,
+          "staff_ordinal": 1,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 12,
+          "staff_ordinal": 2,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 12,
+          "staff_ordinal": 3,
+          "space_mm": 1.79938
+        },
+        {
+          "page": 12,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 12,
+          "staff_ordinal": 5,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 12,
+          "staff_ordinal": 6,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 12,
+          "staff_ordinal": 7,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 13,
+          "staff_ordinal": 0,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 13,
+          "staff_ordinal": 1,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 13,
+          "staff_ordinal": 2,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 13,
+          "staff_ordinal": 3,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 13,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 13,
+          "staff_ordinal": 5,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 13,
+          "staff_ordinal": 6,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 13,
+          "staff_ordinal": 7,
+          "space_mm": 1.79999
+        }
+      ],
+      "min_staff_space_mm": 1.79938,
+      "max_staff_space_mm": 1.80005,
+      "lyric_font_mm": 4.05,
+      "text_font_mm": 4.05,
+      "min_text_font_mm": 2.7,
+      "systems": null
+    }
+  },
+  {
+    "score": "vocal-lc6302395",
+    "candidate": "after",
+    "pages": 13,
+    "metrics": {
+      "pages": 13,
+      "marks": {
+        "noteheads": 1785,
+        "rests": 348,
+        "slurs": 301,
+        "ties": 118,
+        "lyrics": 168,
+        "dynamics": 25,
+        "hairpins": 109,
+        "articulations": 4
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 66,
+      "text_over_notation": 0,
+      "text_over_text": 0,
+      "edge_candidates": [],
+      "text_text_candidates": [],
+      "lyric_staff_candidates": [],
+      "dynamic_staff_candidates": [],
+      "text_curve_candidates": [],
+      "text_notation_candidates": [],
+      "staff_space_mm": 1.8,
+      "staff_space_samples_mm": [
+        {
+          "page": 1,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 1,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 3,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 5,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 6,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 7,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 1,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 3,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 5,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 6,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 7,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 1,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 3,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 5,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 6,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 7,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 1,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 2,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 3,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 5,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 6,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 7,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 0,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 1,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 2,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 3,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 5,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 6,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 7,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 0,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 1,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 2,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 3,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 5,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 6,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 7,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 0,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 1,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 2,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 3,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 5,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 6,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 7,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 0,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 1,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 2,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 3,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 5,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 6,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 7,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 0,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 1,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 2,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 3,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 5,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 6,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 7,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 0,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 1,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 2,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 3,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 5,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 6,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 7,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 0,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 1,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 2,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 3,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 5,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 6,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 7,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 12,
+          "staff_ordinal": 0,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 12,
+          "staff_ordinal": 1,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 12,
+          "staff_ordinal": 2,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 12,
+          "staff_ordinal": 3,
+          "space_mm": 1.79938
+        },
+        {
+          "page": 12,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 12,
+          "staff_ordinal": 5,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 12,
+          "staff_ordinal": 6,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 12,
+          "staff_ordinal": 7,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 13,
+          "staff_ordinal": 0,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 13,
+          "staff_ordinal": 1,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 13,
+          "staff_ordinal": 2,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 13,
+          "staff_ordinal": 3,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 13,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 13,
+          "staff_ordinal": 5,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 13,
+          "staff_ordinal": 6,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 13,
+          "staff_ordinal": 7,
+          "space_mm": 1.79999
+        }
+      ],
+      "min_staff_space_mm": 1.79938,
+      "max_staff_space_mm": 1.80005,
+      "lyric_font_mm": 4.05,
+      "text_font_mm": 4.05,
+      "min_text_font_mm": 2.7,
+      "systems": null
+    }
+  },
+  {
+    "score": "vocal-lc6260992",
+    "candidate": "before",
+    "pages": 4,
+    "metrics": {
+      "pages": 4,
+      "marks": {
+        "noteheads": 931,
+        "rests": 24,
+        "slurs": 49,
+        "ties": 17,
+        "lyrics": 137,
+        "dynamics": 25,
+        "hairpins": 16,
+        "articulations": 25
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 16,
+      "text_over_notation": 0,
+      "text_over_text": 0,
+      "edge_candidates": [],
+      "text_text_candidates": [],
+      "lyric_staff_candidates": [],
+      "dynamic_staff_candidates": [],
+      "text_curve_candidates": [],
+      "text_notation_candidates": [],
+      "staff_space_mm": 1.8,
+      "staff_space_samples_mm": [
+        {
+          "page": 1,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 1,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 3,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 5,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 6,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 7,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 8,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 1,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 3,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 5,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 6,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 7,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 8,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 1,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 3,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 5,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 6,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 7,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 8,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 1,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 2,
+          "space_mm": 1.79999
+        }
+      ],
+      "min_staff_space_mm": 1.79999,
+      "max_staff_space_mm": 1.8,
+      "lyric_font_mm": 4.05,
+      "text_font_mm": 4.05,
+      "min_text_font_mm": 2.7,
+      "systems": null
+    }
+  },
+  {
+    "score": "vocal-lc6260992",
+    "candidate": "after",
+    "pages": 4,
+    "metrics": {
+      "pages": 4,
+      "marks": {
+        "noteheads": 931,
+        "rests": 24,
+        "slurs": 49,
+        "ties": 17,
+        "lyrics": 137,
+        "dynamics": 25,
+        "hairpins": 16,
+        "articulations": 25
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 16,
+      "text_over_notation": 0,
+      "text_over_text": 0,
+      "edge_candidates": [],
+      "text_text_candidates": [],
+      "lyric_staff_candidates": [],
+      "dynamic_staff_candidates": [],
+      "text_curve_candidates": [],
+      "text_notation_candidates": [],
+      "staff_space_mm": 1.8,
+      "staff_space_samples_mm": [
+        {
+          "page": 1,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 1,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 3,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 5,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 6,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 7,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 8,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 1,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 3,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 5,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 6,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 7,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 8,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 1,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 3,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 5,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 6,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 7,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 8,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 0,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 1,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 2,
+          "space_mm": 1.79999
+        }
+      ],
+      "min_staff_space_mm": 1.79999,
+      "max_staff_space_mm": 1.8,
+      "lyric_font_mm": 4.05,
+      "text_font_mm": 4.05,
+      "min_text_font_mm": 2.7,
+      "systems": null
+    }
+  },
+  {
+    "score": "vocal-lc5133602",
+    "candidate": "before",
+    "pages": 3,
+    "metrics": {
+      "pages": 3,
+      "marks": {
+        "noteheads": 935,
+        "rests": 20,
+        "slurs": 22,
+        "ties": 5,
+        "lyrics": 83,
+        "dynamics": 2,
+        "hairpins": 20,
+        "articulations": 13
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 9,
+      "text_over_notation": 0,
+      "text_over_text": 0,
+      "edge_candidates": [],
+      "text_text_candidates": [],
+      "lyric_staff_candidates": [],
+      "dynamic_staff_candidates": [],
+      "text_curve_candidates": [],
+      "text_notation_candidates": [],
+      "staff_space_mm": 1.8,
+      "staff_space_samples_mm": [
+        {
+          "page": 1,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 1,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 3,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 5,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 6,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 7,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 8,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 1,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 3,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 5,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 6,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 7,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 8,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 0,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 1,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 3,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 5,
+          "space_mm": 1.8
+        }
+      ],
+      "min_staff_space_mm": 1.79999,
+      "max_staff_space_mm": 1.8,
+      "lyric_font_mm": 4.05,
+      "text_font_mm": 4.05,
+      "min_text_font_mm": 2.7,
+      "systems": null
+    }
+  },
+  {
+    "score": "vocal-lc5133602",
+    "candidate": "after",
+    "pages": 3,
+    "metrics": {
+      "pages": 3,
+      "marks": {
+        "noteheads": 935,
+        "rests": 20,
+        "slurs": 22,
+        "ties": 5,
+        "lyrics": 83,
+        "dynamics": 2,
+        "hairpins": 20,
+        "articulations": 13
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 9,
+      "text_over_notation": 0,
+      "text_over_text": 0,
+      "edge_candidates": [],
+      "text_text_candidates": [],
+      "lyric_staff_candidates": [],
+      "dynamic_staff_candidates": [],
+      "text_curve_candidates": [],
+      "text_notation_candidates": [],
+      "staff_space_mm": 1.8,
+      "staff_space_samples_mm": [
+        {
+          "page": 1,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 1,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 3,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 5,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 6,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 7,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 8,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 1,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 3,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 5,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 6,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 7,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 8,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 0,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 1,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 3,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 5,
+          "space_mm": 1.8
+        }
+      ],
+      "min_staff_space_mm": 1.79999,
+      "max_staff_space_mm": 1.8,
+      "lyric_font_mm": 4.05,
+      "text_font_mm": 4.05,
+      "min_text_font_mm": 2.7,
+      "systems": null
+    }
+  }
+]

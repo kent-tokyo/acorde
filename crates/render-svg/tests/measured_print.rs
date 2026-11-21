@@ -9,6 +9,103 @@ use acorde_render_svg::{
 const FONT: &[u8] = include_bytes!("fixtures/Tuffy.ttf");
 
 #[test]
+fn lower_staff_direction_stays_between_the_two_staves() {
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Harpsichord</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><staves>2</staves><clef number="1"><sign>G</sign><line>2</line></clef><clef number="2"><sign>F</sign><line>4</line></clef></attributes><direction placement="above"><direction-type><words>upper</words></direction-type><staff>1</staff></direction><direction placement="above"><direction-type><words>lower</words></direction-type><staff>2</staff></direction><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><staff>1</staff></note><backup><duration>1</duration></backup><note><pitch><step>C</step><octave>3</octave></pitch><duration>1</duration><voice>2</voice><type>quarter</type><staff>2</staff></note></measure></part></score-partwise>"#;
+    let parsed = acorde_io::parse_musicxml(xml).unwrap();
+    let score =
+        acorde_io::parse_musicxml(&acorde_io::serialize_musicxml(&parsed).unwrap()).unwrap();
+    let output = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    let doc = roxmltree::Document::parse(&output.pages[0]).unwrap();
+    let staves: Vec<_> = doc
+        .descendants()
+        .filter(|n| n.attribute("class") == Some("acorde-staff"))
+        .collect();
+    assert_eq!(staves.len(), 2);
+    let edges = |staff: roxmltree::Node<'_, '_>| -> (f32, f32) {
+        let lines: Vec<f32> = staff
+            .descendants()
+            .filter(|n| n.attribute("class") == Some("acorde-staff-line"))
+            .map(|n| n.attribute("y1").unwrap().parse().unwrap())
+            .collect();
+        (
+            lines.iter().copied().fold(f32::INFINITY, f32::min),
+            lines.iter().copied().fold(f32::NEG_INFINITY, f32::max),
+        )
+    };
+    let label = doc
+        .descendants()
+        .find(|n| n.attribute("data-text") == Some("lower"))
+        .unwrap();
+    let path = label
+        .descendants()
+        .find(|n| n.has_tag_name("path"))
+        .unwrap();
+    let matrix = path
+        .attribute("transform")
+        .unwrap()
+        .trim_start_matches("matrix(")
+        .trim_end_matches(')');
+    let values: Vec<f32> = matrix
+        .split_whitespace()
+        .map(|v| v.parse().unwrap())
+        .collect();
+    let mut x = values[4];
+    let mut baseline = values[5];
+    for ancestor in label.ancestors() {
+        if ancestor
+            .attribute("class")
+            .is_some_and(|c| c.contains("acorde-print-notation"))
+        {
+            break;
+        }
+        if let Some(value) = ancestor
+            .attribute("transform")
+            .and_then(|s| s.strip_prefix("translate("))
+            .and_then(|s| s.strip_suffix(')'))
+        {
+            let coordinates: Vec<f32> = value
+                .split(|c: char| c == ',' || c.is_whitespace())
+                .filter(|s| !s.is_empty())
+                .map(|s| s.parse().unwrap())
+                .collect();
+            if coordinates.len() == 2 {
+                x += coordinates[0];
+                baseline += coordinates[1];
+            }
+        }
+    }
+    assert!(
+        baseline > edges(staves[0]).1 && baseline < edges(staves[1]).0,
+        "lower label baseline {baseline}, staff edges {:?} and {:?}",
+        edges(staves[0]),
+        edges(staves[1])
+    );
+    let size: f32 = label.attribute("data-font-size").unwrap().parse().unwrap();
+    let ink = TextFont::new(FONT, 0)
+        .unwrap()
+        .measure("lower", size)
+        .unwrap();
+    let left = x + ink.left_mm + (-0.212_556_56 * ink.top_mm).min(-0.212_556_56 * ink.bottom_mm);
+    let right = x + ink.right_mm + (-0.212_556_56 * ink.top_mm).max(-0.212_556_56 * ink.bottom_mm);
+    for stem in doc
+        .descendants()
+        .filter(|n| n.attribute("class") == Some("acorde-stem"))
+    {
+        let number = |name| stem.attribute(name).unwrap().parse::<f32>().unwrap();
+        let sx = number("x1");
+        let y1 = number("y1");
+        let y2 = number("y2");
+        assert!(
+            sx < left
+                || sx > right
+                || y1.max(y2) < baseline + ink.top_mm
+                || y1.min(y2) > baseline + ink.bottom_mm,
+            "lower text overlaps a stem"
+        );
+    }
+}
+
+#[test]
 fn harpsichord_two_staff_musicxml_prints_a_brace() {
     let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Harpsichord</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><staves>2</staves><clef number="1"><sign>G</sign><line>2</line></clef><clef number="2"><sign>F</sign><line>4</line></clef></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><staff>1</staff></note><backup><duration>1</duration></backup><note><pitch><step>C</step><octave>3</octave></pitch><duration>1</duration><voice>2</voice><type>quarter</type><staff>2</staff></note></measure></part></score-partwise>"#;
     let score = acorde_io::parse_musicxml(xml).unwrap();

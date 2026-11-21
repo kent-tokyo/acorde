@@ -310,3 +310,24 @@ fn rehearsal_components_preserve_text_and_report_format_loss() {
         Some("Section A")
     );
 }
+
+#[test]
+fn staff_scoped_text_and_rehearsal_roundtrip_on_second_staff() {
+    let input = score(
+        r#"<direction placement="above"><direction-type><words relative-y="10">arpeggio</words></direction-type><offset>1</offset><staff>2</staff></direction><direction placement="below"><direction-type><rehearsal enclosure="none">B</rehearsal></direction-type><staff>2</staff></direction><direction><direction-type><rehearsal>B</rehearsal></direction-type><offset>1</offset><staff>2</staff></direction><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><staff>1</staff></note><backup><duration>1</duration></backup><note><pitch><step>C</step><octave>3</octave></pitch><duration>1</duration><voice>2</voice><type>quarter</type><staff>2</staff></note>"#,
+        2,
+    );
+    let parsed = parse_musicxml(&input).unwrap();
+    let upper = &parsed.parts[0].staves[0].measures[0];
+    let lower = &parsed.parts[0].staves[1].measures[0];
+    assert!(upper.texts.is_empty());
+    assert_eq!(lower.texts.len(), 3);
+    assert_eq!(lower.texts[0].position_beats, Some(1.0));
+    assert_eq!(lower.texts[0].relative_y, Some(10.0));
+    assert_eq!(lower.texts[1].enclosure.as_deref(), Some("none"));
+    assert_eq!(lower.texts[2].position_beats, Some(1.0));
+    let xml = serialize_musicxml(&parsed).unwrap();
+    let restored = parse_musicxml(&xml).unwrap();
+    assert!(restored.parts[0].staves[0].measures[0].texts.is_empty());
+    assert_eq!(restored.parts[0].staves[1].measures[0].texts, lower.texts);
+}

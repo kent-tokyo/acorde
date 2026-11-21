@@ -572,6 +572,38 @@ to the first staff despite the MusicXML direction staff field. The two engines'
 remaining notation and source correspondence have not been checked note by note,
 and the single reviewer has prior familiarity with both outputs.
 
+### Staff ownership of written directions
+
+The parser now attaches ordinary expression and rehearsal directions to the
+MusicXML `staff` within the part, even when the direction precedes that staff's
+first note. Additional-staff expression and rehearsal texts are emitted with
+staff and beat offsets on MusicXML export; the round-trip regression includes
+repeated rehearsal text, placement, enclosure and offsets. Tempo-bearing text,
+navigation, and harp-pedal diagrams still use the first staff's existing global
+model path; this change does not claim those are staff-faithful.
+
+Measured preflight tries to keep an above-staff text direction in the interior
+lane of its own lower staff, using stem clearance and the staff-gap reflow. If
+no horizontal lane exists it retains the previous outward escape, so ownership
+on the page is not guaranteed in every dense score. In `piano-wq117n11`, the
+assistant inspected the new PDF at page and enlarged detail scale. `arpeggio`
+now appears above staff 2 and clears the previously intersecting stem; `adagio`
+remains above staff 1. The page raster SHA-256 is
+`8b08dcccbc72cb3a22e534e7d61349c8947d280cb9d85cdad63dc6ccaa293cc9`;
+the PDF SHA-256 is
+`23c66fae32d427bfec28ceca3c67b8aaf859d724ecfc7fa079806f6c325d6e4d`.
+The missing title credit and full note-by-note source review remain open.
+
+The [34-input rerender](archive/print-parity-staff-text-corpus-20261122.json)
+completed: 209 development and 16 fixed pages. Six development outputs differ
+from the earlier pre-harpsichord baseline, including the two harpsichord scores
+already changed by the brace fix. A [limited before/after screen](archive/print-parity-staff-text-screen-20261122.json)
+of those six found no candidates in its text/notation, text/text, lyric/staff,
+dynamic/staff and text/curve checks. It does not check every stem collision or
+establish general readability. Twelve focused MusicXML tests, all 37 measured
+print tests and targeted IO/render-SVG Clippy passed on macOS. Complete page
+review, the reserved corpus and cross-platform/WASM gates remain pending.
+
 ### Reuse of measured row geometry
 
 Profiling the 643-measure chamber input showed repeated pagination attempts:

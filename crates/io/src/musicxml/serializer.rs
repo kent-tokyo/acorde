@@ -818,6 +818,13 @@ fn serialize_musicxml_inner(
                 xml.push_str("</direction>\n");
             }
 
+            // Text on later staves must be emitted while the measure cursor is still at zero.
+            for (staff_index, extra_staff) in part.staves.iter().enumerate().skip(1) {
+                if let Some(extra_measure) = extra_staff.measures.get(i) {
+                    write_extra_staff_measure_text(&mut xml, extra_measure, staff_index + 1);
+                }
+            }
+
             // Emit each populated voice in stable model order. MusicXML advances one shared
             // measure cursor, so return to the measure start before every subsequent voice.
             let mut emitted_voice = false;
@@ -2605,6 +2612,68 @@ fn measure_styled_text<'a>(
         .texts
         .iter()
         .find(|styled| styled.style == style && styled.text == text)
+}
+
+fn write_extra_staff_measure_text(xml: &mut String, measure: &acorde_core::Measure, staff: usize) {
+    let mut expression_emitted = false;
+    let mut rehearsal_emitted = false;
+    for (style, legacy) in [
+        (TextStyle::Expression, measure.expression_text.as_deref()),
+        (TextStyle::RehearsalMark, measure.rehearsal.as_deref()),
+    ] {
+        if let Some(text) = legacy {
+            let styled = measure_styled_text(measure, style, text);
+            write_staff_text_direction(xml, style, text, styled, staff);
+            match style {
+                TextStyle::Expression => expression_emitted = true,
+                TextStyle::RehearsalMark => rehearsal_emitted = true,
+                _ => {}
+            }
+        }
+    }
+    for styled in &measure.texts {
+        let duplicate = match styled.style {
+            TextStyle::Expression
+                if expression_emitted
+                    && measure.expression_text.as_deref() == Some(styled.text.as_str()) =>
+            {
+                expression_emitted = false;
+                true
+            }
+            TextStyle::RehearsalMark
+                if rehearsal_emitted
+                    && measure.rehearsal.as_deref() == Some(styled.text.as_str()) =>
+            {
+                rehearsal_emitted = false;
+                true
+            }
+            _ => false,
+        };
+        if !duplicate
+            && matches!(
+                styled.style,
+                TextStyle::Expression | TextStyle::RehearsalMark
+            )
+        {
+            write_staff_text_direction(xml, styled.style, &styled.text, Some(styled), staff);
+        }
+    }
+}
+
+fn write_staff_text_direction(
+    xml: &mut String,
+    style: TextStyle,
+    text: &str,
+    styled: Option<&acorde_core::StyledText>,
+    staff: usize,
+) {
+    let tag = if style == TextStyle::RehearsalMark {
+        "rehearsal"
+    } else {
+        "words"
+    };
+    let direction_attrs = styled.map(styled_direction_attrs).unwrap_or_default();
+    xml.push_str(&format!("      <direction{direction_attrs}><direction-type><{tag}{}>{}</{tag}></direction-type>{}<staff>{staff}</staff></direction>\n", styled_text_position_attrs(styled), escape_xml(text), styled_text_offset_xml(styled)));
 }
 
 fn measure_text_direction_attrs(

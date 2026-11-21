@@ -2446,22 +2446,96 @@ pub(crate) fn parse_musicxml_collecting(
                                 }
                             }
                         }
-                        if let Some(pi) = part_index
-                            && let Some(m) = score.parts[pi].staves[0].measures.last_mut()
-                        {
-                            if let Some(nav) = pending_navigation.take() {
+                        let navigation = pending_navigation.take();
+                        let has_navigation = navigation.is_some();
+                        let has_tempo =
+                            pending_sound_tempo.is_some() || pending_metronome.is_some();
+                        if let Some(pi) = part_index {
+                            if let Some(m) = score.parts[pi].staves[0].measures.last_mut() {
                                 if m.navigation.is_none() {
-                                    m.navigation = Some(nav);
+                                    m.navigation = navigation;
                                 }
-                            } else if pending_sound_tempo.is_some() || pending_metronome.is_some() {
-                                if let Some(text) = pending_tempo_text.take() {
-                                    if m.tempo_text.is_none() {
-                                        m.tempo_text = Some(text.clone());
+                                if let Some(bpm) = pending_sound_tempo.take() {
+                                    m.tempo = Some(bpm);
+                                }
+                                if let Some(mark) = pending_metronome.take() {
+                                    m.metronome_mark = Some(mark);
+                                }
+                                for mut diagram in std::mem::take(&mut pending_harp_pedal_diagrams)
+                                {
+                                    diagram.placement = pending_direction_placement.clone();
+                                    m.harp_pedal_diagrams.push(diagram);
+                                }
+                            }
+                            let staff_index = if has_tempo {
+                                // Tempo and its written mark are currently stored as one global
+                                // measure property; keep them together for MusicXML export.
+                                0
+                            } else if pending_direction_staff < score.parts[pi].staves.len() {
+                                pending_direction_staff
+                            } else {
+                                let mut diagnostic = crate::Diagnostic::warning(
+                                    "musicxml.direction-staff-out-of-range",
+                                    "direction staff does not exist; text was attached to the first staff",
+                                );
+                                diagnostic.source_location = Some(format!(
+                                    "/score-partwise/measure[{current_measure_number}]/direction/staff"
+                                ));
+                                tolerated.push(diagnostic);
+                                0
+                            };
+                            if staff_index > 0 {
+                                // A direction can precede this staff's first note. The common
+                                // case only needs the current bar; avoid rescanning prior bars.
+                                let part = &mut score.parts[pi];
+                                let primary_len = part.staves[0].measures.len();
+                                let staff_len = part.staves[staff_index].measures.len();
+                                if staff_len + 1 == primary_len {
+                                    let source = &part.staves[0].measures[primary_len - 1];
+                                    let mut measure = Measure::empty(
+                                        current_time.numerator,
+                                        current_time.denominator,
+                                    );
+                                    measure.number = source.number;
+                                    measure.actual_length = source.actual_length;
+                                    measure.time_sig = source.time_sig.clone();
+                                    measure.time_sig_hidden = source.time_sig_hidden;
+                                    measure.time_symbol = source.time_symbol;
+                                    measure.voices[0].clear();
+                                    part.staves[staff_index].measures.push(measure);
+                                } else if staff_len < primary_len {
+                                    pad_declared_staff_measures(part);
+                                }
+                            }
+                            if let Some(m) = score.parts[pi].staves[staff_index].measures.last_mut()
+                            {
+                                if !has_navigation && has_tempo {
+                                    if let Some(text) = pending_tempo_text.take() {
+                                        if m.tempo_text.is_none() {
+                                            m.tempo_text = Some(text.clone());
+                                        }
+                                        m.texts.push(StyledText {
+                                            enclosure: pending_words_enclosure.clone(),
+                                            position_beats: pending_direction_position_beats,
+                                            style: TextStyle::Generic,
+                                            text,
+                                            placement: pending_direction_placement.clone(),
+                                            offset_x: pending_direction_offset_x,
+                                            offset_y: pending_direction_offset_y,
+                                            relative_x: pending_direction_relative_x,
+                                            relative_y: pending_direction_relative_y,
+                                        });
+                                    }
+                                } else if !has_navigation
+                                    && let Some(text) = pending_expression_text.take()
+                                {
+                                    if m.expression_text.is_none() {
+                                        m.expression_text = Some(text.clone());
                                     }
                                     m.texts.push(StyledText {
                                         enclosure: pending_words_enclosure.clone(),
                                         position_beats: pending_direction_position_beats,
-                                        style: TextStyle::Generic,
+                                        style: TextStyle::Expression,
                                         text,
                                         placement: pending_direction_placement.clone(),
                                         offset_x: pending_direction_offset_x,
@@ -2470,47 +2544,22 @@ pub(crate) fn parse_musicxml_collecting(
                                         relative_y: pending_direction_relative_y,
                                     });
                                 }
-                            } else if let Some(text) = pending_expression_text.take() {
-                                if m.expression_text.is_none() {
-                                    m.expression_text = Some(text.clone());
+                                if let Some(reh) = pending_rehearsal.take() {
+                                    if m.rehearsal.is_none() {
+                                        m.rehearsal = Some(reh.clone());
+                                    }
+                                    m.texts.push(StyledText {
+                                        enclosure: pending_rehearsal_enclosure.clone(),
+                                        position_beats: pending_direction_position_beats,
+                                        style: TextStyle::RehearsalMark,
+                                        text: reh,
+                                        placement: pending_direction_placement.clone(),
+                                        offset_x: pending_direction_offset_x,
+                                        offset_y: pending_direction_offset_y,
+                                        relative_x: pending_direction_relative_x,
+                                        relative_y: pending_direction_relative_y,
+                                    });
                                 }
-                                m.texts.push(StyledText {
-                                    enclosure: pending_words_enclosure.clone(),
-                                    position_beats: pending_direction_position_beats,
-                                    style: TextStyle::Expression,
-                                    text,
-                                    placement: pending_direction_placement.clone(),
-                                    offset_x: pending_direction_offset_x,
-                                    offset_y: pending_direction_offset_y,
-                                    relative_x: pending_direction_relative_x,
-                                    relative_y: pending_direction_relative_y,
-                                });
-                            }
-                            if let Some(reh) = pending_rehearsal.take() {
-                                if m.rehearsal.is_none() {
-                                    m.rehearsal = Some(reh.clone());
-                                }
-                                m.texts.push(StyledText {
-                                    enclosure: pending_rehearsal_enclosure.clone(),
-                                    position_beats: pending_direction_position_beats,
-                                    style: TextStyle::RehearsalMark,
-                                    text: reh,
-                                    placement: pending_direction_placement.clone(),
-                                    offset_x: pending_direction_offset_x,
-                                    offset_y: pending_direction_offset_y,
-                                    relative_x: pending_direction_relative_x,
-                                    relative_y: pending_direction_relative_y,
-                                });
-                            }
-                            if let Some(bpm) = pending_sound_tempo.take() {
-                                m.tempo = Some(bpm);
-                            }
-                            if let Some(mark) = pending_metronome.take() {
-                                m.metronome_mark = Some(mark);
-                            }
-                            for mut diagram in std::mem::take(&mut pending_harp_pedal_diagrams) {
-                                diagram.placement = pending_direction_placement.clone();
-                                m.harp_pedal_diagrams.push(diagram);
                             }
                         }
                         if let Some(pi) = part_index {

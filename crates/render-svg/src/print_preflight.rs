@@ -1070,6 +1070,12 @@ pub(crate) fn resolve(
                     }
                 }
             }
+            let mut staff_scoped_text = text
+                .attribute("class")
+                .is_some_and(|class| class.starts_with("acorde-measure-text"))
+                && !under
+                && staff > 0
+                && refs[staff - 1].0 == p;
             for _ in 0..=(curves.len() + placed.len() + note_bounds.len() + rolls.len()).min(256) {
                 let previous = y;
                 let width = right - left;
@@ -1108,12 +1114,36 @@ pub(crate) fn resolve(
                         }
                     }
                 }
-                if let Some(next) = crate::render::nearest_text_gap(
+                let ordinary_blocked = blocked.clone();
+                if staff_scoped_text {
+                    for &(r, s, x, top, bottom) in &stems {
+                        if r == row
+                            && s == staff
+                            && y + metrics.bottom_mm + CLEARANCE > top
+                            && y + metrics.top_mm - CLEARANCE < bottom
+                        {
+                            blocked.push((x - width - CLEARANCE, x + CLEARANCE));
+                        }
+                    }
+                }
+                let next = crate::render::nearest_text_gap(
                     left,
                     minimum_left,
                     row_widths[row] - 0.25 * SPACE - width,
                     blocked,
-                ) {
+                )
+                .or_else(|| {
+                    // Keep the former outward escape when no horizontal lane exists.
+                    // This remains a known placement limitation for crowded scores.
+                    staff_scoped_text = false;
+                    crate::render::nearest_text_gap(
+                        left,
+                        minimum_left,
+                        row_widths[row] - 0.25 * SPACE - width,
+                        ordinary_blocked,
+                    )
+                });
+                if let Some(next) = next {
                     shift_x += next - left;
                     left = next;
                     right = left + width;
@@ -1179,17 +1209,33 @@ pub(crate) fn resolve(
                         };
                     }
                 }
-                // A part-level direction that cannot fit in an interior grand-staff
-                // lane moves beyond the neighboring staff of that same part. Reserving
-                // it against the old staff would make every gap expansion repeat.
-                if under
+                // Note-owned marks can escape an interior lane when it cannot fit.
+                // Measure text belongs to its written staff: reserve its ink against
+                // that staff so reflow opens the lane instead of changing ownership.
+                if staff_scoped_text
+                    && under
+                    && staff + 1 < refs.len()
+                    && refs[staff + 1].0 == p
+                    && y + metrics.bottom_mm + CLEARANCE > tops[row][staff + 1]
+                {
+                    y = bottoms[row][staff] + CLEARANCE - metrics.top_mm;
+                } else if staff_scoped_text
+                    && !under
+                    && staff > 0
+                    && refs[staff - 1].0 == p
+                    && y + metrics.top_mm - CLEARANCE < bottoms[row][staff - 1]
+                {
+                    y = tops[row][staff] - CLEARANCE - metrics.bottom_mm;
+                } else if !staff_scoped_text
+                    && under
                     && staff + 1 < refs.len()
                     && refs[staff + 1].0 == p
                     && y + metrics.bottom_mm + CLEARANCE > tops[row][staff + 1]
                 {
                     staff += 1;
                     y = y.max(bottoms[row][staff] + CLEARANCE - metrics.top_mm);
-                } else if !under
+                } else if !staff_scoped_text
+                    && !under
                     && staff > 0
                     && refs[staff - 1].0 == p
                     && y + metrics.top_mm - CLEARANCE < bottoms[row][staff - 1]
