@@ -868,7 +868,9 @@ fn quilter_prints_all_directions_with_clearance_between_grand_staves() {
         .map(|line| svg_attribute_f32(line, "y1"))
         .collect::<Vec<_>>();
     let later_lower_top = later_staff_lines
-        .chunks_exact(10)
+        .as_chunks::<10>()
+        .0
+        .iter()
         .map(|lines| lines[9])
         .find(|&top| top > later_baseline)
         .expect("lower staff after later direction");
