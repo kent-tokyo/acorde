@@ -179,3 +179,20 @@ For future acoustic two-hand and register evaluation, Lucas Mrowskovsky Paim's 2
 describes FoleDataset, including paired audio/MIDI and some repeated performances with different
 registers and isolated hands. A public download of the dataset itself was not identified in this
 investigation. It was not used for any of the results above.
+
+## Overlap export check
+
+The same-hand, same-pitch overlap guard was checked against five existing model outputs. Each
+MIDI was loaded with `pretty_midi`; its note times and pitches were passed to `midi_bytes` at
+120 BPM, 4/4, with a zero bar start and the editor's initial hand split at MIDI 60. All five
+were accepted, including the guard's MIDI-tick rounding check. This checks the reconstructed
+note data, not the complete browser workflow or the accuracy of the resulting score. Different
+hand assignments, edits, tempo, or other recordings can produce an overlap that needs correction.
+
+| Existing model output | Notes | Output MIDI SHA-256 |
+| --- | ---: | --- |
+| MAESTRO development, Basic Pitch | 182 | `5a39adf450c1c4140feedbc8b0d4df47d9c7d8442bf5447616627ba1c7e48977` |
+| MAESTRO development, piano model | 124 | `a18403ce70ffbc4db9890bfcd8209189e69c332b59bcc25f41a2cdb5123f619c` |
+| MAESTRO test, piano model | 854 | `c2e87d355bdf99b60d23c02a976db564b7d87c56bd77535f8cf3ed206d80565f` |
+| Synthesized accordion with accompaniment, Basic Pitch | 49 | `faf676919c7a8aa73bd57c210bb89cd398ec9ed06ea7ed2058e01e6d85cd0471` |
+| Recorded C minor accordion chord, Basic Pitch | 5 | `3e7489ff6683e10c980dd2a5c5b192f410b56e95736a052c59f52bf236d27cdb` |
