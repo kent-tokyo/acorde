@@ -62,6 +62,25 @@ class EvaluationAlignmentTest(unittest.TestCase):
             self.assertEqual(report['estimate_offset_seconds'], 1)
             self.assertEqual(report['onset']['f1'], 1)
 
+    def test_range_matches_estimate_just_outside_boundary(self):
+        common = {'tempo': 120, 'numerator': 4, 'denominator': 4, 'bar_start': 0}
+        with tempfile.TemporaryDirectory() as directory:
+            reference = Path(directory) / 'reference.mid'
+            estimate = Path(directory) / 'estimate.mid'
+            reference.write_bytes(midi_bytes({**common, 'notes': [
+                {'start': 1.02, 'end': 1.3, 'pitch': 60, 'hand': 'right'}]}))
+            estimate.write_bytes(midi_bytes({**common, 'notes': [
+                {'start': 0.99, 'end': 1.3, 'pitch': 60, 'hand': 'right'}]}))
+            result = subprocess.run(
+                [sys.executable, str(Path(__file__).with_name('evaluate.py')),
+                 str(reference), str(estimate), '--start', '1', '--end', '2'],
+                check=True, capture_output=True, text=True)
+            report = json.loads(result.stdout)
+            self.assertEqual(report['reference_notes'], 1)
+            self.assertEqual(report['estimated_notes'], 1)
+            self.assertEqual(report['onset']['f1'], 1)
+            self.assertEqual(report['errors']['missed'], [])
+
     def test_pickup_export_matches_absolute_reference_after_shift(self):
         common = {'tempo': 120, 'numerator': 4, 'denominator': 4,
                   'notes': [{'start': 9.75, 'end': 10.25, 'pitch': 60, 'hand': 'right'}]}

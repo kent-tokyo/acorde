@@ -35,6 +35,28 @@ def extract_playback_report(path, *, shift=0.0, start=0.0, end=None):
     return intervals, pitches
 
 
+def window_events(reference, estimate, *, start, end):
+    """Match boundary context before selecting notes for a half-open window."""
+    def inside(onset):
+        return bool(start <= onset and (end is None or onset < end))
+    def subset(events, indices):
+        return tuple(part[np.asarray(indices, dtype=int)] for part in events)
+    def match(left, right):
+        return mir_eval.transcription.match_notes(
+            *left, *right, onset_tolerance=0.05, pitch_tolerance=50, offset_ratio=None)
+
+    inside_refs = [i for i, interval in enumerate(reference[0]) if inside(interval[0])]
+    outside_refs = [i for i, interval in enumerate(reference[0]) if not inside(interval[0])]
+    matches = match(subset(reference, inside_refs), estimate)
+    selected_estimates = {est for _, est in matches}
+    remaining = [i for i in range(len(estimate[0])) if i not in selected_estimates]
+    outside_matches = match(subset(reference, outside_refs), subset(estimate, remaining))
+    matched_outside = {remaining[est] for _, est in outside_matches}
+    selected_estimates.update(i for i, interval in enumerate(estimate[0])
+                              if inside(interval[0]) and i not in matched_outside)
+    return subset(reference, inside_refs), subset(estimate, sorted(selected_estimates))
+
+
 def error_details(reference, estimate):
     """List unmatched notes and onset-matched notes with offset errors.
 
@@ -97,9 +119,13 @@ def main():
             or not math.isfinite(args.start) or args.start < 0
             or (args.end is not None and (not math.isfinite(args.end) or args.end <= args.start))):
         parser.error('offset and range must be finite, non-negative, and start must precede end')
-    reference = extract(args.reference, start=args.start, end=args.end)
+    margin_start = max(0.0, args.start - 0.05)
+    margin_end = None if args.end is None else args.end + 0.05
+    reference = extract(args.reference, start=margin_start, end=margin_end)
     estimate_reader = extract_playback_report if args.estimate_playback_report else extract
-    estimate = estimate_reader(args.estimate, shift=args.estimate_offset, start=args.start, end=args.end)
+    estimate = estimate_reader(args.estimate, shift=args.estimate_offset,
+                               start=margin_start, end=margin_end)
+    reference, estimate = window_events(reference, estimate, start=args.start, end=args.end)
     output = {'files': {str(path): hashlib.sha256(path.read_bytes()).hexdigest()
                         for path in (args.reference, args.estimate)},
               'reference_notes': len(reference[0]), 'estimated_notes': len(estimate[0]),
