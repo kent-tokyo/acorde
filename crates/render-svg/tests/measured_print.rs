@@ -9,6 +9,26 @@ use acorde_render_svg::{
 const FONT: &[u8] = include_bytes!("fixtures/Tuffy.ttf");
 
 #[test]
+fn aloha_measured_print_has_four_pages_and_preserves_second_verse() {
+    let score = acorde_io::parse_mxl(include_bytes!(
+        "../../../tests/fixtures/openscore_lieder_aloha_oe.mxl"
+    ))
+    .unwrap();
+    let config = PrintConfig {
+        measures_per_system: 8,
+        ..Default::default()
+    };
+    let output = engrave_print_pages(&score, &config, FONT).unwrap();
+    assert_eq!(output.pages.len(), 4);
+    assert!(
+        output
+            .pages
+            .iter()
+            .any(|page| page.contains("acorde-lyric-extender\" data-verse=\"2\""))
+    );
+}
+
+#[test]
 fn explicit_lyric_sides_are_drawn_outside_their_staff() {
     let xml = r#"<score-partwise><part-list><score-part id="P1"><part-name>Voice</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><lyric number="1" placement="above"><text>Above</text></lyric><lyric number="2" placement="below"><text>Below</text></lyric></note></measure></part></score-partwise>"#;
     let mut score = acorde_io::parse_musicxml(xml).unwrap();

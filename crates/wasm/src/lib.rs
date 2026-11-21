@@ -5083,7 +5083,8 @@ mod wasm_tests {
             &serde_json::to_string(&config).unwrap(), font).unwrap();
         let value: serde_json::Value = serde_json::from_str(&output).unwrap();
         assert_eq!(value["staff_space_mm"], 1.8);
-        assert_eq!(value["pages"].as_array().unwrap().len(), 3);
+        // The native measured-print regression pins the same four-page input and settings.
+        assert_eq!(value["pages"].as_array().unwrap().len(), 4);
         let pages = value["pages"].as_array().unwrap().iter().map(|p| p.as_str().unwrap()).collect::<String>();
         assert!(pages.contains("data-acorde-outlined-text"));
         assert!(pages.contains("acorde-lyric-extender\" data-verse=\"2\""));
