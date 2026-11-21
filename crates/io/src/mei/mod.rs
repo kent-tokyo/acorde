@@ -3032,6 +3032,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                 b"syl" => {
                     if !syllable_text.trim().is_empty() {
                         let lyric = acorde_core::Lyric {
+                            placement_above: None,
                             text: syllable_text.trim().to_string(),
                             syllabic: match syllable_wordpos.as_deref() {
                                 Some("i") => "begin",
@@ -5690,7 +5691,7 @@ pub fn serialize_mei(score: &Score) -> Result<String, Error> {
 /// Report score fields that the MEI subset serializer cannot represent.
 pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
     const MAX_DIAGNOSTICS: usize = 1_024;
-    let mut diagnostics = Vec::new();
+    let mut diagnostics = crate::report::lyric_placement_export_losses(score, "mei");
     let push = |diagnostics: &mut Vec<Diagnostic>, path: String, value: String| {
         if diagnostics.len() >= MAX_DIAGNOSTICS {
             return;

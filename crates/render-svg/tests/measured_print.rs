@@ -1573,6 +1573,7 @@ fn vocal_score(text: &str, measures: usize) -> Score {
                 let mut note = Note::new(Pitch::new(step, 4), Duration::Quarter);
                 note.stem_up = Some(true);
                 note.lyric = Some(Lyric {
+                    placement_above: None,
                     text: text.into(),
                     syllabic: "single".into(),
                     extend: false,

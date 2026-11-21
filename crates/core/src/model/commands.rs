@@ -7459,6 +7459,7 @@ mod tests {
         score.parts[0].staves[0].measures[0].voices[0] =
             vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
         let lyric = |text: &str| Lyric {
+            placement_above: None,
             text: text.into(),
             syllabic: "single".into(),
             extend: false,
@@ -7538,6 +7539,45 @@ mod tests {
             error,
             crate::ValidationError::InvalidLyricVerse { verse: 2, .. }
         )));
+    }
+
+    #[test]
+    fn lyric_side_is_preserved_through_edit_undo_and_redo() {
+        let mut score = Score::new("Lyrics", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
+        let lyric = Lyric {
+            placement_above: Some(true),
+            text: "above".into(),
+            syllabic: "single".into(),
+            extend: false,
+        };
+        let command = Command::SetLyric(SetLyricCmd {
+            part_index: 0,
+            staff_index: 0,
+            measure_index: 0,
+            voice: 0,
+            note_index: 0,
+            lyric: Some(lyric.clone()),
+            verse: Some(2),
+        });
+        let mut stack = CommandStack::new(10);
+        stack.execute(command, &mut score).unwrap();
+        assert_eq!(
+            score.parts[0].staves[0].measures[0].voices[0][0].additional_lyrics[0].lyric,
+            lyric
+        );
+        stack.undo(&mut score).unwrap();
+        assert!(
+            score.parts[0].staves[0].measures[0].voices[0][0]
+                .additional_lyrics
+                .is_empty()
+        );
+        stack.redo(&mut score).unwrap();
+        assert_eq!(
+            score.parts[0].staves[0].measures[0].voices[0][0].additional_lyrics[0].lyric,
+            lyric
+        );
     }
 
     #[test]

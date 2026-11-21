@@ -1153,6 +1153,7 @@ fn note_annotations_are_rendered_and_xml_escaped() {
         degrees: Vec::new(),
     });
     note.lyric = Some(Lyric {
+        placement_above: None,
         text: "A&B<".into(),
         syllabic: "single".into(),
         extend: false,
@@ -1195,11 +1196,13 @@ fn lyric_hyphen_connects_adjacent_syllables_by_note_address() {
         vec![],
     );
     score.parts[0].staves[0].measures[0].voices[0][0].lyric = Some(Lyric {
+        placement_above: None,
         text: "hel".into(),
         syllabic: "begin".into(),
         extend: false,
     });
     score.parts[0].staves[0].measures[0].voices[0][1].lyric = Some(Lyric {
+        placement_above: None,
         text: "lo".into(),
         syllabic: "end".into(),
         extend: false,
@@ -1225,6 +1228,7 @@ fn lyric_hyphen_connects_across_measure_boundaries_on_same_system() {
     );
     score.parts[0].staves[0].measures.push(Measure::empty(4, 4));
     score.parts[0].staves[0].measures[0].voices[0][0].lyric = Some(Lyric {
+        placement_above: None,
         text: "hel".into(),
         syllabic: "begin".into(),
         extend: false,
@@ -1232,6 +1236,7 @@ fn lyric_hyphen_connects_across_measure_boundaries_on_same_system() {
     score.parts[0].staves[0].measures[1].voices[0] =
         vec![Note::new(Pitch::new(Step::D, 4), Duration::Whole)];
     score.parts[0].staves[0].measures[1].voices[0][0].lyric = Some(Lyric {
+        placement_above: None,
         text: "lo".into(),
         syllabic: "end".into(),
         extend: false,
@@ -1327,6 +1332,7 @@ fn mixed_note_annotations_use_distinct_vertical_lanes() {
     let note = &mut score.parts[0].staves[0].measures[0].voices[0][0];
     note.dynamic = Some(Dynamic::Mf);
     note.lyric = Some(Lyric {
+        placement_above: None,
         text: "la".to_string(),
         syllabic: "single".to_string(),
         extend: false,
@@ -1363,6 +1369,7 @@ fn mixed_annotation_lanes_expand_the_page_margin() {
     let note = &mut score.parts[0].staves[0].measures[0].voices[0][0];
     note.dynamic = Some(Dynamic::F);
     note.lyric = Some(Lyric {
+        placement_above: None,
         text: "la".to_string(),
         syllabic: "single".to_string(),
         extend: false,
@@ -1539,6 +1546,7 @@ fn metadata_exposes_typed_note_semantics_without_svg_parsing() {
     note.instrument_id = Some("P1&\"I1".to_owned());
     note.dynamic = Some(Dynamic::Mf);
     note.lyric = Some(Lyric {
+        placement_above: None,
         text: "la".to_owned(),
         syllabic: "single".to_owned(),
         extend: false,
@@ -2319,6 +2327,7 @@ fn note_attached_annotations_expand_content_height() {
     note.technique_text = Some("pizz.".to_string());
     note.fingering = Some(2);
     note.lyric = Some(Lyric {
+        placement_above: None,
         text: "long".to_string(),
         syllabic: "single".to_string(),
         extend: false,
@@ -3216,6 +3225,7 @@ fn wide_simultaneous_voice_annotations_expand_notehead_separation() {
     assert_eq!(baseline.len(), 2);
 
     score.parts[0].staves[0].measures[0].voices[1][0].lyric = Some(Lyric {
+        placement_above: None,
         text: "a deliberately wide simultaneous lyric".into(),
         syllabic: "single".into(),
         extend: false,
@@ -3481,6 +3491,7 @@ fn additional_lyric_verses_render_below_verse_one() {
     let mut score = Score::new("verses", 120, 4, 4, 0, 1);
     let mut note = Note::new(Pitch::new(Step::C, 5), Duration::Whole);
     note.lyric = Some(Lyric {
+        placement_above: None,
         text: "first".into(),
         syllabic: "single".into(),
         extend: false,
@@ -3488,6 +3499,7 @@ fn additional_lyric_verses_render_below_verse_one() {
     note.additional_lyrics = vec![VerseLyric {
         verse: 2,
         lyric: Lyric {
+            placement_above: None,
             text: "second".into(),
             syllabic: "single".into(),
             extend: false,
@@ -3670,6 +3682,7 @@ fn inner_bar_annotations_do_not_widen_page_margins() {
     let plain = staff_line(&acorde_render_svg::render_svg(&score, &options).unwrap());
     // Bar 2 sits inside the first system; its long lyric cannot reach either page edge.
     score.parts[0].staves[0].measures[1].voices[0][0].lyric = Some(Lyric {
+        placement_above: None,
         text: "a-very-long-melisma-syllable-that-would-once-shrink-every-system".into(),
         syllabic: "single".into(),
         extend: false,
@@ -4154,11 +4167,13 @@ fn lyric_extender_runs_under_the_melisma_to_its_last_notehead() {
         .map(|step| Note::new(Pitch::new(step, 4), Duration::Quarter))
         .collect();
     notes[0].lyric = Some(Lyric {
+        placement_above: None,
         text: "Ah".into(),
         syllabic: "single".into(),
         extend: true,
     });
     notes[3].lyric = Some(Lyric {
+        placement_above: None,
         text: "men".into(),
         syllabic: "single".into(),
         extend: false,

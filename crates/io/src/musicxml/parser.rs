@@ -716,6 +716,7 @@ pub(crate) fn parse_musicxml_collecting(
     let mut lyric_syllabic = String::new();
     // Source `<lyric number>` of the lyric being read, and the note's completed lyrics.
     let mut lyric_number: Option<u8> = None;
+    let mut lyric_placement_above: Option<bool> = None;
     let mut note_lyrics: Vec<(Option<u8>, Lyric)> = Vec::new();
     let mut in_measure_style = false;
     // `<measure-repeat type="start">n</measure-repeat>` repeats the previous n measures until a
@@ -1256,6 +1257,11 @@ pub(crate) fn parse_musicxml_collecting(
                     }
                     "lyric" if in_note => {
                         in_lyric = true;
+                        lyric_placement_above = match attr_str(e, b"placement").as_deref() {
+                            Some("above") => Some(true),
+                            Some("below") => Some(false),
+                            _ => None,
+                        };
                         lyric_text.clear();
                         lyric_elision = None;
                         lyric_syllabic = "single".to_string();
@@ -3280,6 +3286,7 @@ pub(crate) fn parse_musicxml_collecting(
                             note_lyrics.push((
                                 lyric_number,
                                 Lyric {
+                                    placement_above: lyric_placement_above.take(),
                                     text: std::mem::take(&mut lyric_text),
                                     syllabic: if lyric_syllabic.is_empty() {
                                         "single".to_string()
@@ -3291,6 +3298,7 @@ pub(crate) fn parse_musicxml_collecting(
                             ));
                         }
                         lyric_extend = false;
+                        lyric_placement_above = None;
                         lyric_syllabic = "single".to_string();
                     }
                     "offset" if in_direction => {

@@ -1348,6 +1348,7 @@ fn apply_lyrics(measures: &mut [Measure], lines: &[(usize, String)]) {
                     _ => "middle",
                 };
                 syllables.push(Lyric {
+                    placement_above: None,
                     text: part.to_string(),
                     syllabic: syllabic.to_string(),
                     extend: false,

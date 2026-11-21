@@ -13315,6 +13315,7 @@ mod tests {
         for voice in measure.voices.iter_mut().take(2) {
             let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Quarter);
             note.lyric = Some(Lyric {
+                placement_above: None,
                 text: "same lyric".into(),
                 syllabic: "single".into(),
                 extend: false,
@@ -13647,6 +13648,7 @@ mod tests {
         let plain = Note::new(Pitch::new(Step::C, 5), Duration::Quarter);
         let mut annotated = plain.clone();
         annotated.lyric = Some(Lyric {
+            placement_above: None,
             text: "long-syllable".to_owned(),
             syllabic: "single".to_owned(),
             extend: false,
@@ -13704,6 +13706,7 @@ mod tests {
         let prior = Note::new(Pitch::new(Step::C, 5), Duration::Quarter);
         let mut current = Note::new(Pitch::new(Step::E, 4), Duration::Quarter);
         current.lyric = Some(Lyric {
+            placement_above: None,
             text: "a wide lyric".into(),
             syllabic: "single".into(),
             extend: false,
@@ -13927,6 +13930,7 @@ mod piano_brace_tests {
         let mut score = acorde_core::Score::template(acorde_core::ScoreTemplate::Piano);
         let mut sung = Note::new(Pitch::new(Step::G, 4), Duration::Whole);
         sung.lyric = Some(Lyric {
+            placement_above: None,
             text: "Lied".to_owned(),
             syllabic: "single".to_owned(),
             extend: false,

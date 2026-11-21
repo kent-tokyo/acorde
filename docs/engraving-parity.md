@@ -946,6 +946,34 @@ and both Chrome screen tests passed, and scoped IO and SVG library Clippy
 passed on macOS. Full visual, native/WASM, platform, performance and reserved
 validation remain pending.
 
+### Lyric-side data preservation
+
+`Lyric::placement_above` now preserves an explicitly above or below MusicXML
+lyric independently for each verse. Unspecified placement remains `None`, old
+JSON defaults to `None`, and `SetLyric` retains the field through undo and redo.
+MusicXML writes the preserved side back; invalid source values are diagnosed.
+The ABC, MEI, MSCX and MIDI export reports flag explicit lyric side metadata
+that their current exporters do not preserve. This changes the Score JSON
+schema and public Rust struct literals; semver and downstream compatibility
+review are required.
+
+This is the data-preservation stage, not above-staff engraving support. SVG and
+measured print still place the lyric below the staff, and the MusicXML import
+report warns when it encounters `above`. The OMR `Write` / `this` example and
+its source-placement mismatch therefore remain unresolved. The renderer also
+needs side-aware verse lanes, collision and staff-gap reservation, hyphens and
+extenders across systems, and all-page checks before this limitation can be
+removed.
+
+Three focused MusicXML/other-export tests, 264 IO round-trip tests, the core
+edit/undo/redo test, 49 measured-print tests, 209 SVG structural tests, a
+no-default-features IO check, and scoped all-feature core, IO and SVG library
+Clippy passed on macOS. The initially unscoped core test command
+ran out of disk while linking an unrelated integration test; the targeted
+library test passed after removing one inactive, ignored incremental cache.
+No new corpus or platform run was performed for this data-only stage, and all
+final parity gates remain pending.
+
 ### Reuse of measured row geometry
 
 Profiling the 643-measure chamber input showed repeated pagination attempts:

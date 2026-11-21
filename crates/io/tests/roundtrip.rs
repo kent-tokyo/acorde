@@ -5873,12 +5873,14 @@ fn lyric_extenders_and_compound_dynamics_survive_interchange() {
         .map(|step| Note::new(Pitch::new(step, 4), Duration::Quarter))
         .collect();
     notes[0].lyric = Some(Lyric {
+        placement_above: None,
         text: "Ah".into(),
         syllabic: "single".into(),
         extend: true,
     });
     notes[0].dynamic = Some(Dynamic::Fp);
     notes[3].lyric = Some(Lyric {
+        placement_above: None,
         text: "men".into(),
         syllabic: "single".into(),
         extend: false,
@@ -6567,6 +6569,7 @@ fn mei_round_trips_tremolos_arpeggios_and_tablature_graces_and_lyrics() {
     let mut sung = Note::new(Pitch::new(Step::B, 3), Duration::Whole);
     sung.tab_position = Some(TabPosition { string: 4, fret: 4 });
     sung.lyric = Some(Lyric {
+        placement_above: None,
         text: "la".into(),
         syllabic: "single".into(),
         extend: false,

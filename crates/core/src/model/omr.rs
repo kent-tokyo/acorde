@@ -791,6 +791,7 @@ mod tests {
                 confidence: 0.99,
                 annotation: OmrNoteAnnotation::Lyric {
                     lyric: Lyric {
+                        placement_above: None,
                         text: "la".to_string(),
                         syllabic: "single".to_string(),
                         extend: false,

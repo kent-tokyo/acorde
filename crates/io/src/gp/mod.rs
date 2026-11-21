@@ -1035,6 +1035,7 @@ fn convert_beat(
                 continue;
             }
             let lyric = Lyric {
+                placement_above: None,
                 text: text.to_string(),
                 syllabic: "single".to_string(),
                 extend: false,

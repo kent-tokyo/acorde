@@ -232,7 +232,7 @@ fn can_emit_cross_staff_or_voice_slur(
 /// Report canonical score fields that the deliberately bounded MSCX serializer cannot emit.
 pub fn export_loss_diagnostics(score: &Score) -> Vec<crate::Diagnostic> {
     const MAX_DIAGNOSTICS: usize = 1_024;
-    let mut diagnostics = Vec::new();
+    let mut diagnostics = crate::report::lyric_placement_export_losses(score, "mscx");
     let mut push = |path: String, value: String, reason: &str| {
         if diagnostics.len() >= MAX_DIAGNOSTICS {
             return;

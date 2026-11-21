@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+- Preserve the explicit MusicXML staff side of each lyric verse in the new
+  serde-defaulted `Lyric::placement_above` field, through Score JSON and lyric
+  editing. SVG and measured print do not yet draw above-staff lyrics above;
+  import reports that limitation, and other supported exporters report loss of
+  the side metadata. Adding the public field requires a semver review for Rust
+  struct-literal consumers.
+
 - Reserve measured lyric and annotation spacing for voice displacement so
   syllables can share their baseline. MusicXML import now diagnoses lyric
   placement values that the score model cannot preserve.

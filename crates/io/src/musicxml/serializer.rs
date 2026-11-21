@@ -1576,7 +1576,12 @@ fn serialize_note(
                 .map(|entry| (entry.verse, &entry.lyric)),
         );
         for (verse, lyric) in verses {
-            xml.push_str(&format!("        <lyric number=\"{verse}\">\n"));
+            let placement = match lyric.placement_above {
+                Some(true) => " placement=\"above\"",
+                Some(false) => " placement=\"below\"",
+                None => "",
+            };
+            xml.push_str(&format!("        <lyric number=\"{verse}\"{placement}>\n"));
             xml.push_str(&format!(
                 "          <syllabic>{}</syllabic>\n",
                 escape_xml(&lyric.syllabic)

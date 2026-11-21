@@ -2150,6 +2150,7 @@ fn apply_abc_lyrics(score: &mut Score, lyric_lines: &[AbcLyricLine]) {
                 (true, true) => "middle",
             };
             let lyric = acorde_core::Lyric {
+                placement_above: None,
                 text,
                 syllabic: syllabic.to_string(),
                 extend: false,
@@ -2721,7 +2722,7 @@ fn abc_volta_round_trips(staff: &Staff, index: usize) -> bool {
 /// Report canonical score data that the deliberately small ABC exporter cannot emit.
 pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
     const MAX_DIAGNOSTICS: usize = 1_024;
-    let mut diagnostics = Vec::new();
+    let mut diagnostics = crate::report::lyric_placement_export_losses(score, "abc");
     let mut push = |path: String, value: String, reason: &str| {
         if diagnostics.len() >= MAX_DIAGNOSTICS {
             return;
@@ -3283,6 +3284,7 @@ C D E F | G A B c |";
         let note = &mut score.parts[0].staves[0].measures[0].voices[0][0];
         note.dynamic = Some(acorde_core::Dynamic::Mf);
         note.lyric = Some(acorde_core::Lyric {
+            placement_above: None,
             text: "la".to_string(),
             syllabic: "single".to_string(),
             extend: false,
@@ -3916,6 +3918,7 @@ C D E F | G A B c |";
         voice.push(Note::new(Pitch::new(Step::C, 4), Duration::Quarter));
         let mut second = Note::new(Pitch::new(Step::D, 4), Duration::Quarter);
         second.lyric = Some(acorde_core::Lyric {
+            placement_above: None,
             text: "word".to_string(),
             syllabic: "single".to_string(),
             extend: false,

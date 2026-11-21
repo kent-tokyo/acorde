@@ -487,10 +487,22 @@ fn push_advanced_attribute_diagnostics(
                     "MusicXML direction placement is not above or below; the original value is preserved",
                 )
             }
-            "placement" if path.last().map(String::as_str) == Some("lyric") => (
-                "musicxml.unsupported-lyric-placement",
-                "the lyric placement is not preserved; engraving currently places lyrics below the staff",
-            ),
+            "placement" if path.last().map(String::as_str) == Some("lyric") => {
+                if value == "below" {
+                    continue;
+                }
+                if value == "above" {
+                    (
+                        "musicxml.lyric-above-rendering-unsupported",
+                        "the above placement is retained in the score and MusicXML, but SVG and print rendering do not yet apply it",
+                    )
+                } else {
+                    (
+                        "musicxml.invalid-lyric-placement",
+                        "MusicXML lyric placement must be above or below; the value cannot be preserved",
+                    )
+                }
+            }
             "default-x" | "default-y" | "relative-x" | "relative-y"
                 if path.last().map(String::as_str) == Some("note") =>
             {

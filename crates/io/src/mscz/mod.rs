@@ -2163,6 +2163,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             chord_lyrics.push((
                                 Some(lyrics_no.unwrap_or(1)),
                                 Lyric {
+                                    placement_above: None,
                                     text: std::mem::take(&mut lyrics_text),
                                     syllabic: if lyrics_syllabic.is_empty() {
                                         "single".to_string()

@@ -686,6 +686,9 @@ pub enum NoteHead {
 /// Lyric syllable attached to a note.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Lyric {
+    /// Explicit staff side, or `None` when the source leaves placement unspecified.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub placement_above: Option<bool>,
     /// The syllable text.
     pub text: String,
     /// Syllabic position: "single" | "begin" | "middle" | "end"
