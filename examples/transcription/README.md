@@ -27,6 +27,8 @@ and remove notes. The range buttons assign all notes whose starts and pitches fa
 ranges to one hand. The initial split at MIDI note 60 is a guess. Chord candidates are pitch-class
 matches on left-hand notes whose starts fall within the chosen time window. Groups containing
 just one pitch class are shown as bass candidates. Octaves are not distinguished in this list.
+Selecting a note also shows overlapping notes one or two octaves away that start within 120 ms;
+select them to compare. This is a review hint, not a determination that they are duplicate keys.
 
 Set the playback range and speed to compare the original with the candidate notes. Enter the
 tempo as a whole-number BPM, meter and time of the first complete bar before export. For a pickup, enter its length in

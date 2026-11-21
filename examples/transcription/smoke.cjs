@@ -263,6 +263,25 @@ async function main() {
     assert.match(manualXml, /<staves>2<\/staves>/);
     assert.match(manualXml, /<step>A<\/step>\s*<octave>4<\/octave>/);
     assert.match(manualXml, /<step>A<\/step>\s*<octave>2<\/octave>/);
+    await freshPage.locator("#add").click();
+    await freshPage.locator("#pitch").fill("81");
+    await freshPage.locator("#start").fill("1.05");
+    await freshPage.locator("#end").fill("1.5");
+    await freshPage.locator("#apply").click();
+    await freshPage.locator("#octaveReview").getByText("MIDI 69", { exact: false }).waitFor();
+    await freshPage.locator("#octaveReview li").filter({ hasText: "MIDI 69" }).getByRole("button", { name: "選択" }).click();
+    assert.equal(await freshPage.locator("#pitch").inputValue(), "69");
+    await freshPage.locator("#octaveReview").getByText("MIDI 81", { exact: false }).waitFor();
+    const octaveDownload = freshPage.waitForEvent("download");
+    await freshPage.locator("#saveProject").click();
+    let octaveSaved = "";
+    for await (const chunk of await (await octaveDownload).createReadStream()) octaveSaved += chunk;
+    assert.equal(JSON.parse(octaveSaved).notes.length, 3);
+    await freshPage.locator("#octaveReview li").filter({ hasText: "MIDI 81" }).getByRole("button", { name: "選択" }).click();
+    await freshPage.locator("#start").fill("1.3");
+    await freshPage.locator("#apply").click();
+    assert.equal(await freshPage.locator("#octaveReview").isHidden(), true);
+    await freshPage.locator("#undo").click();
     await freshPage.locator("#openProject").setInputFiles({
       name: "overlap.json",
       mimeType: "application/json",

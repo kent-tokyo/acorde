@@ -232,6 +232,10 @@
             </select></label
           ><button id="apply" disabled>変更を適用</button>
         </div>
+        <div id="octaveReview" hidden>
+          <p><small>近い時刻にオクターブ違いの音があります。同時に弾いた音やリードの音を含むため、原音と確認してください。</small></p>
+          <ul id="octaveList"></ul>
+        </div>
       </section>
       <section>
         <div class="row">
@@ -441,6 +445,28 @@
           list.append(item);
         });
       }
+      function renderOctaveReview() {
+        const selected = state.notes[state.selected];
+        const related = selected ? state.notes.flatMap((note, index) => {
+          const distance = Math.abs(note.pitch - selected.pitch);
+          return index !== state.selected && (distance === 12 || distance === 24) &&
+            Math.abs(note.start - selected.start) <= 0.12 &&
+            note.start < selected.end && selected.start < note.end
+            ? [{ note, index }] : [];
+        }) : [];
+        const list = $("octaveList");
+        list.replaceChildren();
+        $("octaveReview").hidden = related.length === 0;
+        related.slice(0, 20).forEach(({ note, index }) => {
+          const item = document.createElement("li");
+          const button = document.createElement("button");
+          button.textContent = "選択";
+          button.onclick = () => select(index);
+          item.append(`MIDI ${note.pitch}　${note.start.toFixed(3)}〜${note.end.toFixed(3)}秒　${note.hand === "left" ? "左手" : "右手"} `, button);
+          list.append(item);
+        });
+        if (related.length > 20) list.append(`ほか ${related.length - 20} 音`);
+      }
       function render() {
         const canvas = $("roll"),
           context = canvas.getContext("2d");
@@ -500,6 +526,7 @@
         $("remove").disabled = $("apply").disabled = state.selected < 0;
         $("undo").disabled = state.undo.length === 0;
         renderBoundaryCandidates();
+        renderOctaveReview();
       }
       function select(i) {
         state.selected = i;
