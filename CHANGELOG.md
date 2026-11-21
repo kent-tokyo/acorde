@@ -4,7 +4,7 @@
 
 - Preserve open tie starts at system breaks and connect a tie to an explicitly
   tied matching pitch in another voice in measured print, including when the
-  original voice continues with a rest.
+  original voice continues with a rest or has no further event.
 
 - Keep measured cross-staff lyric continuations on their written staff across
   page breaks and reserve their ink between staves. Split a continuation when

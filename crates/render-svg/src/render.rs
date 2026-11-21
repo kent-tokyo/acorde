@@ -9937,14 +9937,65 @@ fn render_ties(
                         let started: Vec<usize> = (0..current.pitches.len())
                             .filter(|&index| current.pitch_tie_start(index))
                             .collect();
-                        // The next note of the voice: in this bar, or the first of the next.
-                        let successor = match notes.get(note + 1) {
-                            Some(next) => Some((next, (part, staff, measure, voice, note + 1))),
-                            None => s
-                                .measures
+                        // If the voice ends, another voice can take the tie at the
+                        // same beat. A later bar is eligible only at the bar boundary.
+                        let successor = if let Some(next) = notes.get(note + 1) {
+                            Some((next, (part, staff, measure, voice, note + 1)))
+                        } else if measured_print_active() {
+                            let end_beat: f64 = notes[..=note].iter().map(Note::beats).sum();
+                            let bar_beats =
+                                s.measure_beats(measure, &score.settings.time_signature);
+                            let destination = if end_beat < bar_beats - 1e-9 {
+                                Some((measure, end_beat))
+                            } else if (end_beat - bar_beats).abs() < 1e-9 {
+                                Some((measure + 1, 0.0))
+                            } else {
+                                None
+                            };
+                            destination.and_then(|(m, beat)| {
+                                let bar = s.measures.get(m)?;
+                                let own_next = (m != measure)
+                                    .then(|| bar.voices[voice].first())
+                                    .flatten()
+                                    .map(|next| (next, (part, staff, m, voice, 0)));
+                                own_next.or_else(|| {
+                                    bar.voices
+                                        .iter()
+                                        .enumerate()
+                                        .filter(|(v, _)| *v != voice)
+                                        .find_map(|(v, notes)| {
+                                            let mut onset = 0.0;
+                                            for (index, target) in notes.iter().enumerate() {
+                                                let matches = !target.is_rest
+                                                    && !target.is_grace
+                                                    && !target.is_cue
+                                                    && (onset - beat).abs() < 1e-9
+                                                    && target.pitches.iter().enumerate().any(
+                                                        |(pitch, p)| {
+                                                            target.pitch_tie_end(pitch)
+                                                                && started.iter().any(|from| {
+                                                                    current.pitches[*from].to_midi()
+                                                                        == p.to_midi()
+                                                                })
+                                                        },
+                                                    );
+                                                if matches {
+                                                    return Some((
+                                                        target,
+                                                        (part, staff, m, v, index),
+                                                    ));
+                                                }
+                                                onset += target.beats();
+                                            }
+                                            None
+                                        })
+                                })
+                            })
+                        } else {
+                            s.measures
                                 .get(measure + 1)
                                 .and_then(|next_measure| next_measure.voices[voice].first())
-                                .map(|next| (next, (part, staff, measure + 1, voice, 0))),
+                                .map(|next| (next, (part, staff, measure + 1, voice, 0)))
                         };
                         let Some((next, next_key, b)) = successor
                             .and_then(|(next, key)| {
@@ -9975,7 +10026,15 @@ fn render_ties(
                         let pairs = if next.is_rest {
                             Vec::new()
                         } else {
-                            tied_pitch_pairs(current, next)
+                            let pairs = tied_pitch_pairs(current, next);
+                            if measured_print_active() && next_key.3 != voice {
+                                pairs
+                                    .into_iter()
+                                    .filter(|(_, to)| next.pitch_tie_end(*to))
+                                    .collect()
+                            } else {
+                                pairs
+                            }
                         };
                         if pairs.is_empty() && !measured_print_active() {
                             // Preserve the legacy respelled-chord fallback.

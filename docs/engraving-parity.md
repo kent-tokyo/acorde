@@ -1085,7 +1085,8 @@ beat in another voice when the original voice's next event is a rest. Comparing
 musical onsets avoids depending on displaced rest or notehead x-coordinates.
 Synthetic tests check the connection, a later tied note that must not be joined,
 and a page break with one tie segment on each page. Voice changes without a next
-event in the original voice and the wider source-fidelity audit remain open.
+event in the original voice were addressed in the subsequent checkpoint; the
+wider source-fidelity audit remains open.
 
 The [34-input screen](archive/print-parity-tie-rest-screen-20261122.json) used
 unchanged input hashes and printer SHA-256
@@ -1099,6 +1100,29 @@ screen predates both tie changes, raw tie paths increased from 17 to 19 in
 correctness. The 56-test measured suite, 209-test structural suite, focused
 page-break test and SVG all-feature library Clippy passed on macOS. Complete
 visual, cross-platform and reserved-cohort gates remain open.
+
+### Ties after a voice ends
+
+When a voice has no following event, measured print now searches for an
+explicitly tied matching pitch in another voice at the end beat of the source
+note. A destination in the following measure is eligible only when that beat
+reaches the effective measure length, including an authored actual length.
+Synthetic checks cover a voice ending inside the bar, a page break, a matching
+note without a tie end, and an incomplete voice that must not jump over the
+remaining beats to the next measure. This does not establish all tie fidelity,
+including arbitrary cross-staff destinations and ambiguous source notation.
+
+The [34-input screen](archive/print-parity-tie-voice-end-screen-20261122.json)
+used unchanged input hashes and release printer SHA-256
+`e1002004feb917a54fd9cea32aac2e52f1d75d25d4d0e15cfb56c43c74512bf3`.
+Page counts remained 310 in total and unchanged per score. Selected text,
+lyric, dynamic, curve and page-edge checks found zero candidates; 310 page
+numbers and four titles remained in the margin inventory. In
+`vocal-lc5093434`, raw tie paths increased from 22 to 23; the change is a
+candidate for source-by-source review, not an independently verified mark.
+The measured suite (59 tests), the additional focused skipped-beat test,
+structural suite (209), and SVG all-feature library Clippy passed on macOS.
+Full visual, cross-platform and final reserved-cohort gates remain open.
 
 ### Reuse of measured row geometry
 

@@ -2208,6 +2208,124 @@ fn tie_changes_voice_at_a_rest_across_a_page_break() {
 }
 
 #[test]
+fn tie_changes_voice_when_original_voice_has_no_following_event() {
+    let mut score = Score::new("tie changes voice at voice end", 120, 4, 4, 0, 1);
+    let mut start = Note::new(Pitch::new(Step::C, 5), Duration::Quarter);
+    start.tie_start = true;
+    let mut destination = Note::new(Pitch::new(Step::C, 5), Duration::Quarter);
+    destination.tie_end = true;
+    let measure = &mut score.parts[0].staves[0].measures[0];
+    measure.voices[0] = vec![start];
+    measure.voices[1] = vec![Note::rest(Duration::Quarter), destination];
+    let output = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    let doc = roxmltree::Document::parse(&output.pages[0]).unwrap();
+    let tie = doc
+        .descendants()
+        .find(|n| n.attribute("class") == Some("acorde-tie"))
+        .unwrap();
+    let coordinates: Vec<f32> = tie
+        .attribute("d")
+        .unwrap()
+        .split(|c: char| c == ',' || c.is_whitespace())
+        .filter_map(|s| s.parse().ok())
+        .collect();
+    let target = doc
+        .descendants()
+        .find(|n| n.attribute("data-note-addr") == Some("0:0:0:1:1"))
+        .unwrap()
+        .descendants()
+        .find(|n| n.attribute("class") == Some("acorde-notehead"))
+        .unwrap();
+    let x: f32 = target.attribute("cx").unwrap().parse().unwrap();
+    assert!(
+        (coordinates[6] - (x - 4.03)).abs() < 0.2,
+        "tie ends at {}, target at {x}",
+        coordinates[6]
+    );
+    score.parts[0].staves[0].measures[0].voices[1][1].tie_end = false;
+    let result = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    let doc = roxmltree::Document::parse(&result.pages[0]).unwrap();
+    let tie = doc
+        .descendants()
+        .find(|n| n.attribute("class") == Some("acorde-tie"))
+        .unwrap();
+    let values: Vec<f32> = tie
+        .attribute("d")
+        .unwrap()
+        .split(|c: char| c == ',' || c.is_whitespace())
+        .filter_map(|s| s.parse().ok())
+        .collect();
+    assert!(
+        values[6] < x - 8.0,
+        "an unmarked note must not become the tie endpoint"
+    );
+}
+
+#[test]
+fn tie_changes_voice_after_bar_without_a_source_voice_event() {
+    let mut score = Score::new("tie changes voice at bar", 120, 4, 4, 0, 1);
+    let mut start = Note::new(Pitch::new(Step::C, 5), Duration::Whole);
+    start.tie_start = true;
+    let first = &mut score.parts[0].staves[0].measures[0];
+    first.page_break = true;
+    first.voices[0] = vec![start];
+    let mut destination = Note::new(Pitch::new(Step::C, 5), Duration::Whole);
+    destination.tie_end = true;
+    let mut second = Measure::empty(4, 4);
+    second.voices[0].clear();
+    second.voices[1] = vec![destination];
+    score.parts[0].staves[0].measures.push(second);
+    let result = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    assert_eq!(result.pages.len(), 2);
+    for svg in result.pages {
+        let doc = roxmltree::Document::parse(&svg).unwrap();
+        assert_eq!(
+            doc.descendants()
+                .filter(|n| n.attribute("class") == Some("acorde-tie"))
+                .count(),
+            1
+        );
+    }
+}
+
+#[test]
+fn tie_does_not_jump_from_an_incomplete_voice_to_the_next_bar() {
+    let mut score = Score::new("tie does not skip beats", 120, 4, 4, 0, 1);
+    let mut start = Note::new(Pitch::new(Step::C, 5), Duration::Quarter);
+    start.tie_start = true;
+    score.parts[0].staves[0].measures[0].voices[0] = vec![start];
+    let mut destination = Note::new(Pitch::new(Step::C, 5), Duration::Quarter);
+    destination.tie_end = true;
+    let mut second = Measure::empty(4, 4);
+    second.voices[0] = vec![destination];
+    score.parts[0].staves[0].measures.push(second);
+    let output = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    let doc = roxmltree::Document::parse(&output.pages[0]).unwrap();
+    let tie = doc
+        .descendants()
+        .find(|n| n.attribute("class") == Some("acorde-tie"))
+        .unwrap();
+    let values: Vec<f32> = tie
+        .attribute("d")
+        .unwrap()
+        .split(|c: char| c == ',' || c.is_whitespace())
+        .filter_map(|s| s.parse().ok())
+        .collect();
+    let target = doc
+        .descendants()
+        .find(|n| n.attribute("data-note-addr") == Some("0:0:1:0:0"))
+        .unwrap()
+        .descendants()
+        .find(|n| n.attribute("class") == Some("acorde-notehead"))
+        .unwrap();
+    let target_x: f32 = target.attribute("cx").unwrap().parse().unwrap();
+    assert!(
+        values[6] < target_x - 8.0,
+        "tie must not skip the remaining beats"
+    );
+}
+
+#[test]
 fn unmatched_outgoing_tie_remains_visible_before_a_system_break() {
     let mut score = Score::new("open tie across system", 120, 4, 4, 0, 1);
     let mut start = Note::new(Pitch::new(Step::C, 5), Duration::Whole);
