@@ -226,46 +226,64 @@ fn staff_lyric_baseline_u(staff: &acorde_core::Staff) -> (f32, u8) {
 }
 
 /// Conservative upper lyric baseline, measured upward from the staff's top line.
-fn staff_upper_lyric_baseline_u(staff: &acorde_core::Staff) -> f32 {
-    let has_above = staff
-        .measures
-        .iter()
-        .flat_map(|measure| &measure.voices)
-        .flatten()
-        .any(|note| {
-            note.lyric
-                .iter()
-                .chain(note.additional_lyrics.iter().map(|entry| &entry.lyric))
-                .any(|lyric| lyric.placement_above == Some(true))
-        });
+fn staff_upper_lyric_baseline_u(part: &acorde_core::Part, target: usize) -> f32 {
+    let has_above = part.staves.iter().enumerate().any(|(source, staff)| {
+        staff
+            .measures
+            .iter()
+            .flat_map(|m| &m.voices)
+            .flatten()
+            .any(|note| {
+                note.cross_staff
+                    .as_ref()
+                    .map_or(source, |cross| cross.target_staff)
+                    == target
+                    && note
+                        .lyric
+                        .iter()
+                        .chain(note.additional_lyrics.iter().map(|v| &v.lyric))
+                        .any(|lyric| lyric.placement_above == Some(true))
+            })
+    });
     if !has_above {
         return 0.0;
     }
+    let target_staff = &part.staves[target];
     let mut baseline = 8.0_f32;
-    let mut clef = &staff.clef;
-    for measure in &staff.measures {
+    let mut clef = &target_staff.clef;
+    for (measure_index, measure) in target_staff.measures.iter().enumerate() {
         if let Some(change) = &measure.clef {
             clef = change;
         }
-        for voice in &measure.voices {
-            let mut beat = 0.0;
-            for note in voice {
-                let note_clef = measure.clef_at(clef, beat);
-                beat += note.beats();
-                let Ok(bottom) = geometry::clef_bottom_line(&note_clef) else {
-                    continue;
-                };
-                if note.is_rest || note.pitches.is_empty() {
-                    continue;
+        for (source, staff) in part.staves.iter().enumerate() {
+            let Some(source_measure) = staff.measures.get(measure_index) else {
+                continue;
+            };
+            for voice in &source_measure.voices {
+                let mut beat = 0.0;
+                for note in voice {
+                    let note_clef = measure.clef_at(clef, beat);
+                    beat += note.beats();
+                    if note
+                        .cross_staff
+                        .as_ref()
+                        .map_or(source, |cross| cross.target_staff)
+                        != target
+                        || note.is_rest
+                        || note.pitches.is_empty()
+                    {
+                        continue;
+                    }
+                    let Ok(bottom) = geometry::clef_bottom_line(&note_clef) else {
+                        continue;
+                    };
+                    let high = note
+                        .pitches
+                        .iter()
+                        .map(|pitch| geometry::staff_position(&pitch.step, pitch.octave, bottom))
+                        .fold(i32::MIN, i32::max);
+                    baseline = baseline.max(((high - 8).max(0) as f32) * 0.5 + 3.5 + 3.0);
                 }
-                let high = note
-                    .pitches
-                    .iter()
-                    .map(|pitch| geometry::staff_position(&pitch.step, pitch.octave, bottom))
-                    .fold(i32::MIN, i32::max);
-                // Reserve for an upward stem even when automatic voice rules
-                // choose a direction later in the rendering pass.
-                baseline = baseline.max(((high - 8).max(0) as f32) * 0.5 + 3.5 + 3.0);
             }
         }
     }
@@ -814,7 +832,7 @@ pub(crate) fn build_svg_with_metadata_placement(
     let mut upper_lyric_baselines = HashMap::new();
     let upper_lyric_offsets: Vec<f32> = staff_refs
         .iter()
-        .map(|&(part, staff)| staff_upper_lyric_baseline_u(&score.parts[part].staves[staff]))
+        .map(|&(part, staff)| staff_upper_lyric_baseline_u(&score.parts[part], staff))
         .collect();
     // A volta (1st/2nd ending) still open at the end of a system, by ending number.
     let mut open_volta: Option<u8> = None;
@@ -1381,6 +1399,8 @@ pub(crate) fn build_svg_with_metadata_placement(
                             .and_then(|staffs| staffs.get(si_idx))
                             .map(|offset| bottom_y + offset * space),
                         upper_lyric_baselines.get(&(pi, si, row_idx)).copied(),
+                        &lyric_baselines,
+                        &upper_lyric_baselines,
                         options.interactive,
                         &mandatory,
                         &courtesy,
@@ -4691,6 +4711,8 @@ fn render_measure(
     lyric_char_width_u: f32,
     lyric_baseline_y: Option<f32>,
     lyric_above_baseline_y: Option<f32>,
+    lyric_baselines: &HashMap<(usize, usize, usize), f32>,
+    upper_lyric_baselines: &HashMap<(usize, usize, usize), f32>,
     interactive: bool,
     mandatory: &HashMap<AccKey, i8>,
     courtesy: &HashMap<AccKey, i8>,
@@ -4978,8 +5000,12 @@ fn render_measure(
                 annotations::StaffBand {
                     top_y: bottom - staff_height_u(score, part, target) * space,
                     bottom_y: bottom,
-                    lyric_baseline_y: None,
-                    lyric_above_baseline_y: None,
+                    lyric_baseline_y: measured_print_active()
+                        .then(|| lyric_baselines.get(&(part, target, row_idx)).copied())
+                        .flatten(),
+                    lyric_above_baseline_y: measured_print_active()
+                        .then(|| upper_lyric_baselines.get(&(part, target, row_idx)).copied())
+                        .flatten(),
                 },
             )
         })

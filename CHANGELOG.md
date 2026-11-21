@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- Keep measured cross-staff lyric continuations on their written staff across
+  page breaks and reserve their ink between staves.
+
 - Preserve the explicit MusicXML staff side of each lyric verse in the new
   serde-defaulted `Lyric::placement_above` field, through Score JSON and lyric
   editing. Measured print places above-staff lyrics and their continuations on

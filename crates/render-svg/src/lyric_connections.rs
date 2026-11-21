@@ -36,6 +36,7 @@ fn line(
     start: NoteKey,
     end: NoteKey,
     row: usize,
+    print_staff: usize,
     x1: f32,
     x2: f32,
     y: f32,
@@ -48,7 +49,7 @@ fn line(
     let (_, _, em, _, en) = end;
     let _ = write!(
         body,
-        r#"<line class="acorde-lyric-{kind}" data-verse="{verse}" data-row="{row}" data-part="{p}" data-staff="{s}" data-start-note-addr="{p}:{s}:{m}:{v}:{n}" data-end-note-addr="{p}:{s}:{em}:{v}:{en}" x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="{}"/>"#,
+        r#"<line class="acorde-lyric-{kind}" data-verse="{verse}" data-row="{row}" data-part="{p}" data-staff="{s}" data-print-staff="{print_staff}" data-start-note-addr="{p}:{s}:{m}:{v}:{n}" data-end-note-addr="{p}:{s}:{em}:{v}:{en}" x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="{}"/>"#,
         f(x1),
         f(y),
         f(x2),
@@ -153,6 +154,11 @@ pub(crate) fn render(
                                         event.key,
                                         next.key,
                                         start_row,
+                                        event
+                                            .note
+                                            .cross_staff
+                                            .as_ref()
+                                            .map_or(s, |c| c.target_staff),
                                         centre - half,
                                         centre + half,
                                         y,
@@ -167,6 +173,11 @@ pub(crate) fn render(
                                     event.key,
                                     next.key,
                                     start_row,
+                                    event
+                                        .note
+                                        .cross_staff
+                                        .as_ref()
+                                        .map_or(s, |c| c.target_staff),
                                     (right - 1.2 * space).max(start_x),
                                     right - 0.4 * space,
                                     y,
@@ -190,7 +201,13 @@ pub(crate) fn render(
                             // All verses on a staff have fixed baselines within each measured row.
                             let above = text.placement_above == Some(true);
                             let lane = if above { upper_baselines } else { baselines };
-                            let Some(&first_baseline) = lane.get(&(p, s, row)) else {
+                            let print_staff = events[i..last_index]
+                                .iter()
+                                .rev()
+                                .find(|e| e.point.3 <= row)
+                                .and_then(|e| e.note.cross_staff.as_ref())
+                                .map_or(s, |c| c.target_staff);
+                            let Some(&first_baseline) = lane.get(&(p, print_staff, row)) else {
                                 continue;
                             };
                             let direction = if above { -1.0 } else { 1.0 };
@@ -219,7 +236,16 @@ pub(crate) fn render(
                                 right - 0.3 * space
                             };
                             line(
-                                body, "extender", verse, event.key, end_key, row, x1, x2, baseline,
+                                body,
+                                "extender",
+                                verse,
+                                event.key,
+                                end_key,
+                                row,
+                                print_staff,
+                                x1,
+                                x2,
+                                baseline,
                                 space,
                             );
                         }

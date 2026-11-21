@@ -107,6 +107,57 @@ fn above_lyric_extender_stays_above_across_systems() {
 }
 
 #[test]
+fn cross_staff_above_lyric_extender_follows_written_staff_across_pages() {
+    let mut score = vocal_score("unused", 2);
+    for bar in &mut score.parts[0].staves[0].measures {
+        for note in &mut bar.voices[0] {
+            note.lyric = None;
+            note.cross_staff = Some(acorde_core::CrossStaff {
+                target_staff: 1,
+                target_voice: None,
+            });
+        }
+    }
+    score.parts[0].staves[0].measures[0].page_break = true;
+    score.parts[0].staves[0].measures[0].voices[0][0].lyric = Some(Lyric {
+        placement_above: Some(true),
+        text: "Hold".into(),
+        syllabic: "single".into(),
+        extend: true,
+    });
+    let mut lower = Staff::new(Clef::Bass);
+    lower.measures = vec![Measure::empty(4, 4), Measure::empty(4, 4)];
+    score.parts[0].staves.push(lower);
+    let output = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    assert_eq!(output.pages.len(), 2);
+    for svg in &output.pages {
+        let doc = roxmltree::Document::parse(svg).unwrap();
+        let staves: Vec<_> = doc
+            .descendants()
+            .filter(|n| n.attribute("class") == Some("acorde-staff"))
+            .collect();
+        let edge = |index: usize, choose: fn(f32, f32) -> f32, initial: f32| {
+            staves[index]
+                .descendants()
+                .filter(|n| n.attribute("class") == Some("acorde-staff-line"))
+                .map(|n| n.attribute("y1").unwrap().parse::<f32>().unwrap())
+                .fold(initial, choose)
+        };
+        let upper_bottom = edge(0, f32::max, f32::NEG_INFINITY);
+        let lower_top = edge(1, f32::min, f32::INFINITY);
+        let extender = doc
+            .descendants()
+            .find(|n| n.attribute("class") == Some("acorde-lyric-extender"))
+            .unwrap();
+        let y: f32 = extender.attribute("y1").unwrap().parse().unwrap();
+        assert!(
+            upper_bottom < y && y < lower_top,
+            "extender {y}, staff bounds {upper_bottom}..{lower_top}"
+        );
+    }
+}
+
+#[test]
 fn imported_print_break_starts_the_containing_measure_on_the_next_page() {
     let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure><measure number="2"><note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure><measure number="3"><print new-page="yes"><system-layout/></print><note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure><measure number="4"><note><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure></part></score-partwise>"#;
     let score = acorde_io::parse_musicxml(xml).unwrap();

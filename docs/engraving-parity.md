@@ -1009,6 +1009,19 @@ structural tests, three MusicXML placement tests and scoped all-feature IO/SVG
 library Clippy passed on macOS. Full visual, platform, WASM, performance and
 reserved-corpus gates remain open.
 
+### Cross-staff lyric continuation checkpoint
+
+A two-staff regression exposed an above-staff lyric extender moving to the
+source staff after a page break. Measured rendering now tracks the written
+staff for the lyric lane and each extender segment. Preflight assigns the
+syllable and line ink to that staff and reserves inter-staff space for the
+line. The synthetic two-page test checks that both extender segments remain
+between the two staves; it does not establish general cross-staff engraving
+quality. Cross-staff hyphens that change staff or side, lower-side lyric
+clearance, and broader visual cases remain unverified. The previous 34-input
+screen predates this change and was not rerun for this checkpoint. Final parity
+and platform gates remain open.
+
 ### Reuse of measured row geometry
 
 Profiling the 643-measure chamber input showed repeated pagination attempts:

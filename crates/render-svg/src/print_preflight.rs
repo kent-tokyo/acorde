@@ -141,7 +141,14 @@ pub(crate) fn resolve(
                     )
                     .max()
                     .unwrap_or(0);
-                lyric_verses[row][staff] = lyric_verses[row][staff].max(last);
+                let physical = if let Some(cross) = &note.cross_staff {
+                    refs.iter()
+                        .position(|r| *r == (p, cross.target_staff))
+                        .ok_or(Error::InvalidGeneratedGeometry)?
+                } else {
+                    staff
+                };
+                lyric_verses[row][physical] = lyric_verses[row][physical].max(last);
             }
         }
     }
@@ -360,9 +367,39 @@ pub(crate) fn resolve(
             let row = *row_for_measure
                 .get(&index(owner, "data-measure")?)
                 .ok_or(Error::InvalidGeneratedGeometry)?;
+            let target = text
+                .ancestors()
+                .find_map(|n| {
+                    n.attribute("data-print-note-addr")
+                        .or_else(|| n.attribute("data-note-addr"))
+                })
+                .and_then(|address| {
+                    let indices = address
+                        .split(':')
+                        .map(str::parse::<usize>)
+                        .collect::<Result<Vec<_>, _>>()
+                        .ok()?;
+                    let [p, s, m, v, n] = indices.as_slice() else {
+                        return None;
+                    };
+                    score
+                        .parts
+                        .get(*p)?
+                        .staves
+                        .get(*s)?
+                        .measures
+                        .get(*m)?
+                        .voices
+                        .get(*v)?
+                        .get(*n)?
+                        .cross_staff
+                        .as_ref()
+                        .map(|c| c.target_staff)
+                })
+                .unwrap_or(staff);
             let physical = refs
                 .iter()
-                .position(|r| *r == (part, staff))
+                .position(|r| *r == (part, target))
                 .ok_or(Error::InvalidGeneratedGeometry)?;
             let number = |name| {
                 text.attribute(name)
@@ -454,7 +491,11 @@ pub(crate) fn resolve(
         }) {
             let row = index(line, "data-row")?;
             let p = index(line, "data-part")?;
-            let s = index(line, "data-staff")?;
+            let s = if line.attribute("data-print-staff").is_some() {
+                index(line, "data-print-staff")?
+            } else {
+                index(line, "data-staff")?
+            };
             let staff = refs
                 .iter()
                 .position(|r| *r == (p, s))
@@ -466,6 +507,30 @@ pub(crate) fn resolve(
                 .and_then(|v| v.parse::<f32>().ok())
                 .filter(|v| v.is_finite())
                 .ok_or(Error::InvalidGeneratedGeometry)?;
+            let x1 = line
+                .attribute("x1")
+                .and_then(|v| v.parse::<f32>().ok())
+                .filter(|v| v.is_finite())
+                .ok_or(Error::InvalidGeneratedGeometry)?;
+            let x2 = line
+                .attribute("x2")
+                .and_then(|v| v.parse::<f32>().ok())
+                .filter(|v| v.is_finite())
+                .ok_or(Error::InvalidGeneratedGeometry)?;
+            reserve_ink(
+                &mut upper_ink,
+                &mut lower_ink,
+                &tops,
+                &bottoms,
+                (
+                    row,
+                    staff,
+                    x1.min(x2),
+                    x1.max(x2),
+                    y - 0.1 * SPACE,
+                    y + 0.1 * SPACE,
+                ),
+            );
             if y < tops[row][staff] {
                 above[row][staff] = above[row][staff].max((tops[row][staff] - y) / SPACE + 0.1);
             } else {
