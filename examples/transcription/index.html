@@ -139,6 +139,7 @@
             <select id="model">
               <option value="basic">汎用</option>
               <option value="piano">ピアノ専用</option>
+              <option value="transkun">ピアノ専用 Transkun</option>
             </select></label
           ><label
             >最低音 MIDI
@@ -299,6 +300,12 @@
         <div class="row">
           <strong>左手のベース・和音候補</strong>
           <label
+            >候補に使う音
+            <select id="chordSource">
+              <option value="left">左手の音</option>
+              <option value="all">すべての音</option>
+            </select></label>
+          <label
             >開始時刻の幅
             <select id="chordWindow">
               <option value="0.1">0.1秒</option>
@@ -307,10 +314,11 @@
             </select></label
           >
           <button id="chords">候補を表示</button>
+          <button id="exportAccordionEvents">候補を評価用に保存</button>
         </div>
         <p>
           <small
-            >左手に割り当てた音の開始時刻が指定幅に収まる組み合わせから推定します。アコーディオンのボタンやレジスターは判定しません。</small
+              >開始時刻が指定幅に収まる音の組み合わせから推定します。すべての音を使う場合は右手の旋律も含まれます。アコーディオンのボタンやレジスターは判定しません。</small
           >
         </p>
         <div class="row"><strong>ベース音</strong></div>
@@ -865,13 +873,9 @@
           status(e.message);
         }
       }
-      $("chords").onclick = () => {
-        let list = $("chordList");
-        let bassList = $("bassList");
-        list.replaceChildren();
-        bassList.replaceChildren();
+      function accordionCandidates() {
         let notes = state.notes
-          .filter((n) => n.hand === "left")
+          .filter((n) => $("chordSource").value === "all" || n.hand === "left")
           .sort((a, b) => a.start - b.start);
         let groups = [];
         for (let note of notes) {
@@ -897,34 +901,59 @@
           "B",
         ];
         let patterns = [
-          ["", [0, 4, 7]],
-          ["m", [0, 3, 7]],
-          ["7", [0, 4, 7, 10]],
-          ["7（5度省略）", [0, 4, 10]],
-          ["dim", [0, 3, 6]],
+          ["", "major", [0, 4, 7]],
+          ["m", "minor", [0, 3, 7]],
+          ["7", "seventh", [0, 4, 7, 10]],
+          ["7（5度省略）", "seventh", [0, 4, 10]],
+          ["dim", "diminished", [0, 3, 6]],
         ];
+        const result = {
+          right: state.notes.filter((note) => note.hand === "right")
+            .map((note) => ({ time: note.start, pitch: note.pitch })),
+          bass: [], chord: [], groups: [],
+        };
         for (let group of groups) {
+          const continuingPitches = new Set(notes
+            .filter((note) => note.start < group.time - 0.05 && note.end > group.time)
+            .map((note) => note.pitch % 12));
+          const continuationHint = [...group.pitches].every((pitch) => continuingPitches.has(pitch))
+            ? "　継続中の音と重複（再打鍵を確認）" : "";
+          let bass = null;
           if (group.pitches.size === 1) {
-            const item = document.createElement("li");
-            item.textContent =
-              group.time.toFixed(2) +
-              "秒　" +
-              names[group.pitches.values().next().value];
-            bassList.append(item);
+            const root = group.pitches.values().next().value;
+            bass = names[root];
+            result.bass.push({ time: group.time, root });
           }
           let matches = [];
           for (let root = 0; root < 12; root++)
-            for (let [suffix, intervals] of patterns) {
+            for (let [suffix, quality, intervals] of patterns) {
               if (
                 group.pitches.size === intervals.length &&
                 intervals.every((i) => group.pitches.has((root + i) % 12))
-              )
+              ) {
                 matches.push(names[root] + suffix);
+                result.chord.push({ time: group.time, root, quality });
+              }
             }
-          if (matches.length) {
+          result.groups.push({ time: group.time, bass, matches, continuationHint });
+        }
+        return result;
+      }
+      $("chords").onclick = () => {
+        let list = $("chordList");
+        let bassList = $("bassList");
+        list.replaceChildren();
+        bassList.replaceChildren();
+        for (let group of accordionCandidates().groups) {
+          if (group.bass !== null) {
+            const item = document.createElement("li");
+            item.textContent = group.time.toFixed(2) + "秒　" + group.bass + group.continuationHint;
+            bassList.append(item);
+          }
+          if (group.matches.length) {
             let item = document.createElement("li");
             item.textContent =
-              group.time.toFixed(2) + "秒　" + matches.join(" / ");
+              group.time.toFixed(2) + "秒　" + group.matches.join(" / ") + group.continuationHint;
             list.append(item);
           }
         }
@@ -938,6 +967,17 @@
           item.textContent = "一致する候補はありません。";
           list.append(item);
         }
+      };
+      $("exportAccordionEvents").onclick = () => {
+        const { right, bass, chord } = accordionCandidates();
+        const url = URL.createObjectURL(new Blob([JSON.stringify({ right, bass, chord }, null, 2)],
+                                                 { type: "application/json" }));
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "accordion-candidates.json";
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        status("評価用の候補を保存しました。");
       };
       $("preview").onclick = async () => {
         const data = scoreInput();

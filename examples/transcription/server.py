@@ -185,10 +185,10 @@ class Handler(BaseHTTPRequestHandler):
                     last_frame = min(info.frames, round((end + CONTEXT_SECONDS) * info.samplerate))
                     window_start = first_frame / info.samplerate
                     window_end = last_frame / info.samplerate
-                    if first_frame > 0 or last_frame < info.frames:
+                    if first_frame > 0 or last_frame < info.frames or mode == 'transkun':
                         samples, rate = sf.read(str(path), start=first_frame, stop=last_frame,
                                                 always_2d=True)
-                        sf.write(str(path), samples, rate)
+                        sf.write(str(path), samples, rate, subtype='PCM_16')
                     if mode == 'piano':
                         if (not self.server.piano_model or not Path(self.server.piano_model).is_file()
                                 or Path(self.server.piano_model).stat().st_size < 160_000_000):
@@ -201,6 +201,19 @@ class Handler(BaseHTTPRequestHandler):
                         result = self.server.piano.transcribe(audio, None)
                         events = [(n['onset_time'], n['offset_time'], n['midi_note'])
                                   for n in result['est_note_events']]
+                    elif mode == 'transkun':
+                        if not self.server.transkun:
+                            raise ValueError('Transkun is not configured on the server')
+                        output = Path(directory) / 'transkun.mid'
+                        result = subprocess.run([self.server.transkun, str(path), str(output),
+                                                 '--device', 'cpu'], capture_output=True,
+                                                text=True, timeout=600)
+                        if result.returncode:
+                            raise ValueError(result.stderr.strip() or 'Transkun failed')
+                        import pretty_midi
+                        midi = pretty_midi.PrettyMIDI(str(output))
+                        events = [(n.start, n.end, n.pitch) for instrument in midi.instruments
+                                  if not instrument.is_drum for n in instrument.notes]
                     elif mode == 'basic':
                         from basic_pitch import FilenameSuffix, build_icassp_2022_model_path
                         from basic_pitch.inference import Model, predict
@@ -262,6 +275,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--port', type=int, default=8765)
     parser.add_argument('--piano-model', help='path to the piano model checkpoint')
+    parser.add_argument('--transkun', help='path to the optional transkun executable')
     parser.add_argument('--score-converter', default='target/debug/examples/transcription_score')
     parser.add_argument('--acorde', default='target/debug/acorde')
     args = parser.parse_args()
@@ -269,6 +283,7 @@ def main():
     server.score_converter = args.score_converter
     server.acorde = args.acorde
     server.piano_model = args.piano_model
+    server.transkun = args.transkun
     server.inference_lock = threading.Lock()
     server.basic = None
     server.piano = None

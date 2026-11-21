@@ -1,0 +1,41 @@
+[
+  {
+    "id": "alb_se2",
+    "reference": "maps/MAPS_MUS-alb_se2_ENSTDkCl.scaled.mid",
+    "baseline": "maps/MAPS_MUS-alb_se2_ENSTDkCl.piano.mid",
+    "candidate": "maps/MAPS_MUS-alb_se2_ENSTDkCl.transkun.mid",
+    "start": 0,
+    "end": 30,
+    "sha256": {
+      "reference": "d0c76b20c23b1259ebe95ba0ef455e3725e4a0529ee713b658561fb4600e599d",
+      "baseline": "90b8c5ef3905a32afa8134ec68d2bb1d21c9962c1f049a878a6f30cf6c9cceee",
+      "candidate": "0e6560dc5d9f2b57e61eac36b614eb9acd14761ee992de70c3adaffafe92ce2b"
+    }
+  },
+  {
+    "id": "bk_xmas1",
+    "reference": "maps/MAPS_MUS-bk_xmas1_ENSTDkCl.scaled.mid",
+    "baseline": "maps/MAPS_MUS-bk_xmas1_ENSTDkCl.piano.mid",
+    "candidate": "maps/MAPS_MUS-bk_xmas1_ENSTDkCl.transkun.mid",
+    "start": 0,
+    "end": 30,
+    "sha256": {
+      "reference": "a090ea6323d6fe7a84db73da31ca4da1438bccfe8d30c6b3d272916d0e41554c",
+      "baseline": "5bdf7aba5cf39f6c84f279bc907775390ed5dc9c91bf7974cdc110bcd6511711",
+      "candidate": "f1aac0002a0808ca5235d669092e2eebc44780078bf8073474281d0d6e510fd3"
+    }
+  },
+  {
+    "id": "bk_xmas4",
+    "reference": "maps/MAPS_MUS-bk_xmas4_ENSTDkCl.scaled.mid",
+    "baseline": "maps/MAPS_MUS-bk_xmas4_ENSTDkCl.piano.mid",
+    "candidate": "maps/MAPS_MUS-bk_xmas4_ENSTDkCl.transkun.mid",
+    "start": 0,
+    "end": 30,
+    "sha256": {
+      "reference": "36f8329f7fd8c219ba03bfb9c0dbda46d17215ef1e5296a04bcd04ff58df44dd",
+      "baseline": "b77f2511f5bf97804642c78318754a146c02ade6b0974007bed29108e539c8bd",
+      "candidate": "64535f7b7f79dea2f1dcc3390ac3efc38ebe7d8ea8f2c05d0b9b8ed2ef506469"
+    }
+  }
+]

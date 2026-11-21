@@ -1,0 +1,54 @@
+[
+  {
+    "id": "ROOM_room8_MUS_bartok_DEV_iphone",
+    "audio": "room8/ROOM_room8_MUS_bartok_DEV_iphone.wav",
+    "reference": "room8/ROOM_room8_MUS_bartok.mid",
+    "baseline": "room8/ROOM_room8_MUS_bartok_DEV_iphone.piano.mid",
+    "candidate": "room8/ROOM_room8_MUS_bartok_DEV_iphone.transkun.mid",
+    "sha256": {
+      "audio": "1f9d027a3ad6db98e71fd2e4bf8e189c21679ae0e65b3f0ba09a24e7cd6c2bf4",
+      "reference": "96d01e770b9cf5f2d129c6230f4f8084eef9f05aaadb3ed05e77a898877c38f2",
+      "baseline": "b7063cf962fe9159c1fe8abce3b616021628fa80799f06a3e8fc6187effc0421",
+      "candidate": "f0e144cb9ba39b8e0840b7ded26d6da89cbe22a37ace472a4bb717866286be6b"
+    }
+  },
+  {
+    "id": "ROOM_room8_MUS_beethoven2_DEV_lg",
+    "audio": "room8/ROOM_room8_MUS_beethoven2_DEV_lg.wav",
+    "reference": "room8/ROOM_room8_MUS_beethoven2.mid",
+    "baseline": "room8/ROOM_room8_MUS_beethoven2_DEV_lg.piano.mid",
+    "candidate": "room8/ROOM_room8_MUS_beethoven2_DEV_lg.transkun.mid",
+    "sha256": {
+      "audio": "9c9bde3fd96af0d150ccc5027c805c82017993084cf2f42abe592bf0b1cddf95",
+      "reference": "2f45d27341fca3f5339792bac0770f048703c836cb0015eb878b7d0e4d5ec0e4",
+      "baseline": "eba503b6cbe577fe1c0a87b26559cfa74dfbf632a82daaecc170606f4e1634ee",
+      "candidate": "81f7a673a32e0c36b5746b39b72cab7effb35965c81b9377c88665ec1f6e2456"
+    }
+  },
+  {
+    "id": "ROOM_room8_MUS_chords_DEV_redmi",
+    "audio": "room8/ROOM_room8_MUS_chords_DEV_redmi.wav",
+    "reference": "room8/ROOM_room8_MUS_chords.mid",
+    "baseline": "room8/ROOM_room8_MUS_chords_DEV_redmi.piano.mid",
+    "candidate": "room8/ROOM_room8_MUS_chords_DEV_redmi.transkun.mid",
+    "sha256": {
+      "audio": "ba18c1fa24b8438058997f95aba104ffe1c0eabad72cdd2c9b26a4265b13d479",
+      "reference": "3f5868b562a083f949d3e639b67ac36cfe949e1b1bfab8e070a36187451c375e",
+      "baseline": "99ebe6ef9b413b9e0f1062abc031d0618111b49c25c3980f86d7460e19378b1e",
+      "candidate": "6693e3a4a77672ebf8a9a52265d12255a6997174dfcf425379d0c379c6857b14"
+    }
+  },
+  {
+    "id": "ROOM_room8_MUS_swing_DEV_iphone",
+    "audio": "room8/ROOM_room8_MUS_swing_DEV_iphone.wav",
+    "reference": "room8/ROOM_room8_MUS_swing.mid",
+    "baseline": "room8/ROOM_room8_MUS_swing_DEV_iphone.piano.mid",
+    "candidate": "room8/ROOM_room8_MUS_swing_DEV_iphone.transkun.mid",
+    "sha256": {
+      "audio": "877cdd8f33290b43ad9ac8fa1ed90fad9d8cc6875c8913230827cad23ced0b51",
+      "reference": "3d13667b24314b35f06167f50d74c42d5d342e0abd6fe3e9f02e4f3c8a0cb58c",
+      "baseline": "ccb39308ab8b37c6df93a334f7bc9d2bd63222e5915ded687dd630dce68edf22",
+      "candidate": "3f31f3f72404afc23171c9bc0d5b5bc9482b511cca7ca5d3369c6cf2a4a6cf74"
+    }
+  }
+]
