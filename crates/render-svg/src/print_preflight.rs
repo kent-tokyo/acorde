@@ -961,20 +961,25 @@ pub(crate) fn resolve(
             } else {
                 font.measure(text.text().unwrap_or(""), number("font-size")?)?
             };
-            if text.attribute("data-acorde-enclosure") == Some("rectangle") {
+            if let Some(shape @ ("rectangle" | "square")) = text.attribute("data-acorde-enclosure")
+            {
                 let size = number("font-size")?;
                 let slant = if matches!(text.attribute("font-style"), Some("italic" | "oblique")) {
                     -0.212_556_56
                 } else {
                     0.0
                 };
-                let left_slant = (slant * metrics.top_mm).min(slant * metrics.bottom_mm);
-                let right_slant = (slant * metrics.top_mm).max(slant * metrics.bottom_mm);
-                let pad = size * 0.18;
-                metrics.left_mm += left_slant - pad;
-                metrics.right_mm += right_slant + pad;
-                metrics.top_mm -= pad;
-                metrics.bottom_mm += pad;
+                let (left, top, right, bottom) = crate::font_metrics::text_enclosure_bounds(
+                    &metrics,
+                    size,
+                    slant,
+                    shape == "square",
+                    0.18,
+                );
+                metrics.left_mm = left;
+                metrics.top_mm = top;
+                metrics.right_mm = right;
+                metrics.bottom_mm = bottom;
             }
             let anchor = match text.attribute("text-anchor") {
                 Some("middle") => metrics.advance_mm / 2.0,
@@ -1008,11 +1013,17 @@ pub(crate) fn resolve(
                 .ok_or(Error::InvalidGeneratedGeometry)?
                 * 4.0;
             let mut minimum_left = row_left + 0.25 * SPACE;
-            if text.attribute("data-acorde-enclosure") == Some("rectangle")
-                && let Some(measure_left) = owner
-                    .attribute("data-print-measure-left")
-                    .and_then(|v| v.parse::<f32>().ok())
-                    .filter(|v| v.is_finite())
+            if matches!(
+                text.attribute("data-acorde-enclosure"),
+                Some("rectangle" | "square")
+            ) && !text.attribute("class").is_some_and(|class| {
+                class
+                    .split_whitespace()
+                    .any(|part| part == "acorde-measure-text-rehearsal-mark")
+            }) && let Some(measure_left) = owner
+                .attribute("data-print-measure-left")
+                .and_then(|v| v.parse::<f32>().ok())
+                .filter(|v| v.is_finite())
                 && (left + right) / 2.0 < measure_left
             {
                 // A boxed direction whose center falls before its own

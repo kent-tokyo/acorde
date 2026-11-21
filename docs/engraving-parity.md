@@ -462,6 +462,38 @@ regression checks that the second-violin-to-viola distance in the first system
 stays below 21 mm while retaining its existing slur and fingering checks.
 Complete page review, performance work, and final reserved validation remain open.
 
+### Default rehearsal-mark enclosure
+
+[MusicXML 4.0](https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/rehearsal/)
+specifies a square enclosure when a rehearsal mark omits `enclosure`. The SVG
+and measured-print paths now apply that default, honor explicit `none`, and
+support explicit `square` and `rectangle`. The original absence remains absent
+in the model and serialized MusicXML. Measured preflight uses the same frame
+geometry as outlined output, including stroke clearance; rehearsal marks may
+still straddle the preceding barline. Other unsupported enclosure shapes remain
+explicit rendering errors.
+
+Both engines rendered all [24 development inputs](archive/print-parity-development-rehearsal-20261122.json)
+and [ten fixed inputs](archive/print-parity-fixed-ten-rehearsal-20261122.json).
+Only `chamber-sq14387632` and `chamber-sq8812200` changed Acorde SVGs. The
+development total rose from 208 to 209 Acorde pages against 179 Verovio pages;
+the fixed ten stayed at 16 pages for each engine. The latter chamber score rose
+from 35 to 36 Acorde pages against 25 Verovio pages. The [limited collision
+screen](archive/print-parity-screen-rehearsal-20261122.json) for the two changed
+scores found zero candidates in its text/notation, text/text, lyric/staff,
+dynamic/staff and text/curve checks before and after. It does not cover every
+possible collision or prove visual quality. The [margin audit](archive/print-parity-margin-rehearsal-20261122.json)
+recorded 968 candidates: 738 part labels, 225 page numbers and five titles.
+
+The assistant inspected the first and last Acorde pages of `sq8812200` (raster
+SHA-256 `2e73b37474bb43022d99a4d91e1417204e5b383d6573003732ecf5a2ab69d3ef`
+and `8e08d7431939090b7b8fea25b64a9205e976fb7104ad367507185216b47822d7`).
+The first page displays the square around rehearsal A; the last has two systems.
+The input MXL SHA-256 is `d8b8aa0a69fde21920b48798e2e7d7b56d822ac0b2e056a937678a373caa5276`.
+The original printed edition has not been inspected, and the source rehearsal
+font weight and size are not preserved in the current model. Full-page review,
+final reserved validation, performance and the overall parity gates remain open.
+
 ### Reuse of measured row geometry
 
 Profiling the 643-measure chamber input showed repeated pagination attempts:

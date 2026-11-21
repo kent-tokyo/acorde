@@ -294,6 +294,70 @@ fn unsupported_text_enclosure_roundtrips_but_rendering_reports_it() {
 }
 
 #[test]
+fn rehearsal_enclosure_defaults_to_square_and_respects_explicit_none() {
+    let direction = |label: &str, attr: &str| {
+        format!(
+            r#"<measure number="{label}"><direction><direction-type><rehearsal{attr}>{label}</rehearsal></direction-type></direction><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type></note></measure>"#
+        )
+    };
+    let xml = format!(
+        r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Part</part-name></score-part></part-list><part id="P1">{}{}{}{}</part></score-partwise>"#,
+        direction("A", ""),
+        direction("B", r#" enclosure="none""#),
+        direction("C", r#" enclosure="square""#),
+        direction("D", r#" enclosure="rectangle""#)
+    );
+    let score = acorde_io::parse_musicxml(&xml).unwrap();
+    assert_eq!(
+        score.parts[0].staves[0].measures[0].texts[0].enclosure,
+        None
+    );
+    let roundtrip = acorde_io::serialize_musicxml(&score).unwrap();
+    let reread = acorde_io::parse_musicxml(&roundtrip).unwrap();
+    assert_eq!(
+        reread.parts[0].staves[0].measures[0].texts[0].enclosure,
+        None
+    );
+    assert_eq!(
+        reread.parts[0].staves[0].measures[1].texts[0]
+            .enclosure
+            .as_deref(),
+        Some("none")
+    );
+    let screen =
+        acorde_render_svg::render_svg(&reread, &acorde_render_svg::SvgRenderOptions::default())
+            .unwrap();
+    assert_eq!(screen.matches("class=\"acorde-text-enclosure\"").count(), 3);
+    let output = engrave_print_pages(&reread, &PrintConfig::default(), FONT).unwrap();
+    let doc = roxmltree::Document::parse(&output.pages[0]).unwrap();
+    for (label, boxed, square) in [
+        ("A", true, true),
+        ("B", false, false),
+        ("C", true, true),
+        ("D", true, false),
+    ] {
+        let text = doc
+            .descendants()
+            .find(|n| {
+                n.attribute("data-text") == Some(label)
+                    && n.attribute("class")
+                        .is_some_and(|c| c.contains("acorde-measure-text-rehearsal-mark"))
+            })
+            .unwrap();
+        let frame = text
+            .children()
+            .find(|n| n.attribute("class") == Some("acorde-text-enclosure"));
+        assert_eq!(frame.is_some(), boxed, "{label}");
+        if square {
+            let frame = frame.unwrap();
+            let width = frame.attribute("width").unwrap().parse::<f32>().unwrap();
+            let height = frame.attribute("height").unwrap().parse::<f32>().unwrap();
+            assert!((width - height).abs() < 0.01, "{label}: {width} x {height}");
+        }
+    }
+}
+
+#[test]
 fn continued_volta_stays_within_top_margin_on_each_page() {
     use acorde_core::VoltaBracket;
     let mut score = Score::new("Volta", 120, 4, 4, 0, 8);

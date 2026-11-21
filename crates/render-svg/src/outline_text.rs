@@ -131,17 +131,18 @@ pub(crate) fn outline_page_text(
                 );
             }
         }
-        if node.attribute("data-acorde-enclosure") == Some("rectangle") {
-            let left = x - offset
-                + metrics.left_mm
-                + (slant * metrics.top_mm).min(slant * metrics.bottom_mm)
-                - size * 0.16;
-            let right = x - offset
-                + metrics.right_mm
-                + (slant * metrics.top_mm).max(slant * metrics.bottom_mm)
-                + size * 0.16;
-            let top = y + metrics.top_mm - size * 0.16;
-            let height = metrics.bottom_mm - metrics.top_mm + size * 0.32;
+        if let Some(shape @ ("rectangle" | "square")) = node.attribute("data-acorde-enclosure") {
+            let (left, top, right, bottom) = crate::font_metrics::text_enclosure_bounds(
+                &metrics,
+                size,
+                slant,
+                shape == "square",
+                0.16,
+            );
+            let left = x - offset + left;
+            let right = x - offset + right;
+            let height = bottom - top;
+            let top = y + top;
             let _ = write!(
                 output,
                 "><title>{}</title><rect class=\"acorde-text-enclosure\" x=\"{left}\" y=\"{top}\" width=\"{}\" height=\"{height}\" fill=\"none\" stroke=\"black\" stroke-width=\"{}\"/><path d=\"{path}\" transform=\"matrix({x_scale} 0 {slant} 1 {} {y})\"",

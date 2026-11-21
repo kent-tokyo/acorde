@@ -2395,7 +2395,7 @@ fn validate_score_content(score: &Score) -> Result<(), RenderError> {
                     if styled
                         .enclosure
                         .as_deref()
-                        .is_some_and(|v| v != "rectangle" && v != "none")
+                        .is_some_and(|v| v != "rectangle" && v != "square" && v != "none")
                     {
                         return Err(RenderError::InvalidOptions {
                             reason: format!(
@@ -7276,23 +7276,39 @@ fn render_measure_text(
         let displayed = mark
             .and_then(|m| m.written.as_ref())
             .map_or(styled.text.as_str(), |w| w.before.as_str());
-        let enclosure = if styled.enclosure.as_deref() == Some("rectangle") {
+        // MusicXML rehearsal marks default to a square; an explicit "none"
+        // suppresses it. Keep the absent value absent in the score model.
+        let shape = styled
+            .enclosure
+            .as_deref()
+            .or_else(|| (styled.style == TextStyle::RehearsalMark).then_some("square"));
+        let enclosure = if let Some(shape @ ("rectangle" | "square")) = shape {
             if !measured_print_active() {
                 let size = 0.78 * space * text_scale;
-                let width = print_text_advance(displayed, size) + 0.4 * size;
+                let mut width = print_text_advance(displayed, size) + 0.4 * size;
+                let mut height = 1.3 * size;
+                let mut left = text_x - 0.2 * size;
+                let mut top = y - size;
+                if shape == "square" {
+                    let side = width.max(height);
+                    left -= (side - width) / 2.0;
+                    top -= (side - height) / 2.0;
+                    width = side;
+                    height = side;
+                }
                 let _ = write!(
                     body,
                     r#"<rect class="acorde-text-enclosure" x="{}" y="{}" width="{}" height="{}" fill="none" stroke="black" stroke-width="{}"/>"#,
-                    f(text_x - 0.2 * size),
-                    f(y - 1.0 * size),
+                    f(left),
+                    f(top),
                     f(width),
-                    f(1.3 * size),
+                    f(height),
                     f(0.04 * size)
                 );
             }
-            " data-acorde-enclosure=\"rectangle\""
+            format!(" data-acorde-enclosure=\"{shape}\"")
         } else {
-            ""
+            String::new()
         };
         let _ = write!(
             body,

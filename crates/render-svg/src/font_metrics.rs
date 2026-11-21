@@ -121,6 +121,32 @@ pub(crate) fn print_text_width(text: &str, font_size: f32) -> Option<f32> {
     })
 }
 
+/// Conservative bounds around a shaped run, relative to its baseline origin.
+pub(crate) fn text_enclosure_bounds(
+    metrics: &TextRunMetrics,
+    size: f32,
+    slant: f32,
+    square: bool,
+    padding_em: f32,
+) -> (f32, f32, f32, f32) {
+    let pad = size * padding_em;
+    let mut left = metrics.left_mm + (slant * metrics.top_mm).min(slant * metrics.bottom_mm) - pad;
+    let mut right =
+        metrics.right_mm + (slant * metrics.top_mm).max(slant * metrics.bottom_mm) + pad;
+    let mut top = metrics.top_mm - pad;
+    let mut bottom = metrics.bottom_mm + pad;
+    if square {
+        let side = (right - left).max(bottom - top);
+        let xpad = (side - (right - left)) / 2.0;
+        let ypad = (side - (bottom - top)) / 2.0;
+        left -= xpad;
+        right += xpad;
+        top -= ypad;
+        bottom += ypad;
+    }
+    (left, top, right, bottom)
+}
+
 /// A font or text run that cannot be measured faithfully.
 #[derive(Debug, thiserror::Error, PartialEq)]
 pub enum FontMetricsError {
