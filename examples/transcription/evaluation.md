@@ -310,6 +310,19 @@ inspection, several harmonics and other notes were present, and no independent o
 left-hand button annotation was made. Human listening and annotation are still required before
 using this passage as a note-level reference.
 
+A second lesson 8 candidate was screened at source seconds 760–790. Its 22.05 kHz mono WAV
+SHA-256 is `1b2b77d8349c7392681bf3d218f9f0dc04ff0d8ec582429bb8bf1a5b5b411a88`, and its
+default Basic Pitch response SHA-256 is
+`5aaf68bc200e0285a4ec0782ceb570aa3ec1da01edcfe5d827b9c5206fa6c408`. Model detections beginning
+at 765.99 seconds include G3, A3, G3, F3 and E3, compatible in pitch class with the first printed
+treble phrase. A 4096-sample Hann FFT at 766.7 seconds has peaks around 220 Hz (A3), 261 Hz (C4)
+and 523 Hz (C5); a window at 767.1 seconds also contains a peak near 326 Hz (approximately E4).
+The written accompaniment at this point includes C major. These peaks are compatible with, but
+do not prove, simultaneous melody and accompaniment: they may include harmonics, residual sound
+or other sources. The window and observations were selected after inspecting model output. No
+independent identification of button presses, note onsets, voice overlap or speech has been made,
+so this remains a candidate for listening and annotation, not a two-hand accuracy result.
+
 ## Overlap export check
 
 The same-hand, same-pitch overlap guard was checked against five existing model outputs. Each
