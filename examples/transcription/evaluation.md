@@ -849,3 +849,43 @@ Playback-report SHA-256: video 5 `54b2d2019b8aae747d3756b81d6ae57092f50a298a23d3
 video 27 `239d35298d8a49efab2fdfe00776204e2c4a8ad85fb497805d8eca63f941b32b`.
 MusicXML file hashes changed across repeated exports even though the playback-report hashes
 and comparison results remained unchanged.
+
+### Previously unprocessed continuations of the phone recordings
+
+All eight Sight to Sound videos were selected before examining any results for this test.
+The audio from seconds 30–60 was decoded to mono 16 kHz PCM16; both models processed that
+same 30-second clip without earlier context. The outputs were shifted forward by 30 seconds.
+The references use the same per-recording constant shifts calibrated from seconds 1–9 in
+the preceding experiment; they were not adjusted against the new outputs. To reduce clip
+boundary effects, onsets from seconds 32 inclusive through 59 exclusive were scored using
+the same 50 ms and 50-cent matching tolerances. Model versions and checkpoints match the
+previous experiment. These are new portions of the same eight performances, not new
+performers or recordings. The first 30 seconds of these recordings and the two identified
+piece titles were examined earlier, and training-set overlap remains unknown.
+
+| Video | Reference | Earlier matched / extra | Transkun matched / extra | Recall change (percentage points) | Earlier / Transkun onset-and-end F1 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 10 | 78 | 78 / 8 | 77 / 0 | -1.28 | 0.683 / 0.981 |
+| 21 | 67 | 66 / 7 | 67 / 1 | +1.49 | 0.614 / 0.978 |
+| 23 | 108 | 108 / 2 | 108 / 0 | 0.00 | 0.835 / 0.935 |
+| 24 | 114 | 113 / 1 | 113 / 0 | 0.00 | 0.868 / 0.819 |
+| 25 | 47 | 47 / 5 | 47 / 0 | 0.00 | 0.566 / 0.957 |
+| 26 | 61 | 58 / 10 | 61 / 0 | +4.92 | 0.636 / 0.918 |
+| 27 | 75 | 75 / 8 | 75 / 0 | 0.00 | 0.810 / 0.973 |
+| 5 | 86 | 85 / 9 | 86 / 0 | +1.16 | 0.833 / 0.930 |
+| Total | 636 | 630 / 50 | 634 / 1 | +0.63 | — |
+
+The candidate produced 49 fewer unmatched onsets (98% fewer) in aggregate, while matching
+four additional reference onsets. One excerpt's onset recall dropped 1.28 percentage points.
+Video 24 also shows a lower onset-and-end F1 with Transkun. These are recordings of
+one performer on one digital piano through one phone. They do not establish performance on
+other performers, acoustic pianos or phones. The 50 ms fixed alignment and the model-derived
+key-release estimates limit interpretation of the end scores.
+
+`sighttosound-continuation-comparison.json` fixes file paths, window and hashes. With the
+same dataset layout and aligned references as in the previous experiment, run
+`evaluate_phone_continuation.py` with the unpacked `MIDItest` directory, an output directory
+named `sighttosound-second-window`, `--piano-checkpoint` and `--transkun`; place that output
+directory beside `sighttosound` under `examples/transcription` and run `compare_corpus.py`
+on the continuation manifest. The 30–60 second clips and resulting MIDI are external and
+are not included in this repository.

@@ -1,0 +1,122 @@
+[
+  {
+    "id": "10",
+    "audio": "sighttosound-second-window/10.wav",
+    "reference": "sighttosound/miditest_MIDI/10.aligned.mid",
+    "baseline": "sighttosound-second-window/10.piano.mid",
+    "candidate": "sighttosound-second-window/10.transkun.mid",
+    "start": 32,
+    "end": 59,
+    "sha256": {
+      "audio": "5469eea51d593ea3e71707695a5709460192688fb9ff9a9333312d5fbc04aa64",
+      "reference": "7da158a790ebbc5d7af3d47fa2c64bd54e9cfc1f755c27473bbd233413dd88a0",
+      "baseline": "8f37a932966afb06706028c81e6404ad0c165bcb0d7411aa4ea687c6b2527c6f",
+      "candidate": "a8ea222cf600abff4d146d51f2ddf3f32e2cfeb9daee55800285ac7691050a38"
+    }
+  },
+  {
+    "id": "21",
+    "audio": "sighttosound-second-window/21.wav",
+    "reference": "sighttosound/miditest_MIDI/21.aligned.mid",
+    "baseline": "sighttosound-second-window/21.piano.mid",
+    "candidate": "sighttosound-second-window/21.transkun.mid",
+    "start": 32,
+    "end": 59,
+    "sha256": {
+      "audio": "ec3fb984a5d10426720687527cc09e4a1d49111ec08e1d27809edcc56bc08a8d",
+      "reference": "aafbe53a35179b8e42f4adcc7c24539ecf08f250a8907f1da194a3bcfa0dffe9",
+      "baseline": "5dec3668e31e0abed1d761fc6818d901b9d1ada1289dd1f08065201b85ecd248",
+      "candidate": "22a42c38705e75b970b8b58d71b97aacb68c4fe540532e2d9d889c0b727c6e3d"
+    }
+  },
+  {
+    "id": "23",
+    "audio": "sighttosound-second-window/23.wav",
+    "reference": "sighttosound/miditest_MIDI/23.aligned.mid",
+    "baseline": "sighttosound-second-window/23.piano.mid",
+    "candidate": "sighttosound-second-window/23.transkun.mid",
+    "start": 32,
+    "end": 59,
+    "sha256": {
+      "audio": "d5d2adc5b0438b58795843745fdabaed4a011b956f59cfa2b8b914f0114a64aa",
+      "reference": "f90a35ddffba134418e3c9a81c31753289ed48e99152800841b83276540cead0",
+      "baseline": "66d7fec41c56a421333fa69d19ad49742d3fd37077fa46d4de5994e271026a74",
+      "candidate": "da85f1f1b5904e5079a469ea20d43934c100a9eab136b4f6c532c1961d7005ef"
+    }
+  },
+  {
+    "id": "24",
+    "audio": "sighttosound-second-window/24.wav",
+    "reference": "sighttosound/miditest_MIDI/24.aligned.mid",
+    "baseline": "sighttosound-second-window/24.piano.mid",
+    "candidate": "sighttosound-second-window/24.transkun.mid",
+    "start": 32,
+    "end": 59,
+    "sha256": {
+      "audio": "149cd2f78b8f9972bcb349719060c257b5258d3844089467bdcb8177489e3751",
+      "reference": "92b1d0eacf88e05d4c27c7f06870f2f6455987197c5d49d67aec9332f4993200",
+      "baseline": "c2ca3b038456ded63449ac85f4f9a8f9c5826f56548d9b3f7aae9a8e9b4c7968",
+      "candidate": "0336dc4cd786416c911b37e475240a2870cb2f76653662f8cd5ce3df345e590e"
+    }
+  },
+  {
+    "id": "25",
+    "audio": "sighttosound-second-window/25.wav",
+    "reference": "sighttosound/miditest_MIDI/25.aligned.mid",
+    "baseline": "sighttosound-second-window/25.piano.mid",
+    "candidate": "sighttosound-second-window/25.transkun.mid",
+    "start": 32,
+    "end": 59,
+    "sha256": {
+      "audio": "905c675cec2819519ea682c50099a3ab707d47aa4c233d06423cab050c905452",
+      "reference": "b3aef4d1404f4e40fd896bd62afa57cbc33900e75fe8863a3fe9b8e88b635711",
+      "baseline": "a743e92b80d9cca9a596f21d80723086a16badac5bbbbe0e920f04e16ab6d31f",
+      "candidate": "19c38b3e19a65c9c194f3f38cad21544fa0ba3b037094dc2481fec48271ed33e"
+    }
+  },
+  {
+    "id": "26",
+    "audio": "sighttosound-second-window/26.wav",
+    "reference": "sighttosound/miditest_MIDI/26.aligned.mid",
+    "baseline": "sighttosound-second-window/26.piano.mid",
+    "candidate": "sighttosound-second-window/26.transkun.mid",
+    "start": 32,
+    "end": 59,
+    "sha256": {
+      "audio": "a1c044228eea1046c3337d0fa64be4920363aacce33d4bb24942d29593c92cb3",
+      "reference": "6ba397de761b97d17d85076bcb42d95e7e729d5c0fed5502b4ed242f0f092f6c",
+      "baseline": "822f24a893a96436883e9b72195b25ab80667967975455bbfcada097e59432f1",
+      "candidate": "e57530572cc4e21ab0cdc2e759654da0806bbfa37ec7d5cd933a4bdd30ca540a"
+    }
+  },
+  {
+    "id": "27",
+    "audio": "sighttosound-second-window/27.wav",
+    "reference": "sighttosound/miditest_MIDI/27.aligned.mid",
+    "baseline": "sighttosound-second-window/27.piano.mid",
+    "candidate": "sighttosound-second-window/27.transkun.mid",
+    "start": 32,
+    "end": 59,
+    "sha256": {
+      "audio": "040e96eeb81dfcc1b1bb43961fcf7e4f03e2e699249a19e0b29a48e61e6b310e",
+      "reference": "19d1ae8a74a744bf6240b0d168ae122785558395e4afa2c6555d30ab40acd9da",
+      "baseline": "d0d8dc42e88a2aca53aec148ba7fbdcad1c33354a261542b1c95e3108393eba4",
+      "candidate": "df3c047c9852fe5ad4f7752223e827b0185f5122bef9858f2bb8ac1ed524b6ab"
+    }
+  },
+  {
+    "id": "5",
+    "audio": "sighttosound-second-window/5.wav",
+    "reference": "sighttosound/miditest_MIDI/5.aligned.mid",
+    "baseline": "sighttosound-second-window/5.piano.mid",
+    "candidate": "sighttosound-second-window/5.transkun.mid",
+    "start": 32,
+    "end": 59,
+    "sha256": {
+      "audio": "eead5071e09fe94d653a47b480d5bb46b9d536792e79807904826991b34482d4",
+      "reference": "c8c892e1a338e9337e88a02b69a94a8e418cef8be6d77d8341d24476cdd23692",
+      "baseline": "0bd3d2bcc6b60dae5dd518026e8f00c39d8648da188109348d48debb045f03e3",
+      "candidate": "8730cbfce461044497c4c17c3b2fb7e9843b9ceee09285db1734587d4ffb9efc"
+    }
+  }
+]
