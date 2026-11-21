@@ -24,6 +24,7 @@ const MAX_PRINT_PAGES: usize = 256;
 /// A print-page request that cannot be represented faithfully by the built-in SVG renderer.
 #[derive(Debug)]
 pub enum PrintRenderError {
+    UnresolvedLyricSpacing,
     Layout(PrintLayoutError),
     Render(RenderError),
     EmptyPages,
@@ -54,6 +55,9 @@ impl fmt::Display for PrintRenderError {
             Self::Layout(error) => write!(f, "invalid print layout: {error}"),
             Self::Render(error) => write!(f, "score rendering failed: {error}"),
             Self::EmptyPages => write!(f, "print layout contains no pages"),
+            Self::UnresolvedLyricSpacing => {
+                write!(f, "resolved lyrics do not fit between adjacent staves")
+            }
             Self::TooManyPages { count } => write!(
                 f,
                 "print layout has {count} pages; maximum is {MAX_PRINT_PAGES}"
@@ -120,20 +124,6 @@ pub fn render_print_page_svgs_with_glyphs(
     glyphs: &SvgGlyphSource,
 ) -> Result<Vec<String>, PrintRenderError> {
     layout.validate()?;
-    // Match the staff-aware layout's extra page reservation for an additional
-    // lyric lane. A fixed-height layout may instead fail the legibility preflight.
-    let has_multiple_lyric_verses = score
-        .parts
-        .iter()
-        .flat_map(|part| &part.staves)
-        .any(|staff| {
-            staff
-                .measures
-                .iter()
-                .flat_map(|measure| &measure.voices)
-                .flatten()
-                .any(|note| !note.additional_lyrics.is_empty())
-        });
     let grand_staff_has_below_text = score.parts.len() == 1
         && score.parts[0].staves.len() == 2
         && score.parts[0].staves[0].measures.iter().any(|measure| {
@@ -143,9 +133,7 @@ pub fn render_print_page_svgs_with_glyphs(
                     .is_some_and(|placement| placement.eq_ignore_ascii_case("below"))
             })
         });
-    let staff_gap = if has_multiple_lyric_verses {
-        MULTIVERSE_PRINT_STAFF_GAP
-    } else if grand_staff_has_below_text {
+    let staff_gap = if grand_staff_has_below_text {
         GRAND_STAFF_PRINT_GAP
     } else {
         PRINT_STAFF_GAP
@@ -273,49 +261,85 @@ pub fn render_print_page_svgs_with_glyphs(
     }
     score_layout.rows = rows;
     let staff_gap = render::required_hairpin_staff_gap(score, &score_layout, staff_gap);
-    let staff_gaps = render::required_lyric_staff_gaps(score, staff_gap);
-    let (top_u, system_u, bottom_u) = render::print_row_metrics(score, &score_layout, &staff_gaps)?;
-    let required_u = top_u + system_u + bottom_u;
-    let minimum_mm = required_u * MIN_STAFF_SPACE_MM;
-    if min_system_height_mm < minimum_mm {
-        return Err(PrintRenderError::SystemTooShort {
-            height_mm: min_system_height_mm,
-            minimum_mm,
-        });
-    }
-    let space_mm = (min_system_height_mm / required_u).min(PREFERRED_STAFF_SPACE_MM);
-    let space_px = space_mm * PX_PER_MM;
-    let options = SvgRenderOptions {
-        width: first.content_width_mm * PX_PER_MM,
-        staff_size: space_px,
-        measures_per_system: score_layout
-            .rows
+    let mut staff_gaps = render::required_lyric_staff_gaps(score, staff_gap);
+    for (gap, staff) in staff_gaps
+        .iter_mut()
+        .zip(score.parts.iter().flat_map(|p| &p.staves))
+    {
+        if staff
+            .measures
             .iter()
-            .map(|row| row.measure_indices.len())
-            .max()
-            .unwrap_or(1)
-            .max(1),
-        interactive: false,
+            .flat_map(|m| &m.voices)
+            .flatten()
+            .any(|n| !n.additional_lyrics.is_empty())
+        {
+            *gap = gap.max(MULTIVERSE_PRINT_STAFF_GAP);
+        }
+    }
+    let mut pass = 0;
+    let (full_svg, staff_offsets, row_tops_px, space_px) = loop {
+        let (top_u, system_u, bottom_u) =
+            render::print_row_metrics(score, &score_layout, &staff_gaps)?;
+        let required_u = top_u + system_u + bottom_u;
+        let minimum_mm = required_u * MIN_STAFF_SPACE_MM;
+        if min_system_height_mm < minimum_mm {
+            return Err(PrintRenderError::SystemTooShort {
+                height_mm: min_system_height_mm,
+                minimum_mm,
+            });
+        }
+        let space_mm = (min_system_height_mm / required_u).min(PREFERRED_STAFF_SPACE_MM);
+        let space_px = space_mm * PX_PER_MM;
+        let options = SvgRenderOptions {
+            width: first.content_width_mm * PX_PER_MM,
+            staff_size: space_px,
+            measures_per_system: score_layout
+                .rows
+                .iter()
+                .map(|row| row.measure_indices.len())
+                .max()
+                .unwrap_or(1)
+                .max(1),
+            interactive: false,
+        };
+        let staff_offsets = render::print_staff_offsets(score, &staff_gaps);
+        let config = SvgRenderConfig::new(options)
+            .with_staff_gap(staff_gap)
+            .with_staff_gaps(staff_gaps.clone())
+            .with_measure_text_scale(3.0)
+            .with_glyph_source(glyphs.clone());
+        let row_tops_px = row_tops_mm
+            .iter()
+            .map(|top| top * PX_PER_MM + top_u * space_px)
+            .collect::<Vec<_>>();
+        let row_width_factors =
+            print_row_width_factors(score, &score_layout.rows, first.content_width_mm, space_mm);
+        let placement = PrintRowPlacement {
+            row_tops_px: &row_tops_px,
+            row_width_factors: &row_width_factors,
+            canvas_height_px: offset_mm * PX_PER_MM,
+        };
+        let mut needed = staff_gaps.clone();
+        let (full_svg, _) = render::build_svg_with_metadata_placement(
+            score,
+            &score_layout,
+            &config,
+            Some(&placement),
+            Some(&mut needed),
+        )?;
+        if needed
+            .iter()
+            .zip(&staff_gaps)
+            .all(|(need, gap)| need - gap <= 0.01)
+        {
+            break (full_svg, staff_offsets, row_tops_px, space_px);
+        }
+        if pass >= 3 {
+            return Err(PrintRenderError::UnresolvedLyricSpacing);
+        }
+        staff_gaps = needed;
+        pass += 1;
     };
-    let staff_offsets = render::print_staff_offsets(score, &staff_gaps);
-    let config = SvgRenderConfig::new(options)
-        .with_staff_gap(staff_gap)
-        .with_staff_gaps(staff_gaps)
-        .with_measure_text_scale(3.0)
-        .with_glyph_source(glyphs.clone());
-    let row_tops_px = row_tops_mm
-        .iter()
-        .map(|top| top * PX_PER_MM + top_u * space_px)
-        .collect::<Vec<_>>();
-    let row_width_factors =
-        print_row_width_factors(score, &score_layout.rows, first.content_width_mm, space_mm);
-    let placement = PrintRowPlacement {
-        row_tops_px: &row_tops_px,
-        row_width_factors: &row_width_factors,
-        canvas_height_px: offset_mm * PX_PER_MM,
-    };
-    let (full_svg, _) =
-        render::build_svg_with_metadata_placement(score, &score_layout, &config, Some(&placement))?;
     const BODY_PREFIX: &str = "<g class=\"acorde-score\">";
     let body = full_svg
         .split_once(BODY_PREFIX)
@@ -460,8 +484,10 @@ fn write_publication(
         // Keep the title inside the top print margin. The former 7.5 mm
         // baseline on a default A4 page placed most of its capitals only
         // 2.5 mm from the paper edge in the pinned Verovio comparison.
-        let title_y = (system.top_mm - if has_movement_title { 6.5 } else { 5.0 }) * scale;
-        let credit_y = (system.top_mm - if has_movement_title { 0.5 } else { 5.0 }) * scale;
+        let second_line = has_movement_title
+            || (!page.publication.title.is_empty() && !page.publication.composer.is_empty());
+        let title_y = (system.top_mm - if second_line { 6.5 } else { 5.0 }) * scale;
+        let credit_y = (system.top_mm - if second_line { 0.5 } else { 5.0 }) * scale;
         if !page.publication.title.is_empty() {
             let _ = write!(
                 svg,

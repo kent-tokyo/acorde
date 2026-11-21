@@ -34,6 +34,7 @@ screening numbers on a small corpus; they are not a quality ranking.
 """
 
 import collections
+from fractions import Fraction
 import hashlib
 import json
 import os
@@ -144,8 +145,7 @@ def source_root(path):
         return ET.fromstring(archive.read(rootfile))
 
 
-def expected_marks(path):
-    root = source_root(path)
+def expected_marks(root):
     counts = collections.Counter()
     for note in root.iter("note"):
         if note.find("rest") is not None:
@@ -164,6 +164,32 @@ def expected_marks(path):
     for w in root.iter("wedge"):
         counts["hairpins"] += w.get("type") in ("crescendo", "diminuendo")
     return dict(counts)
+
+
+def wedge_endpoints(root):
+    """Inventory written endpoints without guessing where an unclosed wedge ends."""
+    endpoints = []
+    for part in root.findall("part"):
+        divisions = 1
+        for measure in part.findall("measure"):
+            cursor = Fraction(0)
+            for item in measure:
+                if item.tag == "attributes" and item.find("divisions") is not None:
+                    divisions = Fraction(item.findtext("divisions"))
+                elif item.tag in ("note", "backup", "forward"):
+                    if item.find("chord") is None and item.find("grace") is None:
+                        length = Fraction(item.findtext("duration", "0")) / divisions
+                        cursor += -length if item.tag == "backup" else length
+                elif item.tag == "direction":
+                    for wedge in item.findall("direction-type/wedge"):
+                        beat = cursor + Fraction(item.findtext("offset", "0")) / divisions
+                        endpoints.append({
+                            "part": part.get("id"), "measure": measure.get("number"),
+                            "quarter_offset": str(beat), "staff": item.findtext("staff", "1"),
+                            "number": wedge.get("number", "1"), "type": wedge.get("type"),
+                            "placement": item.get("placement"),
+                        })
+    return endpoints
 
 
 def measure(svgs, selectors, html_path):
@@ -228,14 +254,16 @@ def main():
         acorde = measure(acorde_svgs, SELECTORS["acorde"], work / f"{name}-acorde.html")
         acorde["systems"] = sum(len(re.findall(r"\(\[", line)) for line in log.splitlines() if line.startswith("page "))
         verovio = measure(verovio_svgs, SELECTORS["verovio"], work / f"{name}-verovio.html")
-        expected = expected_marks(shared)
+        root = source_root(shared)
+        expected = expected_marks(root)
         rows.append({
             "score": name, "source": source, "measures_per_system": int(measures),
             "verovio_version": "6.4.1" if VEROVIO_NPM_PREFIX else "6.3.0",
             "source_sha256": hashlib.sha256(src.read_bytes()).hexdigest(),
             "shared_input_sha256": hashlib.sha256(shared.read_bytes()).hexdigest(),
             "import_diagnostics": {"total": sum(codes.values()), "by_code": dict(sorted(codes.items()))},
-            "source_marks": expected, "acorde": acorde, "verovio": verovio,
+            "source_marks": expected, "source_wedge_endpoints": wedge_endpoints(root),
+            "acorde": acorde, "verovio": verovio,
             "shortfalls": {r: {k: v - d[r]["marks"].get(k, 0) for k, v in expected.items() if d[r]["marks"].get(k, 0) < v}
                            for d in [{"acorde": acorde, "verovio": verovio}] for r in d},
         })

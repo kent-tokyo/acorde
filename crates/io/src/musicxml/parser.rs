@@ -3322,12 +3322,12 @@ pub(crate) fn parse_musicxml_collecting(
                                             PercussionInstrument::display_position(&n.pitches[0]),
                                         ));
                                     }
-                                    n.offset_x = note_offset_x;
-                                    n.offset_y = note_offset_y;
-                                    n.relative_x = note_relative_x;
-                                    n.relative_y = note_relative_y;
                                     n
                                 };
+                                note.offset_x = note_offset_x;
+                                note.offset_y = note_offset_y;
+                                note.relative_x = note_relative_x;
+                                note.relative_y = note_relative_y;
                                 note.tie_start = note_tie_start;
                                 note.tie_end = note_tie_end;
                                 if !note.is_rest && !note.is_unpitched {

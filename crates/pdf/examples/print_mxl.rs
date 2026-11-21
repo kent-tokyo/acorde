@@ -9,9 +9,9 @@ use acorde_render_svg::render_print_page_svgs;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = std::env::args().collect::<Vec<_>>();
-    if !(4..=6).contains(&args.len()) {
+    if !matches!(args.len(), 4..=6 | 9) {
         return Err(
-            "usage: print_mxl INPUT.{mxl,musicxml} FONT.ttf OUTPUT.pdf [measures-per-system] [density]"
+            "usage: print_mxl INPUT.{mxl,musicxml} FONT.ttf OUTPUT.pdf [measures-per-system] [density [part-index turn-bpm minimum-ms]]"
                 .into(),
         );
     }
@@ -35,7 +35,29 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         config.system_break_strategy = PrintSystemBreakStrategy::NotationDensity;
     }
-    let layout = compute_print_layout(&import.score, &config)?;
+    let (score, layout) = if args.len() == 9 {
+        let index = args[6].parse()?;
+        config.part_layout = acorde_layout::PartLayoutPolicy::ExtractedPart { part_index: index };
+        let turns = acorde_layout::plan_part_page_turns(
+            &import.score,
+            &config,
+            args[7].parse()?,
+            args[8].parse()?,
+        )?;
+        for turn in &turns.turns {
+            eprintln!(
+                "page turn {} -> {}: {} ms, sufficient={}",
+                turn.from_measure + 1,
+                turn.to_measure + 1,
+                turn.silence_ms,
+                turn.sufficient
+            );
+        }
+        (import.score.extract_part_checked(index)?, turns.layout)
+    } else {
+        let layout = compute_print_layout(&import.score, &config)?;
+        (import.score, layout)
+    };
     for page in &layout.pages {
         eprintln!(
             "page {}: {:?}",
@@ -46,7 +68,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .collect::<Vec<_>>()
         );
     }
-    let pages = render_print_page_svgs(&import.score, &layout)?;
+    let pages = render_print_page_svgs(&score, &layout)?;
     let output = Path::new(&args[3]);
     let stem = output
         .file_stem()

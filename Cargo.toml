@@ -14,3 +14,7 @@ repository = "https://github.com/kent-tokyo/acorde"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
+
+# Minimize the browser bindings in distributed builds.
+[profile.release.package.acorde-wasm]
+opt-level = "s"
