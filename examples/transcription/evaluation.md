@@ -140,6 +140,29 @@ The source names are `ROOM_room1_MUS_{scale,chords,beethoven1}_DEV_iphone.wav` w
 settings stated above. Outputs can be evaluated with `evaluate.py`; its offset statistics must
 be disregarded for this dataset.
 
+The 10–20 second ranges of the scale and Beethoven recordings were also submitted to the local
+range API with pitch range 0–127 and up to two seconds of audio context on either side. The
+raw notes returned by the API were compared with reference note onsets in the same range;
+boundary review candidates were not added. These are development observations on portions of
+the recordings already evaluated above, with the same 50 ms alignment limitation. Offset
+accuracy was not measured.
+
+| Recording | Model | Reference / estimated notes | Onset precision / recall / F1 | Boundary candidates |
+| --- | --- | ---: | --- | ---: |
+| Scale | Basic Pitch | 27 / 30 | 0.833 / 0.926 / 0.877 | 0 |
+| Scale | Piano | 27 / 30 | 0.800 / 0.889 / 0.842 | 0 |
+| Beethoven 1 | Basic Pitch | 45 / 68 | 0.618 / 0.933 / 0.743 | 1 |
+| Beethoven 1 | Piano | 45 / 51 | 0.863 / 0.978 / 0.917 | 0 |
+
+No context-limited releases were reported. The response JSON SHA-256 values in table order are
+`4b7f189552d6cccff7c468709c7b13e74812b0d4902a0f79c10e317b261347f0`,
+`74782361ce370bf1def9ace517ed882b512044e8d6d7d7cc649335ee4ba3a4ad`,
+`879bb42611c146a3bc93be7d45396f177856d6a3ad9a169ae0cfd9b0ca2f386f`, and
+`5618fccef7f50af4bc3b128b3f543576aee5051e9d016a1e3522c15ffb275682`.
+These short ranges cannot establish overall phone-recording accuracy or correction time. In
+particular, the piano model's result on the selected scale range is substantially different
+from its result on the complete scale recording above.
+
 ## Same melody across synthesized accordion registers
 
 A 16-note, four-bar melody at 120 BPM was rendered twice from the same MIDI with Acorde
