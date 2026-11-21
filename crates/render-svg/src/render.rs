@@ -2679,6 +2679,9 @@ fn render_part_groups(
     space: f32,
 ) {
     for group in &score.part_groups {
+        if group.symbol == acorde_core::PartGroupSymbol::None {
+            continue;
+        }
         let indices: Vec<usize> = staff_refs
             .iter()
             .enumerate()
@@ -2697,6 +2700,7 @@ fn render_part_groups(
             let label = score
                 .parts
                 .get(group.first_part)
+                .filter(|p| !p.short_name_hidden)
                 .map(|p| p.short_name.as_str())
                 .unwrap_or("");
             if !label.is_empty() {
@@ -2719,6 +2723,9 @@ fn render_part_groups(
             .map(|group| (group.first_staff, group.last_staff, group.symbol.clone()))
             .chain(inferred.then_some((0, 1, acorde_core::PartGroupSymbol::Brace)));
         for (first_staff, last_staff, symbol) in groups {
+            if symbol == acorde_core::PartGroupSymbol::None {
+                continue;
+            }
             let first = staff_refs
                 .iter()
                 .position(|&(pi, si)| pi == part_index && si == first_staff);
@@ -2749,6 +2756,7 @@ fn write_group_connector(
     space: f32,
 ) {
     let class = match symbol {
+        acorde_core::PartGroupSymbol::None => return,
         acorde_core::PartGroupSymbol::Bracket => "bracket",
         acorde_core::PartGroupSymbol::Brace => "brace",
         acorde_core::PartGroupSymbol::Line => "line",
@@ -2780,6 +2788,7 @@ fn write_group_connector(
         class,
         path,
         f(match symbol {
+            acorde_core::PartGroupSymbol::None => return,
             acorde_core::PartGroupSymbol::Bracket => 0.16 * space,
             acorde_core::PartGroupSymbol::Brace => 0.15 * space,
             acorde_core::PartGroupSymbol::Line => 0.1 * space,
@@ -3253,6 +3262,7 @@ fn content_horizontal_margins(
         let tablature = score.parts[part].staves[staff].tablature.as_ref();
         let short_name = score.parts[part].short_name.trim();
         if !short_name.is_empty()
+            && !score.parts[part].short_name_hidden
             && (!measured_print_active() || score.part_groups.iter().any(|g| g.first_part == part))
         {
             // The renderer intentionally does not resolve a host font here. Reserve a

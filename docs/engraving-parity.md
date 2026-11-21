@@ -642,6 +642,41 @@ measured 84 title, subtitle and composer items across 34 inputs, finding no
 paper-edge or mutual bounding-box intersections. It does not compare headings
 against notation or establish physical print quality.
 
+### Hidden part names and symbol-free groups
+
+On `piano-n07`, the assistant compared the two renderers' first pages with the
+shared MusicXML. It explicitly hides `Piano` and `Pno.` and declares a
+`group-symbol` of `none`, yet the prior Acorde page printed both names and a
+spurious group line. [MusicXML specifies](https://www.w3.org/2021/06/musicxml40/musicxml-reference/elements/group-symbol/)
+that a missing group symbol also defaults to none. The model now distinguishes
+that symbol while retaining separate group barline semantics, and imports and
+exports name and abbreviation visibility without deleting either name. Print
+layout and measured label-width calculation honor each visibility flag. Name
+visibility changes use the complete-score patch fallback; old JSON defaults to
+visible names. New public `Part`/`PartLabel` fields and a `PartGroupSymbol`
+variant require semver review.
+
+The assistant inspected the new first-page raster, SHA-256
+`d12abe43367ffe63824a35f61355def3afa16597e568291d1c1917ae612de626`;
+the hidden names and extraneous group line no longer appear, while the
+inferred grand-staff brace remains. This verifies the identified display defect,
+not the entire page or its original-edition fidelity. MusicXML's other group
+symbol `square`, explicit part-symbol details and default brace inference for
+non-keyboard multistaff parts remain incomplete.
+
+The same change also makes font-width caching measure the displayed title credit
+instead of only the work metadata; a focused long-title test verifies composer
+separation. A hidden name no longer requires glyphs in the selected font. The
+[34-input rerender](archive/print-parity-part-display-corpus-20261122.json)
+completed with 225 Acorde pages; 26 differ from the older pre-brace baseline,
+including earlier changes. The [header screen](archive/print-parity-part-display-header-20261122.json)
+found no paper-edge or mutual bounding-box intersections among 84 title,
+subtitle and composer items. It does not test every notation collision.
+MusicXML round-trip, old-JSON/patch, mixed visibility and glyph tests passed;
+41 measured-print tests plus one added focused test, 142 layout tests and
+all-feature scoped library Clippy passed on macOS. The full visual, platform,
+WASM and reserved-cohort gates remain pending.
+
 ### Reuse of measured row geometry
 
 Profiling the 643-measure chamber input showed repeated pagination attempts:

@@ -699,8 +699,12 @@ fn write_publication(
                 .and_then(|insets| insets.get(system.system_index))
                 .copied()
                 .unwrap_or(0.0);
-            let text = if system.system_index > 0 && !label.short_name.is_empty() {
+            let text = if system.system_index > 0 && label.short_name_hidden {
+                ""
+            } else if system.system_index > 0 && !label.short_name.is_empty() {
                 &label.short_name
+            } else if label.name_hidden {
+                ""
             } else {
                 &label.name
             };

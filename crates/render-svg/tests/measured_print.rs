@@ -9,6 +9,94 @@ use acorde_render_svg::{
 const FONT: &[u8] = include_bytes!("fixtures/Tuffy.ttf");
 
 #[test]
+fn hidden_part_name_does_not_require_a_glyph() {
+    let mut score = Score::new("Work", 120, 4, 4, 0, 1);
+    score.parts[0].name = "𠀀".into();
+    score.parts[0].name_hidden = true;
+    score.parts[0].short_name_hidden = true;
+    assert!(engrave_print_pages(&score, &PrintConfig::default(), FONT).is_ok());
+}
+
+#[test]
+fn hidden_abbreviation_does_not_hide_the_full_name() {
+    let mut score = Score::new("Work", 120, 4, 4, 0, 4);
+    score.parts[0].name = "Piano".into();
+    score.parts[0].short_name = "Pno.".into();
+    score.parts[0].short_name_hidden = true;
+    let config = PrintConfig {
+        measures_per_system: 1,
+        ..Default::default()
+    };
+    let output = engrave_print_pages(&score, &config, FONT).unwrap();
+    assert!(
+        output
+            .pages
+            .iter()
+            .any(|page| page.contains("data-text=\"Piano\""))
+    );
+    assert!(
+        output
+            .pages
+            .iter()
+            .all(|page| !page.contains("data-text=\"Pno.\""))
+    );
+}
+
+#[test]
+fn printed_credit_title_is_measured_against_composer() {
+    let mut score = Score::new("Short", 120, 4, 4, 0, 1);
+    score.metadata.print_title =
+        "A considerable title requiring substantial horizontal space".into();
+    score.metadata.composer = "A Considerably Long Composer Name".into();
+    let output = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    let doc = roxmltree::Document::parse(&output.pages[0]).unwrap();
+    let baseline = |class: &str| -> f32 {
+        let group = doc
+            .descendants()
+            .find(|n| n.attribute("class") == Some(class))
+            .unwrap();
+        let path = group
+            .descendants()
+            .find(|n| n.has_tag_name("path"))
+            .unwrap();
+        let matrix = path
+            .attribute("transform")
+            .unwrap()
+            .trim_start_matches("matrix(")
+            .trim_end_matches(')');
+        matrix.split_whitespace().nth(5).unwrap().parse().unwrap()
+    };
+    assert!(baseline("acorde-print-composer") > baseline("acorde-print-title"));
+}
+
+#[test]
+fn hidden_part_names_and_empty_group_symbol_do_not_draw() {
+    let xml = r#"<score-partwise version="4.0"><part-list><part-group type="start"><group-symbol>none</group-symbol></part-group><score-part id="P1"><part-name print-object="no">Piano</part-name><part-abbreviation print-object="no">Pno.</part-abbreviation></score-part><part-group type="stop"/></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><staves>2</staves><clef number="1"><sign>G</sign><line>2</line></clef><clef number="2"><sign>F</sign><line>4</line></clef></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><staff>1</staff></note><backup><duration>1</duration></backup><note><pitch><step>C</step><octave>3</octave></pitch><duration>1</duration><voice>2</voice><type>quarter</type><staff>2</staff></note></measure></part></score-partwise>"#;
+    let score = acorde_io::parse_musicxml(xml).unwrap();
+    let screen =
+        acorde_render_svg::render_svg(&score, &acorde_render_svg::SvgRenderOptions::default())
+            .unwrap();
+    assert!(!screen.contains("acorde-part-bracket"));
+    assert!(!screen.contains(">Pno.</text>"));
+    assert!(screen.contains("acorde-staff-brace"));
+    let output = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    let doc = roxmltree::Document::parse(&output.pages[0]).unwrap();
+    assert!(
+        !doc.descendants()
+            .any(|n| n.attribute("data-text") == Some("Piano")
+                || n.attribute("data-text") == Some("Pno."))
+    );
+    assert!(
+        !doc.descendants()
+            .any(|n| n.attribute("class") == Some("acorde-part-bracket"))
+    );
+    assert!(
+        doc.descendants()
+            .any(|n| n.attribute("class") == Some("acorde-staff-brace"))
+    );
+}
+
+#[test]
 fn authored_multiline_print_title_and_subtitle_are_rendered_as_lines() {
     let mut score = Score::new("Work title", 120, 4, 4, 0, 1);
     score.metadata.movement_title = "Metadata movement".into();

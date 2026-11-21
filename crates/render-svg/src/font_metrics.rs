@@ -22,14 +22,23 @@ impl PrintTextScope {
         font: &TextFont<'_>,
     ) -> Result<Self, FontMetricsError> {
         let mut metrics = HashMap::new();
-        for text in [
-            &score.metadata.title,
-            &score.metadata.movement_title,
-            &score.metadata.composer,
-        ] {
-            metrics.insert(text.clone(), font.measure(text, 1.0)?);
+        for text in score
+            .metadata
+            .display_title()
+            .lines()
+            .chain(score.metadata.display_subtitle().lines())
+            .chain(std::iter::once(score.metadata.composer.as_str()))
+        {
+            metrics.insert(text.to_owned(), font.measure(text, 1.0)?);
         }
-        for text in score.parts.iter().flat_map(|p| [&p.name, &p.short_name]) {
+        for text in score.parts.iter().flat_map(|p| {
+            [
+                (!p.name_hidden).then_some(&p.name),
+                (!p.short_name_hidden).then_some(&p.short_name),
+            ]
+            .into_iter()
+            .flatten()
+        }) {
             for run in text
                 .lines()
                 .chain(text.split_whitespace())

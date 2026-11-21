@@ -759,12 +759,14 @@ pub(crate) fn parse_musicxml_collecting(
 
     // Collect <midi-instrument> data from <score-part> declarations.
     let mut part_midi: HashMap<String, (u8, u8, Option<u8>, Option<u8>)> = HashMap::new();
-    let mut part_names: HashMap<String, (String, String)> = HashMap::new();
+    let mut part_names: HashMap<String, (String, String, bool, bool)> = HashMap::new();
     let mut part_percussion: HashMap<String, Vec<PercussionInstrument>> = HashMap::new();
     let mut in_score_part = false;
     let mut score_part_id = String::new();
     let mut pending_part_name = String::new();
     let mut pending_part_abbreviation = String::new();
+    let mut pending_part_name_hidden = false;
+    let mut pending_part_abbreviation_hidden = false;
     let mut pending_midi_channel: u8 = 0;
     let mut pending_midi_program: u8 = 0;
     let mut pending_midi_volume: Option<u8> = None;
@@ -792,7 +794,7 @@ pub(crate) fn parse_musicxml_collecting(
     let mut in_part_group = false;
     let mut part_group_number = String::new();
     let mut part_group_type = String::new();
-    let mut part_group_symbol = PartGroupSymbol::Bracket;
+    let mut part_group_symbol = PartGroupSymbol::None;
     let mut part_group_barlines = false;
     let mut part_list_part_count: usize = 0;
 
@@ -863,6 +865,8 @@ pub(crate) fn parse_musicxml_collecting(
                         score_part_id = attr_str(e, b"id").unwrap_or_default();
                         pending_part_name.clear();
                         pending_part_abbreviation.clear();
+                        pending_part_name_hidden = false;
+                        pending_part_abbreviation_hidden = false;
                         pending_midi_channel = 0;
                         pending_midi_program = 0;
                         pending_midi_volume = None;
@@ -870,6 +874,12 @@ pub(crate) fn parse_musicxml_collecting(
                         part_list_part_count += 1;
                     }
                     "part-name" | "part-abbreviation" if in_score_part => {
+                        let hidden = attr_str(e, b"print-object").as_deref() == Some("no");
+                        if tag == "part-name" {
+                            pending_part_name_hidden = hidden;
+                        } else {
+                            pending_part_abbreviation_hidden = hidden;
+                        }
                         // Preserve spaces around XML references, which arrive as separate events.
                         reader.config_mut().trim_text(false);
                     }
@@ -903,7 +913,7 @@ pub(crate) fn parse_musicxml_collecting(
                         part_group_number =
                             attr_str(e, b"number").unwrap_or_else(|| "1".to_string());
                         part_group_type = attr_str(e, b"type").unwrap_or_default();
-                        part_group_symbol = PartGroupSymbol::Bracket;
+                        part_group_symbol = PartGroupSymbol::None;
                         part_group_barlines = false;
                     }
                     "midi-instrument" if in_score_part => {
@@ -1301,12 +1311,14 @@ pub(crate) fn parse_musicxml_collecting(
                             return Err(Error::Xml("too many parts".into()));
                         }
                         let id = attr_str(e, b"id").unwrap_or_default();
-                        let (name, abbreviation) = part_names
+                        let (name, abbreviation, name_hidden, abbreviation_hidden) = part_names
                             .get(&id)
                             .cloned()
-                            .unwrap_or_else(|| (id.clone(), String::new()));
+                            .unwrap_or_else(|| (id.clone(), String::new(), false, false));
                         let mut part =
                             Part::new(if name.is_empty() { &id } else { &name }, &abbreviation);
+                        part.name_hidden = name_hidden;
+                        part.short_name_hidden = abbreviation_hidden;
                         if let Some(&(ch, prog, volume, pan)) = part_midi.get(&id) {
                             part.midi_channel = ch;
                             part.midi_program = prog;
@@ -1382,6 +1394,14 @@ pub(crate) fn parse_musicxml_collecting(
                 let tag = std::str::from_utf8(e.name().as_ref())
                     .unwrap_or("")
                     .to_string();
+                if in_score_part && matches!(tag.as_str(), "part-name" | "part-abbreviation") {
+                    let hidden = attr_str(e, b"print-object").as_deref() == Some("no");
+                    if tag == "part-name" {
+                        pending_part_name_hidden = hidden;
+                    } else {
+                        pending_part_abbreviation_hidden = hidden;
+                    }
+                }
                 if in_dynamics {
                     match musicxml_dynamic(&tag) {
                         Some(dynamic) if in_note => note_inline_dynamic = Some(dynamic),
@@ -1578,7 +1598,12 @@ pub(crate) fn parse_musicxml_collecting(
                     "part-group" => {
                         let pg_type = attr_str(e, b"type").unwrap_or_default();
                         let pg_num = attr_str(e, b"number").unwrap_or_else(|| "1".to_string());
-                        if pg_type == "stop"
+                        if pg_type == "start" {
+                            open_groups.insert(
+                                pg_num.clone(),
+                                (part_list_part_count, PartGroupSymbol::None, false),
+                            );
+                        } else if pg_type == "stop"
                             && let Some((first_part, symbol, barlines_connect)) =
                                 open_groups.remove(&pg_num)
                         {
@@ -2103,12 +2128,18 @@ pub(crate) fn parse_musicxml_collecting(
                         );
                         part_names.insert(
                             score_part_id.clone(),
-                            (pending_part_name.clone(), pending_part_abbreviation.clone()),
+                            (
+                                pending_part_name.clone(),
+                                pending_part_abbreviation.clone(),
+                                pending_part_name_hidden,
+                                pending_part_abbreviation_hidden,
+                            ),
                         );
                         in_score_part = false;
                     }
                     "group-symbol" if in_part_group => {
                         part_group_symbol = match current_text.trim() {
+                            "none" => PartGroupSymbol::None,
                             "brace" => PartGroupSymbol::Brace,
                             "line" => PartGroupSymbol::Line,
                             _ => PartGroupSymbol::Bracket,

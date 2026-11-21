@@ -74,10 +74,12 @@ pub fn engrave_print_pages(
     let mut repeated_width = 0.0_f32;
     if config.publication.show_part_names {
         for part in &render_score.parts {
-            for word in part.name.split_whitespace() {
+            for word in part.name.split_whitespace().filter(|_| !part.name_hidden) {
                 first_width = first_width.max(font.measure(word, 2.7)?.occupied_width_mm() + 0.25);
             }
-            let repeated = if part.short_name.is_empty() {
+            let repeated = if part.short_name_hidden {
+                ""
+            } else if part.short_name.is_empty() && !part.name_hidden {
                 &part.name
             } else {
                 &part.short_name

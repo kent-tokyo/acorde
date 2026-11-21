@@ -108,6 +108,7 @@ fn serialize_musicxml_inner(
         for (g, n) in &numbered_groups {
             if g.first_part == pi {
                 let sym = match g.symbol {
+                    PartGroupSymbol::None => "none",
                     PartGroupSymbol::Brace => "brace",
                     PartGroupSymbol::Line => "line",
                     PartGroupSymbol::Bracket => "bracket",
@@ -125,12 +126,22 @@ fn serialize_musicxml_inner(
             escape_xml(&musicxml_part_id(&part.id))
         ));
         xml.push_str(&format!(
-            "      <part-name>{}</part-name>\n",
+            "      <part-name{}>{}</part-name>\n",
+            if part.name_hidden {
+                " print-object=\"no\""
+            } else {
+                ""
+            },
             escape_xml(&part.name)
         ));
         if !part.short_name.is_empty() {
             xml.push_str(&format!(
-                "      <part-abbreviation>{}</part-abbreviation>\n",
+                "      <part-abbreviation{}>{}</part-abbreviation>\n",
+                if part.short_name_hidden {
+                    " print-object=\"no\""
+                } else {
+                    ""
+                },
                 escape_xml(&part.short_name)
             ));
         }

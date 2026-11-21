@@ -946,6 +946,10 @@ pub struct PartLabel {
     pub part_index: usize,
     pub name: String,
     pub short_name: String,
+    #[serde(default)]
+    pub name_hidden: bool,
+    #[serde(default)]
+    pub short_name_hidden: bool,
 }
 
 /// A score-level part connector for a publication host.
@@ -2349,10 +2353,16 @@ fn page_publication(
         };
         parts
             .into_iter()
+            .filter(|(_, part)| {
+                (!part.name_hidden && !part.name.is_empty())
+                    || (!part.short_name_hidden && !part.short_name.is_empty())
+            })
             .map(|(part_index, part)| PartLabel {
                 part_index,
                 name: part.name.clone(),
                 short_name: part.short_name.clone(),
+                name_hidden: part.name_hidden,
+                short_name_hidden: part.short_name_hidden,
             })
             .collect()
     } else {

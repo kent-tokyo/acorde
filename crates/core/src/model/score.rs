@@ -85,6 +85,7 @@ impl Default for ScoreSettings {
 /// Visual connector symbol for a group of adjacent parts.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum PartGroupSymbol {
+    None,    // no group symbol; barline grouping may still apply
     Bracket, // square bracket — orchestral strings, woodwinds
     Brace,   // curly brace — piano grand staff
     Line,    // thin vertical line
@@ -1869,6 +1870,12 @@ pub struct Part {
     pub id: String,
     pub name: String,
     pub short_name: String,
+    /// Whether the full part name is suppressed in the source score.
+    #[serde(default)]
+    pub name_hidden: bool,
+    /// Whether the abbreviated part name is suppressed in the source score.
+    #[serde(default)]
+    pub short_name_hidden: bool,
     pub staves: Vec<Staff>,
     /// MIDI channel (0–15). Channel 9 is conventionally used for percussion.
     #[serde(default)]
@@ -1986,6 +1993,8 @@ impl Part {
             id: Uuid::new_v4().to_string(),
             name: name.to_string(),
             short_name: short_name.to_string(),
+            name_hidden: false,
+            short_name_hidden: false,
             staves: Vec::new(),
             midi_channel: 0,
             midi_program: 0,
@@ -4007,6 +4016,9 @@ fn first_unrepresented_field_change(a: &Score, b: &Score) -> Option<String> {
 
 fn first_unrepresented_part_change(part_index: usize, a: &Part, b: &Part) -> Option<String> {
     let prefix = format!("parts[{part_index}]");
+    if a.name_hidden != b.name_hidden || a.short_name_hidden != b.short_name_hidden {
+        return Some(format!("{prefix}.name_visibility"));
+    }
     if a.named_channels != b.named_channels {
         return Some(format!("{prefix}.named_channels"));
     }
@@ -4300,7 +4312,9 @@ fn patch_requires_replace(a: &Score, b: &Score) -> bool {
         return true;
     }
     for (ap, bp) in a.parts.iter().zip(&b.parts) {
-        if ap.percussion_instruments != bp.percussion_instruments
+        if ap.name_hidden != bp.name_hidden
+            || ap.short_name_hidden != bp.short_name_hidden
+            || ap.percussion_instruments != bp.percussion_instruments
             || ap.named_channels != bp.named_channels
             || ap.staff_groups != bp.staff_groups
             || ap.staves.len() != bp.staves.len()
@@ -7097,6 +7111,28 @@ mod tests {
         let decoded: Score = serde_json::from_value(old).unwrap();
         assert_eq!(decoded.metadata.display_title(), "Work");
         assert!(decoded.metadata.print_title.is_empty());
+    }
+
+    #[test]
+    fn part_name_visibility_uses_lossless_replacement_patch() {
+        let before = Score::new("T", 120, 4, 4, 0, 1);
+        let mut after = before.clone();
+        after.parts[0].name_hidden = true;
+        after.parts[0].short_name_hidden = true;
+        let patch = score_patch(&before, &after);
+        let result = apply_patch(&before, &patch).unwrap();
+        assert!(result.parts[0].name_hidden && result.parts[0].short_name_hidden);
+        let mut old = serde_json::to_value(&before).unwrap();
+        old["parts"][0]
+            .as_object_mut()
+            .unwrap()
+            .remove("name_hidden");
+        old["parts"][0]
+            .as_object_mut()
+            .unwrap()
+            .remove("short_name_hidden");
+        let restored: Score = serde_json::from_value(old).unwrap();
+        assert!(!restored.parts[0].name_hidden && !restored.parts[0].short_name_hidden);
     }
 
     #[test]

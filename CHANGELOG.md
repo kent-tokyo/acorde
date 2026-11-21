@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+- Preserve MusicXML part-name and abbreviation visibility and the `none`
+  part-group symbol, including its absent default. The new serde-defaulted
+  `Part` and `PartLabel` fields and `PartGroupSymbol` variant require semver
+  review for Rust consumers. Name-visibility changes use the whole-score patch
+  fallback. Measured title-width caching follows the displayed title credit.
+
 - Preserve the first-page MusicXML title and subtitle credit text separately from
   work and movement metadata, and retain work numbers. Score JSON gains
   serde-defaulted `ScoreMetadata::print_title` and `print_subtitle` fields;
