@@ -30,7 +30,9 @@ MIDI represents it using a short initial time signature followed by the chosen m
 retains recording times. Acorde's MIDI importer quantizes the MusicXML output, so compare the
 output with the original and correct notation errors. The importer supports four voices per
 staff and may shorten or merge overlapping notes when that limit is exceeded. MusicXML uses one part with treble and
-bass staves when both hands have notes. Generate the score preview and choose a measure to
+bass staves when both hands have notes. The MIDI export uses separate channels for the two hands.
+The grand-staff MusicXML carries one part-level MIDI channel, so downstream MIDI playback of
+that file can merge overlapping equal pitches across the staves. Generate the score preview and choose a measure to
 set the corresponding recording loop. After changing notes or score settings, regenerate the
 preview before selecting a measure.
 

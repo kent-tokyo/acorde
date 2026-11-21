@@ -81,11 +81,13 @@ def midi_bytes(data):
             continue
         track = mido.MidiTrack()
         midi.tracks.append(track)
+        channel = 0 if hand == 'right' else 1
         track.append(mido.MetaMessage('track_name', name=hand))
-        track.append(mido.Message('program_change', program=21 if instrument == 'accordion' else 0))
+        track.append(mido.Message('program_change', channel=channel,
+                                  program=21 if instrument == 'accordion' else 0))
         last = 0
         for tick, is_on, pitch in sorted(events):
-            track.append(mido.Message('note_on' if is_on else 'note_off', note=pitch,
+            track.append(mido.Message('note_on' if is_on else 'note_off', channel=channel, note=pitch,
                                       velocity=80 if is_on else 0, time=tick - last))
             last = tick
     if len(midi.tracks) == 1:

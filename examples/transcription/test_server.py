@@ -36,6 +36,19 @@ class MidiExportTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             midi_bytes({**data, 'notes': [{**data['notes'][0], 'pitch': 60.5}]})
 
+    def test_overlapping_same_pitch_uses_separate_hand_channels(self):
+        data = {'tempo': 120, 'bar_start': 0, 'numerator': 4, 'denominator': 4,
+                'instrument': 'accordion',
+                'notes': [{'start': 0, 'end': 1, 'pitch': 60, 'hand': 'right'},
+                          {'start': 0.5, 'end': 1.5, 'pitch': 60, 'hand': 'left'}]}
+        midi = mido.MidiFile(file=io.BytesIO(midi_bytes(data)))
+        for track, expected in zip(midi.tracks[1:], [0, 1]):
+            messages = [message for message in track if not message.is_meta]
+            self.assertEqual([message.channel for message in messages], [expected] * 3)
+            self.assertEqual(messages[0].program, 21)
+        self.assertEqual(midi.tracks[1][2].time, 0)
+        self.assertEqual(midi.tracks[2][2].time, 480)
+
     def test_rejects_note_before_bar_start(self):
         data = {'tempo': 120, 'bar_start': 1, 'numerator': 4, 'denominator': 4,
                 'notes': [{'start': 0.5, 'end': 2, 'pitch': 60, 'hand': 'right'}]}
@@ -77,6 +90,29 @@ class MidiExportTest(unittest.TestCase):
             self.assertIn(('C', '4', '1'), pitches)
             self.assertIn(('C', '3', '2'), pitches)
 
+
+    @unittest.skipUnless(os.environ.get('ACORDE_TRANSCRIPTION_CONVERTER'), 'converter not built')
+    def test_musicxml_preserves_overlapping_unison_on_both_staves(self):
+        data = {'tempo': 120, 'bar_start': 0, 'numerator': 4, 'denominator': 4,
+                'instrument': 'accordion',
+                'notes': [{'start': 0, 'end': 1, 'pitch': 60, 'hand': 'right'},
+                          {'start': 0.5, 'end': 1.5, 'pitch': 60, 'hand': 'left'}]}
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'input.mid'
+            output = Path(directory) / 'output.musicxml'
+            source.write_bytes(midi_bytes(data))
+            subprocess.run([os.environ['ACORDE_TRANSCRIPTION_CONVERTER'], source, output,
+                            '4', '4', '0'], check=True)
+            root = ET.parse(output).getroot()
+            notes = [note for note in root.findall('./part/measure/note')
+                     if note.findtext('pitch/step') == 'C' and note.findtext('pitch/octave') == '4']
+            self.assertEqual(sorted(note.findtext('staff') for note in notes), ['1', '2'])
+            if os.environ.get('ACORDE_TEST_BIN'):
+                result = subprocess.run([os.environ['ACORDE_TEST_BIN'], 'playback-report', output],
+                                        check=True, capture_output=True, text=True)
+                events = json.loads(result.stdout)
+                self.assertEqual([(event['pitch_midi'], event['time_secs'], event['duration_secs'])
+                                  for event in events], [(60, 0, 1), (60, 0.5, 1)])
 
     @unittest.skipUnless(os.environ.get('ACORDE_TRANSCRIPTION_CONVERTER'), 'converter not built')
     def test_pickup_and_tie_crossing_first_full_bar(self):
