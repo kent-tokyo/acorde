@@ -132,6 +132,17 @@ pub fn engrave_print_pages(
     // changing page boundaries cannot cycle indefinitely; old starts may be
     // conservatively narrower in the solver even if they move within a page.
     let mut page_starts = std::collections::BTreeSet::new();
+    // Geometry depends only on the score and the row's physical measures.
+    // Page-start discovery can revisit the same rows many times.
+    let mut geometry_cache: std::collections::HashMap<
+        Vec<usize>,
+        crate::render::MeasuredRowGeometry,
+    > = std::collections::HashMap::new();
+    // Limit both entries and estimated owned bytes; uncached rows are simply
+    // recomputed when an unusually large score exhausts the budget.
+    const MAX_CACHED_ROWS: usize = 4096;
+    const MAX_CACHED_BYTES: usize = 2 * 1024 * 1024;
+    let mut cached_bytes = 0_usize;
     for _ in 0..=measurements.measures.len() {
         let mut breaking_measurements = measurements.clone();
         if let Some(first_header) = breaking_measurements.headers_mm.first_mut() {
@@ -145,8 +156,32 @@ pub fn engrave_print_pages(
         let rows = break_measured_print_systems(score, config, &breaking_measurements)?;
         let mut geometry = rows
             .iter()
-            .map(|row| crate::render::measured_row_geometry(render_score, row))
-            .collect::<Result<Vec<_>, _>>()?;
+            .map(|row| {
+                if let Some(cached) = geometry_cache.get(&row.measure_indices) {
+                    return Ok(cached.clone());
+                }
+                let measured = crate::render::measured_row_geometry(render_score, row)?;
+                let bytes = std::mem::size_of::<crate::render::MeasuredRowGeometry>()
+                    .saturating_add(
+                        row.measure_indices
+                            .len()
+                            .saturating_mul(std::mem::size_of::<usize>()),
+                    )
+                    .saturating_add(
+                        (measured.gaps_u.len()
+                            + measured.minimum_gaps_u.len()
+                            + measured.lyric_baselines_u.len())
+                        .saturating_mul(std::mem::size_of::<f32>()),
+                    );
+                if geometry_cache.len() < MAX_CACHED_ROWS
+                    && cached_bytes.saturating_add(bytes) <= MAX_CACHED_BYTES
+                {
+                    geometry_cache.insert(row.measure_indices.clone(), measured.clone());
+                    cached_bytes += bytes;
+                }
+                Ok(measured)
+            })
+            .collect::<Result<Vec<_>, MeasuredEngravingError>>()?;
         let mut needs_new_breaks = false;
         let mut relaxation_attempted = false;
         for _ in 0..32 {

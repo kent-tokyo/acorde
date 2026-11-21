@@ -462,6 +462,33 @@ regression checks that the second-violin-to-viola distance in the first system
 stays below 21 mm while retaining its existing slur and fingering checks.
 Complete page review, performance work, and final reserved validation remain open.
 
+### Reuse of measured row geometry
+
+Profiling the 643-measure chamber input showed repeated pagination attempts:
+20 system-break passes, each previously remeasuring every row even when its
+physical measure indices were unchanged. A per-engraving cache now reuses row
+geometry for the same score and measure sequence. The cache is limited to
+4,096 entries and an estimated 2 MiB of owned keys and geometry; on reaching
+either limit, other rows are measured normally. Hash-map overhead and the rest
+of engraving memory are not included in that estimate, and the cache-limit
+fallback has not been stress-tested on a very large score.
+
+The [same-input comparison](archive/print-parity-geometry-cache-exact-20261122.json)
+rendered all 24 development inputs and ten fixed inputs. All 34 PDFs and
+all 224 Acorde SVG pages matched the uncached renderer byte for byte. The
+existing margin and limited collision screens therefore describe the same
+output, but still do not amount to a complete visual or collision review.
+The 33 measured-print tests passed, including the Gossec regression.
+
+In the [same-host alternating benchmark](archive/print-parity-geometry-cache-benchmark-20261122.json),
+the uncached reflow candidate took 7.698 and 8.510 s; the bounded cache took
+6.623 and 6.981 s. Maximum RSS was 323.3–327.0 MB and 320.4–323.5 MB,
+respectively. All four produced the same 35-page PDF hash. This is two runs
+per version on one score; timing varies and this is not final performance or
+memory qualification. The measured cached runs remain slower than the
+5.447–5.525 s observed in the earlier benchmark before staff-gap relaxation,
+which was a separate run and cannot establish a controlled percentage change.
+
 This program targets conventional keyboard, vocal, chamber-score, and extracted-part
 engraving against **Verovio 6.4.1**. The starting source is Acorde
 `f48944024039cce2abb404af60d9ffc9dedc1502`, not a newly released artifact.
