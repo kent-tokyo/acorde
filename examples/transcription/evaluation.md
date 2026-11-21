@@ -203,6 +203,34 @@ describes FoleDataset, including paired audio/MIDI and some repeated performance
 registers and isolated hands. A public download of the dataset itself was not identified in this
 investigation. It was not used for any of the results above.
 
+## Real accordion register screening
+
+The public-domain recording [Accordion registers.ogg](https://commons.wikimedia.org/wiki/File:Accordion_registers.ogg)
+by Necz0r is described by its creator as the same octave played through five accordion keyboard
+registers. The original Ogg SHA-256 is
+`e4aa5b2e824bd16f21b01a4a74dc94699b5a3795d32eb336b26f616695649130`; it was converted with
+FFmpeg to 22.05 kHz mono WAV, SHA-256
+`0465ffb56cd73c9ca3a25fe06151bd7e3143770ff59728f2dedabe70f2cd8418`. Basic Pitch 0.4.0
+with default thresholds and pitch range 0–127 processed the 0–26 second range through the local
+API. The raw response SHA-256 is `eee6ca53522a02ee9bb3a777c01a72e84abf0bdca5a34ad4556648aad4da2267`.
+
+The following time windows were chosen after observing the output and separate the five
+sequences. The source supplies neither note-level annotations nor names for the registers.
+
+| Time window (s) | Detected events | Detected MIDI pitches in onset order |
+| --- | ---: | --- |
+| 0–5.5 | 8 | 60 62 64 65 67 69 71 72 |
+| 5.5–10.5 | 8 | 60 62 64 65 67 69 71 72 |
+| 10.5–16 | 16 | 60/48 62/50 64/52 65/53 67/55 69/57 71/59 72/60 |
+| 16–21.3 | 15 | 60/48 62/50 64/52 65/53 55 57/69 59/71 72/60 |
+| 21.3–26 | 8 | 48 50 52 53 55 57 59 60 |
+
+Slashes group nearby events for readability; they do not assert exact simultaneous onset. This
+is an acoustic recording, but detected sounding pitches can include multiple reed octaves and
+are not independent labels for keys pressed. It provides a real-register functional comparison,
+not a note-accuracy measurement, register identification, or evaluation of an accompanied
+two-hand performance. Reference pitches and timing would need independent annotation.
+
 ## Overlap export check
 
 The same-hand, same-pitch overlap guard was checked against five existing model outputs. Each
