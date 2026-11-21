@@ -9,6 +9,128 @@ use acorde_render_svg::{
 const FONT: &[u8] = include_bytes!("fixtures/Tuffy.ttf");
 
 #[test]
+fn connected_barlines_skip_cutaway_staff_repeat_dots() {
+    use acorde_core::Barline;
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Organ</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><staves>3</staves></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure></part></score-partwise>"#;
+    let mut score = acorde_io::parse_musicxml(xml).unwrap();
+    score.parts[0].staves[1].presentation.cutaway = true;
+    for staff in &mut score.parts[0].staves {
+        staff.measures[0].barline_right = Barline::RepeatEnd;
+    }
+    let output = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    let doc = roxmltree::Document::parse(&output.pages[0]).unwrap();
+    assert_eq!(
+        doc.descendants()
+            .filter(|n| n.attribute("class") == Some("acorde-staff"))
+            .count(),
+        2
+    );
+    assert_eq!(
+        doc.descendants()
+            .filter(|n| n.attribute("class") == Some("acorde-barline"))
+            .count(),
+        2
+    );
+    assert_eq!(
+        doc.descendants()
+            .filter(|n| n.attribute("class") == Some("acorde-repeat-dots"))
+            .count(),
+        2
+    );
+}
+
+#[test]
+fn part_group_connects_only_matching_barline_styles() {
+    use acorde_core::Barline;
+    let xml = r#"<score-partwise version="4.0"><part-list><part-group type="start"><group-symbol>bracket</group-symbol><group-barline>yes</group-barline></part-group><score-part id="P1"><part-name>Flute</part-name></score-part><score-part id="P2"><part-name>Oboe</part-name></score-part><part-group type="stop"/></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note><barline location="right"><repeat direction="backward"/></barline></measure></part><part id="P2"><measure number="1"><attributes><divisions>1</divisions></attributes><note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure></part></score-partwise>"#;
+    let mut score = acorde_io::parse_musicxml(xml).unwrap();
+    let count = |score: &Score| {
+        let output = engrave_print_pages(score, &PrintConfig::default(), FONT).unwrap();
+        let doc = roxmltree::Document::parse(&output.pages[0]).unwrap();
+        (
+            doc.descendants()
+                .filter(|n| n.attribute("class") == Some("acorde-barline"))
+                .count(),
+            doc.descendants()
+                .filter(|n| n.attribute("class") == Some("acorde-repeat-dots"))
+                .count(),
+        )
+    };
+    assert_eq!(count(&score), (3, 1));
+    score.parts[1].staves[0].measures[0].barline_right = Barline::RepeatEnd;
+    assert_eq!(count(&score), (2, 2));
+    score.part_groups[0].barlines_connect = false;
+    assert_eq!(count(&score), (4, 2));
+}
+
+#[test]
+fn barlines_respect_partial_staff_group_and_repeat_dot_ownership() {
+    use acorde_core::Barline;
+    let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Organ</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><staves>3</staves><part-symbol top-staff="1" bottom-staff="2">square</part-symbol></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure></part></score-partwise>"#;
+    let mut score = acorde_io::parse_musicxml(xml).unwrap();
+    for staff in &mut score.parts[0].staves {
+        staff.measures[0].barline_right = Barline::RepeatEnd;
+    }
+    let output = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    let doc = roxmltree::Document::parse(&output.pages[0]).unwrap();
+    let staves: Vec<_> = doc
+        .descendants()
+        .filter(|n| n.attribute("class") == Some("acorde-staff"))
+        .collect();
+    let edges = |staff: roxmltree::Node<'_, '_>| -> (f32, f32) {
+        let lines: Vec<f32> = staff
+            .descendants()
+            .filter(|n| n.attribute("class") == Some("acorde-staff-line"))
+            .map(|n| n.attribute("y1").unwrap().parse().unwrap())
+            .collect();
+        (
+            lines.iter().copied().fold(f32::INFINITY, f32::min),
+            lines.iter().copied().fold(f32::NEG_INFINITY, f32::max),
+        )
+    };
+    let bars: Vec<_> = doc
+        .descendants()
+        .filter(|n| n.attribute("class") == Some("acorde-barline"))
+        .map(|n| {
+            (
+                n.attribute("y1").unwrap().parse::<f32>().unwrap(),
+                n.attribute("y2").unwrap().parse::<f32>().unwrap(),
+            )
+        })
+        .collect();
+    assert_eq!(bars.len(), 4);
+    assert_eq!(
+        doc.descendants()
+            .filter(|n| n.attribute("class") == Some("acorde-repeat-dots"))
+            .count(),
+        3
+    );
+    for &(top, bottom) in &bars[..2] {
+        assert!((top - edges(staves[0]).0).abs() < 0.1);
+        assert!((bottom - edges(staves[1]).1).abs() < 0.1);
+    }
+    for &(top, bottom) in &bars[2..] {
+        assert!((top - edges(staves[2]).0).abs() < 0.1);
+        assert!((bottom - edges(staves[2]).1).abs() < 0.1);
+    }
+    score.parts[0].staff_groups[0].barlines_connect = false;
+    let output = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    let doc = roxmltree::Document::parse(&output.pages[0]).unwrap();
+    assert_eq!(
+        doc.descendants()
+            .filter(|n| n.attribute("class") == Some("acorde-barline"))
+            .count(),
+        6
+    );
+    assert_eq!(
+        doc.descendants()
+            .filter(|n| n.attribute("class") == Some("acorde-repeat-dots"))
+            .count(),
+        3
+    );
+}
+
+#[test]
 fn imported_part_symbol_controls_connector_and_staff_range() {
     let make_score = |name: &str, count: usize, symbol: &str| {
         let xml = format!(

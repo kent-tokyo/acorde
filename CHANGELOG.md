@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- Draw measure barlines in connected staff and part groups, keeping distinct
+  barline styles and repeat dots on their own visible staves. MusicXML import
+  copies each part-level barline to the correct measure of padded staves.
+
 - Import and export one static MusicXML part symbol, including its staff range,
   and apply the MusicXML default brace to multistaff parts. Distinguish square
   group brackets from curved brackets. The new `PartGroupSymbol::Square` variant

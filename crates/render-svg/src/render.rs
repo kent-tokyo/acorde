@@ -1079,15 +1079,11 @@ pub(crate) fn build_svg_with_metadata_placement(
             );
         }
         let system_top_y = row_top_y;
-        let system_bottom_y = staff_y.last().copied().unwrap_or(row_top_y)
-            + staff_heights_u.last().copied().unwrap_or(0.0) * space;
-        // Repeat dots belong to each individual staff, whereas the barline itself spans the
-        // complete visible system. Keeping those geometries separate prevents a piano-system
-        // repeat from acquiring one erroneous pair of dots between the staves.
-        let repeat_dot_ranges: Vec<(f32, f32)> = staff_refs
+        // The actual staff-line bounds are also the repeat-dot bounds. Keep one
+        // entry per staff so cutaway systems can split or join their barlines.
+        let staff_line_ranges: Vec<(f32, f32)> = staff_refs
             .iter()
             .enumerate()
-            .filter(|(index, _)| row_staff_visible[*index])
             .map(|(index, _)| {
                 let bottom = staff_y[index] + staff_heights_u[index] * space;
                 let top = bottom
@@ -1456,32 +1452,33 @@ pub(crate) fn build_svg_with_metadata_placement(
                 beam_tip_points.retain(|&(_, _, measure, _, _), _| measure != measure_idx);
                 shared_alignment = false;
             }
-            // Barline spans the whole system, drawn once per column (not per staff).
             let bar_x = mx + mwidth;
             let measure =
                 &score.parts[staff_refs[0].0].staves[staff_refs[0].1].measures[measure_idx];
-            write_barline(
+            write_grouped_barlines(
                 &mut body,
-                &measure.barline_right,
+                score,
+                &staff_refs,
+                &row_staff_visible,
+                &staff_line_ranges,
+                measure_idx,
+                false,
                 bar_x,
-                system_top_y,
-                system_bottom_y,
-                &repeat_dot_ranges,
                 space,
-            );
+            )?;
             // A bar's own left barline (a forward repeat) is drawn over the previous bar's
             // right one inside a system too, not only at its start.
-            if !matches!(measure.barline_left, Barline::Normal) {
-                write_barline(
-                    &mut body,
-                    &measure.barline_left,
-                    mx,
-                    system_top_y,
-                    system_bottom_y,
-                    &repeat_dot_ranges,
-                    space,
-                );
-            }
+            write_grouped_barlines(
+                &mut body,
+                score,
+                &staff_refs,
+                &row_staff_visible,
+                &staff_line_ranges,
+                measure_idx,
+                true,
+                mx,
+                space,
+            )?;
             // Bar number at the start of every system after the first.
             if col == 0 && row_idx > 0 {
                 let label = measure.number.max(1).to_string();
@@ -4140,6 +4137,97 @@ fn write_staff_lines(
         );
     }
     body.push_str("</g>");
+}
+
+/// Whether the source groups connect two consecutive visible staves. A containing
+/// part group can connect several parts; a staff group connects within one part.
+fn barline_staves_connected(score: &Score, a: (usize, usize), b: (usize, usize)) -> bool {
+    if score
+        .part_groups
+        .iter()
+        .any(|group| group.barlines_connect && group.first_part <= a.0 && b.0 <= group.last_part)
+    {
+        return true;
+    }
+    if a.0 != b.0 {
+        return false;
+    }
+    let part = &score.parts[a.0];
+    part.staff_groups
+        .iter()
+        .any(|group| group.barlines_connect && group.first_staff <= a.1 && b.1 <= group.last_staff)
+        || (part.staff_groups.is_empty() && implicit_piano_brace(part))
+}
+
+struct StaffBarlineRun {
+    kind: Barline,
+    last_staff: (usize, usize),
+    ranges: Vec<(f32, f32)>,
+}
+
+#[allow(clippy::too_many_arguments)]
+fn write_grouped_barlines(
+    body: &mut String,
+    score: &Score,
+    staff_refs: &[(usize, usize)],
+    visible: &[bool],
+    ranges: &[(f32, f32)],
+    measure_index: usize,
+    left: bool,
+    x: f32,
+    space: f32,
+) -> Result<(), RenderError> {
+    let mut pending: Option<StaffBarlineRun> = None;
+    let flush = |body: &mut String, run: StaffBarlineRun| {
+        if let (Some(first), Some(last)) = (run.ranges.first(), run.ranges.last()) {
+            write_barline(body, &run.kind, x, first.0, last.1, &run.ranges, space);
+        }
+    };
+    for (index, &(part_index, staff_index)) in staff_refs.iter().enumerate() {
+        if !visible[index] {
+            continue;
+        }
+        let measure = score
+            .parts
+            .get(part_index)
+            .and_then(|p| p.staves.get(staff_index))
+            .and_then(|s| s.measures.get(measure_index))
+            .ok_or_else(|| RenderError::InvalidLayout {
+                reason: "barline refers to a missing measure".into(),
+            })?;
+        let kind = if left {
+            &measure.barline_left
+        } else {
+            &measure.barline_right
+        };
+        if *kind == Barline::Invisible || (left && *kind == Barline::Normal) {
+            if let Some(run) = pending.take() {
+                flush(body, run);
+            }
+            continue;
+        }
+        let staff = (part_index, staff_index);
+        if let Some(run) = pending.as_mut()
+            && run.kind == *kind
+            && barline_staves_connected(score, run.last_staff, staff)
+        {
+            run.last_staff = staff;
+            run.ranges.push(ranges[index]);
+        } else {
+            if let Some(run) = pending.take() {
+                flush(body, run);
+            }
+            pending = Some(StaffBarlineRun {
+                kind: kind.clone(),
+                last_staff: staff,
+                ranges: vec![ranges[index]],
+            });
+        }
+    }
+    if let Some(run) = pending {
+        flush(body, run);
+    }
+    Ok(())
 }
 
 fn write_barline(

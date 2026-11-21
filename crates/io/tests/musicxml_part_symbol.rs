@@ -101,3 +101,30 @@ fn square_staff_connector_survives_mei_roundtrip() {
             .any(|g| g.symbol == PartGroupSymbol::Square)
     );
 }
+
+#[test]
+fn part_barline_is_assigned_to_the_current_measure_on_empty_staves() {
+    let xml = r#"<score-partwise><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><staves>2</staves></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><staff>1</staff></note><backup><duration>1</duration></backup><note><pitch><step>C</step><octave>3</octave></pitch><duration>1</duration><voice>2</voice><type>quarter</type><staff>2</staff></note></measure><measure number="2"><note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><staff>1</staff></note><barline location="right"><repeat direction="backward"/></barline></measure></part></score-partwise>"#;
+    let parsed = parse_musicxml(xml).unwrap();
+    for staff in &parsed.parts[0].staves {
+        assert_eq!(
+            staff.measures[0].barline_right,
+            acorde_core::Barline::Normal
+        );
+        assert_eq!(
+            staff.measures[1].barline_right,
+            acorde_core::Barline::RepeatEnd
+        );
+    }
+    let restored = parse_musicxml(&serialize_musicxml(&parsed).unwrap()).unwrap();
+    for staff in &restored.parts[0].staves {
+        assert_eq!(
+            staff.measures[0].barline_right,
+            acorde_core::Barline::Normal
+        );
+        assert_eq!(
+            staff.measures[1].barline_right,
+            acorde_core::Barline::RepeatEnd
+        );
+    }
+}

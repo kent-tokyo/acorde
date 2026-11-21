@@ -4292,6 +4292,17 @@ pub(crate) fn parse_musicxml_collecting(
     }
     for (part, symbol) in score.parts.iter_mut().zip(part_symbols) {
         pad_declared_staff_measures(part);
+        // A MusicXML barline belongs to a part's measure. A secondary staff may
+        // not have had a current measure when the barline event was read; copy
+        // the primary staff's final barlines after all staves have been padded.
+        if let Some((first, rest)) = part.staves.split_first_mut() {
+            for staff in rest {
+                for (target, source) in staff.measures.iter_mut().zip(&first.measures) {
+                    target.barline_left = source.barline_left.clone();
+                    target.barline_right = source.barline_right.clone();
+                }
+            }
+        }
         let count = part.staves.len();
         if let Some((symbol, top, bottom)) = symbol {
             let first_staff = top.unwrap_or(0);

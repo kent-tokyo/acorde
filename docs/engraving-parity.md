@@ -714,6 +714,40 @@ untracked IO test, whose SHA-256 is
 Full page review, barline grouping, cross-platform/WASM and reserved-cohort
 gates remain pending.
 
+### Grouped barlines
+
+The system-wide barline defect described above has been addressed for static
+part and staff groups: connected staves share a line, disconnected staves have
+separate lines, differing styles remain separate, and repeat dots are placed
+once on each visible staff. The MusicXML importer now assigns part-level
+barlines to the corresponding measure on secondary staves even when those
+staves contain no notes in that measure. A synthesized three-staff organ
+example and the first page of a Brahms voice, viola and piano score were
+inspected; the organ raster SHA-256 is
+`547eb118cf2d59737d70974a7d03c5b0df30583cd024dbe6a28ae78ce0aa75e2`.
+`Mensurstrich` and conflicting nested group settings remain unverified or
+unsupported; the existing limitations on later part-symbol changes remain.
+
+All [34 inputs](archive/print-parity-barline-corpus-20261122.json) rendered
+successfully, producing 225 pages. The production source diff SHA-256 at this
+run was `0d4cb4f8f483a97a6a6012b548924ed730e7a7130725773a18c94a4845065479`;
+the receipt's full diff hash predates a later test and changelog addition.
+Six focused MusicXML tests, 264 IO round-trip tests, 209 SVG structural tests,
+45 measured-print tests plus a separate cutaway test, and scoped all-feature
+library Clippy passed on macOS.
+
+A [bounding-box screen](archive/print-parity-barline-screen-20261122.json)
+of the 225 pages found 16 potential notehead/barline intersections across six
+scores. Its [script](archive/print-parity-barline-screen-20261122.py) tests
+selected element classes and can produce false positives; it is not a complete
+collision or visual audit. The 14 piano candidates were also present in the
+[older output](archive/print-parity-barline-screen-before-20261122.json),
+which predates other changes as well. One candidate, the opening note of
+measure 16 of `piano-n07`, was visually confirmed to touch the barline and
+remains unresolved. The other two candidates have not been compared with the
+older output. The full visual, cross-platform, WASM and reserved-cohort gates
+remain pending; these checks do not establish parity with Verovio.
+
 ### Reuse of measured row geometry
 
 Profiling the 643-measure chamber input showed repeated pagination attempts:
