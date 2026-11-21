@@ -226,6 +226,43 @@ async function main() {
     for await (const chunk of await (await freshDownload).createReadStream())
       freshSaved += chunk;
     assert.equal(JSON.parse(freshSaved).recordingSha256, recordingHash);
+    await freshPage.locator("#loopStart").fill("1");
+    await freshPage.locator("#barStart").fill("1");
+    await freshPage.locator("#tempo").fill("60");
+    await freshPage.locator("#numerator").fill("3");
+    await freshPage.locator("#denominator").selectOption("8");
+    await freshPage.locator("#add").click();
+    await freshPage.locator("#pitch").fill("69");
+    await freshPage.locator("#start").fill("1");
+    await freshPage.locator("#end").fill("1.5");
+    await freshPage.locator("#apply").click();
+    await freshPage.locator("#add").click();
+    await freshPage.locator("#pitch").fill("45");
+    await freshPage.locator("#hand").selectOption("left");
+    await freshPage.locator("#apply").click();
+    const manualProjectDownload = freshPage.waitForEvent("download");
+    await freshPage.locator("#saveProject").click();
+    let manualProjectText = "";
+    for await (const chunk of await (await manualProjectDownload).createReadStream()) manualProjectText += chunk;
+    const manualProject = JSON.parse(manualProjectText);
+    assert.deepEqual(manualProject.notes, [
+      { pitch: 69, start: 1, end: 1.5, hand: "right" },
+      { pitch: 45, start: 1, end: 1.5, hand: "left" },
+    ]);
+    const manualMidiDownload = freshPage.waitForEvent("download");
+    await freshPage.locator("#midi").click();
+    let manualMidi = Buffer.alloc(0);
+    for await (const chunk of await (await manualMidiDownload).createReadStream()) manualMidi = Buffer.concat([manualMidi, chunk]);
+    assert.equal(manualMidi.subarray(0, 4).toString(), "MThd");
+    const manualXmlDownload = freshPage.waitForEvent("download");
+    await freshPage.locator("#musicxml").click();
+    let manualXml = "";
+    for await (const chunk of await (await manualXmlDownload).createReadStream()) manualXml += chunk;
+    assert.match(manualXml, /<beats>3<\/beats>/);
+    assert.match(manualXml, /<beat-type>8<\/beat-type>/);
+    assert.match(manualXml, /<staves>2<\/staves>/);
+    assert.match(manualXml, /<step>A<\/step>\s*<octave>4<\/octave>/);
+    assert.match(manualXml, /<step>A<\/step>\s*<octave>2<\/octave>/);
     await freshPage.locator("#openProject").setInputFiles({
       name: "overlap.json",
       mimeType: "application/json",

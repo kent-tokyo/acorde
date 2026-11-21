@@ -73,3 +73,8 @@ without editing its start makes export reject it as preceding the score. Compare
 recording and adjust its start or the score start if appropriate. This check is not a participant
 trial or a measurement of correction time. Inference and boundary results may vary by model and
 environment.
+
+The browser smoke check also starts with an empty project, manually adds one right-hand and one
+left-hand note, and exports MIDI and 3/8 MusicXML. It verifies the two pitches and staves in the
+MusicXML. This is a two-note functional check using a synthetic silent WAV, not a timed human
+transcription or an assessment of manual-entry usability.
