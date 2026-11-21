@@ -9950,7 +9950,7 @@ fn render_ties(
                             .and_then(|(next, key)| {
                                 points.get(&key).map(|&point| (next, key, point))
                             })
-                            .filter(|(next, _, _)| !next.is_rest)
+                            .filter(|(next, _, _)| !next.is_rest || measured_print_active())
                         else {
                             if measured_print_active() {
                                 render_outgoing_partial_ties(
@@ -9972,7 +9972,11 @@ fn render_ties(
                         } else {
                             row_edges[a.3].1
                         };
-                        let pairs = tied_pitch_pairs(current, next);
+                        let pairs = if next.is_rest {
+                            Vec::new()
+                        } else {
+                            tied_pitch_pairs(current, next)
+                        };
                         if pairs.is_empty() && !measured_print_active() {
                             // Preserve the legacy respelled-chord fallback.
                             draw(body, a, b, None);
@@ -10006,7 +10010,12 @@ fn render_ties(
                                 && !pairs.iter().any(|(paired, _)| paired == index)
                         }) {
                             let midi = current.pitches[from].to_midi();
-                            let (_, _, next_measure, _, _) = next_key;
+                            let (_, _, next_measure, next_voice, next_index) = next_key;
+                            let next_onset: f64 = s.measures[next_measure].voices[next_voice]
+                                [..next_index]
+                                .iter()
+                                .map(Note::beats)
+                                .sum();
                             let target = s.measures[next_measure]
                                 .voices
                                 .iter()
@@ -10027,8 +10036,19 @@ fn render_ties(
                                                     || note.pitch_tie_end(index))
                                         },
                                     )?;
-                                    ((point.0 - b.0).abs() < 0.5 && point.3 == b.3)
-                                        .then_some((*point, note, to))
+                                    let same_onset = if measured_print_active() {
+                                        let onset: f64 = s.measures[next_measure].voices[key.3]
+                                            [..key.4]
+                                            .iter()
+                                            .map(Note::beats)
+                                            .sum();
+                                        !note.is_grace
+                                            && !note.is_cue
+                                            && (onset - next_onset).abs() < 1e-9
+                                    } else {
+                                        (point.0 - b.0).abs() < 0.5 && point.3 == b.3
+                                    };
+                                    same_onset.then_some((*point, note, to))
                                 });
                             let Some((point, note, to)) = target else {
                                 if measured_print_active() {

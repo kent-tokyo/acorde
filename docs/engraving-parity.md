@@ -1078,6 +1078,28 @@ The measured suite (55), structural suite (209), and SVG all-feature library
 Clippy passed on macOS. Other scores, voice changes involving rests, full-page
 review and the final parity gates remain open.
 
+### Voice-changing ties when the source voice rests
+
+Measured print now looks for an explicit same-pitch tie end at the corresponding
+beat in another voice when the original voice's next event is a rest. Comparing
+musical onsets avoids depending on displaced rest or notehead x-coordinates.
+Synthetic tests check the connection, a later tied note that must not be joined,
+and a page break with one tie segment on each page. Voice changes without a next
+event in the original voice and the wider source-fidelity audit remain open.
+
+The [34-input screen](archive/print-parity-tie-rest-screen-20261122.json) used
+unchanged input hashes and printer SHA-256
+`8597ee359947a1706e5ae737be73fefc50b8b2f770ebecdc08daa17d56391789`.
+All 310 pages and per-score page counts matched the earlier screen. Its selected
+text, lyric, dynamic, curve and page-edge checks found zero candidates; 310 page
+numbers and four titles remained in the margin inventory. Since that earlier
+screen predates both tie changes, raw tie paths increased from 17 to 19 in
+`piano-BI115-1op33-1`, 41 to 42 in `piano-n07`, and 121 to 122 in
+`vocal-lc6302395`; these counts include system fragments and are not proof of
+correctness. The 56-test measured suite, 209-test structural suite, focused
+page-break test and SVG all-feature library Clippy passed on macOS. Complete
+visual, cross-platform and reserved-cohort gates remain open.
+
 ### Reuse of measured row geometry
 
 Profiling the 643-measure chamber input showed repeated pagination attempts:
