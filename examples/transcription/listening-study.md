@@ -31,3 +31,27 @@ work area for a pilot. The dataset is CC BY-NC-ND 4.0, and its manually aligned 
 accuracy of about 50 ms but does not provide reliable note offsets. Keep its source files outside
 the repository and disregard offset scoring. It covers one recording room and one device in the
 current evaluation. Select and document passages before starting the timed comparison.
+
+## Candidate passages for the pilot
+
+Two non-overlapping eight-second candidates have been identified in
+`ROOM_room1_MUS_beethoven1_DEV_iphone.wav`, using the reference
+`ROOM_room1_MUS_beethoven1.mid` from the same dataset. The recording SHA-256 is
+`f8267f9416bd39304d7920ce90fa80f13932ed927fc5b70c31cd7ee9d529e45f`; the reference MIDI
+SHA-256 is `8b24a67aea7acf2dde747c29fa082fcd7d8f42431f4e4382a7f8cd764e2edbaa`.
+
+| Candidate | Recording seconds | Reference onsets | Reference pitch range |
+| --- | --- | ---: | --- |
+| A | 8 inclusive to 16 exclusive | 36 | MIDI 40–76 |
+| B | 16 inclusive to 24 exclusive | 37 | MIDI 40–77 |
+
+No reference note strictly crosses the boundaries at 8, 16 or 24 seconds. Similar counts and
+pitch ranges do not establish equal listening or editing difficulty. The aligned MIDI contains
+no time-signature event; its 120 BPM tempo must not be treated as verified musical bar alignment.
+Before the timed session, check the recording and an appropriate score to establish whether these
+are four-bar passages, and fix the first-bar time, tempo, meter and any pickup in advance. If the
+boundaries or passages change, recompute the counts and record the new conditions. These
+development candidates were chosen after prior model testing and are not an independent test set.
+Assign condition order and candidate allocation before starting; do not use a participant's
+result to choose the easier condition. The user's participation is deferred, and no timing or
+accuracy result has yet been collected.
