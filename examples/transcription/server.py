@@ -71,8 +71,11 @@ def midi_bytes(data):
         end = float(note['end'])
         hand = note['hand']
         if hand not in tracks or not (0 <= pitch <= 127 and math.isfinite(start) and math.isfinite(end)
-                                      and 0 <= start < end <= 36000 and start >= origin):
-            raise ValueError('Invalid note or note before the selected bar start')
+                                      and 0 <= start < end <= 36000):
+            raise ValueError('Invalid note')
+        if start < origin:
+            raise ValueError(f'MIDI {pitch}の開始時刻{start:.3f}秒が楽譜の開始{origin:.3f}秒より前です。'
+                             '音の開始時刻、最初の小節、または弱起の長さを確認してください。')
         start_tick = round((start - origin) * tempo * 480 / 60)
         end_tick = max(start_tick + 1, round((end - origin) * tempo * 480 / 60))
         intervals[hand].setdefault(pitch, []).append((start_tick, end_tick, start))

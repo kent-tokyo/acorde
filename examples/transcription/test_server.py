@@ -76,7 +76,7 @@ class MidiExportTest(unittest.TestCase):
     def test_rejects_note_before_bar_start(self):
         data = {'tempo': 120, 'bar_start': 1, 'numerator': 4, 'denominator': 4,
                 'notes': [{'start': 0.5, 'end': 2, 'pitch': 60, 'hand': 'right'}]}
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(ValueError, 'MIDI 60の開始時刻0.500秒が楽譜の開始1.000秒より前'):
             midi_bytes(data)
 
     def test_rejects_more_than_10000_measures(self):

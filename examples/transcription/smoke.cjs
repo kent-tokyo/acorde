@@ -245,6 +245,14 @@ async function main() {
     await freshPage.locator("#preview").click();
     await previewFailure;
     await freshPage.getByText(/右手のMIDI 60が0.500秒付近で重なっています/).waitFor();
+    await freshPage.locator("#openProject").setInputFiles({
+      name: "before-bar.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify({
+        ...pickupProject, barStart: 1, pickupSteps: 0,
+        notes: [{ start: 0.98, end: 1.25, pitch: 69, hand: "right" }],
+      })),
+    });
+    await freshPage.locator("#midi").click();
+    await freshPage.getByText(/MIDI 69の開始時刻0.980秒が楽譜の開始1.000秒より前/).waitFor();
     await freshPage.close();
     await page.locator("#openProject").setInputFiles({
       name: "matched.json",

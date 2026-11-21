@@ -65,3 +65,11 @@ development candidates were chosen after prior model testing and are not an inde
 Assign condition order and candidate allocation before starting; do not use a participant's
 result to choose the easier condition. The user's participation is deferred, and no timing or
 accuracy result has yet been collected.
+
+In a development check with the piano model, both ranges produced candidates that could be
+exported as MIDI and MusicXML with the settings above. For B, the model also proposed A4 at
+15.484 seconds as a boundary-review candidate, just before the score start. Adding that candidate
+without editing its start makes export reject it as preceding the score. Compare it with the
+recording and adjust its start or the score start if appropriate. This check is not a participant
+trial or a measurement of correction time. Inference and boundary results may vary by model and
+environment.
