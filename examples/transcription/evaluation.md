@@ -795,3 +795,29 @@ and aligned reference, decoded audio and both outputs. To reproduce, unpack the 
 `examples/transcription/sighttosound/`, use ffmpeg's `-t 30 -ac 1 -ar 16000 -c:a pcm_s16le`
 to write each `.excerpt.wav`, generate `.aligned.mid` with `align_phone_reference.py`, run
 the two models into the manifest's paths, then pass the manifest to `compare_corpus.py`.
+
+### Identifying two phone-recorded pieces after evaluation
+
+After the eight-file results were known, two recordings were identified by matching their
+reference MIDI pitches against independently named files in the
+[MIDI Classical Music collection](https://huggingface.co/datasets/drengskapur/midi-classical-music).
+For this identification only, notes at MIDI pitch 65 and above were sorted by their start time
+(rounded to 0.01 seconds for ordering) and pitch. Python's `difflib.SequenceMatcher`, with
+`autojunk=False`, found these longest contiguous matching pitch sequences:
+
+- Video 5: 51 notes matching
+  [Bach, Invention No. 7, BWV 778](https://huggingface.co/datasets/drengskapur/midi-classical-music/resolve/main/data/bach-bwv772-786_two_part_inventions-bwv778_invention_n07.mid)
+  (named MIDI SHA-256 `d92f1716ab57afc5f469b03dffe8aa09a3c958126010541592f21d27bab810f2`).
+- Video 27: 46 notes matching
+  [Schumann, Kinderszenen Op. 15 No. 1](https://huggingface.co/datasets/drengskapur/midi-classical-music/resolve/main/data/schumann-scenes_from_childhood_op15_n01.mid)
+  (named MIDI SHA-256 `29f60cbb5bc95f222226e9d865f9c0d802a6b4375e9c88e971a83abd7cbea6ac`).
+
+Both pieces are also listed as examples in the Sight to Sound paper. These two compositions
+are different from the pieces used in this project's earlier model selection and IDMT phone
+comparisons. On their combined 10–30 second excerpts, the earlier model matched 135 of
+135 reference onsets and produced 15 unmatched estimates; Transkun matched 135 and produced
+none. The excerpts and timing alignment are the same as in the eight-file table above.
+This subset was selected after the model results were available, and identification is based
+on pitch sequences rather than original file titles. It is exploratory evidence for two
+composition-distinct phone recordings of a digital piano, not a preregistered confirmation or
+an acoustic-piano test. Neither model's training-set overlap has been audited.
