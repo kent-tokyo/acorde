@@ -2407,6 +2407,28 @@ pub struct TimedPedalDirection {
     pub placement: Option<String>,
 }
 
+/// One item in an ordered MusicXML dynamics group.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "value", rename_all = "snake_case")]
+pub enum DynamicDirectionComponent {
+    Dynamic(Dynamic),
+    Text(String),
+}
+
+/// A dynamic at a score-time position within a staff's measure.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TimedDynamicDirection {
+    /// Position in quarter-note beats from the start of the measure.
+    pub position_beats: f64,
+    pub dynamic: Dynamic,
+    /// Explicit above/below placement, when supplied by the source.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub above: Option<bool>,
+    /// Ordered printed components when a source direction combines multiple markings or text.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub components: Vec<DynamicDirectionComponent>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Measure {
     pub number: u32,
@@ -2469,6 +2491,9 @@ pub struct Measure {
     /// Pedal signs whose score-time positions need not coincide with notes.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub timed_pedals: Vec<TimedPedalDirection>,
+    /// Dynamics whose printed positions are independent of note onsets.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub timed_dynamics: Vec<TimedDynamicDirection>,
     /// When ≥ 2, this measure is displayed as a multi-measure rest spanning N measures.
     #[serde(default)]
     pub multi_rest_count: Option<u8>,
@@ -2557,6 +2582,7 @@ impl Measure {
             harp_pedal_diagrams: Vec::new(),
             channel_switches: Vec::new(),
             timed_pedals: Vec::new(),
+            timed_dynamics: Vec::new(),
             multi_rest_count: None,
             system_break: false,
             page_break: false,
@@ -3339,6 +3365,13 @@ pub enum ScoreChange {
         old: Vec<TimedPedalDirection>,
         new: Vec<TimedPedalDirection>,
     },
+    TimedDynamicsChanged {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        old: Vec<TimedDynamicDirection>,
+        new: Vec<TimedDynamicDirection>,
+    },
     ChordDefinitionsChanged {
         old: Vec<ChordDefinition>,
         new: Vec<ChordDefinition>,
@@ -3903,6 +3936,15 @@ pub fn diff(a: &Score, b: &Score) -> Vec<ScoreChange> {
                         new: bm.timed_pedals.clone(),
                     });
                 }
+                if am.timed_dynamics != bm.timed_dynamics {
+                    changes.push(ScoreChange::TimedDynamicsChanged {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        old: am.timed_dynamics.clone(),
+                        new: bm.timed_dynamics.clone(),
+                    });
+                }
             }
         }
     }
@@ -4026,6 +4068,12 @@ pub enum ScorePatch {
         staff: usize,
         measure: usize,
         value: Vec<TimedPedalDirection>,
+    },
+    SetTimedDynamics {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        value: Vec<TimedDynamicDirection>,
     },
     SetChordDefinitions {
         value: Vec<ChordDefinition>,
@@ -4528,6 +4576,15 @@ pub fn score_patch(a: &Score, b: &Score) -> Vec<ScorePatch> {
                     });
                 }
 
+                if am.timed_dynamics != bm.timed_dynamics {
+                    patches.push(ScorePatch::SetTimedDynamics {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        value: bm.timed_dynamics.clone(),
+                    });
+                }
+
                 for vi in 0..4usize {
                     let av = &am.voices[vi];
                     let bv = &bm.voices[vi];
@@ -4673,6 +4730,23 @@ pub fn apply_patch(score: &Score, patches: &[ScorePatch]) -> Result<Score, Error
                     .get_mut(*measure)
                     .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
                     .timed_pedals = value.clone();
+            }
+            ScorePatch::SetTimedDynamics {
+                part,
+                staff,
+                measure,
+                value,
+            } => {
+                s.parts
+                    .get_mut(*part)
+                    .ok_or_else(|| Error::InvalidPatch(format!("part {part} out of range")))?
+                    .staves
+                    .get_mut(*staff)
+                    .ok_or_else(|| Error::InvalidPatch(format!("staff {staff} out of range")))?
+                    .measures
+                    .get_mut(*measure)
+                    .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
+                    .timed_dynamics = value.clone();
             }
             ScorePatch::SetChordDefinitions { value } => {
                 s.chord_definitions = value.clone();

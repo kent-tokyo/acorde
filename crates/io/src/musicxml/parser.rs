@@ -374,7 +374,11 @@ fn tuplet_display(
 struct PlacedDynamic {
     value: Dynamic,
     above: Option<bool>,
+    components: Vec<acorde_core::DynamicDirectionComponent>,
 }
+
+type DynamicAddress = (usize, usize, usize, usize, usize);
+type AssignedDynamic = (f64, usize, PlacedDynamic);
 
 fn resolve_direction_dynamics(
     score: &mut Score,
@@ -437,29 +441,57 @@ fn resolve_direction_dynamics(
         })
         .collect();
     ordered.sort_by(|a, b| a.0.total_cmp(&b.0).then(a.1.cmp(&b.1)));
-    let mut assigned: HashMap<(usize, usize, usize, usize, usize), PlacedDynamic> = HashMap::new();
+    let mut assigned: HashMap<DynamicAddress, AssignedDynamic> = HashMap::new();
+    let mut timed = Vec::new();
     for (beat, _, pi, si, dynamic) in ordered {
         let target = candidates.get(&(pi, si)).and_then(|list| {
             let index = list.partition_point(|(onset, _)| *onset < beat - 1e-9);
             list.get(index)
         });
-        if let Some((_, addr)) = target {
-            assigned.insert(
+        if let Some((_, addr)) = target
+            .filter(|(onset, _)| (*onset - beat).abs() < 1e-9 && dynamic.components.is_empty())
+        {
+            if let Some(previous) = assigned.insert(
                 (addr.part, addr.staff, addr.measure, addr.voice, addr.note),
-                dynamic,
-            );
+                (beat, si, dynamic),
+            ) {
+                timed.push((previous.0, pi, previous.1, previous.2));
+            }
         } else {
-            tolerated.push(crate::Diagnostic::warning(
-                "musicxml.unattached-dynamic",
-                "MusicXML dynamic has no following sounding note on its staff",
-            ));
+            timed.push((beat, pi, si, dynamic));
         }
     }
-    for ((pi, si, mi, vi, ni), dynamic) in assigned {
+    for ((pi, si, mi, vi, ni), (beat, physical_staff, dynamic)) in assigned {
         let note = &mut score.parts[pi].staves[si].measures[mi].voices[vi][ni];
         if note.dynamic.is_none() {
             note.dynamic = Some(dynamic.value);
             note.dynamic_above = dynamic.above;
+        } else {
+            timed.push((beat, pi, physical_staff, dynamic));
+        }
+    }
+    for (beat, pi, si, dynamic) in timed {
+        let index = starts.partition_point(|start| *start <= beat + 1e-9);
+        let measure_index = index.saturating_sub(1).min(max_bars.saturating_sub(1));
+        let measure = score
+            .parts
+            .get_mut(pi)
+            .and_then(|part| part.staves.get_mut(si))
+            .and_then(|staff| staff.measures.get_mut(measure_index));
+        if let Some(measure) = measure.filter(|_| beat >= -1e-9) {
+            measure
+                .timed_dynamics
+                .push(acorde_core::TimedDynamicDirection {
+                    position_beats: (beat - starts[measure_index]).max(0.0),
+                    dynamic: dynamic.value,
+                    above: dynamic.above,
+                    components: dynamic.components,
+                });
+        } else {
+            tolerated.push(crate::Diagnostic::warning(
+                "musicxml.unattached-dynamic",
+                "MusicXML dynamic falls outside its staff's score time",
+            ));
         }
     }
 }
@@ -664,6 +696,7 @@ pub(crate) fn parse_musicxml_collecting(
     // notations belong to their note.
     let mut in_dynamics = false;
     let mut pending_direction_dynamic: Option<Dynamic> = None;
+    let mut pending_dynamic_components: Vec<acorde_core::DynamicDirectionComponent> = Vec::new();
     let mut pending_direction_staff = 0usize;
     let mut direction_dynamics: Vec<(usize, usize, usize, f64, PlacedDynamic)> = Vec::new();
     let mut note_inline_dynamic: Option<Dynamic> = None;
@@ -1317,7 +1350,11 @@ pub(crate) fn parse_musicxml_collecting(
                 if in_dynamics {
                     match musicxml_dynamic(&tag) {
                         Some(dynamic) if in_note => note_inline_dynamic = Some(dynamic),
-                        Some(dynamic) => pending_direction_dynamic = Some(dynamic),
+                        Some(dynamic) => {
+                            pending_direction_dynamic = Some(dynamic);
+                            pending_dynamic_components
+                                .push(acorde_core::DynamicDirectionComponent::Dynamic(dynamic));
+                        }
                         None => {
                             let mut diagnostic = crate::Diagnostic::warning(
                                 "musicxml.unsupported-dynamic",
@@ -2494,9 +2531,16 @@ pub(crate) fn parse_musicxml_collecting(
                                         Some("below") => Some(false),
                                         _ => None,
                                     },
+                                    components: if pending_dynamic_components.len() > 1 {
+                                        std::mem::take(&mut pending_dynamic_components)
+                                    } else {
+                                        pending_dynamic_components.clear();
+                                        Vec::new()
+                                    },
                                 },
                             ));
                         }
+                        pending_dynamic_components.clear();
                         pending_sound_tempo = None;
                         pending_metronome = None;
                         let hairpin_above = match pending_direction_placement.as_deref() {
@@ -3063,10 +3107,9 @@ pub(crate) fn parse_musicxml_collecting(
                         let text = current_text.trim();
                         let preserved = in_direction_type && !text.is_empty();
                         if preserved {
-                            pending_expression_text = Some(match pending_expression_text.take() {
-                                Some(previous) => format!("{previous} {text}"),
-                                None => text.to_string(),
-                            });
+                            pending_dynamic_components.push(
+                                acorde_core::DynamicDirectionComponent::Text(text.to_owned()),
+                            );
                         }
                         let mut diagnostic = crate::Diagnostic::warning(
                             "musicxml.unsupported-dynamic",
@@ -3081,7 +3124,22 @@ pub(crate) fn parse_musicxml_collecting(
                         ));
                         tolerated.push(diagnostic);
                     }
-                    "dynamics" => in_dynamics = false,
+                    "dynamics" => {
+                        if in_direction_type && pending_direction_dynamic.is_none() {
+                            for component in pending_dynamic_components.drain(..) {
+                                if let acorde_core::DynamicDirectionComponent::Text(text) =
+                                    component
+                                {
+                                    pending_expression_text =
+                                        Some(match pending_expression_text.take() {
+                                            Some(previous) => format!("{previous} {text}"),
+                                            None => text,
+                                        });
+                                }
+                            }
+                        }
+                        in_dynamics = false;
+                    }
                     "staff" if in_direction && !in_note => {
                         pending_direction_staff = current_text
                             .trim()

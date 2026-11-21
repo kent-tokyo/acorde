@@ -82,6 +82,7 @@ pub(crate) fn render_measure_semantic_annotations(
     kinds: Kinds,
     band: StaffBand,
     cross_bands: &HashMap<usize, StaffBand>,
+    end_anchor: (f64, f32),
 ) -> Result<Vec<GlyphPlacement>, RenderError> {
     let mut annotations = Vec::new();
     let mut owner = CollisionOwner::with_fixed_obstacles(&[]);
@@ -320,6 +321,77 @@ pub(crate) fn render_measure_semantic_annotations(
                     );
                 }
             }
+        }
+    }
+    if kinds.dynamics_and_chords {
+        for (index, direction) in measure.timed_dynamics.iter().enumerate() {
+            let Some(x) = crate::render::measure_text_beat_x(
+                measure,
+                part,
+                staff,
+                measure_idx,
+                direction.position_beats,
+                note_points,
+                Some(end_anchor),
+            ) else {
+                continue;
+            };
+            let above = direction.above.unwrap_or(has_lyrics);
+            let text = if direction.components.is_empty() {
+                direction.dynamic.to_musicxml_str().to_owned()
+            } else {
+                direction
+                    .components
+                    .iter()
+                    .map(|component| match component {
+                        acorde_core::DynamicDirectionComponent::Dynamic(dynamic) => {
+                            dynamic.to_musicxml_str().to_owned()
+                        }
+                        acorde_core::DynamicDirectionComponent::Text(text) => text.clone(),
+                    })
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            };
+            let y = if above {
+                band.top_y - 2.0 * space
+            } else {
+                band.bottom_y + 2.6 * space
+            };
+            let width = crate::render::annotation_text_width_u(&text) * space + 0.6 * space;
+            // A combined direction reads from its first mark at the written beat.
+            // Simple dynamic glyphs remain centered on that beat.
+            let x = if direction.components.is_empty() {
+                x
+            } else {
+                x + width / 2.0
+            };
+            annotations.push(SemanticAnnotation::Text {
+                class: "acorde-dynamic",
+                text,
+                x,
+                italic: true,
+            });
+            owner.push(
+                GlyphPlacement {
+                    resource_key: format!("timed-dynamic:{part}:{staff}:{measure_idx}:{index}"),
+                    metrics: GlyphMetrics {
+                        advance_mm: 0.0,
+                        left_mm: -width / 2.0,
+                        top_mm: -crate::render::annotation_font_size_u() * space,
+                        width_mm: width,
+                        height_mm: 1.25 * crate::render::annotation_font_size_u() * space,
+                    },
+                    x_mm: x,
+                    y_mm: y,
+                    priority: 1,
+                },
+                GlyphCollisionClass::Annotation,
+                if above {
+                    GlyphCollisionDirection::Up
+                } else {
+                    GlyphCollisionDirection::Down
+                },
+            );
         }
     }
     owner

@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+- Add the optional `Measure::timed_dynamics` score-time representation and
+  `SetTimedDynamics` command. MusicXML directions between note onsets keep
+  their timing through export, playback and measured engraving. Composite
+  MusicXML dynamics retain their ordered marks and text; repeat-specific
+  playback remains unsupported. The new public fields require version review;
+  full print qualification remains in progress.
+- Reserve articulation ink between adjacent staves in measured print so lyrics
+  clear marks attached to notes on the next staff.
+- Reserve top space for every continued volta segment during measured pagination.
+- Keep cutaway staves visible when they contain timed dynamics or visible pedal
+  directions, including over rests.
+- Measured print reserves extra horizontal space when a part name cannot fit
+  at 2.7 mm. The resulting system breaks remain under corpus review.
 - Import text-bearing MusicXML breath and caesura marks as visible articulations;
   paired tags now follow the same path as self-closing tags.
 - Preserve concurrent numbered MusicXML wedges as typed crescendo/decrescendo

@@ -119,7 +119,7 @@ pub fn render_print_page_svgs_with_glyphs(
     layout: &PrintLayoutResult,
     glyphs: &SvgGlyphSource,
 ) -> Result<Vec<String>, PrintRenderError> {
-    render_print_page_svgs_with_geometry(score, layout, glyphs, None)
+    render_print_page_svgs_with_geometry(score, layout, glyphs, None, None)
 }
 
 pub(crate) fn render_print_page_svgs_with_geometry(
@@ -127,6 +127,7 @@ pub(crate) fn render_print_page_svgs_with_geometry(
     layout: &PrintLayoutResult,
     glyphs: &SvgGlyphSource,
     supplied_geometry: Option<&[render::MeasuredRowGeometry]>,
+    measured_label_width_mm: Option<f32>,
 ) -> Result<Vec<String>, PrintRenderError> {
     layout.validate()?;
     // Match the staff-aware layout's extra page reservation for an additional
@@ -466,6 +467,7 @@ pub(crate) fn render_print_page_svgs_with_geometry(
             &row_tops_px,
             space_px,
             measured_staff_offsets.as_ref().unwrap_or(&staff_offsets),
+            measured_label_width_mm,
         );
         svg.push_str("</svg>");
         pages.push(svg);
@@ -543,6 +545,7 @@ fn print_row_width_factors(
         .collect())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn write_publication(
     svg: &mut String,
     page: &acorde_layout::PageLayout,
@@ -551,6 +554,7 @@ fn write_publication(
     row_tops_px: &[f32],
     space_px: f32,
     staff_offsets: &[(usize, f32, f32)],
+    measured_label_width_mm: Option<f32>,
 ) {
     if page.page_index == 0
         && !page.publication.is_title_page
@@ -642,7 +646,8 @@ fn write_publication(
                 continue;
             }
             let part_middle = (*first_top + *last_top + *last_height) / 2.0;
-            let available_mm = page.content_left_mm - PART_LABEL_GAP_MM - PART_LABEL_PAPER_MM;
+            let available_mm = measured_label_width_mm
+                .unwrap_or(page.content_left_mm - PART_LABEL_GAP_MM - PART_LABEL_PAPER_MM);
             let measured_lines =
                 render::measured_print_active().then(|| measured_label_lines(text, available_mm));
             let lines = measured_lines.as_ref().map_or_else(
@@ -671,8 +676,7 @@ fn write_publication(
             } else {
                 size_mm
             };
-            let available_width_px =
-                (page.content_left_mm - PART_LABEL_GAP_MM - PART_LABEL_PAPER_MM) * scale;
+            let available_width_px = available_mm * scale;
             let leading = size_mm * 1.15;
             let first_baseline = part_middle * space_px + size_mm * scale * 0.25
                 - (lines.len() - 1) as f32 * leading * scale / 2.0;

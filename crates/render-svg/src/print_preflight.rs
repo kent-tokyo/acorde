@@ -145,6 +145,44 @@ pub(crate) fn resolve(
     let mut ink_obstacles = Vec::new();
     for svg in pages.iter() {
         let doc = roxmltree::Document::parse(svg).map_err(|_| Error::InvalidGeneratedGeometry)?;
+        // Continued volta brackets are drawn outside their originating measure and can
+        // extend above a later system's notes. Reserve the actual bracket height on
+        // every system, including systems with no local start or stop marker.
+        for volta in doc
+            .descendants()
+            .filter(|node| node.attribute("class") == Some("acorde-volta"))
+        {
+            let coordinates = volta
+                .attribute("d")
+                .unwrap_or("")
+                .split(|c: char| c == ',' || c.is_whitespace())
+                .filter_map(|value| value.parse::<f32>().ok())
+                .collect::<Vec<_>>();
+            if coordinates.len() < 4
+                || coordinates.len() % 2 != 0
+                || coordinates.iter().any(|value| !value.is_finite())
+            {
+                return Err(Error::InvalidGeneratedGeometry);
+            }
+            let top = coordinates
+                .as_chunks::<2>()
+                .0
+                .iter()
+                .map(|point| point[1])
+                .fold(f32::INFINITY, f32::min);
+            let row = tops
+                .iter()
+                .enumerate()
+                .filter_map(|(row, staves)| {
+                    staves
+                        .first()
+                        .map(|staff_top| (row, (staff_top - top).abs()))
+                })
+                .min_by(|left, right| left.1.total_cmp(&right.1))
+                .map(|(row, _)| row)
+                .ok_or(Error::InvalidGeneratedGeometry)?;
+            above[row][0] = above[row][0].max((tops[row][0] - top) / SPACE + 0.2);
+        }
         for mark in doc
             .descendants()
             .filter(|n| n.attribute("data-print-articulation") == Some("true"))
@@ -163,13 +201,50 @@ pub(crate) fn resolve(
                     .filter(|v| v.is_finite())
                     .ok_or(Error::InvalidGeneratedGeometry)
             };
-            ink_obstacles.push((
-                row,
-                number("data-print-left")?,
-                number("data-print-right")?,
-                number("data-print-top")?,
-                number("data-print-bottom")?,
-            ));
+            let left = number("data-print-left")?;
+            let right = number("data-print-right")?;
+            let top = number("data-print-top")?;
+            let bottom = number("data-print-bottom")?;
+            ink_obstacles.push((row, left, right, top, bottom));
+            let part = index(mark, "data-part")?;
+            let source_staff = index(mark, "data-staff")?;
+            let physical_staff = mark
+                .attribute("data-print-note-addr")
+                .and_then(|value| {
+                    let fields = value
+                        .split(':')
+                        .map(str::parse::<usize>)
+                        .collect::<Result<Vec<_>, _>>()
+                        .ok()?;
+                    let [p, s, m, v, n] = fields.as_slice() else {
+                        return None;
+                    };
+                    score
+                        .parts
+                        .get(*p)?
+                        .staves
+                        .get(*s)?
+                        .measures
+                        .get(*m)?
+                        .voices
+                        .get(*v)?
+                        .get(*n)?
+                        .cross_staff
+                        .as_ref()
+                        .map(|cross| cross.target_staff)
+                })
+                .unwrap_or(source_staff);
+            let staff = refs
+                .iter()
+                .position(|r| *r == (part, physical_staff))
+                .ok_or(Error::InvalidGeneratedGeometry)?;
+            reserve_ink(
+                &mut upper_ink,
+                &mut lower_ink,
+                &tops,
+                &bottoms,
+                (row, staff, left, right, top, bottom),
+            );
         }
         for beam in doc
             .descendants()

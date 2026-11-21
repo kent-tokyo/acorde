@@ -64,6 +64,26 @@ pub fn engrave_print_pages(
         }
     };
     let font = TextFont::for_print(font_bytes)?;
+    // Expand the notation inset only when the longest label word cannot fit
+    // at the minimum label size in the existing label lane.
+    let mut label_width: Option<f32> = None;
+    if config.publication.show_part_names {
+        for word in render_score.parts.iter().flat_map(|part| {
+            part.name
+                .split_whitespace()
+                .chain(part.short_name.split_whitespace())
+        }) {
+            let width = font.measure(word, 2.7)?.occupied_width_mm();
+            label_width = Some(label_width.unwrap_or(0.0).max(width + 0.25));
+        }
+    }
+    let mut measured_config = config.clone();
+    if let Some(width) = label_width.as_mut() {
+        let existing = config.margin_left_mm + config.safe_left_mm - 1.5 - 3.0;
+        measured_config.safe_left_mm += (*width - existing).max(0.0);
+        *width = width.max(existing);
+    }
+    let config = &measured_config;
     let _text = crate::font_metrics::PrintTextScope::new(render_score, &font)?;
     let logical = compute_layout(render_score, &LayoutConfig::default());
     let (measures, headers_mm) = crate::render::measured_print_widths(render_score, &logical, 1.8)?;
@@ -132,6 +152,7 @@ pub fn engrave_print_pages(
             render_layout,
             &crate::SvgGlyphSource::Vector,
             Some(&geometry),
+            label_width,
         )?;
         if crate::print_preflight::resolve(render_score, &layout, &mut geometry, &mut pages, &font)?
         {

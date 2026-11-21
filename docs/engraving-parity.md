@@ -1,5 +1,223 @@
 # Engraving and print parity protocol
 
+## 2026-11-21 integration checkpoint
+
+The measured-print branch was merged with main at `9fdfff1d`. Workspace
+all-feature `cargo check --offline`, formatting, and the 264 IO round-trip
+tests passed. The 24 retired development sources were fetched again with their
+pinned Git blob identities and independently prepared as MusicXML. They remain
+development data; the final reserved cohort has not been evaluated here.
+
+The integrated debug `print_mxl` example rendered `chamber-sq14387632` on
+28 A4 pages with measured print, an eight-measure limit and Tuffy. The shared
+MusicXML SHA-256 is `924ce674731e2c15c613019051b3a7a6a8612ec3b86efffe824d936d5494f21f`,
+the binary SHA-256 is `2bd10482d9c4abe7ce3164a9f0e84b1343838697d5d221059fab562cdc0702cd`,
+and the PDF SHA-256 is `3431b3bca3fc627478e5ad031d7ed95b75eeee45781c99ffdaadc2a1806d4ec9`.
+The fourth part's source measure 324 contains `p` two beats into a sustained
+note. SVG measure ownership places that mark in the following measure, index
+325; no dynamic was found in index 324. A separate `pp` in measure index 71
+is also absent in the SVG ownership screen. This reproduces the timing defect
+on the integrated revision. It requires a score-time representation and
+round-trip, rendering, and playback checks. The screen alone does not verify
+the other marks or the complete PDF.
+
+The subsequent timed-dynamic development build records directions between note
+onsets in the staff-local measure, exports their offsets, and applies them to
+following playback events. The SVG ownership screen now locates one dynamic in
+each of part 4's measure indices 71 and 324, with none in 325. On the rasterized
+page 22 the assistant observed the `p` below the sustained cello note, within
+the source measure. The new PDF SHA-256 is
+`43c8f7bedf8ac3175bdc184dd3fa2109c3550deea41ae01a9fa178cc0d114b23`;
+the debug example SHA-256 is
+`993f1d83897683ffdcecaf6a27f1547861c14a70a253a728654d811d716fa88a`.
+IO round-trip tests (264), dynamic-offset tests (6), measured-print tests (23),
+and focused timed-dynamic command/playback tests passed. This is a single-score
+development check, not the full-corpus or comparative page review.
+
+Follow-up work preserves coincident imported directions instead of replacing
+one with another, and retains timed dynamics in score-fragment attributes.
+Focused round-trip and fragment tests cover those cases. Measured page margins
+also reserve dynamic space and reject non-finite or negative timed positions.
+The full IO round-trip suite (264) and measured-print suite (23) passed after
+these changes. The PDF hashes above identify the preceding build; this later
+source has not yet been rerendered for the 24-input comparison.
+
+The [subsequent 24-input development rendering](archive/print-parity-development-20261121.json)
+used the same prepared MusicXML for both engines. All 24 inputs produced output:
+213 Acorde pages and 179 Verovio pages. This is a page inventory, not a visual
+or notation correctness pass. For `vocal-lc6302395`, the outputs have 13 and
+8 pages respectively. The assistant compared the first pages at matched page
+width: Acorde has two systems and a large lower-page blank area, while Verovio
+has three. Acorde's second system contains a long hairpin near the piano's
+upper staff and additional crowding around the middle staves. Full source and
+page review, collision classification, Letter, defaults, WASM and performance
+checks remain pending. The source diff and output hashes in the receipt identify
+the tested build; the preparation log separately records MuseScore export exits.
+
+The [automated screen](archive/print-parity-screen-20261121.json) found no
+Acorde page-edge, text/notation, text/text, lyric/staff, dynamic/staff or
+text/curve candidates across the 24 inputs under that detector. It counted
+926 elements outside the nominal page margins; these require classification.
+The full candidate-level report remains in the local evaluation directory and
+its SHA-256 is recorded in the summary. A zero count is not a visual pass.
+
+The 13/8 vocal comparison above preserves the source's staff-size instructions.
+Screening measured Verovio's smallest staff at 1.26 mm and Acorde's at 1.8 mm,
+so those page counts do not compare equal staff sizes. A separate shared input
+normalizes the authored staff-size to 100%, preserving the rest of the parsed
+MusicXML. Its [receipt](archive/print-parity-vocal-equal-20261121.json) records
+the hashes and measurements. Both outputs then measure approximately 1.8 mm
+on every staff; Acorde uses 13 pages and Verovio 11. The two-page difference
+and authored-size behavior remain open for review.
+
+The [ten-input development screen](archive/print-parity-fixed-ten-20261121.json)
+rendered 16 pages per engine. Six MSCZ-to-MusicXML MuseScore exports exited with
+the known teardown crash after writing output; those inputs need independent source
+fidelity review. The screen found one Acorde text/curve candidate: in OMR-1003,
+`'No!'` overlapped the lower staff's staccato. The assistant confirmed it in the
+PDF. Measured reflow now reserves articulation ink against adjacent staffs, and
+the new fixture regression checks the lyric and articulation ink bounds. The
+rerendered PDF (`734610528408f25226fe61c08b6a342ccf8f689066dc8051bc6d3279dd23a78b`)
+no longer has that candidate; the assistant inspected the page. The full
+measured-print suite passed 24 tests.
+
+After this change the [24-input rerender](archive/print-parity-development-reflow-20261121.json)
+completed for both engines, with 214 Acorde and 179 Verovio pages. The
+[automated screen](archive/print-parity-screen-reflow-20261121.json) found no
+Acorde page-edge or selected collision candidates; 931 marks fell outside the
+nominal margins and require classification. One quartet increased from 18 to
+19 Acorde pages. Comparing its before/after page 3 shows the same first two
+systems with more space above the cello on the second system; the third system
+moved to the next page. The page count increase is recorded for further review,
+as are other layouts and all source fidelity checks.
+
+The [34-input import inventory](archive/print-parity-event-audit-20261121.json)
+compares shared MusicXML to the release CLI's score JSON by written onset,
+duration, voice, staff, pitch spelling, grace/cue/visibility and ties. The raw
+pitched inventory matches 33 inputs; OMR-1036 adds 38 model events because the
+audit excludes source `<unpitched>` percussion. A second inventory using their
+display-step and display-octave matches all 119 events in that input. Across all
+34 inputs it matches 43,769 pitched or unpitched display events. This does not
+establish percussion sounding pitch, rest or direction correctness, source-to-
+MusicXML export fidelity, or final SVG/PDF visibility.
+
+### Aloha Oe page review, articulation-reflow candidate
+
+The assistant inspected all three Acorde PDF pages at 110 dpi and all three
+Verovio SVG pages fitted to the same page width. The shared MusicXML SHA-256 is
+`9e79bc1ed711b586f0b3ab4535544b3d77d9f0633c26c7eb395d4e3671e6d921`.
+The screen counted 646 noteheads, 146 lyric syllables, five slurs and two ties
+in Acorde, matching the shared MusicXML inventory for those categories. That
+count and this page review are not a note-by-note original-source audit.
+
+- Page 1: the previously observed lyric/staff collision is not apparent in
+  this candidate. Acorde keeps Women and Men rest staves in the second system;
+  Verovio hides them and fits a third system on the page.
+- Page 2: Acorde has two systems and keeps the solo staff above the chorus after
+  the chorus begins. Verovio uses two systems and hides the solo staff in its
+  second system. The displayed lyric lines are readable in both at this scale.
+- Page 3: Acorde uses two full-width systems. Verovio has one short final system,
+  leaving substantially more blank space. Its earlier systems contain more bars,
+  so this page is not a like-for-like density comparison.
+
+The Acorde raster hashes in page order are
+`0f718aa7ccb3b081699ee5c41c646740dc70f7debc9c9da95384e527175380a2`,
+`6200fb3496a038265d6269f6ab985e0ab2d7fd627ae0b489fa5b4c751362d230`,
+`14ddc2693495a1588cb150673b48b0efdd115b5b6bbfa22c80ee91de074ff790`.
+The Verovio raster hashes are
+`77c681828d74bda141321f479d510b66ec006b4e8b92a1e9ef760d579fbfee94`,
+`d6e938dc4fdcd129cad9b87f6a2280e387cf40397bd1321d0b44a7cae9f96857`,
+`3f79764c7b373e2314900a37ba039f3f585035812e0a46bb6b4454ce8aed7f5c`.
+This is a single non-independent assistant review of the earlier candidate;
+other input pages and the latest build remain to be reviewed.
+
+After the articulation reflow, the [fixed ten rerender and screen](archive/print-parity-fixed-ten-reflow-20261121.json)
+also completed for both engines. Source-to-SVG count discrepancies were examined
+as candidates: the 28 hidden staccatos in `part-sq27449398` must remain hidden;
+the Quilter MusicXML contains two wedge starts with no stops and both engines
+omit them, while Acorde reports an unterminated hairpin. In `chamber-sq7551068`,
+part 4, physical measure index 192 (source number 100), one `<dynamics>` group
+contains `<p/>`, `other-dynamics` text `Das zweite mal`, and `<pp/>`. Acorde
+printed the latter two components but lost the first in that candidate. An
+intermediate parser revision reported `musicxml.multiple-dynamics-in-direction`
+for this loss; that warning was superseded by the group preservation below.
+
+The follow-up implementation preserves that dynamics group as ordered components
+and serializes it back to MusicXML. In a rerender of the same source (SHA-256
+`de11bdad52c1a6fc6cec1389ea5dda7a1204cb8c323208abbb90332637a7593d`),
+the assistant inspected page 16 and observed `p Das zweite mal pp` below the
+cello staff in source order. The PDF SHA-256 is
+`ca8e7668163fc40dd612fc5ba1dfb7a28b8cb6ebc7877319e9eff6afa68a1f0c`;
+the release example SHA-256 is
+`5ef42614a885acdad06485a61ac420f33e433e460e0bd0889c45c04ba1061568`.
+The first dynamic and the `pp` in this composite are currently drawn with text
+outlines. The rendering still needs comparison of music-glyph styling and
+spacing against the source. Playback retains the previous last-mark behavior;
+it does not interpret `second time` as repeat-specific playback. Eight offset
+and grouping tests, 264 IO round-trip tests, 25 measured-print tests and focused
+library Clippy passed. The 34-input results above predate this group change.
+
+The subsequent [24-input](archive/print-parity-development-composite-20261121.json)
+and [ten-input](archive/print-parity-fixed-ten-composite-20261121.json) renders
+completed in both engines after composite directions and cutaway visibility
+changes. The 24 inputs used 212 Acorde pages and 179 Verovio pages; the ten
+used 16 pages each. The [automatic screen](archive/print-parity-screen-composite-20261121.json)
+found zero Acorde page-edge, text/notation, text/text, lyric/staff,
+dynamic/staff or text/curve candidates across these inputs. It recorded 921
+and 63 elements beyond nominal margins in the two sets, respectively. This is
+not a substitute for classifying those elements or inspecting all pages.
+An authored cutaway staff now remains visible for a timed dynamic or visible
+pedal over rests, with native SVG and measured-print regression tests.
+
+The [margin audit](archive/print-parity-margin-audit-20261121.json), produced by
+[`audit_print_margins.py`](../scripts/audit_print_margins.py) with page hashes
+checked, classifies the 984 prior Acorde margin candidates as 750 part labels,
+228 page numbers, five titles and one volta line. These labels and page numbers
+are deliberately placed in the nominal page margins. The leftmost part-label
+ink is 3.04 mm from the paper edge and some long names are small; real printer
+hardware and physical readability remain to be checked.
+
+The single notation candidate was a continued volta on page 15 of
+`chamber-sq8437358`, with its top line at 13.93 mm against a 16 mm top margin.
+Measured preflight now reserves each continuation's actual top extent. The
+rerendered score retained 16 pages, and the screen counted 80 margin elements
+instead of 81, with zero page-edge or selected text collisions. The PDF SHA-256
+is `759c73c0171c22c2cc567f97c10871f243f29c219b0f4e94c0a3e89cf0a6bce8`.
+A multi-page regression checks every volta against the top margin; the test
+failed without the reservation and passes with it. The latest 34-input output
+has not yet been regenerated after this change.
+
+The subsequent [24-input](archive/print-parity-development-volta-20261121.json)
+and [ten-input](archive/print-parity-fixed-ten-volta-20261121.json) renders
+completed in both engines. In the [repeat margin audit](archive/print-parity-margin-volta-20261121.json),
+the 983 remaining candidates are all part labels (750), page numbers (228),
+or titles (5). The part-label size and printer-edge clearance concerns above
+remain unresolved. This is a margin classification, not a complete legibility
+or collision audit of the new output.
+
+### Part-name sizing experiment
+
+The measured path now reserves the minimum extra left inset needed for the
+widest unbreakable word at 2.7 mm, wraps names at word boundaries, and retains
+the existing 3 mm paper-edge clearance. It reserves no extra space for short
+names that already fit, or when part names are disabled. An automated test
+checks `Violoncello` size and ink position and confirms `Piano` needs no inset.
+The [24-input](archive/print-parity-development-labelfit-20261121.json) and
+[ten-input](archive/print-parity-fixed-ten-labelfit-20261121.json) renders
+all completed. The [margin audit](archive/print-parity-margin-labelfit-20261121.json)
+measured the 759 part-label candidates outside nominal margins at a minimum
+font size of 2.75 mm and a minimum ink-to-paper-edge distance of 3.06 mm.
+
+This is not yet a satisfactory final layout. The 24-input Acorde total rose
+from 212 to 218 pages: five inputs changed page counts, including
+`piano-wq117n11` from one page to two. Its second page contains one system
+and substantial blank space, observed in raster SHA-256
+`f693e9273d6569242a9fe4869ee1b32492b7a6dfcd8e6069f98529943cd1ff35`.
+The name lane is currently reserved on every system even though labels appear
+only on each page's first system. Variable system widths and per-page label
+requirements need further work before accepting this candidate. Actual printer
+clearance also remains unverified.
+
 This program targets conventional keyboard, vocal, chamber-score, and extracted-part
 engraving against **Verovio 6.4.1**. The starting source is Acorde
 `f48944024039cce2abb404af60d9ffc9dedc1502`, not a newly released artifact.

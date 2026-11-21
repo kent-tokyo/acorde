@@ -111,10 +111,10 @@ pub use model::commands::{
     SetScoreStyleOverridesCmd, SetScoreTextCmd, SetSectionBreakCmd, SetStaffPresentationCmd,
     SetStemCmd, SetStringNumberCmd, SetSystemBreakCmd, SetSystemBreakIntervalCmd,
     SetTabPositionCmd, SetTablatureConfigCmd, SetTechniqueTextCmd, SetTempoAtMeasureCmd,
-    SetTempoCmd, SetTimeSignatureCmd, SetTransposeCmd, SetTupletCmd, SetTupletDisplayCmd,
-    SetUnpitchedCmd, SetVoltaCmd, SplitMeasureCmd, ToggleArticulationCmd, ToggleSlurCmd,
-    ToggleTieCmd, ToggleTrillLineCmd, TransposeStaffRegionCmd, TupletScalePolicy, UnrollRepeatsCmd,
-    UpdateSpannerCmd, UpsertScoreViewCmd, command_key, command_label,
+    SetTempoCmd, SetTimeSignatureCmd, SetTimedDynamicsCmd, SetTransposeCmd, SetTupletCmd,
+    SetTupletDisplayCmd, SetUnpitchedCmd, SetVoltaCmd, SplitMeasureCmd, ToggleArticulationCmd,
+    ToggleSlurCmd, ToggleTieCmd, ToggleTrillLineCmd, TransposeStaffRegionCmd, TupletScalePolicy,
+    UnrollRepeatsCmd, UpdateSpannerCmd, UpsertScoreViewCmd, command_key, command_label,
 };
 pub use model::countermelody::{
     CountermelodyDiagnostic, CountermelodyOptions, CountermelodyResult, arrange_countermelody,
@@ -308,14 +308,15 @@ pub use model::playback::{
 pub use model::repeat::measure_sequence;
 pub use model::scale::{Scale, ScaleKind};
 pub use model::score::{
-    GuitarBendPoint, HarpPedalDiagram, HarpPedalPosition, InstrumentDefinition, InstrumentRange,
-    Measure, MeasureLength, MetronomeMark, MetronomeText, MidMeasureClef, MidiAftertouch,
-    MidiControlChange, MidiPitchBend, MidiProgramChange, NamedInstrumentChannel, NotationSpanner,
-    NotationSpannerKind, Note, NoteAddr, ObjectStyleOverride, ObjectStyleTarget, Part, PartGroup,
-    PartGroupSymbol, PercussionInstrument, RegionalTranspositionTarget, RespellPolicy, Score,
-    ScoreChange, ScoreMetadata, ScorePatch, ScoreSettings, ScoreStats, ScoreTemplate, ScoreView,
-    ScoreViewLayoutOverrides, Staff, StaffGroup, StaffKind, StaffNoteheadScheme, StaffPresentation,
-    StyleImportProvenance, TablatureFretMarkStyle, TablatureRhythmDisplay, TieSourceLocation,
+    DynamicDirectionComponent, GuitarBendPoint, HarpPedalDiagram, HarpPedalPosition,
+    InstrumentDefinition, InstrumentRange, Measure, MeasureLength, MetronomeMark, MetronomeText,
+    MidMeasureClef, MidiAftertouch, MidiControlChange, MidiPitchBend, MidiProgramChange,
+    NamedInstrumentChannel, NotationSpanner, NotationSpannerKind, Note, NoteAddr,
+    ObjectStyleOverride, ObjectStyleTarget, Part, PartGroup, PartGroupSymbol, PercussionInstrument,
+    RegionalTranspositionTarget, RespellPolicy, Score, ScoreChange, ScoreMetadata, ScorePatch,
+    ScoreSettings, ScoreStats, ScoreTemplate, ScoreView, ScoreViewLayoutOverrides, Staff,
+    StaffGroup, StaffKind, StaffNoteheadScheme, StaffPresentation, StyleImportProvenance,
+    TablatureFretMarkStyle, TablatureRhythmDisplay, TieSourceLocation, TimedDynamicDirection,
     TimedPedalDirection, ViewStaffKindOverride, ViewStaffRef, ViewStyle, ViewStyleOverride,
     ViewStyleProperty, ViewTranspositionPolicy, VoiceChannelSwitch, VoltaBracket, apply_patch,
     assign_tablature_positions, compute_beams, diff, measure_beats_remaining,

@@ -14,8 +14,8 @@ use super::score::{
     HarpPedalDiagram, InstrumentDefinition, InstrumentRange, Measure, MidMeasureClef,
     NotationSpanner, NotationSpannerKind, Note, NoteAddr, ObjectStyleOverride, Part, PartGroup,
     PercussionInstrument, RegionalTranspositionTarget, RespellPolicy, Score, ScoreTemplate,
-    ScoreView, Staff, StaffKind, StaffPresentation, ViewStyleOverride, respell_score,
-    respell_score_to_key, respell_staff_region, transpose_staff_region_checked,
+    ScoreView, Staff, StaffKind, StaffPresentation, TimedDynamicDirection, ViewStyleOverride,
+    respell_score, respell_score_to_key, respell_staff_region, transpose_staff_region_checked,
 };
 use super::validate::validate;
 use crate::Error;
@@ -65,6 +65,7 @@ pub enum Command {
     SetHarmonyRange(SetHarmonyRangeCmd),
     SetFiguredBass(SetFiguredBassCmd),
     SetHarpPedalDiagrams(SetHarpPedalDiagramsCmd),
+    SetTimedDynamics(SetTimedDynamicsCmd),
     SetGrace(SetGraceCmd),
     SetOttava(SetOttavaCmd),
     SetLyric(SetLyricCmd),
@@ -406,6 +407,15 @@ pub struct SetHarpPedalDiagramsCmd {
     pub staff_index: usize,
     pub measure_index: usize,
     pub diagrams: Vec<HarpPedalDiagram>,
+}
+
+/// Replace score-time dynamic directions on one staff-local measure.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetTimedDynamicsCmd {
+    pub part_index: usize,
+    pub staff_index: usize,
+    pub measure_index: usize,
+    pub dynamics: Vec<TimedDynamicDirection>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1532,6 +1542,7 @@ pub fn command_hint(cmd: &Command) -> ChangeHint {
         Command::SetHarmonyRange(c) => hint!(meas!(c), false, true),
         Command::SetFiguredBass(_) => hint!(Global, false, true),
         Command::SetHarpPedalDiagrams(c) => hint!(meas!(c), false, false),
+        Command::SetTimedDynamics(c) => hint!(meas!(c), false, true),
 
         Command::SetSystemBreak(_) | Command::SetPageBreak(_) | Command::SetSectionBreak(_) => {
             hint!(Global, true, false)
@@ -1626,6 +1637,7 @@ pub fn command_label(cmd: &Command) -> String {
         Command::SetChordSymbol(_) => "Set Chord Symbol".to_string(),
         Command::SetHarmonyRange(_) => "Set Harmony Range".to_string(),
         Command::SetHarpPedalDiagrams(_) => "Set Harp Pedal Diagrams".to_string(),
+        Command::SetTimedDynamics(_) => "Set Timed Dynamics".to_string(),
         Command::SetFiguredBass(_) => "Set Figured Bass".to_string(),
         Command::SetGrace(_) => "Set Grace Note".to_string(),
         Command::SetOttava(_) => "Set Ottava".to_string(),
@@ -1795,6 +1807,7 @@ pub fn command_key(cmd: &Command) -> String {
         Command::SetHarmonyRange(_) => "SetHarmonyRange".to_string(),
         Command::SetFiguredBass(_) => "SetFiguredBass".to_string(),
         Command::SetHarpPedalDiagrams(_) => "SetHarpPedalDiagrams".to_string(),
+        Command::SetTimedDynamics(_) => "SetTimedDynamics".to_string(),
         Command::SetGrace(_) => "SetGrace".to_string(),
         Command::SetOttava(_) => "SetOttava".to_string(),
         Command::SetLyric(_) => "SetLyric".to_string(),
@@ -2052,6 +2065,20 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
                 .get_mut(c.measure_index)
                 .ok_or(Error::MeasureNotFound(c.measure_index))?;
             measure.harp_pedal_diagrams = c.diagrams.clone();
+            Ok(())
+        }
+        Command::SetTimedDynamics(c) => {
+            let measure = score
+                .parts
+                .get_mut(c.part_index)
+                .ok_or(Error::PartNotFound(c.part_index))?
+                .staves
+                .get_mut(c.staff_index)
+                .ok_or(Error::StaffNotFound(c.staff_index))?
+                .measures
+                .get_mut(c.measure_index)
+                .ok_or(Error::MeasureNotFound(c.measure_index))?;
+            measure.timed_dynamics = c.dynamics.clone();
             Ok(())
         }
         Command::SetGrace(c) => {
@@ -5770,6 +5797,42 @@ mod tests {
                 .chord_symbol
                 .as_ref()
                 .is_some_and(|chord| chord.range_end.is_none())
+        );
+    }
+
+    #[test]
+    fn timed_dynamic_command_roundtrips_and_is_undoable() {
+        let mut engine = ScoreEngine::new();
+        engine.replace_score(default_engine_score());
+        let command = Command::SetTimedDynamics(SetTimedDynamicsCmd {
+            part_index: 0,
+            staff_index: 0,
+            measure_index: 0,
+            dynamics: vec![TimedDynamicDirection {
+                position_beats: 2.0,
+                dynamic: Dynamic::P,
+                above: Some(false),
+                components: Vec::new(),
+            }],
+        });
+        let json = serde_json::to_string(&command).unwrap();
+        engine.apply(serde_json::from_str(&json).unwrap()).unwrap();
+        assert_eq!(
+            engine.score.parts[0].staves[0].measures[0]
+                .timed_dynamics
+                .len(),
+            1
+        );
+        engine.undo().unwrap();
+        assert!(
+            engine.score.parts[0].staves[0].measures[0]
+                .timed_dynamics
+                .is_empty()
+        );
+        engine.redo().unwrap();
+        assert_eq!(
+            engine.score.parts[0].staves[0].measures[0].timed_dynamics[0].position_beats,
+            2.0
         );
     }
 

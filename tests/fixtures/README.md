@@ -107,6 +107,11 @@ benchmark dataset. The dataset README declares the underlying works Public Domai
 Hugging Face revision, source path, checksum, and import-only evidence mode are pinned in
 `manifest.json`. It is used to test bounded ZIP extraction and real MSCX parsing; export is not
 claimed.
+
+`crates/render-svg/tests/fixtures/openscore_omr_1003_export.musicxml` is a MuseScore
+export of the same source, retained for the lyric/articulation print regression. Its
+SHA-256 is `c3310136d683d4837ab165e4446bddd6848bcc3436c063286c5af78e7144a274`.
+
 `openscore_omr_score_1033.mscz` is a second fixture from the same pinned CC0-1.0 dataset and
 forms the MuseScore 4.6.3 compressed-MSCZ pair. Both are import-only fixtures.
 Three additional MuseScore 4.6.3 MSCZ samples (`1035`, `1036`, and `1016`) cover zero-diagnostic

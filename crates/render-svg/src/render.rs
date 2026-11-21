@@ -2359,6 +2359,18 @@ fn validate_score_content(score: &Score) -> Result<(), RenderError> {
         validate_score_text(&part.short_name)?;
         for staff in &part.staves {
             for measure in &staff.measures {
+                for direction in &measure.timed_dynamics {
+                    if !direction.position_beats.is_finite() || direction.position_beats < 0.0 {
+                        return Err(RenderError::InvalidNotePlacement {
+                            field: "timed_dynamic.position_beats",
+                        });
+                    }
+                    for component in &direction.components {
+                        if let acorde_core::DynamicDirectionComponent::Text(text) = component {
+                            validate_score_text(text)?;
+                        }
+                    }
+                }
                 for styled in measure_text_entries(measure) {
                     validate_score_text(&styled.text)?;
                 }
@@ -2769,6 +2781,10 @@ fn content_margins(
             continue;
         };
         for measure in &score.parts[part].staves[staff].measures {
+            if !measure.timed_dynamics.is_empty() {
+                top = top.max(4.8);
+                bottom = bottom.max(4.8);
+            }
             let active_voices = measure
                 .voices
                 .iter()
@@ -3605,6 +3621,8 @@ fn staff_has_visible_content(staff: &acorde_core::Staff, measure_indices: &[usiz
             return false;
         };
         measure.voices.iter().flatten().any(|note| !note.is_rest)
+            || !measure.timed_dynamics.is_empty()
+            || measure.timed_pedals.iter().any(|pedal| !pedal.hide_sign)
             || !measure.texts.is_empty()
             || !measure.figured_bass.is_empty()
             || !measure.harp_pedal_diagrams.is_empty()
@@ -4745,6 +4763,7 @@ fn render_measure(
             lyric_baseline_y,
         },
         &cross_bands,
+        (total_beats, x + width - space),
     )?;
     resolved_annotation_obstacles.extend(semantic_placements.iter().cloned());
 
@@ -7468,7 +7487,7 @@ fn render_metronome_mark(
 
 /// Anchor a MusicXML direction to the note spacing actually chosen for this row. Interpolating
 /// between note onsets keeps the source beat meaningful after print reflow.
-fn measure_text_beat_x(
+pub(crate) fn measure_text_beat_x(
     measure: &Measure,
     part: usize,
     staff: usize,

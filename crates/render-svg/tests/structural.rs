@@ -1749,6 +1749,27 @@ fn cutaway_staff_is_omitted_from_empty_systems_but_kept_for_authored_content() {
 }
 
 #[test]
+fn cutaway_staff_keeps_a_timed_dynamic_over_a_rest() {
+    use acorde_core::{Dynamic, Score, ScoreTemplate, StaffPresentation, TimedDynamicDirection};
+    let mut score = Score::template(ScoreTemplate::Piano);
+    score.parts[0].staves[1].presentation = StaffPresentation {
+        cutaway: true,
+        ..StaffPresentation::default()
+    };
+    score.parts[0].staves[1].measures[0]
+        .timed_dynamics
+        .push(TimedDynamicDirection {
+            position_beats: 0.0,
+            dynamic: Dynamic::P,
+            above: Some(false),
+            components: Vec::new(),
+        });
+    let svg = acorde_render_svg::render_svg(&score, &opts()).expect("score renders");
+    assert!(svg.contains("data-acorde-kind=\"staff-group\" data-part=\"0\" data-staff=\"1\""));
+    assert!(svg.contains("acorde-dynamic"));
+}
+
+#[test]
 fn metadata_exposes_measure_local_tablature_changes_without_svg_parsing() {
     use acorde_core::{Duration, Note, Pitch, Score, Step, TablatureConfig};
     use acorde_layout::{LayoutConfig, compute_layout};

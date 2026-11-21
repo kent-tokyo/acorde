@@ -22,6 +22,86 @@ fn velocities(xml: &str) -> Vec<(u8, u8)> {
 }
 
 #[test]
+fn dynamic_during_sustained_note_keeps_beat_through_roundtrip() {
+    let xml = score(
+        "<direction placement=\"below\"><direction-type><dynamics><p/></dynamics></direction-type><offset>1</offset></direction><note><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice><type>whole</type></note>",
+        1,
+    ).replace("<divisions>1</divisions>", "<divisions>2</divisions>");
+    let parsed = parse_musicxml(&xml).unwrap();
+    let directions = &parsed.parts[0].staves[0].measures[0].timed_dynamics;
+    assert_eq!(directions.len(), 1);
+    assert_eq!(directions[0].position_beats, 0.5);
+    assert_eq!(directions[0].dynamic, acorde_core::Dynamic::P);
+    assert_eq!(directions[0].above, Some(false));
+    let restored = parse_musicxml(&serialize_musicxml(&parsed).unwrap()).unwrap();
+    assert_eq!(
+        restored.parts[0].staves[0].measures[0].timed_dynamics,
+        *directions
+    );
+}
+
+#[test]
+fn coincident_directions_and_note_dynamic_survive_roundtrip() {
+    let body = format!(
+        "<direction><direction-type><dynamics><p/></dynamics></direction-type></direction><direction placement=\"above\"><direction-type><dynamics><mf/></dynamics></direction-type></direction>{}{}",
+        note("C", 4, 1).replace(
+            "</note>",
+            "<notations><dynamics><sfz/></dynamics></notations></note>"
+        ),
+        note("D", 4, 1),
+    );
+    let parsed = parse_musicxml(&score(&body, 1)).unwrap();
+    let measure = &parsed.parts[0].staves[0].measures[0];
+    assert_eq!(
+        measure.voices[0][0].dynamic,
+        Some(acorde_core::Dynamic::Sfz)
+    );
+    let marks = |measure: &acorde_core::Measure| {
+        let mut marks = measure
+            .timed_dynamics
+            .iter()
+            .map(|d| d.dynamic.to_musicxml_str())
+            .collect::<Vec<_>>();
+        marks.sort();
+        marks
+    };
+    assert_eq!(marks(measure), vec!["mf", "p"]);
+    let restored = parse_musicxml(&serialize_musicxml(&parsed).unwrap()).unwrap();
+    assert_eq!(
+        marks(&restored.parts[0].staves[0].measures[0]),
+        vec!["mf", "p"]
+    );
+}
+
+#[test]
+fn multiple_dynamics_in_one_direction_keep_written_order() {
+    let body = format!(
+        "<direction><direction-type><dynamics><p/><other-dynamics>second time</other-dynamics><pp/></dynamics></direction-type></direction>{}{}",
+        note("C", 4, 1),
+        note("D", 4, 1)
+    );
+    let report = acorde_io::parse_musicxml_with_report(&score(&body, 1)).unwrap();
+    use acorde_core::{Dynamic, DynamicDirectionComponent as C};
+    let direction = &report.score.parts[0].staves[0].measures[0].timed_dynamics[0];
+    assert_eq!(direction.dynamic, Dynamic::Pp);
+    assert_eq!(
+        direction.components,
+        vec![
+            C::Dynamic(Dynamic::P),
+            C::Text("second time".to_owned()),
+            C::Dynamic(Dynamic::Pp)
+        ]
+    );
+    let xml = serialize_musicxml(&report.score).unwrap();
+    let restored = parse_musicxml(&xml).unwrap();
+    assert_eq!(
+        restored.parts[0].staves[0].measures[0].timed_dynamics[0],
+        *direction
+    );
+    assert_eq!(velocities(&xml)[0].1, Dynamic::Pp.to_velocity());
+}
+
+#[test]
 fn positive_and_negative_offsets_match_ordered_directions() {
     let c = note("C", 4, 1);
     let d = note("D", 4, 1);

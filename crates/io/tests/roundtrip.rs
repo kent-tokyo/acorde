@@ -5681,7 +5681,7 @@ fn musicxml_clef_changes_on_a_later_staff_are_kept() {
 #[cfg(feature = "musicxml")]
 #[test]
 fn musicxml_dynamics_import_and_round_trip() {
-    // A direction dynamic on staff 2 waits for that staff's next note; one in <notations>
+    // A direction dynamic on staff 2 keeps its position over the rest; one in <notations>
     // belongs to its own note; other-dynamics stays visible as expression text,
     // while its playback level remains unsupported and is reported.
     let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Pno</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>2</beats><beat-type>4</beat-type></time><staves>2</staves><clef number="1"><sign>G</sign><line>2</line></clef><clef number="2"><sign>F</sign><line>4</line></clef></attributes><direction placement="below"><direction-type><dynamics><pp/></dynamics></direction-type><staff>2</staff></direction><direction><direction-type><dynamics><other-dynamics>mfz</other-dynamics></dynamics></direction-type></direction><note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><staff>1</staff><notations><dynamics><sfz/></dynamics></notations></note><note><pitch><step>D</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type><staff>1</staff></note><backup><duration>2</duration></backup><note><rest/><duration>1</duration><voice>5</voice><type>quarter</type><staff>2</staff></note><note><pitch><step>C</step><octave>3</octave></pitch><duration>1</duration><voice>5</voice><type>quarter</type><staff>2</staff></note></measure></part></score-partwise>"#;
@@ -5692,7 +5692,10 @@ fn musicxml_dynamics_import_and_round_trip() {
     assert_eq!(upper[1].dynamic, None);
     let lower: Vec<_> = staves[1].measures[0].voices.iter().flatten().collect();
     assert!(lower[0].is_rest && lower[0].dynamic.is_none());
-    assert_eq!(lower[1].dynamic, Some(acorde_core::Dynamic::Pp));
+    assert_eq!(lower[1].dynamic, None);
+    let direction = &staves[1].measures[0].timed_dynamics[0];
+    assert_eq!(direction.position_beats, 0.0);
+    assert_eq!(direction.dynamic, acorde_core::Dynamic::Pp);
     assert_eq!(
         staves[0].measures[0].expression_text.as_deref(),
         Some("mfz")
@@ -5710,12 +5713,15 @@ fn musicxml_dynamics_import_and_round_trip() {
         back.parts[0].staves[0].measures[0].voices[0][0].dynamic,
         Some(acorde_core::Dynamic::Sfz)
     );
-    let back_lower: Vec<_> = back.parts[0].staves[1].measures[0]
-        .voices
-        .iter()
-        .flatten()
-        .collect();
-    assert_eq!(back_lower[1].dynamic, Some(acorde_core::Dynamic::Pp));
+    assert_eq!(
+        back.parts[0].staves[1].measures[0].timed_dynamics,
+        vec![direction.clone()]
+    );
+    let playback = acorde_core::to_playback_events(&back, &acorde_core::PlaybackOptions::default());
+    assert!(
+        playback.iter().any(|event| event.pitch_midi == 48
+            && event.velocity == acorde_core::Dynamic::Pp.to_velocity())
+    );
     assert_eq!(
         back.parts[0].staves[0].measures[0]
             .expression_text

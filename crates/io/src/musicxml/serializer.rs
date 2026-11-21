@@ -667,6 +667,45 @@ fn serialize_musicxml_inner(
                 xml.push_str("      </figured-bass>\n");
             }
 
+            // A timed dynamic may occur during a sustained note or rest.
+            for (staff_index, staff) in part.staves.iter().enumerate() {
+                if let Some(measure) = staff.measures.get(i) {
+                    for direction in &measure.timed_dynamics {
+                        if !direction.position_beats.is_finite() || direction.position_beats < 0.0 {
+                            continue;
+                        }
+                        let placement = match direction.above {
+                            Some(true) => " placement=\"above\"",
+                            Some(false) => " placement=\"below\"",
+                            None => "",
+                        };
+                        let offset =
+                            (direction.position_beats * f64::from(DIVISIONS)).round() as u64;
+                        xml.push_str(&format!(
+                            "      <direction{placement}><direction-type><dynamics>"
+                        ));
+                        if direction.components.is_empty() {
+                            xml.push_str(&format!("<{}/>", direction.dynamic.to_musicxml_str()));
+                        } else {
+                            for component in &direction.components {
+                                match component {
+                                    acorde_core::DynamicDirectionComponent::Dynamic(dynamic) => {
+                                        xml.push_str(&format!("<{}/>", dynamic.to_musicxml_str()));
+                                    }
+                                    acorde_core::DynamicDirectionComponent::Text(text) => {
+                                        xml.push_str(&format!(
+                                            "<other-dynamics>{}</other-dynamics>",
+                                            escape_xml(text)
+                                        ));
+                                    }
+                                }
+                            }
+                        }
+                        xml.push_str(&format!("</dynamics></direction-type><offset>{offset}</offset><staff>{}</staff></direction>\n", staff_index + 1));
+                    }
+                }
+            }
+
             // These directions are emitted at the measure cursor origin; offset preserves
             // their independent score-time position even when it falls inside a note.
             for (staff_index, event_index, direction) in

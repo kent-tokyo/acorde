@@ -9,6 +9,241 @@ use acorde_render_svg::{
 const FONT: &[u8] = include_bytes!("fixtures/Tuffy.ttf");
 
 #[test]
+fn measured_part_names_keep_readable_size_and_paper_clearance() {
+    let mut score = Score::template(acorde_core::ScoreTemplate::Piano);
+    score.parts[0].name = "Violoncello".into();
+    score.parts[0].short_name.clear();
+    let config = PrintConfig::default();
+    let output = engrave_print_pages(&score, &config, FONT).unwrap();
+    let doc = roxmltree::Document::parse(&output.pages[0]).unwrap();
+    let label = doc
+        .descendants()
+        .find(|node| {
+            node.attribute("class") == Some("acorde-print-part-label")
+                && node.attribute("data-text") == Some("Violoncello")
+        })
+        .unwrap();
+    let size: f32 = label.attribute("data-font-size").unwrap().parse().unwrap();
+    assert!(size / 4.0 >= 2.7, "label size {} mm", size / 4.0);
+    let path = label
+        .children()
+        .find(|node| node.has_tag_name("path"))
+        .unwrap();
+    let values = path
+        .attribute("transform")
+        .unwrap()
+        .trim_start_matches("matrix(")
+        .trim_end_matches(')')
+        .split_whitespace()
+        .map(|value| value.parse::<f32>().unwrap())
+        .collect::<Vec<_>>();
+    let ink_left = values[4]
+        + TextFont::new(FONT, 0)
+            .unwrap()
+            .measure("Violoncello", size)
+            .unwrap()
+            .left_mm;
+    assert!(ink_left / 4.0 >= 2.95, "left edge {} mm", ink_left / 4.0);
+    assert!(output.layout.pages[0].content_left_mm > config.margin_left_mm);
+
+    score.parts[0].name = "Piano".into();
+    let output = engrave_print_pages(&score, &config, FONT).unwrap();
+    assert_eq!(
+        output.layout.pages[0].content_left_mm,
+        config.margin_left_mm
+    );
+
+    let mut no_labels = config.clone();
+    no_labels.publication.show_part_names = false;
+    let output = engrave_print_pages(&score, &no_labels, FONT).unwrap();
+    assert_eq!(
+        output.layout.pages[0].content_left_mm,
+        config.margin_left_mm
+    );
+}
+
+#[test]
+fn continued_volta_stays_within_top_margin_on_each_page() {
+    use acorde_core::VoltaBracket;
+    let mut score = Score::new("Volta", 120, 4, 4, 0, 8);
+    let measures = &mut score.parts[0].staves[0].measures;
+    for measure in measures.iter_mut() {
+        measure.voices[0] = vec![Note::new(Pitch::new(Step::C, 6), Duration::Whole)];
+    }
+    measures[0].volta = Some(VoltaBracket {
+        number: 1,
+        kind: "begin".into(),
+        numbers: Vec::new(),
+    });
+    measures[7].volta = Some(VoltaBracket {
+        number: 1,
+        kind: "end".into(),
+        numbers: Vec::new(),
+    });
+    let output = engrave_print_pages(
+        &score,
+        &PrintConfig {
+            measures_per_system: 2,
+            systems_per_page: Some(1),
+            ..Default::default()
+        },
+        FONT,
+    )
+    .unwrap();
+    assert!(output.pages.len() > 1);
+    for (index, page) in output.pages.iter().enumerate() {
+        let doc = roxmltree::Document::parse(page).unwrap();
+        let bracket = doc
+            .descendants()
+            .find(|node| node.attribute("class") == Some("acorde-volta"))
+            .unwrap();
+        let values = bracket
+            .attribute("d")
+            .unwrap()
+            .split(|ch: char| ch == ',' || ch.is_whitespace())
+            .filter_map(|s| s.parse::<f32>().ok())
+            .collect::<Vec<_>>();
+        let top = values
+            .chunks_exact(2)
+            .map(|pair| pair[1])
+            .fold(f32::INFINITY, f32::min);
+        let page_top = index as f32 * 297.0 * 4.0;
+        assert!(
+            top - page_top >= 16.0 * 4.0,
+            "page {}, bracket top {}",
+            index + 1,
+            (top - page_top) / 4.0
+        );
+    }
+}
+
+#[test]
+fn lower_staff_articulation_clears_upper_staff_lyric() {
+    // MuseScore export of the CC0 OpenScore OMR 1003 source fixture.
+    let score =
+        acorde_io::parse_musicxml(include_str!("fixtures/openscore_omr_1003_export.musicxml"))
+            .unwrap();
+    let output = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    let doc = roxmltree::Document::parse(&output.pages[0]).unwrap();
+    let lyric = doc
+        .descendants()
+        .find(|node| node.attribute("data-text") == Some("'No!'"))
+        .unwrap();
+    let path = lyric
+        .children()
+        .find(|node| node.has_tag_name("path"))
+        .unwrap();
+    let baseline: f32 = path
+        .attribute("transform")
+        .unwrap()
+        .split_whitespace()
+        .last()
+        .unwrap()
+        .trim_end_matches(')')
+        .parse()
+        .unwrap();
+    let size: f32 = lyric.attribute("data-font-size").unwrap().parse().unwrap();
+    let bottom = baseline
+        + TextFont::new(FONT, 0)
+            .unwrap()
+            .measure("'No!'", size)
+            .unwrap()
+            .bottom_mm;
+    let mark = doc
+        .descendants()
+        .find(|node| {
+            node.attribute("data-print-note-addr") == Some("0:1:2:0:0")
+                && node.descendants().any(|child| {
+                    child.attribute("class") == Some("acorde-articulation acorde-staccato")
+                })
+        })
+        .unwrap();
+    let top: f32 = mark.attribute("data-print-top").unwrap().parse().unwrap();
+    assert!(
+        top > bottom,
+        "lyric bottom {bottom}, articulation top {top}"
+    );
+}
+
+#[test]
+fn timed_dynamics_follow_their_positions_inside_a_sustained_note() {
+    use acorde_core::{Dynamic, TimedDynamicDirection};
+    let mut score = Score::new("Timed dynamics", 120, 4, 4, 0, 1);
+    let measure = &mut score.parts[0].staves[0].measures[0];
+    measure.voices[0] = vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
+    measure.timed_dynamics = [1.0, 3.0]
+        .into_iter()
+        .map(|position_beats| TimedDynamicDirection {
+            position_beats,
+            dynamic: Dynamic::P,
+            above: Some(false),
+            components: Vec::new(),
+        })
+        .collect();
+    let output = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    let doc = roxmltree::Document::parse(&output.pages[0]).unwrap();
+    let positions = doc
+        .descendants()
+        .filter(|node| node.attribute("class") == Some("acorde-dynamic"))
+        .map(|node| node.attribute("data-x").unwrap().parse::<f32>().unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(positions.len(), 2);
+    assert!(positions[1] > positions[0] + 1.0, "{positions:?}");
+}
+
+#[test]
+fn composite_dynamic_is_printed_in_source_order() {
+    use acorde_core::{Dynamic, DynamicDirectionComponent as C, TimedDynamicDirection};
+    let mut score = Score::new("Composite dynamic", 120, 4, 4, 0, 1);
+    let measure = &mut score.parts[0].staves[0].measures[0];
+    measure.voices[0] = vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
+    measure.timed_dynamics.push(TimedDynamicDirection {
+        position_beats: 0.0,
+        dynamic: Dynamic::Pp,
+        above: Some(false),
+        components: vec![
+            C::Dynamic(Dynamic::P),
+            C::Text("Das zweite mal".into()),
+            C::Dynamic(Dynamic::Pp),
+        ],
+    });
+    let output = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    let doc = roxmltree::Document::parse(&output.pages[0]).unwrap();
+    let group = doc
+        .descendants()
+        .find(|node| node.attribute("data-text") == Some("p Das zweite mal pp"))
+        .unwrap();
+    assert!(group.descendants().any(|node| node.has_tag_name("path")));
+}
+
+#[test]
+fn measured_cutaway_keeps_timed_dynamic_on_rest() {
+    use acorde_core::{Dynamic, TimedDynamicDirection};
+    let mut score = Score::template(acorde_core::ScoreTemplate::Piano);
+    score.parts[0].staves[1].presentation.cutaway = true;
+    score.parts[0].staves[1].measures[0]
+        .timed_dynamics
+        .push(TimedDynamicDirection {
+            position_beats: 0.0,
+            dynamic: Dynamic::P,
+            above: Some(false),
+            components: Vec::new(),
+        });
+    let output = engrave_print_pages(&score, &PrintConfig::default(), FONT).unwrap();
+    let doc = roxmltree::Document::parse(&output.pages[0]).unwrap();
+    let dynamic = doc
+        .descendants()
+        .find(|node| node.attribute("class") == Some("acorde-dynamic"))
+        .unwrap();
+    assert!(
+        dynamic
+            .ancestors()
+            .any(|node| node.attribute("data-acorde-kind") == Some("measure")
+                && node.attribute("data-staff") == Some("1"))
+    );
+}
+
+#[test]
 fn simultaneous_typed_hairpins_print_on_opposite_sides() {
     use acorde_core::{NotationSpanner, NotationSpannerKind, NoteAddr};
     let mut score = Score::new("Two wedges", 120, 2, 4, 0, 1);

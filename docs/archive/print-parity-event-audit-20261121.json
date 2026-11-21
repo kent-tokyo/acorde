@@ -1,0 +1,1154 @@
+{
+  "classification": "pitched-event import audit; other notation and rendering pending",
+  "cli_sha256": "301ecc08af26ff44fc2eb8a80d43ec3c2f3e4beb578c95daa37a99f7e7ae7623",
+  "rows": [
+    {
+      "score": "piano-wq117n11",
+      "input_sha256": "9cd06c88841fd1c3c5d5d454b5acd6a54f94aefd4c36f9f74746fb3dc215f50f",
+      "source_events": 254,
+      "imported_events": 254,
+      "missing": [],
+      "extra": [],
+      "diagnostics": {
+        "musicxml.unsupported-render-attribute": 10,
+        "musicxml.unsupported-placement-attribute": 84
+      }
+    },
+    {
+      "score": "piano-wq117n12",
+      "input_sha256": "8268f3fcb357b9e9a41d4b313af73d04252ed19ea510b2f48878bb054b54a112",
+      "source_events": 214,
+      "imported_events": 214,
+      "missing": [],
+      "extra": [],
+      "diagnostics": {
+        "musicxml.unsupported-render-attribute": 11,
+        "musicxml.unsupported-placement-attribute": 63
+      }
+    },
+    {
+      "score": "piano-BI105-1op30-1",
+      "input_sha256": "81487126e95363cab3f1db2f5c072b938de80a808dfb6385d13cd1bdc900c3e4",
+      "source_events": 613,
+      "imported_events": 613,
+      "missing": [],
+      "extra": [],
+      "diagnostics": {
+        "musicxml.unsupported-render-attribute": 23,
+        "musicxml.unsupported-placement-attribute": 271
+      }
+    },
+    {
+      "score": "piano-BI115-1op33-1",
+      "input_sha256": "a2ab4a9d004b2a838f54bdedfcde966d7085c34000cedc935f664267178428cc",
+      "source_events": 509,
+      "imported_events": 509,
+      "missing": [],
+      "extra": [],
+      "diagnostics": {
+        "musicxml.unsupported-render-attribute": 15,
+        "musicxml.unsupported-placement-attribute": 200
+      }
+    },
+    {
+      "score": "piano-n02",
+      "input_sha256": "492e24f79c11caf247817efaf3ab243cf1b8990ac0a68e461b857d93eabbf4af",
+      "source_events": 632,
+      "imported_events": 632,
+      "missing": [],
+      "extra": [],
+      "diagnostics": {
+        "musicxml.unsupported-render-attribute": 13,
+        "musicxml.unsupported-placement-attribute": 77
+      }
+    },
+    {
+      "score": "piano-n07",
+      "input_sha256": "88e680bee8d72008ef6b35d9b73e30c4ebed3984d70367ab4ad545400325607c",
+      "source_events": 402,
+      "imported_events": 402,
+      "missing": [],
+      "extra": [],
+      "diagnostics": {
+        "musicxml.unsupported-render-attribute": 15,
+        "musicxml.unsupported-placement-attribute": 158
+      }
+    },
+    {
+      "score": "vocal-lc6212179",
+      "input_sha256": "3c44f41c6a243b1f558766969170a5821812425bddff1841070ccc52293c0938",
+      "source_events": 1033,
+      "imported_events": 1033,
+      "missing": [],
+      "extra": [],
+      "diagnostics": {
+        "musicxml.unsupported-render-attribute": 225,
+        "musicxml.unsupported-dynamic": 4
+      }
+    },
+    {
+      "score": "vocal-lc6302395",
+      "input_sha256": "bc77093a7c07cde40b940f65ce339c986ac4c338a9a7fe7ea50be0ec06218537",
+      "source_events": 1785,
+      "imported_events": 1785,
+      "missing": [],
+      "extra": [],
+      "diagnostics": {
+        "musicxml.unsupported-render-attribute": 123,
+        "musicxml.unsupported-dynamic": 5
+      }
+    },
+    {
+      "score": "vocal-lc6260992",
+      "input_sha256": "79bdc7f6aa23a66c913763c4c8cd01ff3e0b9ef97f9860e0d70e4d566df24550",
+      "source_events": 931,
+      "imported_events": 931,
+      "missing": [],
+      "extra": [],
+      "diagnostics": {
+        "musicxml.unsupported-render-attribute": 31,
+        "musicxml.unsupported-dynamic": 1
+      }
+    },
+    {
+      "score": "vocal-lc6810863",
+      "input_sha256": "966e3e7bd43fe758daa1a522b805ac9f17515d73f0e0a019f9a1341aebb5705b",
+      "source_events": 1246,
+      "imported_events": 1246,
+      "missing": [],
+      "extra": [],
+      "diagnostics": {
+        "musicxml.unsupported-render-attribute": 163,
+        "musicxml.unsupported-dynamic": 1
+      }
+    },
+    {
+      "score": "vocal-lc5093434",
+      "input_sha256": "8e7683a186f4feee42dd12749bd81536dfeac4cdbb0bc61f36d8c653bae530b6",
+      "source_events": 1198,
+      "imported_events": 1198,
+      "missing": [],
+      "extra": [],
+      "diagnostics": {
+        "musicxml.unsupported-render-attribute": 31
+      }
+    },
+    {
+      "score": "vocal-lc5133602",
+      "input_sha256": "528c5cfc52ac477ec2c8290a110beb54a4a1050bf4094794259e5073611b761e",
+      "source_events": 935,
+      "imported_events": 935,
+      "missing": [],
+      "extra": [],
+      "diagnostics": {
+        "musicxml.unsupported-render-attribute": 18
+      }
+    },
+    {
+      "score": "chamber-sq14387632",
+      "input_sha256": "924ce674731e2c15c613019051b3a7a6a8612ec3b86efffe824d936d5494f21f",
+      "source_events": 5016,
+      "imported_events": 5016,
+      "missing": [],
+      "extra": [],
+      "diagnostics": {
+        "musicxml.unsupported-render-attribute": 414,
+        "musicxml.unsupported-placement-attribute": 1397,
+        "musicxml.unsupported-metronome": 3,
+        "musicxml.unsupported-dynamic": 5
+      }
+    },
+    {
+      "score": "chamber-sq27571393",
+      "input_sha256": "d4d71c44198c1343b537411c95488273297fd01752a1f1fe96a7334bd8ff8467",
+      "source_events": 3486,
+      "imported_events": 3486,
+      "missing": [],
+      "extra": [],
+      "diagnostics": {
+        "musicxml.unsupported-render-attribute": 462,
+        "musicxml.unsupported-placement-attribute": 2569
+      }
+    },
+    {
+      "score": "chamber-sq7551068",
+      "input_sha256": "de11bdad52c1a6fc6cec1389ea5dda7a1204cb8c323208abbb90332637a7593d",
+      "source_events": 3810,
+      "imported_events": 3810,
+      "missing": [],
+      "extra": [],
+      "diagnostics": {
+        "musicxml.unsupported-render-attribute": 314,
+        "musicxml.unsupported-placement-attribute": 1091,
+        "musicxml.unsupported-dynamic": 19
+      }
+    },
+    {
+      "score": "chamber-sq8437358",
+      "input_sha256": "c91e2e3778980b42ae6adf6a8655f06ced82cf32d7dabd30190d1d5b5097848c",
+      "source_events": 3211,
+      "imported_events": 3211,
+      "missing": [],
+      "extra": [],
+      "diagnostics": {
+        "musicxml.unsupported-render-attribute": 45,
+        "musicxml.unsupported-placement-attribute": 531
+      }
+    },
+    {
+      "score": "chamber-sq7648382",
+      "input_sha256": "dbac0c7e10cac61f67452209fecbdbbe10ad4be49defd221360ed51f548190df",
+      "source_events": 4336,
+      "imported_events": 4336,
+      "missing": [],
+      "extra": [],
+      "diagnostics": {
+        "musicxml.unsupported-render-attribute": 105,
+        "musicxml.unsupported-placement-attribute": 951,
+        "musicxml.unsupported-dynamic": 5
+      }
+    },
+    {
+      "score": "chamber-sq8812200",
+      "input_sha256": "9c1a19ede6f1eba3bb12760aa4f5f3639d677c84f4eeb52e7a745ed5b79bf3ad",
+      "source_events": 6397,
+      "imported_events": 6397,
+      "missing": [],
+      "extra": [],
+      "diagnostics": {
+        "musicxml.unsupported-render-attribute": 393,
+        "musicxml.unsupported-placement-attribute": 1941,
+        "musicxml.unsupported-dynamic": 6,
+        "musicxml.orphan-spanner-stop": 1
+      }
+    },
+    {
+      "score": "part-sq27449398",
+      "input_sha256": "ec4d14e1a23513c374b2bdbd373db2f72b5183dd09219c122fcc8da8bd4ade5e",
+      "source_events": 1120,
+      "imported_events": 1120,
+      "missing": [],
+      "extra": [],
+      "diagnostics": {
+        "musicxml.unsupported-render-attribute": 52,
+        "musicxml.unsupported-placement-attribute": 845
+      }
+    },
+    {
+      "score": "part-sq12701461",
+      "input_sha256": "9ce5da4f9ccc81b48c60b5b7153b9ad56c484e9e544f8937c7c1d46f3899e192",
+      "source_events": 1268,
+      "imported_events": 1268,
+      "missing": [],
+      "extra": [],
+      "diagnostics": {
+        "musicxml.unsupported-render-attribute": 13,
+        "musicxml.unsupported-placement-attribute": 1148,
+        "musicxml.unsupported-element.bracket": 2,
+        "musicxml.unsupported-dynamic": 2
+      }
+    },
+    {
+      "score": "part-sq15230467",
+      "input_sha256": "1d47323fa8a2fd3b2b6c5d278f9541f8b505618a1caaa3a3b733c42513f74a82",
+      "source_events": 1303,
+      "imported_events": 1303,
+      "missing": [],
+      "extra": [],
+      "diagnostics": {
+        "musicxml.unsupported-render-attribute": 12,
+        "musicxml.unsupported-placement-attribute": 416
+      }
+    },
+    {
+      "score": "part-sq9146376",
+      "input_sha256": "600f51257d0200cfc5f26ba8abcbe9505cdda3396484dbf2a8d8227ac768833b",
+      "source_events": 1228,
+      "imported_events": 1228,
+      "missing": [],
+      "extra": [],
+      "diagnostics": {
+        "musicxml.unsupported-render-attribute": 11,
+        "musicxml.unsupported-placement-attribute": 873,
+        "musicxml.unsupported-element.bracket": 4
+      }
+    },
+    {
+      "score": "part-sq7070319",
+      "input_sha256": "7cb5fd55f8318b69457ffd173e82632f9583402327f7a9cd7e4a5b994381b6ef",
+      "source_events": 293,
+      "imported_events": 293,
+      "missing": [],
+      "extra": [],
+      "diagnostics": {
+        "musicxml.unsupported-render-attribute": 10,
+        "musicxml.unsupported-placement-attribute": 251,
+        "musicxml.unsupported-element.bracket": 12
+      }
+    },
+    {
+      "score": "part-sq24409123",
+      "input_sha256": "671d6a77a6f9c19fe6e943d47a05686b929f9ffc951d1627c070658f219e72db",
+      "source_events": 390,
+      "imported_events": 390,
+      "missing": [],
+      "extra": [],
+      "diagnostics": {
+        "musicxml.unsupported-render-attribute": 22,
+        "musicxml.unsupported-placement-attribute": 326
+      }
+    },
+    {
+      "score": "openscore_lieder_aloha_oe",
+      "input_sha256": "9e79bc1ed711b586f0b3ab4535544b3d77d9f0633c26c7eb395d4e3671e6d921",
+      "source_events": 646,
+      "imported_events": 646,
+      "missing": [],
+      "extra": [],
+      "diagnostics": {
+        "musicxml.unsupported-render-attribute": 72,
+        "musicxml.unsupported-dynamic": 1
+      }
+    },
+    {
+      "score": "openscore_lieder_just_for_today",
+      "input_sha256": "82e5bb47853858c554a31b38030306152b955795a3394bf6c8e05fd8957b2ef2",
+      "source_events": 587,
+      "imported_events": 587,
+      "missing": [],
+      "extra": [],
+      "diagnostics": {
+        "musicxml.unsupported-render-attribute": 32
+      }
+    },
+    {
+      "score": "openscore_lieder_quilter_prelude",
+      "input_sha256": "ef2d90f34e931b98f67fa669304b2b11efab7bd40eaa7b948f339b30e65a0991",
+      "source_events": 189,
+      "imported_events": 189,
+      "missing": [],
+      "extra": [],
+      "diagnostics": {
+        "musicxml.unsupported-render-attribute": 21,
+        "musicxml.unsupported-placement-attribute": 82,
+        "musicxml.unterminated-hairpin": 1
+      }
+    },
+    {
+      "score": "openscore_lieder_webern_so_ich_traurig_bin",
+      "input_sha256": "611e3c0233c7d4ada95c6923fbb7db31fcb986babb25dec2196d45e3cc6e7263",
+      "source_events": 165,
+      "imported_events": 165,
+      "missing": [],
+      "extra": [],
+      "diagnostics": {
+        "musicxml.unsupported-render-attribute": 18,
+        "musicxml.unsupported-dynamic": 1,
+        "musicxml.unsupported-overlapping-hairpin": 1
+      }
+    },
+    {
+      "score": "openscore_omr_score_1003",
+      "input_sha256": "c3310136d683d4837ab165e4446bddd6848bcc3436c063286c5af78e7144a274",
+      "source_events": 29,
+      "imported_events": 29,
+      "missing": [],
+      "extra": [],
+      "diagnostics": {
+        "musicxml.unsupported-render-attribute": 10,
+        "musicxml.unsupported-placement-attribute": 55
+      }
+    },
+    {
+      "score": "openscore_omr_score_1016",
+      "input_sha256": "6a876bd11e029ca6fac36765be8e8583959bc95c397f9dece5cbb0e49a03a46c",
+      "source_events": 104,
+      "imported_events": 104,
+      "missing": [],
+      "extra": [],
+      "diagnostics": {
+        "musicxml.unsupported-render-attribute": 8,
+        "musicxml.unsupported-placement-attribute": 28
+      }
+    },
+    {
+      "score": "openscore_omr_score_1033",
+      "input_sha256": "3aca9241be50c459ff897fec07e0d63fabf9d39dad9c4a642863eb8ff9b98552",
+      "source_events": 64,
+      "imported_events": 64,
+      "missing": [],
+      "extra": [],
+      "diagnostics": {
+        "musicxml.unsupported-render-attribute": 6,
+        "musicxml.unsupported-placement-attribute": 22
+      }
+    },
+    {
+      "score": "openscore_omr_score_1035",
+      "input_sha256": "b03fdc01685ccb14e640150368bb4bd90c1620ad8014e4d0417cf545e695ff5a",
+      "source_events": 137,
+      "imported_events": 137,
+      "missing": [],
+      "extra": [],
+      "diagnostics": {
+        "musicxml.unsupported-render-attribute": 7,
+        "musicxml.unsupported-placement-attribute": 20
+      }
+    },
+    {
+      "score": "openscore_omr_score_1036",
+      "input_sha256": "a0ee7ed61b32ed2da8466703f8819521727085a414facb574a78d49ab690e525",
+      "source_events": 81,
+      "imported_events": 119,
+      "missing": [],
+      "extra": [
+        {
+          "event": [
+            2,
+            2,
+            0,
+            1,
+            "0",
+            "3/2",
+            "F",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        },
+        {
+          "event": [
+            2,
+            2,
+            0,
+            1,
+            "3/2",
+            "3/2",
+            "D",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        },
+        {
+          "event": [
+            2,
+            3,
+            0,
+            1,
+            "0",
+            "3/2",
+            "F",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        },
+        {
+          "event": [
+            2,
+            3,
+            0,
+            1,
+            "3/2",
+            "3/2",
+            "D",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        },
+        {
+          "event": [
+            2,
+            4,
+            0,
+            1,
+            "0",
+            "3/2",
+            "D",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        },
+        {
+          "event": [
+            2,
+            4,
+            0,
+            1,
+            "3/2",
+            "3/2",
+            "D",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        },
+        {
+          "event": [
+            2,
+            6,
+            0,
+            1,
+            "0",
+            "3/2",
+            "D",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        },
+        {
+          "event": [
+            2,
+            6,
+            0,
+            1,
+            "3/2",
+            "3/2",
+            "D",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        },
+        {
+          "event": [
+            2,
+            7,
+            0,
+            1,
+            "0",
+            "3/2",
+            "D",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        },
+        {
+          "event": [
+            2,
+            7,
+            0,
+            1,
+            "3/2",
+            "3/2",
+            "D",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        },
+        {
+          "event": [
+            2,
+            8,
+            0,
+            1,
+            "0",
+            "3/2",
+            "F",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        },
+        {
+          "event": [
+            2,
+            8,
+            0,
+            1,
+            "3/2",
+            "3/2",
+            "D",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        },
+        {
+          "event": [
+            2,
+            9,
+            0,
+            1,
+            "0",
+            "3/2",
+            "D",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        },
+        {
+          "event": [
+            2,
+            9,
+            0,
+            1,
+            "3/2",
+            "3/2",
+            "D",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        },
+        {
+          "event": [
+            2,
+            10,
+            0,
+            1,
+            "0",
+            "3/2",
+            "D",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        },
+        {
+          "event": [
+            2,
+            10,
+            0,
+            1,
+            "3/2",
+            "3/2",
+            "D",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        },
+        {
+          "event": [
+            2,
+            11,
+            0,
+            1,
+            "0",
+            "3/2",
+            "D",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        },
+        {
+          "event": [
+            2,
+            11,
+            0,
+            1,
+            "3/2",
+            "3/2",
+            "D",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        },
+        {
+          "event": [
+            2,
+            12,
+            0,
+            1,
+            "0",
+            "3/2",
+            "D",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        },
+        {
+          "event": [
+            2,
+            14,
+            0,
+            1,
+            "0",
+            "3/2",
+            "F",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        },
+        {
+          "event": [
+            2,
+            14,
+            0,
+            1,
+            "3/2",
+            "3/2",
+            "D",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        },
+        {
+          "event": [
+            2,
+            15,
+            0,
+            1,
+            "0",
+            "3/2",
+            "F",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        },
+        {
+          "event": [
+            2,
+            15,
+            0,
+            1,
+            "3/2",
+            "3/2",
+            "D",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        },
+        {
+          "event": [
+            2,
+            16,
+            0,
+            1,
+            "0",
+            "3/2",
+            "F",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        },
+        {
+          "event": [
+            2,
+            16,
+            0,
+            1,
+            "3/2",
+            "3/2",
+            "D",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        },
+        {
+          "event": [
+            3,
+            2,
+            0,
+            1,
+            "0",
+            "3",
+            "E",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        },
+        {
+          "event": [
+            3,
+            3,
+            0,
+            1,
+            "0",
+            "3",
+            "E",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        },
+        {
+          "event": [
+            3,
+            4,
+            0,
+            1,
+            "0",
+            "3",
+            "E",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        },
+        {
+          "event": [
+            3,
+            6,
+            0,
+            1,
+            "0",
+            "3",
+            "E",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        },
+        {
+          "event": [
+            3,
+            7,
+            0,
+            1,
+            "0",
+            "3",
+            "E",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        },
+        {
+          "event": [
+            3,
+            8,
+            0,
+            1,
+            "0",
+            "3",
+            "E",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        },
+        {
+          "event": [
+            3,
+            9,
+            0,
+            1,
+            "0",
+            "3",
+            "E",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        },
+        {
+          "event": [
+            3,
+            10,
+            0,
+            1,
+            "0",
+            "3",
+            "E",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        },
+        {
+          "event": [
+            3,
+            11,
+            0,
+            1,
+            "0",
+            "3",
+            "E",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        },
+        {
+          "event": [
+            3,
+            12,
+            0,
+            1,
+            "0",
+            "3",
+            "E",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        },
+        {
+          "event": [
+            3,
+            14,
+            0,
+            1,
+            "0",
+            "3",
+            "E",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        },
+        {
+          "event": [
+            3,
+            15,
+            0,
+            1,
+            "0",
+            "3",
+            "E",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        },
+        {
+          "event": [
+            3,
+            16,
+            0,
+            1,
+            "0",
+            "3",
+            "E",
+            4,
+            "0",
+            false,
+            false,
+            false,
+            false,
+            false
+          ],
+          "count": 1
+        }
+      ],
+      "diagnostics": {
+        "musicxml.unsupported-render-attribute": 6,
+        "musicxml.unsupported-placement-attribute": 126
+      },
+      "unpitched_display_step_audit": {
+        "source_unpitched_events": 38,
+        "method": "Treat MusicXML display-step and display-octave as visual staff positions for this second inventory; this does not assert sounding pitch.",
+        "source_events_including_unpitched": 119,
+        "model_events": 119,
+        "missing": 0,
+        "extra": 0
+      }
+    },
+    {
+      "score": "freilachs_no_17",
+      "input_sha256": "a9242135a3b9e9a6a4cd56b1d07a0abfd4e9b951b12a3ae1a4b107440c214d3e",
+      "source_events": 119,
+      "imported_events": 119,
+      "missing": [],
+      "extra": [],
+      "diagnostics": {
+        "musicxml.unsupported-render-attribute": 6,
+        "musicxml.unsupported-placement-attribute": 32
+      }
+    }
+  ]
+}
