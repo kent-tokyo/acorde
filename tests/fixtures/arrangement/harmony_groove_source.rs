@@ -4,6 +4,7 @@ use acorde_core::*;
 pub fn source() -> Score {
     arrangement::source()
 }
+#[allow(dead_code)] // This shared fixture is included by tests that do not use grace notes.
 pub fn grace_source() -> Score {
     let mut score = source();
     for part in &mut score.parts {
