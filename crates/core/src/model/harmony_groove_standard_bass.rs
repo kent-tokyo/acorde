@@ -4,16 +4,17 @@
 //! inner voices. A failed screen leaves the unrestricted candidate available
 //! as a free-bass edition, but does not certify any other fingering.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
 use super::{
+    harmony_arrangement::HarmonyStaffRef,
     harmony_groove_proposals::{
         HarmonyGrooveError, ResolvedHarmonyGrooveArrangement, replay_harmony_groove_arrangement,
     },
-    playback::{PlaybackOptions, to_playback_events_bounded},
-    score::{NoteAddr, Score},
+    playback::{PlaybackEvent, PlaybackOptions, to_playback_events_bounded},
+    score::{NotationSpannerKind, NoteAddr, Score},
     standard_bass::{StandardBassProfile, validate_standard_bass_profile},
 };
 
@@ -34,6 +35,14 @@ pub enum HarmonyGrooveStandardBassError {
     InvalidPlaybackTime,
     #[error("left-hand playback event has no source note address")]
     InvalidPlaybackAddress,
+    #[error("left-hand staff selection is empty, duplicated, too large, or outside the score")]
+    InvalidStaffSelection,
+    #[error("unsupported continuous pitch or sustain control in selected part {part}")]
+    UnsupportedPartControls { part: usize },
+    #[error("unsupported pitch or sustain effect at {address:?}")]
+    UnsupportedScoreEffect { address: NoteAddr },
+    #[error("score is invalid or exceeds the screening input limit")]
+    InvalidScore,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -153,12 +162,7 @@ pub fn screen_harmony_groove_standard_bass(
     resolved: &ResolvedHarmonyGrooveArrangement,
     profile: &StandardBassProfile,
 ) -> Result<HarmonyGrooveStandardBassReport, HarmonyGrooveStandardBassError> {
-    validate_standard_bass_profile(profile).map_err(HarmonyGrooveStandardBassError::Profile)?;
-    if profile.bass_buttons.len() * profile.chord_buttons.len() > 8_192 {
-        return Err(HarmonyGrooveStandardBassError::Profile(
-            "the exact two-button screen permits at most 8192 bass/chord pairs".into(),
-        ));
-    }
+    validate_profile(profile)?;
     let candidate = replay_harmony_groove_arrangement(source, resolved)?;
     let added = candidate.arrangement.added_part;
     let bass = resolved.request.base.bass;
@@ -177,6 +181,132 @@ pub fn screen_harmony_groove_standard_bass(
             })
         })
         .collect::<Vec<_>>();
+    screen_events(profile, selected)
+}
+
+fn validate_profile(profile: &StandardBassProfile) -> Result<(), HarmonyGrooveStandardBassError> {
+    validate_standard_bass_profile(profile).map_err(HarmonyGrooveStandardBassError::Profile)?;
+    if profile.bass_buttons.len() * profile.chord_buttons.len() > 8_192 {
+        return Err(HarmonyGrooveStandardBassError::Profile(
+            "the exact two-button screen permits at most 8192 bass/chord pairs".into(),
+        ));
+    }
+    Ok(())
+}
+
+/// Screen the sounding events on explicitly selected left-hand staves of an
+/// existing score, including transposed scores. This does not replay or
+/// certify a saved proposal: use the source-bound API for that separate check.
+/// Repeats follow playback order, exact pitches and simultaneous releases are
+/// matched against the supplied profile, and performer review is still needed.
+pub fn screen_standard_bass_staves(
+    score: &Score,
+    staves: &[HarmonyStaffRef],
+    profile: &StandardBassProfile,
+) -> Result<HarmonyGrooveStandardBassReport, HarmonyGrooveStandardBassError> {
+    validate_profile(profile)?;
+    let total_notes = score
+        .parts
+        .iter()
+        .flat_map(|part| &part.staves)
+        .flat_map(|staff| &staff.measures)
+        .flat_map(|bar| &bar.voices)
+        .fold(0usize, |count, voice| count.saturating_add(voice.len()));
+    if score.parts.len() > 32
+        || total_notes > 65_536
+        || !super::validate::validate(score).is_valid()
+    {
+        return Err(HarmonyGrooveStandardBassError::InvalidScore);
+    }
+    if staves.is_empty() || staves.len() > 32 {
+        return Err(HarmonyGrooveStandardBassError::InvalidStaffSelection);
+    }
+    let mut selected_staves = BTreeSet::new();
+    for staff in staves {
+        let Some(part) = score.parts.get(staff.part) else {
+            return Err(HarmonyGrooveStandardBassError::InvalidStaffSelection);
+        };
+        let Some(stave) = part.staves.get(staff.staff) else {
+            return Err(HarmonyGrooveStandardBassError::InvalidStaffSelection);
+        };
+        if !selected_staves.insert((staff.part, staff.staff)) {
+            return Err(HarmonyGrooveStandardBassError::InvalidStaffSelection);
+        }
+        if !part.midi_pitch_bends.is_empty()
+            || part
+                .midi_control_changes
+                .iter()
+                .any(|cc| matches!(cc.controller, 64 | 66 | 120 | 123))
+            || stave.measures.iter().any(|bar| {
+                !bar.timed_pedals.is_empty()
+                    || bar
+                        .voices
+                        .iter()
+                        .flatten()
+                        .any(|note| note.pedal_start || note.pedal_end)
+            })
+        {
+            return Err(HarmonyGrooveStandardBassError::UnsupportedPartControls {
+                part: staff.part,
+            });
+        }
+    }
+    for staff in staves {
+        let stave = &score.parts[staff.part].staves[staff.staff];
+        for (measure, bar) in stave.measures.iter().enumerate() {
+            for (voice, notes) in bar.voices.iter().enumerate() {
+                for (note, value) in notes.iter().enumerate() {
+                    if value.guitar_bend_alter_cents.is_some_and(|c| c != 0)
+                        || value.glissando_start
+                        || value.glissando_end
+                        || value.arpeggiate.is_some()
+                    {
+                        return Err(HarmonyGrooveStandardBassError::UnsupportedScoreEffect {
+                            address: NoteAddr {
+                                part: staff.part,
+                                staff: staff.staff,
+                                measure,
+                                voice,
+                                note,
+                            },
+                        });
+                    }
+                }
+            }
+        }
+    }
+    for span in &score.spanners {
+        if matches!(
+            span.kind,
+            NotationSpannerKind::Glissando
+                | NotationSpannerKind::Pedal
+                | NotationSpannerKind::TrillLine
+        ) && let Some(address) = [&span.start, &span.end]
+            .into_iter()
+            .find(|address| selected_staves.contains(&(address.part, address.staff)))
+        {
+            return Err(HarmonyGrooveStandardBassError::UnsupportedScoreEffect {
+                address: address.clone(),
+            });
+        }
+    }
+    let events = to_playback_events_bounded(score, &PlaybackOptions::default())?;
+    let selected = events
+        .into_iter()
+        .filter(|event| {
+            event
+                .source
+                .as_ref()
+                .is_some_and(|address| selected_staves.contains(&(address.part, address.staff)))
+        })
+        .collect();
+    screen_events(profile, selected)
+}
+
+fn screen_events(
+    profile: &StandardBassProfile,
+    selected: Vec<PlaybackEvent>,
+) -> Result<HarmonyGrooveStandardBassReport, HarmonyGrooveStandardBassError> {
     if selected.len() > MAX_LEFT_HAND_EVENTS {
         return Err(HarmonyGrooveStandardBassError::TooManyEvents(
             selected.len(),

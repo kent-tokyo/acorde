@@ -136,3 +136,65 @@ fn phrase_ending_response_survives_export() {
         );
     }
 }
+
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
+#[cfg_attr(not(target_arch = "wasm32"), test)]
+fn response_timing_spacers_are_hidden_and_silent_measures_have_no_extra_voice() {
+    let input = acorde_wasm::parse_abc("X:1\nM:4/4\nL:1/4\nK:C\nc z2 e | c z2 e |]").unwrap();
+    let options = json!({"chords":[{"measure_index":0,"offset_beats":0,"chord":{"root":"C","kind":"major"}},{"measure_index":1,"offset_beats":0,"chord":{"root":"C","kind":"major"}}],"bass_mode":"standard-bass","default_pattern":"bass-chord-pulse","sections":[]});
+    for rest_notes in [
+        json!([]),
+        json!([{"part":0,"staff":0,"measure":0,"voice":0,"note":1}]),
+    ] {
+        let result: acorde_core::ResponseFilledAccordionResult = serde_json::from_str(
+            &acorde_wasm::arrange_with_response_fills(
+                &input,
+                &options.to_string(),
+                &json!({"rest_notes": rest_notes}).to_string(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let score = result.arrangement.score.unwrap();
+        let bars = &score.parts[0].staves[0].measures;
+        assert!(bars[1].voices[1].is_empty());
+        assert!(bars[0].voices[0].iter().any(|n| n.is_rest && !n.hidden));
+        assert!(
+            bars[0].voices[1]
+                .iter()
+                .filter(|n| n.is_rest)
+                .all(|n| n.hidden)
+        );
+        let serialized = serde_json::to_string(&score).unwrap();
+        let svg = acorde_wasm::render_score_svg(&serialized, "{\"interactive\":true}").unwrap();
+        for (index, note) in bars[0].voices[1].iter().enumerate() {
+            let marker = format!("data-note-addr=\"0:0:0:1:{index}\"");
+            let begin = svg.find(&marker).unwrap();
+            let tag = svg[begin..].split('>').next().unwrap();
+            assert_eq!(tag.contains("visibility=\"hidden\""), note.is_rest);
+        }
+        let mscz = acorde_wasm::serialize_mscz(&serialized).unwrap();
+        let restored = acorde_wasm::parse_mscz(&mscz).unwrap();
+        assert_eq!(playback(&serialized), playback(&restored));
+        let decoded: acorde_core::Score = serde_json::from_str(&restored).unwrap();
+        assert!(
+            decoded.parts[0].staves[0].measures[0].voices[1]
+                .iter()
+                .filter(|n| n.is_rest)
+                .all(|n| n.hidden)
+        );
+        #[cfg(feature = "musicxml")]
+        {
+            let xml = acorde_wasm::serialize_musicxml(&serialized).unwrap();
+            let restored = acorde_wasm::parse_musicxml(&xml).unwrap();
+            assert_eq!(playback(&serialized), playback(&restored));
+            let decoded: acorde_core::Score = serde_json::from_str(&restored).unwrap();
+            assert!(
+                decoded.parts[0].staves[0].measures[0].voices[1]
+                    .iter()
+                    .filter(|n| n.is_rest)
+                    .all(|n| n.hidden)
+            );
+        }
+    }
+}

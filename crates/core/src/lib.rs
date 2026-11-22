@@ -216,7 +216,7 @@ pub use model::harmony_groove_proposals::{
 pub use model::harmony_groove_standard_bass::{
     HarmonyGrooveButtonDiagnostic, HarmonyGrooveButtonFailure, HarmonyGrooveButtonState,
     HarmonyGrooveStandardBassError, HarmonyGrooveStandardBassReport,
-    screen_harmony_groove_standard_bass,
+    screen_harmony_groove_standard_bass, screen_standard_bass_staves,
 };
 pub use model::harmony_voicing::{
     HARMONY_VOICING_CONTRACT_VERSION, HarmonyRootPolicy, HarmonyVoiceMotion, HarmonyVoicingEdge,
@@ -393,4 +393,10 @@ pub use model::rhythm_section::{
     RhythmKickAttack, RhythmSectionAttack, RhythmSectionBar, RhythmSectionDiagnostic,
     RhythmSectionError, RhythmSectionRequest, RhythmSectionResult, RhythmSectionSlot,
     arrange_rhythm_section, replay_rhythm_section,
+};
+
+pub use model::legacy_accompaniment::{
+    LEGACY_ACCOMPANIMENT_CONTRACT_VERSION, LegacyAccompanimentError, LegacyAccompanimentPattern,
+    LegacyAccompanimentRegion, LegacyAccompanimentRequest, LegacyAccompanimentResult,
+    ResolvedLegacyAccompaniment, arrange_legacy_accompaniment, replay_legacy_accompaniment,
 };

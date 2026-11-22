@@ -225,3 +225,56 @@ fn larger_harmony_limits_still_reject_oversized_input() {
             .is_err()
     );
 }
+
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
+#[cfg_attr(not(target_arch = "wasm32"), test)]
+fn explicit_left_hand_staff_screen_matches_native_after_transposition() {
+    use acorde_core::HarmonyStaffRef;
+    use acorde_core::model::standard_bass::{
+        StandardBassChordButton, StandardBassNoteButton, StandardBassProfile,
+    };
+    let source = fixture::source();
+    let candidate = acorde_core::suggest_harmony_groove_arrangements(&source, &fixture::request())
+        .unwrap()
+        .candidates
+        .remove(0);
+    let score = acorde_core::transpose_checked(&candidate.arrangement.score, 2).unwrap();
+    let staves = vec![
+        HarmonyStaffRef { part: 1, staff: 0 },
+        HarmonyStaffRef {
+            part: candidate.arrangement.added_part,
+            staff: 0,
+        },
+    ];
+    let profile = StandardBassProfile {
+        bass_buttons: vec![StandardBassNoteButton {
+            id: "bass".into(),
+            position: 0,
+            midi: 40,
+        }],
+        chord_buttons: vec![StandardBassChordButton {
+            id: "chord".into(),
+            position: 0,
+            midi: vec![64, 67, 71],
+        }],
+        max_distance: 0,
+    };
+    let native = acorde_core::screen_standard_bass_staves(&score, &staves, &profile).unwrap();
+    let web: acorde_core::HarmonyGrooveStandardBassReport = serde_json::from_str(
+        &acorde_wasm::screen_standard_bass_staves(
+            &serde_json::to_string(&score).unwrap(),
+            &serde_json::to_string(&staves).unwrap(),
+            &serde_json::to_string(&profile).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        native.playable_with_supplied_profile,
+        web.playable_with_supplied_profile
+    );
+    assert_eq!(
+        serde_json::to_value(&native).unwrap(),
+        serde_json::to_value(&web).unwrap()
+    );
+}
