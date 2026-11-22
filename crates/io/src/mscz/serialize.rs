@@ -546,8 +546,9 @@ fn note_has_unsupported_fields(note: &Note) -> bool {
 
 /// Serialize the bounded canonical score subset as MSCX.
 ///
-/// MuseScore 4 partial ties require the version 4 reader; scores without them
-/// retain the MuseScore 3-compatible version.
+/// MuseScore 4 partial ties require the version 4 reader. Chord symbols use
+/// MuseScore 4.6 harmonyInfo so their roots and basses display correctly.
+/// Scores without either retain the MuseScore 3-compatible version.
 ///
 /// This is intentionally a canonical subset serializer: it emits score structure, voices,
 /// durations, pitches, tablature positions, common note techniques, lyrics, and basic measure
@@ -579,7 +580,21 @@ pub fn serialize_mscx(score: &Score) -> Result<String, Error> {
         .flat_map(|measure| &measure.voices)
         .flatten()
         .any(|note| note.pitch_incoming_partial_ties.contains(&true));
-    let version = if has_partial_ties { "4.50" } else { "3.02" };
+    let has_harmony = score
+        .parts
+        .iter()
+        .flat_map(|part| &part.staves)
+        .flat_map(|staff| &staff.measures)
+        .flat_map(|measure| &measure.voices)
+        .flatten()
+        .any(|note| note.chord_symbol.is_some());
+    let version = if has_harmony {
+        "4.60"
+    } else if has_partial_ties {
+        "4.50"
+    } else {
+        "3.02"
+    };
     let mut xml = String::with_capacity(4096);
     write!(
         xml,
@@ -1578,17 +1593,21 @@ fn write_note(
             Some(root) => {
                 write!(
                     xml,
-                    "<Harmony><root>{root}</root><name>{}</name>",
+                    "<Harmony><harmonyInfo><name>{}</name><root>{root}</root>",
                     escape(name)
                 )
                 .map_err(fmt_error)?;
                 if let Some(bass) = chord.bass.as_deref().and_then(spelled_tpc) {
-                    write!(xml, "<base>{bass}</base>").map_err(fmt_error)?;
+                    write!(xml, "<bass>{bass}</bass>").map_err(fmt_error)?;
                 }
-                xml.push_str("</Harmony>");
+                xml.push_str("</harmonyInfo></Harmony>");
             }
-            None => write!(xml, "<Harmony><name>{}</name></Harmony>", escape(&text))
-                .map_err(fmt_error)?,
+            None => write!(
+                xml,
+                "<Harmony><harmonyInfo><name>{}</name></harmonyInfo></Harmony>",
+                escape(&text)
+            )
+            .map_err(fmt_error)?,
         }
     }
     if let Some(dynamic) = &note.dynamic {

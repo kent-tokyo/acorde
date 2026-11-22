@@ -165,3 +165,14 @@ a wedge/note collision in this example, while Acorde used more inter-staff space
 - `openscore_gossec_quartet_rh189.mxl`: OpenScore StringQuartets, Gossec RH 189 (CC0-1.0), pinned revision and hash in the manifest. Full-score regression for hidden notation layers and second-violin fingerings near adjacent staff notation.
 
 - `crates/render-svg/tests/fixtures/wolf_italian_serenade_pizz_excerpt.musicxml`: measures 636–643 from Hugo Wolf, *Italian Serenade*, OpenScore/StringQuartets revision `2614b0b2958dd1ce3f52e172a43e5f4d0e29570f`, `scores/Wolf,_Hugo/Italian_Serenade/sq8812200.mxl` (CC0-1.0). Initial attributes are copied from measure 1 for this isolated regression excerpt.
+
+`issue_476_harmony.musicxml` is a self-authored C, G7, B-flat minor over D,
+and F-sharp 7 over C-sharp probe. `issue_476_musescore475.mscz` was generated
+from it by MuseScore Studio 4.7.5 (revision 3654226). The app wrote the archive
+before crashing on shutdown. Reopening Acorde's MSCZ in the same MuseScore
+version rendered these four chord symbols with their roots and slash basses.
+The verification used `mscore -F -o output.png input.mscz` and
+`mscore -F -o output.musicxml input.mscz`. The displayed symbols were
+`C`, `G7`, `B♭m/D` and `F♯7/C♯`; the re-export retained the four structured
+roots, kinds, basses, and four quarter-note pitches. This is a fixed-fixture
+check, not a claim of complete MuseScore interchange support.

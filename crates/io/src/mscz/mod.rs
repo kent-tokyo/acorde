@@ -1698,7 +1698,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                                 (MIN_HARMONY_TPC..=MAX_HARMONY_TPC).contains(value)
                             });
                     }
-                    "base" if in_harmony => {
+                    "base" | "bass" if in_harmony => {
                         harmony_bass =
                             t.trim().parse::<i32>().ok().filter(|value| {
                                 (MIN_HARMONY_TPC..=MAX_HARMONY_TPC).contains(value)
@@ -2758,7 +2758,7 @@ pub fn loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
                         *has_root = true;
                     } else if !matches!(
                         name.as_str(),
-                        "harmonyInfo" | "eid" | "base" | "placement" | "function"
+                        "harmonyInfo" | "eid" | "base" | "bass" | "placement" | "function"
                     ) {
                         *has_unsupported_child = true;
                     }
@@ -3208,7 +3208,7 @@ pub fn loss_diagnostics(xml: &str) -> Vec<Diagnostic> {
                         diagnostics.push(diagnostic);
                     }
                 }
-                if matches!(field, Some("root") | Some("base"))
+                if matches!(field, Some("root") | Some("base") | Some("bass"))
                     && path.iter().any(|element| element == "Harmony")
                 {
                     let value = String::from_utf8_lossy(event.as_ref());

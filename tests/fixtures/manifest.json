@@ -507,6 +507,22 @@
       "expected_losses": [
         "MusicXML rendering attributes"
       ]
+    },
+    {
+      "path": "issue_476_harmony.musicxml",
+      "format": "musicxml",
+      "license": "self-authored",
+      "sha256": "63ddf1a1abe3b0484a8734994abb8bfbef605ef9a467bb4c513ceb5e5fb38502",
+      "round_trip": "semantic",
+      "expected_losses": []
+    },
+    {
+      "path": "issue_476_musescore475.mscz",
+      "format": "mscz",
+      "license": "self-authored",
+      "sha256": "a888c665966cfc68943717e5ebdf814e50118542ef135b1b0bae45ea25526470",
+      "round_trip": "semantic",
+      "expected_losses": []
     }
   ]
 }
