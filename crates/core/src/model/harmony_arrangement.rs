@@ -3,6 +3,13 @@
 //! All positions are quarter-note fractions. Source parts are preserved and a
 //! separate accompaniment part is appended. Unsupported source effects are
 //! diagnosed before returning any score; context must not silently ignore them.
+//!
+//! Pitched melody grace groups before a main note constrain the register from
+//! the beginning of their bar through the end of that note. This conservative
+//! interval covers playback's time borrowed from the preceding or main note;
+//! it can restrict more voicings than the actual grace duration. Grace notes do
+//! not introduce chord changes. Bass grace groups and unanchored, tied, cue,
+//! rest, or tuplet grace groups are rejected with their written address.
 
 use super::arrange_presets::input_fingerprint;
 use super::chord_plan::{BeatFraction, CHORD_PLAN_CONTRACT_VERSION, ChordPlan, note_length};
@@ -284,6 +291,7 @@ fn context_sounds(
     score: &Score,
     selected: HarmonyStaffRef,
     starts: &[Time],
+    melody: bool,
 ) -> Result<Vec<Sound>, Error> {
     let staff = staff_at(score, selected)?;
     let part = &score.parts[selected.part];
@@ -292,6 +300,14 @@ fn context_sounds(
     for (measure_index, bar) in staff.measures.iter().enumerate() {
         for (voice_index, voice) in bar.voices.iter().enumerate() {
             let mut cursor = starts[measure_index];
+            let mut anchors = vec![None; voice.len()];
+            let mut next = None;
+            for (index, note) in voice.iter().enumerate().rev() {
+                anchors[index] = next;
+                if !note.is_grace {
+                    next = Some(note);
+                }
+            }
             for (note_index, note) in voice.iter().enumerate() {
                 let address = NoteAddr {
                     part: selected.part,
@@ -319,7 +335,41 @@ fn context_sounds(
                 if note.ottava_end {
                     ottavas.push((end, 0, 0, index));
                 }
-                slots.push((address, cursor, end, note));
+                // Playback places a grace group immediately before its main note,
+                // or borrows from that note at the start of a bar. Conservatively
+                // reserve its pitch from the bar start through the main note. This
+                // includes either timing without treating grace as a chord attack.
+                let grace_range = if note.is_grace {
+                    let anchor = anchors[note_index];
+                    let fail = || Error::UnsupportedContext {
+                        address: address.clone(),
+                        feature: HarmonyContextFeature::Grace,
+                    };
+                    if !melody
+                        || note.is_rest
+                        || note.is_cue
+                        || note.tuplet.is_some()
+                        || note.tie_start
+                        || note.tie_end
+                        || note.pitch_tie_starts.iter().any(|v| *v)
+                        || note.pitch_tie_ends.iter().any(|v| *v)
+                    {
+                        return Err(fail());
+                    }
+                    let anchor = anchor.ok_or_else(fail)?;
+                    if anchor.is_rest
+                        || anchor.is_cue
+                        || anchor.tie_end
+                        || anchor.pitch_tie_ends.iter().any(|v| *v)
+                    {
+                        return Err(fail());
+                    }
+                    let anchor_duration = Time::from(note_length(anchor).ok_or_else(fail)?)?;
+                    Some((starts[measure_index], cursor.add(anchor_duration)?))
+                } else {
+                    None
+                };
+                slots.push((address, cursor, end, note, grace_range));
                 cursor = end;
             }
         }
@@ -335,7 +385,10 @@ fn context_sounds(
         }
     }
     let mut sounds = Vec::new();
-    for (index, (address, start, mut end, note)) in slots.into_iter().enumerate() {
+    for (index, (address, written_start, written_end, note, grace_range)) in
+        slots.into_iter().enumerate()
+    {
+        let (start, mut end) = grace_range.unwrap_or((written_start, written_end));
         let bar = &staff.measures[address.measure];
         let instrument = bar.instrument_change.as_ref().or(part.instrument.as_ref());
         let fail = |feature| Error::UnsupportedContext {
@@ -355,9 +408,6 @@ fn context_sounds(
         }
         if note.is_cue || note.is_rest {
             continue;
-        }
-        if note.is_grace {
-            return Err(fail(HarmonyContextFeature::Grace));
         }
         if note.is_unpitched || instrument.map_or(part.midi_channel, |i| i.midi_channel) == 9 {
             return Err(fail(HarmonyContextFeature::Unpitched));
@@ -392,7 +442,8 @@ fn context_sounds(
             if matches!(
                 articulation,
                 Articulation::Staccato | Articulation::Staccatissimo
-            ) {
+            ) && !note.is_grace
+            {
                 let duration = end.sub(start)?;
                 end = start.add(Time::new(
                     u64::from(duration.0.numerator),
@@ -506,10 +557,10 @@ pub fn arrange_harmony_voicings(
         positions.push(position);
     }
     let scheduled = schedule(score, request, &starts, &positions)?;
-    let melody = context_sounds(score, request.melody, &starts)?;
+    let melody = context_sounds(score, request.melody, &starts, true)?;
     let bass = request
         .bass
-        .map(|staff| context_sounds(score, staff, &starts))
+        .map(|staff| context_sounds(score, staff, &starts, false))
         .transpose()?
         .unwrap_or_default();
     let mut spans = Vec::new();

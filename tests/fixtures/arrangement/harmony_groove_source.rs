@@ -4,6 +4,20 @@ use acorde_core::*;
 pub fn source() -> Score {
     arrangement::source()
 }
+pub fn grace_source() -> Score {
+    let mut score = source();
+    for part in &mut score.parts {
+        let bars = &mut part.staves[0].measures;
+        bars[0].barline_left = Barline::RepeatStart;
+        bars[1].barline_right = Barline::RepeatEnd;
+    }
+    let notes = &mut score.parts[0].staves[0].measures[0].voices[0];
+    let mut grace = Note::new(Pitch::from_midi(77, false), Duration::Eighth);
+    grace.is_grace = true;
+    grace.grace_slash = true;
+    notes.insert(0, grace);
+    score
+}
 pub fn request() -> HarmonyGrooveRequest {
     let mut base = arrangement::request();
     base.root_policy = HarmonyRootPolicy::Include;
