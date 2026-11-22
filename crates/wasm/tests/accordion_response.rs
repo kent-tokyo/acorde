@@ -92,3 +92,47 @@ fn response_fills_match_native_and_survive_score_exports() {
         "response-rest"
     );
 }
+
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
+#[cfg_attr(not(target_arch = "wasm32"), test)]
+fn phrase_ending_response_survives_export() {
+    let input = acorde_wasm::parse_abc("X:1\nM:4/4\nL:1/4\nK:C\nc2 z2 | e4 |").unwrap();
+    let accompaniment = json!({
+        "chords":[{"measure_index":0,"offset_beats":0.0,"chord":{"root":"C","kind":"major"}}],
+        "bass_mode":"free-bass", "default_pattern":null, "sections":[]
+    });
+    let response = json!({"rest_notes":[{"part":0,"staff":0,"measure":0,"voice":0,"note":1}]});
+    let result: acorde_core::ResponseFilledAccordionResult = serde_json::from_str(
+        &acorde_wasm::arrange_with_response_fills(
+            &input,
+            &accompaniment.to_string(),
+            &response.to_string(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert!(
+        result.arrangement.diagnostics.is_empty(),
+        "{:?}",
+        result.arrangement.diagnostics
+    );
+    let output = serde_json::to_string(result.arrangement.score.as_ref().unwrap()).unwrap();
+    assert!(
+        acorde_wasm::render_score_svg(&output, "{}")
+            .unwrap()
+            .contains("<svg")
+    );
+    let mscz = acorde_wasm::serialize_mscz(&output).unwrap();
+    assert_eq!(
+        playback(&output),
+        playback(&acorde_wasm::parse_mscz(&mscz).unwrap())
+    );
+    #[cfg(feature = "musicxml")]
+    {
+        let xml = acorde_wasm::serialize_musicxml(&output).unwrap();
+        assert_eq!(
+            playback(&output),
+            playback(&acorde_wasm::parse_musicxml(&xml).unwrap())
+        );
+    }
+}

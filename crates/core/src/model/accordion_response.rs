@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::cmp::Reverse;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use super::accordion_sections::{
     SectionedAccordionOptions, SectionedAccordionResult, arrange_with_sections,
@@ -87,6 +87,9 @@ fn response_pitch(previous: i16, next: i16, chord_tones: &[u8]) -> Option<u8> {
 /// Add a one-quarter-note chord-tone answer late in each selected two-beat rest.
 /// The melody, chord plan and accompaniment are preserved. All requested rests
 /// must be supported; a failure returns no partial score or note mappings.
+/// A bar-ending rest may target the first note of the next written measure
+/// only when every playback visit continues into that measure. Repeat, volta,
+/// navigation, and tied-note ambiguity are rejected with a diagnostic.
 pub fn arrange_with_response_fills(
     score: &Score,
     accompaniment: SectionedAccordionOptions,
@@ -111,6 +114,8 @@ pub fn arrange_with_response_fills(
         );
     }
     let mut selected = BTreeSet::new();
+    let mut neighbors = BTreeMap::new();
+    let sequence = super::repeat::measure_sequence(score);
     for address in result.resolved_options.rest_notes.clone() {
         if address.part != 0
             || address.staff != 0
@@ -133,23 +138,54 @@ pub fn arrange_with_response_fills(
             );
         };
         let melody = &bar.voices[0];
-        let (Some(rest), Some(previous), Some(next)) = (
-            melody.get(address.note),
-            address
-                .note
-                .checked_sub(1)
-                .and_then(|index| melody.get(index)),
-            address
-                .note
-                .checked_add(1)
-                .and_then(|index| melody.get(index)),
-        ) else {
+        let Some(rest) = melody.get(address.note) else {
             return fail(
                 result,
                 "response-rest",
-                "select a rest between two notes in one measure",
+                "rest address is outside the source melody",
                 Some(address.measure),
             );
+        };
+        let previous = address.note.checked_sub(1).and_then(|i| melody.get(i));
+        let next = if let Some(next) = melody.get(address.note + 1) {
+            Some(next)
+        } else {
+            // Only a full, ordinary bar-end rest and an immediately sounding
+            // first note in the next written bar have an unambiguous target.
+            let staff = &score.parts[0].staves[0];
+            let end = melody.iter().map(Note::beats).sum::<f64>();
+            let bar_end = staff.measure_beats(address.measure, &score.settings.time_signature);
+            let target = address.measure + 1;
+            let mut visits = sequence
+                .iter()
+                .enumerate()
+                .filter(|(_, m)| **m == address.measure)
+                .peekable();
+            let safe = visits.peek().is_some()
+                && sequence.len() < staff.measures.len().saturating_mul(16).max(64)
+                && visits.all(|(i, _)| sequence.get(i + 1) == Some(&target));
+            if (end - bar_end).abs() > 1e-9 || !safe {
+                return fail(
+                    result,
+                    "response-next-ambiguous",
+                    "following melody note is ambiguous at the bar boundary",
+                    Some(address.measure),
+                );
+            }
+            let next = staff
+                .measures
+                .get(target)
+                .and_then(|m| m.voices.first())
+                .and_then(|v| v.first());
+            if next.is_some_and(|n| n.tie_end || n.pitch_tie_ends.iter().any(|t| *t)) {
+                return fail(
+                    result,
+                    "response-next-ambiguous",
+                    "following melody note is tied from an earlier event",
+                    Some(address.measure),
+                );
+            }
+            next
         };
         if !rest.is_rest
             || rest.is_grace
@@ -157,8 +193,8 @@ pub fn arrange_with_response_fills(
             || rest.duration != Duration::Half
             || rest.dot_count != 0
             || rest.tuplet.is_some()
-            || ordinary_melody_pitch(previous).is_none()
-            || ordinary_melody_pitch(next).is_none()
+            || previous.and_then(ordinary_melody_pitch).is_none()
+            || next.and_then(ordinary_melody_pitch).is_none()
         {
             return fail(
                 result,
@@ -166,6 +202,12 @@ pub fn arrange_with_response_fills(
                 "select an ordinary two-beat rest between pitched melody notes",
                 Some(address.measure),
             );
+        }
+        if let (Some(previous), Some(next)) = (
+            previous.and_then(ordinary_melody_pitch),
+            next.and_then(ordinary_melody_pitch),
+        ) {
+            neighbors.insert((address.measure, address.note), (previous, next));
         }
     }
     let chords = &result.arrangement.resolved_options.chords;
@@ -178,22 +220,12 @@ pub fn arrange_with_response_fills(
         let mut offset = 0.0;
         for (note_index, source_note) in melody.iter().enumerate() {
             if selected.contains(&(measure_index, note_index)) {
-                let Some(previous) = note_index
-                    .checked_sub(1)
-                    .and_then(|index| melody.get(index))
+                let Some(&(previous_midi, next_midi)) = neighbors.get(&(measure_index, note_index))
                 else {
                     return fail(
                         result,
                         "response-rest",
-                        "missing preceding melody note",
-                        Some(measure_index),
-                    );
-                };
-                let Some(next) = melody.get(note_index + 1) else {
-                    return fail(
-                        result,
-                        "response-rest",
-                        "missing following melody note",
+                        "neighboring melody pitches are unsupported",
                         Some(measure_index),
                     );
                 };
@@ -210,16 +242,6 @@ pub fn arrange_with_response_fills(
                         result,
                         "response-harmony",
                         "response chord is unsupported",
-                        Some(measure_index),
-                    );
-                };
-                let (Some(previous_midi), Some(next_midi)) =
-                    (ordinary_melody_pitch(previous), ordinary_melody_pitch(next))
-                else {
-                    return fail(
-                        result,
-                        "response-rest",
-                        "neighboring melody pitches are unsupported",
                         Some(measure_index),
                     );
                 };
