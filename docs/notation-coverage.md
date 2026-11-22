@@ -1,8 +1,8 @@
 # Notation coverage matrix
 
-This matrix describes the v1.3.15 public capability boundary. Changes on `main` after that
+This matrix describes the v2.0.0 public capability boundary. Changes on `main` after that
 release are recorded under [Unreleased](../CHANGELOG.md#unreleased); they are not included in
-the v1.3.15 artifacts. **Yes** means the value is modelled
+the v2.0.0 artifacts. **Yes** means the value is modelled
 and covered by a focused test; **partial** means a documented common subset; **no** means that
 format path does not carry it. “Model/SVG/export” distinguishes the canonical score from visible
 rendering and the broadest implemented export route. It is not a lossless-interchange claim.
