@@ -423,3 +423,34 @@ if (result.arrangement.score) {
 For a single sustained bass pitch without a chord progression, use
 [`arrange_with_drone`](accordion-drone.md). Its optional `layers` setting can
 add a chord-derived melodic voice while the bass pitch stays fixed.
+
+## Explicit legacy accompaniment
+
+`arrange_legacy_accompaniment` and `replay_legacy_accompaniment` are available
+in Rust and full/viewer WASM. Contract version 1 supports `held` and
+`bass-chord-pulse` with a single source part and staff. Each ordered region
+specifies a written measure, half-open start/end ticks (32 ticks per quarter
+beat), exact bass and chord MIDI pitches, a chord symbol, and the beat phase at
+its first attack. Gaps are silent; equal adjacent chords are separate regions,
+so the caller controls phase resets. Regions must be non-overlapping, on the
+supported grid, and use distinct MIDI pitches. Other accompaniment patterns,
+melodic harmonizations, and every other combination are outside this contract.
+
+The resolved object retains the source fingerprint, contract and engine
+versions. Replay rejects a changed source or unsupported version. The score
+retains the source part and adds one accompaniment part; `generated_notes`
+identifies the added notes. This is an exact-pitch compatibility path, not a
+physical button-layout or fingering certification.
+
+The fixed `legacy_shared_links.json` corpus was captured from fisarmonica.org
+source commit `016882fcaa3fba669fc87e8261187918248f84ca`. It covers the 10
+published tune IDs with held and pulse patterns, basic harmony and single
+melody (20 links), including padded pickups, early endings and mid-bar changes.
+It does not cover the other six patterns, alternate harmonies, additional
+voices, or every hosted link. Recreate it from that exact site checkout with:
+
+```sh
+node --no-warnings --loader ./scripts/legacy-site-ts-loader.mjs \
+  ./scripts/record-legacy-link-corpus.mjs /path/to/fisarmonica.org \
+  tests/fixtures/arrangement/legacy_shared_links.json
+```

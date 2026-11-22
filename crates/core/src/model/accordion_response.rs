@@ -215,6 +215,13 @@ pub fn arrange_with_response_fills(
         return result;
     };
     for (measure_index, bar) in output.parts[0].staves[0].measures.iter_mut().enumerate() {
+        if selected
+            .range((measure_index, 0)..=(measure_index, usize::MAX))
+            .next()
+            .is_none()
+        {
+            continue;
+        }
         let melody = &bar.voices[0];
         let mut voice = Vec::new();
         let mut offset = 0.0;
@@ -253,7 +260,9 @@ pub fn arrange_with_response_fills(
                         Some(measure_index),
                     );
                 };
-                voice.push(Note::rest(Duration::Quarter));
+                let mut spacer = Note::rest(Duration::Quarter);
+                spacer.hidden = true;
+                voice.push(spacer);
                 let generated_note = NoteAddr {
                     part: 0,
                     staff: 0,
@@ -287,6 +296,7 @@ pub fn arrange_with_response_fills(
                 rest.tuplet_boundary = source_note.tuplet_boundary;
                 rest.is_grace = source_note.is_grace;
                 rest.is_cue = source_note.is_cue;
+                rest.hidden = true;
                 voice.push(rest);
             }
             offset += source_note.beats();

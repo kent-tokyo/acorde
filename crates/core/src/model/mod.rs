@@ -69,3 +69,5 @@ pub mod standard_bass_transition;
 pub mod standard_bass_transposition;
 pub mod structural_plan;
 pub mod validate;
+
+pub mod legacy_accompaniment;

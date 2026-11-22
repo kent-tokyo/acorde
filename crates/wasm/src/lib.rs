@@ -2078,6 +2078,34 @@ pub fn screen_harmony_groove_standard_bass(
     serde_json::to_string(&result).map_err(js_err)
 }
 
+/// Screen explicit left-hand staves of a score against actual button pitches.
+#[wasm_bindgen]
+pub fn screen_standard_bass_staves(score_json: &str, staves_json: &str, profile_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let staves: Vec<acorde_core::HarmonyStaffRef> = parse_json(staves_json, "left-hand staves", MAX_OPTIONS_JSON_BYTES)?;
+    let profile = parse_json(profile_json, "standard bass profile", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::screen_standard_bass_staves(&score, &staves, &profile).map_err(js_err)?;
+    serde_json::to_string(&result).map_err(js_err)
+}
+
+/// Generate explicitly voiced legacy accompaniment with written bounds.
+#[wasm_bindgen]
+pub fn arrange_legacy_accompaniment(score_json: &str, request_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let request = parse_json(request_json, "legacy accompaniment request", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_core::arrange_legacy_accompaniment(&score, &request).map_err(js_err)?;
+    serde_json::to_string(&result).map_err(js_err)
+}
+
+/// Replay a legacy accompaniment only against its original source score.
+#[wasm_bindgen]
+pub fn replay_legacy_accompaniment(score_json: &str, resolved_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let resolved = parse_json(resolved_json, "resolved legacy accompaniment", MAX_HARMONY_REPLAY_JSON_BYTES)?;
+    let result = acorde_core::replay_legacy_accompaniment(&score, &resolved).map_err(js_err)?;
+    serde_json::to_string(&result).map_err(js_err)
+}
+
 /// Generate source-bound applied dominants and destination-key progressions.
 #[wasm_bindgen]
 pub fn suggest_phrase_harmony_targets(score_json: &str, request_json: &str) -> Result<String, JsValue> {

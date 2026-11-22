@@ -43,3 +43,18 @@ verdict.
 
 For score layout and saved preset/layer configs, see the
 [three-staff migration](migrations.md#v1315-standard-bass-accompaniment-staves).
+
+## Screen an existing or transposed score
+
+`screen_standard_bass_staves(score, staves, profile)` screens the actual
+playback of the specified `{part, staff}` pairs. The caller chooses all and
+only the left-hand staves, including both bass and accompaniment staves when
+needed. Full and viewer WASM accept the score, staff list, and profile as JSON
+strings. Repeat visits are checked in playback order. Invalid, duplicate, or
+missing staff references and unsupported continuous controls are errors;
+unmatched notes and microtonal playback produce a non-playable report with
+locations. The result still requires performer review.
+
+This score-based screen does not prove that a saved proposal belongs to a
+source. Continue to call `screen_harmony_groove_standard_bass` on the original
+source and resolved contract when source-bound replay is required.
