@@ -26,6 +26,53 @@ fn playback(score_json: &str) -> Vec<(u8, u64, usize)> {
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
 #[cfg_attr(not(target_arch = "wasm32"), test)]
+fn ordway_phrase_ending_response_survives_mscz_export() {
+    let source = acorde_wasm::parse_abc("X:1\nT:Dreaming of Home and Mother\nM:4/4\nL:1/8\nQ:1/4=96\nK:C\nG2 E G c4 | A2 c2 G4 | G2 D E F2 E D | F E3 z4 | G2 E G c3 B |]").unwrap();
+    let accompaniment = json!({"chords":[
+        {"measure_index":0,"offset_beats":0.0,"chord":{"root":"C","kind":"major"}},
+        {"measure_index":1,"offset_beats":0.0,"chord":{"root":"F","kind":"major"}},
+        {"measure_index":1,"offset_beats":2.0,"chord":{"root":"C","kind":"major"}},
+        {"measure_index":2,"offset_beats":0.0,"chord":{"root":"G","kind":"dominant"}},
+        {"measure_index":3,"offset_beats":0.0,"chord":{"root":"C","kind":"major"}}
+    ], "bass_mode":"standard-bass", "default_pattern":"bass-chord-pulse", "sections":[]});
+    let response = json!({"rest_notes":[{"part":0,"staff":0,"measure":3,"voice":0,"note":2}]});
+    let result: acorde_core::ResponseFilledAccordionResult = serde_json::from_str(
+        &acorde_wasm::arrange_with_response_fills(
+            &source,
+            &accompaniment.to_string(),
+            &response.to_string(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert!(
+        result.arrangement.diagnostics.is_empty(),
+        "{:?}",
+        result.arrangement.diagnostics
+    );
+    assert_eq!(result.fills.len(), 1);
+    let score = serde_json::to_string(&result.arrangement.score.unwrap()).unwrap();
+    let source_events = playback(&source);
+    let played = playback(&score);
+    for note in source_events {
+        assert!(played.contains(&note), "source melody {note:?}");
+    }
+    assert!(
+        played
+            .iter()
+            .any(|event| event.1 == 15 * 480 && event.2 == 0)
+    );
+    assert!(
+        acorde_wasm::render_score_svg(&score, "{}")
+            .unwrap()
+            .contains("acorde-notehead")
+    );
+    let imported = acorde_wasm::parse_mscz(&acorde_wasm::serialize_mscz(&score).unwrap()).unwrap();
+    assert_eq!(playback(&score), playback(&imported));
+}
+
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
+#[cfg_attr(not(target_arch = "wasm32"), test)]
 fn response_fills_match_native_and_survive_score_exports() {
     let input = acorde_wasm::parse_abc("X:1\nM:4/4\nL:1/4\nK:C\nc z2 e | c z2 e |").unwrap();
     let accompaniment = json!({

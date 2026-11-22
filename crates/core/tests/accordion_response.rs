@@ -40,6 +40,61 @@ fn fixture() -> (Score, SectionedAccordionOptions) {
 }
 
 #[test]
+fn phrase_final_rest_can_answer_before_next_measure() {
+    let (mut score, accompaniment) = fixture();
+    score.parts[0].staves[0].measures[0].voices[0] = vec![
+        Note::new(Pitch::from_midi(65, false), Duration::Quarter),
+        Note::new(Pitch::from_midi(64, false), Duration::Quarter),
+        Note::rest(Duration::Half),
+    ];
+    score.parts[0].staves[0].measures[1].voices[0][0].pitches[0] = Pitch::from_midi(67, false);
+    let rest = NoteAddr {
+        part: 0,
+        staff: 0,
+        measure: 0,
+        voice: 0,
+        note: 2,
+    };
+    let result = arrange_with_response_fills(
+        &score,
+        accompaniment.clone(),
+        AccordionResponseOptions {
+            rest_notes: vec![rest.clone()],
+        },
+    );
+    assert!(
+        result.arrangement.diagnostics.is_empty(),
+        "{:?}",
+        result.arrangement.diagnostics
+    );
+    assert_eq!(result.fills.len(), 1);
+    let output = result.arrangement.score.unwrap();
+    assert_eq!(
+        serde_json::to_value(&output.parts[0].staves[0].measures[0].voices[0]).unwrap(),
+        serde_json::to_value(&score.parts[0].staves[0].measures[0].voices[0]).unwrap()
+    );
+    let response = acorde_core::to_playback_events(&output, &Default::default());
+    assert!(response.iter().any(|event| {
+        event.time_beats == 3.0
+            && event
+                .source
+                .as_ref()
+                .is_some_and(|source| source.staff == 0 && source.voice == 1)
+    }));
+
+    score.parts[0].staves[0].measures[0].barline_right = Barline::RepeatEnd;
+    let ambiguous = arrange_with_response_fills(
+        &score,
+        accompaniment,
+        AccordionResponseOptions {
+            rest_notes: vec![rest],
+        },
+    );
+    assert!(ambiguous.arrangement.score.is_none());
+    assert_eq!(ambiguous.arrangement.diagnostics[0].code, "response-rest");
+}
+
+#[test]
 fn selected_rests_receive_late_chord_tone_responses_without_changing_source_melody() {
     let (score, accompaniment) = fixture();
     let original = serde_json::to_value(&score.parts[0].staves[0]).unwrap();

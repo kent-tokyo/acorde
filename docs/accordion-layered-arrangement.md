@@ -211,8 +211,10 @@ accompaniment result. The accompaniment argument is the existing
 `SectionedAccordionOptions`. The response contains `rest_notes`, an array of
 source `NoteAddr` values. The API never fills unselected rests.
 
-Each selected source note must be an ordinary, un-dotted half rest between two
-pitched melody notes in the same written measure. The answer uses a quarter
+Each selected source note must be an ordinary, un-dotted half rest preceded by
+a pitched melody note. The following pitched note may start the next written
+measure when every playback visit proceeds to that measure. Ambiguous repeat
+or jump transitions are rejected. The answer uses a quarter
 rest followed by one quarter-note chord tone, so it occupies only the second
 half of the authored two-beat rest. The chord active at the answer onset
 supplies the pitch class. The chosen pitch is in MIDI 60–84, below the next

@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::cmp::Reverse;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use super::accordion_sections::{
     SectionedAccordionOptions, SectionedAccordionResult, arrange_with_sections,
@@ -111,6 +111,8 @@ pub fn arrange_with_response_fills(
         );
     }
     let mut selected = BTreeSet::new();
+    let mut neighbors = BTreeMap::new();
+    let sequence = super::repeat::measure_sequence(score);
     for address in result.resolved_options.rest_notes.clone() {
         if address.part != 0
             || address.staff != 0
@@ -133,21 +135,34 @@ pub fn arrange_with_response_fills(
             );
         };
         let melody = &bar.voices[0];
+        let next = melody.get(address.note.saturating_add(1)).or_else(|| {
+            if address.note.checked_add(1) != Some(melody.len()) {
+                return None;
+            }
+            let following = address.measure.checked_add(1)?;
+            let mut visits = sequence
+                .iter()
+                .enumerate()
+                .filter(|(_, measure)| **measure == address.measure)
+                .peekable();
+            visits.peek()?;
+            if visits.any(|(index, _)| sequence.get(index + 1) != Some(&following)) {
+                return None;
+            }
+            score.parts[0].staves[0].measures.get(following)?.voices[0].first()
+        });
         let (Some(rest), Some(previous), Some(next)) = (
             melody.get(address.note),
             address
                 .note
                 .checked_sub(1)
                 .and_then(|index| melody.get(index)),
-            address
-                .note
-                .checked_add(1)
-                .and_then(|index| melody.get(index)),
+            next,
         ) else {
             return fail(
                 result,
                 "response-rest",
-                "select a rest between two notes in one measure",
+                "select a rest between two notes with an unambiguous following measure",
                 Some(address.measure),
             );
         };
@@ -167,6 +182,13 @@ pub fn arrange_with_response_fills(
                 Some(address.measure),
             );
         }
+        neighbors.insert(
+            (address.measure, address.note),
+            (
+                ordinary_melody_pitch(previous).unwrap(),
+                ordinary_melody_pitch(next).unwrap(),
+            ),
+        );
     }
     let chords = &result.arrangement.resolved_options.chords;
     let Some(output) = result.arrangement.score.as_mut() else {
@@ -178,25 +200,6 @@ pub fn arrange_with_response_fills(
         let mut offset = 0.0;
         for (note_index, source_note) in melody.iter().enumerate() {
             if selected.contains(&(measure_index, note_index)) {
-                let Some(previous) = note_index
-                    .checked_sub(1)
-                    .and_then(|index| melody.get(index))
-                else {
-                    return fail(
-                        result,
-                        "response-rest",
-                        "missing preceding melody note",
-                        Some(measure_index),
-                    );
-                };
-                let Some(next) = melody.get(note_index + 1) else {
-                    return fail(
-                        result,
-                        "response-rest",
-                        "missing following melody note",
-                        Some(measure_index),
-                    );
-                };
                 let Some(chord) = chord_at_note(chords, measure_index, offset + 1.0) else {
                     return fail(
                         result,
@@ -213,16 +216,7 @@ pub fn arrange_with_response_fills(
                         Some(measure_index),
                     );
                 };
-                let (Some(previous_midi), Some(next_midi)) =
-                    (ordinary_melody_pitch(previous), ordinary_melody_pitch(next))
-                else {
-                    return fail(
-                        result,
-                        "response-rest",
-                        "neighboring melody pitches are unsupported",
-                        Some(measure_index),
-                    );
-                };
+                let (previous_midi, next_midi) = neighbors[&(measure_index, note_index)];
                 let Some(pitch_midi) = response_pitch(previous_midi, next_midi, &tones) else {
                     return fail(
                         result,
