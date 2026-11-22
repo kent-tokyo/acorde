@@ -171,3 +171,100 @@ fn invalid_or_unplayable_rest_selection_returns_no_partial_arrangement() {
     assert!(result.fills.is_empty());
     assert_eq!(result.arrangement.diagnostics[0].code, "response-range");
 }
+
+#[test]
+fn phrase_ending_rest_targets_next_bar_and_preserves_repeated_playback() {
+    let (mut score, accompaniment) = fixture();
+    let bars = &mut score.parts[0].staves[0].measures;
+    bars[0].voices[0] = vec![
+        Note::new(Pitch::from_midi(72, false), Duration::Half),
+        Note::rest(Duration::Half),
+    ];
+    bars[1].voices[0] = vec![Note::new(Pitch::from_midi(76, false), Duration::Whole)];
+    bars[0].barline_left = Barline::RepeatStart;
+    bars[1].barline_right = Barline::RepeatEnd;
+    let result = arrange_with_response_fills(
+        &score,
+        accompaniment,
+        AccordionResponseOptions {
+            rest_notes: vec![rest_address(0)],
+        },
+    );
+    assert!(
+        result.arrangement.diagnostics.is_empty(),
+        "{:?}",
+        result.arrangement.diagnostics
+    );
+    let output = result.arrangement.score.unwrap();
+    assert_eq!(
+        serde_json::to_value(&output.parts[0].staves[0].measures[0].voices[0]).unwrap(),
+        serde_json::to_value(&score.parts[0].staves[0].measures[0].voices[0]).unwrap()
+    );
+    assert_eq!(result.fills.len(), 1);
+    let played = acorde_core::to_playback_events(&output, &Default::default());
+    let responses = played
+        .iter()
+        .filter(|e| {
+            e.source
+                .as_ref()
+                .is_some_and(|s| s.part == 0 && s.staff == 0 && s.voice == 1)
+        })
+        .map(|e| (e.time_beats, e.duration_beats))
+        .collect::<Vec<_>>();
+    assert_eq!(responses, vec![(3.0, 1.0), (11.0, 1.0)]);
+    let original = acorde_core::to_playback_events(&score, &Default::default())
+        .into_iter()
+        .filter(|e| {
+            e.source
+                .as_ref()
+                .is_some_and(|s| s.part == 0 && s.staff == 0 && s.voice == 0)
+        })
+        .map(|e| (e.pitch_midi, e.time_beats, e.duration_beats))
+        .collect::<Vec<_>>();
+    let melody = played
+        .iter()
+        .filter(|e| {
+            e.source
+                .as_ref()
+                .is_some_and(|s| s.part == 0 && s.staff == 0 && s.voice == 0)
+        })
+        .map(|e| (e.pitch_midi, e.time_beats, e.duration_beats))
+        .collect::<Vec<_>>();
+    assert_eq!(melody, original);
+}
+
+#[test]
+fn phrase_ending_rest_rejects_ambiguous_repeat_and_missing_next_note_atomically() {
+    let (mut score, accompaniment) = fixture();
+    score.parts[0].staves[0].measures[0].voices[0] = vec![
+        Note::new(Pitch::from_midi(72, false), Duration::Half),
+        Note::rest(Duration::Half),
+    ];
+    score.parts[0].staves[0].measures[0].barline_right = Barline::RepeatEnd;
+    let result = arrange_with_response_fills(
+        &score,
+        accompaniment.clone(),
+        AccordionResponseOptions {
+            rest_notes: vec![rest_address(0)],
+        },
+    );
+    assert!(result.arrangement.score.is_none());
+    assert!(result.fills.is_empty());
+    assert_eq!(
+        result.arrangement.diagnostics[0].code,
+        "response-next-ambiguous"
+    );
+    assert_eq!(result.arrangement.diagnostics[0].measure_index, Some(0));
+    score.parts[0].staves[0].measures[0].barline_right = Barline::Normal;
+    score.parts[0].staves[0].measures[1].voices[0][0] = Note::rest(Duration::Quarter);
+    let result = arrange_with_response_fills(
+        &score,
+        accompaniment,
+        AccordionResponseOptions {
+            rest_notes: vec![rest_address(0)],
+        },
+    );
+    assert!(result.arrangement.score.is_none());
+    assert!(result.fills.is_empty());
+    assert_eq!(result.arrangement.diagnostics[0].measure_index, Some(0));
+}
