@@ -2065,6 +2065,17 @@ impl DynamicTimeline {
                 let Some(measure) = staff.measures.get(measure_index) else {
                     continue;
                 };
+                let local = shared.is_none_or(|(_, target, _, _)| staff_index == target);
+                if local {
+                    for direction in &measure.timed_dynamics {
+                        if direction.position_beats.is_finite() && direction.position_beats >= 0.0 {
+                            marks.push((
+                                elapsed + direction.position_beats,
+                                DynamicMark::Marking(direction.dynamic, true),
+                            ));
+                        }
+                    }
+                }
                 for (voice_index, voice) in measure.voices.iter().enumerate() {
                     let mut beats = 0.0;
                     for (note_index, note) in voice.iter().enumerate() {
@@ -4245,6 +4256,7 @@ mod tests {
             harmony_function: None,
             harmony_type: None,
             chord_ref: None,
+            written: None,
             range_end: None,
             degrees: Vec::new(),
         });
@@ -4667,6 +4679,27 @@ mod tests {
             DynamicTimeline::default().velocity(0, 0.0, None),
             DynamicTimeline::DEFAULT_VELOCITY
         );
+    }
+
+    #[test]
+    fn timed_dynamic_affects_notes_after_its_beat() {
+        use crate::{Dynamic, TimedDynamicDirection};
+        let mut score = Score::new("T", 120, 4, 4, 0, 1);
+        let measure = &mut score.parts[0].staves[0].measures[0];
+        measure.voices[0] = (0..4)
+            .map(|_| Note::new(Pitch::new(Step::C, 4), Duration::Quarter))
+            .collect();
+        measure.timed_dynamics.push(TimedDynamicDirection {
+            position_beats: 1.5,
+            dynamic: Dynamic::P,
+            above: None,
+            components: Vec::new(),
+        });
+        let events = to_playback_events(&score, &opts(None));
+        assert_eq!(events.len(), 4);
+        assert_eq!(events[1].velocity, DynamicTimeline::DEFAULT_VELOCITY);
+        assert_eq!(events[2].velocity, Dynamic::P.to_velocity());
+        assert_eq!(events[3].velocity, Dynamic::P.to_velocity());
     }
 
     #[test]

@@ -1,0 +1,886 @@
+{
+  "classification": "development rendering, visual review pending",
+  "source_commit": "0c24eda4 with first-system label inset changes",
+  "source_diff_sha256": "356d0db6d916862dec9959cb994eeab7238d892b563b36323b2e95831c65f9df",
+  "printer_sha256": "9f5203602fcb79c454e8f7d9e80364540a1c452db8bf860f8789f65cb98c611a",
+  "font_sha256": "b97cd5005278b24aabb69b8b6ead98860955599558f6e8119483b575a5fdce98",
+  "preparation_sha256": "27cf3dd41dc7f3a80124b14e7d4a81cb05d3291a5eebbe8679ed10ffe1051bb0",
+  "rows": [
+    {
+      "score": "piano-wq117n11",
+      "group": "piano",
+      "input_sha256": "9cd06c88841fd1c3c5d5d454b5acd6a54f94aefd4c36f9f74746fb3dc215f50f",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 1,
+        "seconds": 0.08,
+        "svg_sha256": {
+          "piano-wq117n11-acorde-page-1.svg": "9817e4fa8b50fe24b04f91873673221345772047b371317213a5eed3ecfd33dd"
+        },
+        "pdf_sha256": "2e5b30676395daa104d91cf8293542b94dc2874702c419193c5b92d1d0aaff6d"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 1,
+        "seconds": 0.29,
+        "svg_sha256": {
+          "piano-wq117n11-verovio-1.svg": "2eccfc3ff91b108a47eb398ed50a860da6d750e60066de713a9902ae806ca178"
+        }
+      }
+    },
+    {
+      "score": "piano-wq117n12",
+      "group": "piano",
+      "input_sha256": "8268f3fcb357b9e9a41d4b313af73d04252ed19ea510b2f48878bb054b54a112",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 1,
+        "seconds": 0.07,
+        "svg_sha256": {
+          "piano-wq117n12-acorde-page-1.svg": "f97e28a2765b8e909deea70a7d4ebc325abe3574dd91dfdcdd3bf0754b9d204e"
+        },
+        "pdf_sha256": "0b7ee34866421676515951ea7fef1c311108536dbd530d79f4493d2f426d5554"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 1,
+        "seconds": 0.28,
+        "svg_sha256": {
+          "piano-wq117n12-verovio-1.svg": "fcb936a6d4bfd6d26fa0d1becc5d70ba4a6eeb35878485363587a1c44bfeb9f5"
+        }
+      }
+    },
+    {
+      "score": "piano-BI105-1op30-1",
+      "group": "piano",
+      "input_sha256": "81487126e95363cab3f1db2f5c072b938de80a808dfb6385d13cd1bdc900c3e4",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 2,
+        "seconds": 0.14,
+        "svg_sha256": {
+          "piano-BI105-1op30-1-acorde-page-1.svg": "9bea3feba8d465e971905f7b83c39207ea3a088d1c17cdb59dff3aa6b6c3c93d",
+          "piano-BI105-1op30-1-acorde-page-2.svg": "b06e78ae418c7e7d7eb55961958c8616f79e36c0d1ad654099acf3e7b7a6b1c4"
+        },
+        "pdf_sha256": "29a90de9b170eb3173cfde522091d7c1784f52b15139181cb886b12e6225a60a"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 2,
+        "seconds": 0.3,
+        "svg_sha256": {
+          "piano-BI105-1op30-1-verovio-1.svg": "5f7c6a7a7fffb5b791dfc79b70c366c0e635ea23a93762e5d705fef7606eec21",
+          "piano-BI105-1op30-1-verovio-2.svg": "207b512b0570f26c759104ab0b31519b956ff2697cc57825c5cb87e8bba6216d"
+        }
+      }
+    },
+    {
+      "score": "piano-BI115-1op33-1",
+      "group": "piano",
+      "input_sha256": "a2ab4a9d004b2a838f54bdedfcde966d7085c34000cedc935f664267178428cc",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 2,
+        "seconds": 0.15,
+        "svg_sha256": {
+          "piano-BI115-1op33-1-acorde-page-1.svg": "1b3cae9f5c48ea5a112cf92a86bc426228c0a6d3904c6d98e6cbb56dea80a788",
+          "piano-BI115-1op33-1-acorde-page-2.svg": "15bad0343d96c1abafc4c0c8254e8c13009176685975a1f63494bb0776cecedf"
+        },
+        "pdf_sha256": "83caff34435fa404a65e89dd49618a1bff26fb3e336320f097fc83e3c019338e"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 2,
+        "seconds": 0.28,
+        "svg_sha256": {
+          "piano-BI115-1op33-1-verovio-1.svg": "0ee49dbd3541fb7be8aac15096ea5ea7973710d5361a13760f42710c8b6a53ac",
+          "piano-BI115-1op33-1-verovio-2.svg": "6923642178c9a3cd912e23f13ee03f43b9901f6b2c1dc589d4b27e929daaac98"
+        }
+      }
+    },
+    {
+      "score": "piano-n02",
+      "group": "piano",
+      "input_sha256": "492e24f79c11caf247817efaf3ab243cf1b8990ac0a68e461b857d93eabbf4af",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 3,
+        "seconds": 0.15,
+        "svg_sha256": {
+          "piano-n02-acorde-page-1.svg": "ace526ae09786d5040a0fcda1a6b3f6c48fa1f152afb0071ee821e67622bc2f0",
+          "piano-n02-acorde-page-2.svg": "c4f871b83578152109f620c1e18b4ab14f314f058aade90e91e26993fa9ecb6c",
+          "piano-n02-acorde-page-3.svg": "8dbcf0990f1d01dd8a9c59853bd5432e63e982341a6568e33816b18c0a3dd941"
+        },
+        "pdf_sha256": "f935b8b1ce4628d8e57df2f95d789648b027a8bb7d457a88220f6bfc7b4580c8"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 2,
+        "seconds": 0.31,
+        "svg_sha256": {
+          "piano-n02-verovio-1.svg": "8a04357c35b60a6d5dba2e74d533625b022b8925acb5901d164698590bb7112f",
+          "piano-n02-verovio-2.svg": "477e2c1563011f8438606e4f693a547a6e5abcb0c1fd148b5ee2a79decdcdace"
+        }
+      }
+    },
+    {
+      "score": "piano-n07",
+      "group": "piano",
+      "input_sha256": "88e680bee8d72008ef6b35d9b73e30c4ebed3984d70367ab4ad545400325607c",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 2,
+        "seconds": 0.16,
+        "svg_sha256": {
+          "piano-n07-acorde-page-1.svg": "193bca18a6c3433d084a4737d8c34b79ee50d3fb8cd0d7ea39ab2ace4d4b2852",
+          "piano-n07-acorde-page-2.svg": "3f77639130ca132dd23e873858c9b795cfc5bc59b6d0bea1dad2594a2e7a8c14"
+        },
+        "pdf_sha256": "db2886948bd2094f393e1dc3e24bb188ddfbcb30d65eda6ee110e49611ce352f"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 2,
+        "seconds": 0.31,
+        "svg_sha256": {
+          "piano-n07-verovio-1.svg": "c42445e1ece81c06ce61956878e42fecfdcbb1d5bfa02c87049a7f4800d3b334",
+          "piano-n07-verovio-2.svg": "1111ef03c337ca78acbeccaebf1572567bac1c15982ae913a6854b47d8d84002"
+        }
+      }
+    },
+    {
+      "score": "vocal-lc6212179",
+      "group": "vocal",
+      "input_sha256": "3c44f41c6a243b1f558766969170a5821812425bddff1841070ccc52293c0938",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 3,
+        "seconds": 0.41,
+        "svg_sha256": {
+          "vocal-lc6212179-acorde-page-1.svg": "2391f4da39ea2bfa253fbe00d73308e73a9ad67455249c06a91fc62d7320df04",
+          "vocal-lc6212179-acorde-page-2.svg": "961c132bafbbb7e8ff1786f479ace61d9975f06e2f1d13fe7f778876e9e7adfa",
+          "vocal-lc6212179-acorde-page-3.svg": "a2172d05bab7f3eb08599acc563e19ec3fef77c9b457fd8f70b5a74bc3d57bf5"
+        },
+        "pdf_sha256": "4bf5d7b8bf364d233c75dea608cb82c8ba51291444545d847167ad65e5ca340c"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 3,
+        "seconds": 0.32,
+        "svg_sha256": {
+          "vocal-lc6212179-verovio-1.svg": "89c852b52c6972d5a8dc5331c87cbe67665d07a7f070f32a605b8a50c8f3d592",
+          "vocal-lc6212179-verovio-2.svg": "9a5ab6caf02843bc502a3a36dd1ddd5b7f49070bd2e07ac7fb655018136a0c67",
+          "vocal-lc6212179-verovio-3.svg": "d9f161610beb50080e783aafaa1676900443ab074dd641237a67e1e42266ff25"
+        }
+      }
+    },
+    {
+      "score": "vocal-lc6302395",
+      "group": "vocal",
+      "input_sha256": "bc77093a7c07cde40b940f65ce339c986ac4c338a9a7fe7ea50be0ec06218537",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 13,
+        "seconds": 1.17,
+        "svg_sha256": {
+          "vocal-lc6302395-acorde-page-1.svg": "04ebe56008ca5fddac00071ba93e4e609c44a577c5660dc34b9292f4d8ebf8fe",
+          "vocal-lc6302395-acorde-page-10.svg": "4803941d8a3c3e73c2137979e0334791bd927cab18621d27ea1747d8103122df",
+          "vocal-lc6302395-acorde-page-11.svg": "c233279066aad73c5eb1442e64791ef44943fe50d2448ddb7565eaa3a4ba8fd6",
+          "vocal-lc6302395-acorde-page-12.svg": "4a2b71ca3c5be85da6a28fdb56dcabd6cc8787c7c4f0e882a04b686864205f7f",
+          "vocal-lc6302395-acorde-page-13.svg": "e08a157f39c9c8aa91e6953f34a8184d3c3f87225701a3d83ac1b602c381d280",
+          "vocal-lc6302395-acorde-page-2.svg": "7a695ac285399a59853fede93fefe205b1bbb7375fba4f2547005a8553832661",
+          "vocal-lc6302395-acorde-page-3.svg": "2dc032a0493515548ae987a02814b782c0f528f4de10785ef3641cda27d7eafc",
+          "vocal-lc6302395-acorde-page-4.svg": "79270ff4a5dcac11fcc80a773247f1ff94ddb478afd865c1818867a51fb355fb",
+          "vocal-lc6302395-acorde-page-5.svg": "0498889564855026d89b04124bdfc26f21a232e56928471b5ba4efd764ac8256",
+          "vocal-lc6302395-acorde-page-6.svg": "1217e5e18e133d0f3d725319ad62b0d1a20e359cd3898f77be500bb7a78c85e4",
+          "vocal-lc6302395-acorde-page-7.svg": "214590a0f2576257cad2b11613c2631187e9dc27963777cb1770590a14559d07",
+          "vocal-lc6302395-acorde-page-8.svg": "34958314fd499f518f55394f8958fe2d5b76349940b69fc5755d9c93fd659903",
+          "vocal-lc6302395-acorde-page-9.svg": "32a709a5c6c42a58d3d1ab9690e9f2246c4425bcfd40f0fd06c44336150613dd"
+        },
+        "pdf_sha256": "c96d9eb0a3b931a7ef5a998d818e393950cf82ad7165cdf3d731772d51a982c0"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 8,
+        "seconds": 0.55,
+        "svg_sha256": {
+          "vocal-lc6302395-verovio-1.svg": "4ba51d1e4c5f6b552296dcf0cecb6687f8929610a3f33eac6839d9dd58ae9df1",
+          "vocal-lc6302395-verovio-2.svg": "d8c7cbdb5c7cd536c603ea6ff927958166673335438c54d8a8fe1eb751a57e99",
+          "vocal-lc6302395-verovio-3.svg": "9dd0ce0d742216f5adf70a7c052ddfb8d13779642b26bce16d322b8f7f651a77",
+          "vocal-lc6302395-verovio-4.svg": "901630af197e870553af1604dc2a4d27034fe78340814fe166c7f4a10a46a150",
+          "vocal-lc6302395-verovio-5.svg": "8c757747c13d42938667553daa6412c547cfc2d4d4b7452afb72dd09ffcc0939",
+          "vocal-lc6302395-verovio-6.svg": "0a3820a614b1d95002d685edda5273824226d6ba50a955ca41d3fd922c471883",
+          "vocal-lc6302395-verovio-7.svg": "735f6c87f6fc6827c135546d8e2fb53b5d4f50ae240743233c04a58f4b473382",
+          "vocal-lc6302395-verovio-8.svg": "293737d94efbec8da7d094bd42e6cc50c6c1132c6425924cab4b27d2cb59db19"
+        }
+      }
+    },
+    {
+      "score": "vocal-lc6260992",
+      "group": "vocal",
+      "input_sha256": "79bdc7f6aa23a66c913763c4c8cd01ff3e0b9ef97f9860e0d70e4d566df24550",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 4,
+        "seconds": 0.43,
+        "svg_sha256": {
+          "vocal-lc6260992-acorde-page-1.svg": "00fd273c6489b0ac148f3e86795321e01a0a1e0ef2f6ce4407a262b019f9c611",
+          "vocal-lc6260992-acorde-page-2.svg": "e9e11b5026e8ccf122fd83e23e5d7fbe361854c7e26c1958dc007ba992adda67",
+          "vocal-lc6260992-acorde-page-3.svg": "399c627db0f1a94c2b984c0feb77660f8d75880e5f2ae49ff3453c26a2858056",
+          "vocal-lc6260992-acorde-page-4.svg": "b36ec37eec067db7b848ebceb311359bd979280b0a0c750fe56baf2c5a9e5322"
+        },
+        "pdf_sha256": "9ba4596e360e2ecd70be2040a9a13fa9ce37abc47840530aa4d5505f96e60abf"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 3,
+        "seconds": 0.33,
+        "svg_sha256": {
+          "vocal-lc6260992-verovio-1.svg": "11ea0a294b5152dc87dd1e606d9bd11017722154e94a93fcf446223ddd70c1d0",
+          "vocal-lc6260992-verovio-2.svg": "7d4649f7720abdc1a4710b907b686be58b3f2cd5fe1fc011f7168517d0b0e819",
+          "vocal-lc6260992-verovio-3.svg": "336faca764705b695b6c874ecda3b1f0cde98a8e34f070ab185d452fab3d9908"
+        }
+      }
+    },
+    {
+      "score": "vocal-lc6810863",
+      "group": "vocal",
+      "input_sha256": "966e3e7bd43fe758daa1a522b805ac9f17515d73f0e0a019f9a1341aebb5705b",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 4,
+        "seconds": 0.58,
+        "svg_sha256": {
+          "vocal-lc6810863-acorde-page-1.svg": "1918f3d2b89c1776ceb374f6d31a03566e709d2aedf18f6c930d69c506c83f70",
+          "vocal-lc6810863-acorde-page-2.svg": "385ab34a890651f95373994906ad7155130902c3f818022505ad14138baef116",
+          "vocal-lc6810863-acorde-page-3.svg": "1ab2a8b740058ec3967cb2ccc0b46ba3b251aea81392dc3a5fa364baaca1982f",
+          "vocal-lc6810863-acorde-page-4.svg": "bc0cbc4945e27d00e5b73e6e0c25d6228ce350a5028a937b181752484c8bc527"
+        },
+        "pdf_sha256": "37318f58ab574f7f7f3917339cc9c10d6d314c6fae8fd616dc695bf8a145de2e"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 4,
+        "seconds": 0.52,
+        "svg_sha256": {
+          "vocal-lc6810863-verovio-1.svg": "338decdce408b60906ab54737a7775e8de83155757146e5103d291479ac4f61c",
+          "vocal-lc6810863-verovio-2.svg": "f0fb39e89857ab3b76cf160a50050a407bd722f9c18692e6d7b73f645850943e",
+          "vocal-lc6810863-verovio-3.svg": "a1c5bfec1f5178d6015eedda27bbcf3268defa259e34d260d8c6c89e8393bbe7",
+          "vocal-lc6810863-verovio-4.svg": "7717151af85dd2e72c34a640c1555c5c72202addef0cfbd2838916d5c9cce1b2"
+        }
+      }
+    },
+    {
+      "score": "vocal-lc5093434",
+      "group": "vocal",
+      "input_sha256": "8e7683a186f4feee42dd12749bd81536dfeac4cdbb0bc61f36d8c653bae530b6",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 8,
+        "seconds": 0.86,
+        "svg_sha256": {
+          "vocal-lc5093434-acorde-page-1.svg": "0ba50d893c5b571c211a295155c2c01a1ec487f502a35b6b8f4adc8eac0acf8e",
+          "vocal-lc5093434-acorde-page-2.svg": "4ce7a99dc0b47a2805d078c1cb3e39a13c0c2d613bfb51f0798826e131672db7",
+          "vocal-lc5093434-acorde-page-3.svg": "f4829cbc0057cbd1f2585689a3c84574f490070a5782d4447a4d94183632523b",
+          "vocal-lc5093434-acorde-page-4.svg": "e9ad5265b9b09f01c8d4b0d8645e0fb8e6914f85e3a704c9f1a456badf5df6cd",
+          "vocal-lc5093434-acorde-page-5.svg": "778615aa6b12b7b286f27be345f350814069251b0e2c55e4cad8e0dd0c233894",
+          "vocal-lc5093434-acorde-page-6.svg": "ecdc8f717bf0a5748cc5457b94c6b41440368293fca339d7e047df7c4b8f6b72",
+          "vocal-lc5093434-acorde-page-7.svg": "0cd2db95fe221ff6c740a46e6ee8eba434977c0896d720842deac16b93c288c7",
+          "vocal-lc5093434-acorde-page-8.svg": "ce2a07bd0d12c01ec11540c2a010b5b1a5362e63363e43fab14f1468d085e26b"
+        },
+        "pdf_sha256": "1be231c43e6c7efad53df9037ba0affcde0ebba9b463f8d169b3aa9b1b4f37b3"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 5,
+        "seconds": 0.49,
+        "svg_sha256": {
+          "vocal-lc5093434-verovio-1.svg": "a04511b19ab75a37f20b89997db3425be6b10198919280aef2e750a5d1f06a76",
+          "vocal-lc5093434-verovio-2.svg": "c91856bda28c293b282c5d293b9c32d7b1d4e9258055cb66d1b0ee80b60d4b0b",
+          "vocal-lc5093434-verovio-3.svg": "2c8dcb943ece351422469dc0d72109d104d5c5c8cde2683a6c96af92876c464c",
+          "vocal-lc5093434-verovio-4.svg": "34064f79b9fceac1c2e1a82b6c6e37443968c7a775434a211761aba75f8ea93a",
+          "vocal-lc5093434-verovio-5.svg": "714aa59bddc92581123deefb9efe4f960a0b0fde3729cee698f7b505d2eea9ed"
+        }
+      }
+    },
+    {
+      "score": "vocal-lc5133602",
+      "group": "vocal",
+      "input_sha256": "528c5cfc52ac477ec2c8290a110beb54a4a1050bf4094794259e5073611b761e",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 3,
+        "seconds": 0.34,
+        "svg_sha256": {
+          "vocal-lc5133602-acorde-page-1.svg": "3fb774dc4ef7dd7ba0b6b2aff3f35c9eee35014bf54971d9e5aab32202c47039",
+          "vocal-lc5133602-acorde-page-2.svg": "e57d7f441062ab55bb4b76c2ed13686ff218e702d9864ddb44696fdc4d33b1bc",
+          "vocal-lc5133602-acorde-page-3.svg": "1a38548f86770285374d38156f4facfb6267ae2a3f9d95e9e3b2ccd3b7b388bb"
+        },
+        "pdf_sha256": "b02b2e1d4d7eb60f8b6582cc0da19a5aa8a07e3f66c35701ea2c09d15bd12f36"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 3,
+        "seconds": 0.42,
+        "svg_sha256": {
+          "vocal-lc5133602-verovio-1.svg": "bb1098d21adfe72969e1d2c72ab399fe4316cfb343bdf17a738c890346ec0b61",
+          "vocal-lc5133602-verovio-2.svg": "574ae7cc82e023b66ae3995df6d47135dd8af4d92c6a8e39d724c4fb3f5cb0fa",
+          "vocal-lc5133602-verovio-3.svg": "68bad42737d442033fad0e8d04238c0409e7f03e9823f96f00c233b174607ba1"
+        }
+      }
+    },
+    {
+      "score": "chamber-sq14387632",
+      "group": "chamber",
+      "input_sha256": "924ce674731e2c15c613019051b3a7a6a8612ec3b86efffe824d936d5494f21f",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 29,
+        "seconds": 2.32,
+        "svg_sha256": {
+          "chamber-sq14387632-acorde-page-1.svg": "f816abe709d42e76d24e6b500b8ee664e9104ff7ee6cdcf5513a9881989e2000",
+          "chamber-sq14387632-acorde-page-10.svg": "e27b300f6d977a269307fb8ba9afcddfdaef2b4842684906c60cde6583a25707",
+          "chamber-sq14387632-acorde-page-11.svg": "3998c9c80edef31c03188f94e9ecf1ce0e69d0208de5c64d60d1200a01bdc08e",
+          "chamber-sq14387632-acorde-page-12.svg": "f218e169af36ea41f62d6623f74384628cf8c3b3379c654f734c9ea0cad88d97",
+          "chamber-sq14387632-acorde-page-13.svg": "7119bfff0e4a3d06cfea900dcdde5315626182232764755a364a8772483e84a0",
+          "chamber-sq14387632-acorde-page-14.svg": "4deadb7cb52afa04bb94c7f9add99bd3b1964af494111b05591b12426a5a86bf",
+          "chamber-sq14387632-acorde-page-15.svg": "cc58ebc8b0117ea2851c97762f74f633b9c6c38cbe6ee855accaecfe060b704f",
+          "chamber-sq14387632-acorde-page-16.svg": "a802656333803f693fd93483f22138f5276e712ac7343099069a093b7f94769d",
+          "chamber-sq14387632-acorde-page-17.svg": "58b9c496da47ad207be5488dae164cddf08dd476f944445aee3d93f9e1c6cf31",
+          "chamber-sq14387632-acorde-page-18.svg": "bb1729b497cc6edb6b4be3a72200ede3e7a14d6b49c6d591d466a76bd17822ce",
+          "chamber-sq14387632-acorde-page-19.svg": "f169d89441ada50c0e70f9fd66b3dc38c9a8ed020543303474505f42fb621c40",
+          "chamber-sq14387632-acorde-page-2.svg": "5452e2411bfb21f192ba9062a4aaee0470f2930a23f2dcec655467c7c05b90cf",
+          "chamber-sq14387632-acorde-page-20.svg": "00a750aa31e3d049167afa3cb409f46c1846ef53a3d167bfb490b78860a89826",
+          "chamber-sq14387632-acorde-page-21.svg": "9ccea575cd6943004c06480722206051f37ab66eda996c54bff7b4e187c0a408",
+          "chamber-sq14387632-acorde-page-22.svg": "71c29d3a7db7a61e647965b42662aca583cbfc15b1a3034134cfcf2c1c2695fd",
+          "chamber-sq14387632-acorde-page-23.svg": "67037a14814057e38de90fa85342385e2bbcf2e015e360aa48f10601689c959a",
+          "chamber-sq14387632-acorde-page-24.svg": "8c56274f3ee3741b59ae3dd3298e57bd1c550f5f635d5fa80d48f23efa3bb362",
+          "chamber-sq14387632-acorde-page-25.svg": "6c927b22516b1e8896fde1bb0fa0206fcd5ed981f78ab6a04472df78db4e3003",
+          "chamber-sq14387632-acorde-page-26.svg": "822327f0792233e68cfd6cd8dc9455177705855f4ffa852a223c4489ce3eb858",
+          "chamber-sq14387632-acorde-page-27.svg": "5e0b48fe07eb463aa66933c82353a2253c25ff57bc32285f48068c1a3b8f34b6",
+          "chamber-sq14387632-acorde-page-28.svg": "50397a8e770f9f02c928a2c98990935eee09a2c9364f8c1a9407cd2f67c3ffb1",
+          "chamber-sq14387632-acorde-page-29.svg": "c14e2a74bc6aa1504eb33aca85017135f7e39d2c05eae3d7df0f4d9d1f1f97c9",
+          "chamber-sq14387632-acorde-page-3.svg": "0e18f6019fa4121a1f5814a0f61ca9593ac5b793169c6e1969f01ce16eb1c3e4",
+          "chamber-sq14387632-acorde-page-4.svg": "6d51a4bc02307de5a3e9ee36c7bc8b0ff0e257fccb69f13e6e20bdf76b6fe11c",
+          "chamber-sq14387632-acorde-page-5.svg": "7ad933778b214e30b8256dc378339d39344354992a0bea93baea510058d236d8",
+          "chamber-sq14387632-acorde-page-6.svg": "de682a2e8b8359caffb23a3285ae3e0640cef29b5e150210c0fa116951197a95",
+          "chamber-sq14387632-acorde-page-7.svg": "ee8cc7d14cdf2d963744398e6a0b25e2855c064a9bf75820e2af3b50346ba74f",
+          "chamber-sq14387632-acorde-page-8.svg": "07297c2ddb914c2e810d98181ef95b0dd69c69d39ae89d96df76878ef416febf",
+          "chamber-sq14387632-acorde-page-9.svg": "0e62759ef3190ed7ac483e68ca95057f0e10105a033897d73621515d96628c17"
+        },
+        "pdf_sha256": "9faae810f0f5d01507e6d3d2bfa5693a64e920347ef38fc4192aa4f7bacbd17f"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 27,
+        "seconds": 1.47,
+        "svg_sha256": {
+          "chamber-sq14387632-verovio-1.svg": "0b51787a523a476ca9ca3e71ce1691788a170c498af6326ff6ba24685a32def1",
+          "chamber-sq14387632-verovio-10.svg": "d8532c420e2d3920b8a88110459fce17f17104503a2ff19e58f265afca255f8a",
+          "chamber-sq14387632-verovio-11.svg": "f2b7f28a87674635ab14125142e01a52ec2ad72fa7806c6706ffc96994624958",
+          "chamber-sq14387632-verovio-12.svg": "4500caefdd3f1f027e17109c4cff9990470858167c5b212c9a2c2054308b1ac0",
+          "chamber-sq14387632-verovio-13.svg": "b8983826b4f1db06ca811a92858102addb3b4b26e8e1481efe1904ff2bde14f2",
+          "chamber-sq14387632-verovio-14.svg": "25de50929a4cad074123bec27af163d33a9a978d4d9ef02970978b686aa617a8",
+          "chamber-sq14387632-verovio-15.svg": "08a0cda4dd475b6ae18dfccb6f74f2b621b3a4e01b37446613335cc3a6d6e26b",
+          "chamber-sq14387632-verovio-16.svg": "745be6ac4fb3c90b82b80af4a074bfcd5c12c02213c18507c7739ff856d1eeec",
+          "chamber-sq14387632-verovio-17.svg": "4772832983e84afe4f05ef5073d4cd6d3e8bfa247a650f90df528a337e75d7b2",
+          "chamber-sq14387632-verovio-18.svg": "58e619fdc866a6321cceb9e6093aedcd80be9a5ed3a3aefb713251278e2b520a",
+          "chamber-sq14387632-verovio-19.svg": "da9978a4450bc639d13dd70e4da872d040bacb5b174f6bb436882b337583a872",
+          "chamber-sq14387632-verovio-2.svg": "471eb4d78b6b4a85cf6bdb9c730aba73c1d638b821a9ec72e1752fa3355ed380",
+          "chamber-sq14387632-verovio-20.svg": "18e12605c30281993952693565cd913dda3f2325ddd37a8f1f0a887afdb7785b",
+          "chamber-sq14387632-verovio-21.svg": "9efb54556a3e73c85fe9127182bde31b89e116bc071013dd47a1cf1b16fb414c",
+          "chamber-sq14387632-verovio-22.svg": "72bd6a7773fa33c7ab3f8eaaaa1b28f15b905ec8f02ce7cf15846f313f77da64",
+          "chamber-sq14387632-verovio-23.svg": "c795c834d19a16fb07e0f3bed50fd3e300b6a6271a5d2ecdd4396b2516116378",
+          "chamber-sq14387632-verovio-24.svg": "bfaacdfa8ac8e78929dbe7451f6a966e652de85d0177a5b2bd7bb091d738008e",
+          "chamber-sq14387632-verovio-25.svg": "1cb5dcd8fae6114bf2166376a701468a2233841c8b0c38a48781feab29ce118f",
+          "chamber-sq14387632-verovio-26.svg": "062c5cdffe94cfd4be163c34774100367a13b3afbebd9a04edb0e65a6f5a6cfc",
+          "chamber-sq14387632-verovio-27.svg": "c768fef297ce8018297cd3609027adb04be8b152a81e2a65cf8341fa290514fe",
+          "chamber-sq14387632-verovio-3.svg": "d94ec06e5ef66437a876dcafd6af8b0ea7bbb238758ac66fa0b58844206dd752",
+          "chamber-sq14387632-verovio-4.svg": "056815e60b7cee2706f65f45e5df6b26736062fd60fe790ceb6589a99acc196f",
+          "chamber-sq14387632-verovio-5.svg": "962c4a22d53f00a5e9db6b70a714275d62d02c475f7ee22feb3c19b382eeec25",
+          "chamber-sq14387632-verovio-6.svg": "1b66df0fc8021d028324f685e78238e33b9b54e73f6714b1bb1687fc1d38bf35",
+          "chamber-sq14387632-verovio-7.svg": "2893342d0322d3a1a6d02139ec546eeb7d4a5b68702256d02dab65240a3e711f",
+          "chamber-sq14387632-verovio-8.svg": "7ac6cc34d251d5bd5c3ab6f6b18e9cd5bf54abe21f0dbad3dbaacdbb7fc7c572",
+          "chamber-sq14387632-verovio-9.svg": "998c5af1ae3ae49437ef0036fd0627b33082edff390d7b03e54584ecb06c7e18"
+        }
+      }
+    },
+    {
+      "score": "chamber-sq27571393",
+      "group": "chamber",
+      "input_sha256": "d4d71c44198c1343b537411c95488273297fd01752a1f1fe96a7334bd8ff8467",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 20,
+        "seconds": 1.09,
+        "svg_sha256": {
+          "chamber-sq27571393-acorde-page-1.svg": "1a1cd26d6cb5e87f4a647877ee242d358e164022170e9c7ffba41c6a30149122",
+          "chamber-sq27571393-acorde-page-10.svg": "ac18d886d83e056f0c0861c7af9f3785a182f784dc310d3a64795a75aea5f623",
+          "chamber-sq27571393-acorde-page-11.svg": "a6fe0785045df965fd35ce93767ebc8a9372f250ed5b441d5ba0430d318b44c0",
+          "chamber-sq27571393-acorde-page-12.svg": "ecc12d8fd629f0f84cdb911ccad49bc33c8a52a86306e978ad90dc7b360a6a51",
+          "chamber-sq27571393-acorde-page-13.svg": "51b8c8297beafd4e26d71b1ea34b386886bbaa9ab4cea74a4d98071f9fcd6e4f",
+          "chamber-sq27571393-acorde-page-14.svg": "3ce6ab54cd60084b2b6e0bc0b50125edfc09674d2f87d2ba7fb013934762aeab",
+          "chamber-sq27571393-acorde-page-15.svg": "c0c1d093031b0f1fa1f5607eb1a5761015ce16bddae3c0c49f03eb34a2d0c68c",
+          "chamber-sq27571393-acorde-page-16.svg": "d08c13c6e2a1751eb1936397e31ac5bb47c30d76425063cd275d10b60a3bac83",
+          "chamber-sq27571393-acorde-page-17.svg": "b7fdb88b2061bbc2ddd221576bd7cc1cd24209e3bc120838d6cedf9ce7d6ebb1",
+          "chamber-sq27571393-acorde-page-18.svg": "ab0e27724a3551058e15d2ca9f0d9512ba3b818b04647878638aba4db09873c2",
+          "chamber-sq27571393-acorde-page-19.svg": "06b3ae7830bd5bc3261104575938b27d426d9b1669b529ccbc4045c558a215a9",
+          "chamber-sq27571393-acorde-page-2.svg": "5da9dd0f1f13d55790b8a079fa4696556093db4551769de5adbab335d6296a20",
+          "chamber-sq27571393-acorde-page-20.svg": "07e4f48227bcd60a937f38ac9de965a157d79004e4fc2f910287adee34d708a5",
+          "chamber-sq27571393-acorde-page-3.svg": "6ea96d3d2c88733a3a982b67752888757ca5f0bcd59824e619c2286d2c4857a1",
+          "chamber-sq27571393-acorde-page-4.svg": "36290f4bb11423d19c0cb9b59e44fd8166b9842d82967c55b4454964169ac4b0",
+          "chamber-sq27571393-acorde-page-5.svg": "975689020bd1d0221729d022c8b1a39c9b46d6c60e8071194c2e97d9f0f640f1",
+          "chamber-sq27571393-acorde-page-6.svg": "365419edcc64aa94e9df69e6b973bdec2573cb44f19258cda68eafcf9429af9f",
+          "chamber-sq27571393-acorde-page-7.svg": "359fcaf5a856e64155c70c7aecc6947dc6b558ca45463caa6188472ca87a221f",
+          "chamber-sq27571393-acorde-page-8.svg": "5a1c90f41c3e4caca5d70ccf93a362b2f88dc5573d69a11a619632413ebfc692",
+          "chamber-sq27571393-acorde-page-9.svg": "34430b336d2392a96e3fe44f354f45918d2f98836a78df280230745f6a075a5d"
+        },
+        "pdf_sha256": "15c9d68130222d787f9eda276ad7cb36450504856ecb08120c566990c65bd4d3"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 16,
+        "seconds": 0.82,
+        "svg_sha256": {
+          "chamber-sq27571393-verovio-1.svg": "c5d87473de10ab5569cd7af2d6dc6caaf1dabb722ef6c0e3633ecb44dae9c328",
+          "chamber-sq27571393-verovio-10.svg": "2087041871e101120abdb070b490be0af903c55ac9704c1fedb7b5dab80a8374",
+          "chamber-sq27571393-verovio-11.svg": "899280066dec8a5478eccaabd39bb1c4f6804787f3d56b3c3e50162c04ffc6a4",
+          "chamber-sq27571393-verovio-12.svg": "14dcf1da311a5ebd4befcaf8980887cd2d48aacfba17af3d38b4af0cb43f1ab3",
+          "chamber-sq27571393-verovio-13.svg": "67852b4b294d44742482767d14c17d186b4574671f26bf1de460306f7cccf855",
+          "chamber-sq27571393-verovio-14.svg": "7e64f79f676c5b8b660c867e3977341ca62a35f5a6c97878f384818f5ac3eef3",
+          "chamber-sq27571393-verovio-15.svg": "02268753c1df1b4d7b047875e3af21a88713f4b5138c830f22575b22c38a9587",
+          "chamber-sq27571393-verovio-16.svg": "584487a747148ac23d6ba9a2f83208b7ae021c530e1f5a89c07966c12e331c52",
+          "chamber-sq27571393-verovio-2.svg": "826ad69690f5e2df0fa3e8fd101a28ff8b28e57cf4f9233439c64b178963b18f",
+          "chamber-sq27571393-verovio-3.svg": "5ca3bd9e73bf7f2b24bd85d24601c5a9d710668915760a8db4c08fe75b4a6d5c",
+          "chamber-sq27571393-verovio-4.svg": "0d9b59749615a0ffd1fd08fc5234d4bf84552a882e90027de36796c83adbb380",
+          "chamber-sq27571393-verovio-5.svg": "b171ad880e45ac325a271b0a38d78e28b7615639c8ad9fe80cfcdce336ca38be",
+          "chamber-sq27571393-verovio-6.svg": "9fdcdd6b15deda2c9333e5a3dd8d250a00e4e67a12075a0f00f2b3c5e5aa93d1",
+          "chamber-sq27571393-verovio-7.svg": "2c30b7ec9262263bb13240367c2282d741c5d75e3cc53b412e985e5182ad74ae",
+          "chamber-sq27571393-verovio-8.svg": "9ac1026dc85efbc82e82e9db38c4bf42f1a8f54bdacc5b070312df42b20b5471",
+          "chamber-sq27571393-verovio-9.svg": "6fd098e7247de1609054150101fa17af753dbf853d16f35b8285db84d2795e59"
+        }
+      }
+    },
+    {
+      "score": "chamber-sq7551068",
+      "group": "chamber",
+      "input_sha256": "de11bdad52c1a6fc6cec1389ea5dda7a1204cb8c323208abbb90332637a7593d",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 20,
+        "seconds": 1.41,
+        "svg_sha256": {
+          "chamber-sq7551068-acorde-page-1.svg": "9efbd6c6b0bb835828bd33c1737e859a86e9e2d2c4861e1fe5c92f3ed9414ebd",
+          "chamber-sq7551068-acorde-page-10.svg": "02d2c3f95c1295971870352cd8457c4b2538804e4c343465ddb508aaba035214",
+          "chamber-sq7551068-acorde-page-11.svg": "5946b37ed73ba7697ed5123c75062a9aae7da08cd7568a4153ddada9f7fcea7a",
+          "chamber-sq7551068-acorde-page-12.svg": "ca18dc929c46d3dc17353e8e80fa7144d2841fd3cb37be95ef3a49f335456f98",
+          "chamber-sq7551068-acorde-page-13.svg": "30f8d93deb3c8c32f63c61bc45c428cc0c09936db886255fba205eccc78ae849",
+          "chamber-sq7551068-acorde-page-14.svg": "f4fa4400d09f1120aae7e00f48874ea168945a3df17a6c695730a044740aff58",
+          "chamber-sq7551068-acorde-page-15.svg": "e8a152c21ecd18f8cf416f42766b6118a752dede69a28046a9dcce55b25de6d1",
+          "chamber-sq7551068-acorde-page-16.svg": "814cae9e625ad2bf69ead9290b6b39515c1ba00ea514fe5e8e824ddc2efb629a",
+          "chamber-sq7551068-acorde-page-17.svg": "3272523532c85e113541f21323ec220002b2ae2681ee9bf9edf0cef00fdb16b9",
+          "chamber-sq7551068-acorde-page-18.svg": "6aea3f19eac6398f6214723fd7155d8e45b4f586ca66cb01425f265025026e4d",
+          "chamber-sq7551068-acorde-page-19.svg": "04c86ee6a9f95a8c9a89c6fe15854546be1d308af6def5c33dfe2d373b36d20f",
+          "chamber-sq7551068-acorde-page-2.svg": "9a49ec7618ba60144803647bb0b2dd2ea52cde0968b7f8c177642ed2cbd50ba2",
+          "chamber-sq7551068-acorde-page-20.svg": "ba0bbdceaab7967c43e0bfc9d5904e822552b24d98f80f1a4190e742ded54bd4",
+          "chamber-sq7551068-acorde-page-3.svg": "6b5ac0e3d724df669e2cf6a5707644f50e526e623a3562f865388740c5ed058d",
+          "chamber-sq7551068-acorde-page-4.svg": "718c94ef4885523b86e61e9510aa00ea129fc42d49d1954bceb97da67a300d7b",
+          "chamber-sq7551068-acorde-page-5.svg": "39ceefaac35566312af013e7704b766c30e07043d6d36f7ea18fa91222e7ec77",
+          "chamber-sq7551068-acorde-page-6.svg": "1bfa18e97e30aa6439d1e14217cc8014225453345319e757f1996755f19c85c4",
+          "chamber-sq7551068-acorde-page-7.svg": "4cd208ca2bfc730e7eded8300a343048a9f9309592649a42f7abf744400554e6",
+          "chamber-sq7551068-acorde-page-8.svg": "d71ebf5d1ff2aa81a3e034cf3c7c8b8ed2e5beceb8e03a0a6fc0f4b23cc8b6a4",
+          "chamber-sq7551068-acorde-page-9.svg": "cee438f3e372cc41d96e54c82aa172d677063d5bc8c61c9209819598819d7243"
+        },
+        "pdf_sha256": "f80ae589027623e4431e59288feb54124289013e6f27029251b0b39beca7bba7"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 15,
+        "seconds": 0.9,
+        "svg_sha256": {
+          "chamber-sq7551068-verovio-1.svg": "8bc1524bfbae548c7e70c1fd8bb80019e36a049c4444003e7f3ad1b0374b98a1",
+          "chamber-sq7551068-verovio-10.svg": "9c79dd880fec3cbedbf5c89ea4eded993887f00ca3013fa30c9c2f60ad88ad08",
+          "chamber-sq7551068-verovio-11.svg": "453f0680ede02c63a774173fe2b485180730000817b0944ea212a6b23702e9b8",
+          "chamber-sq7551068-verovio-12.svg": "6bf5f30f8c1e94d578c27ba0c9c9d3235197626e425f805a7959439ed057b52c",
+          "chamber-sq7551068-verovio-13.svg": "92653d7f48e02e720fd3df4ab2f3ffa1fcf780192420e737db292d5235a6aff5",
+          "chamber-sq7551068-verovio-14.svg": "31b4293a38bf8cd63d07b3200d96f2613a06f08c7768acf9ed1126da42509fff",
+          "chamber-sq7551068-verovio-15.svg": "deea19f915d1a6db4597fc8f0656a7aa30a67ac1c236a85c017c4ca35f58d06a",
+          "chamber-sq7551068-verovio-2.svg": "d47df109c5b24aca387f96bf68692225458027b432fdab46183b4accc8f36409",
+          "chamber-sq7551068-verovio-3.svg": "88c683dfe80dc5228d8f55169eecb50e4f958a1dc9ed6a985893febe113d13b6",
+          "chamber-sq7551068-verovio-4.svg": "be5ad04364227a9be120de166710b2ebe7f8f3441efb5db87d7d499db68f5318",
+          "chamber-sq7551068-verovio-5.svg": "3e9505485ab84d84739eaaa04050da042557f0fd86596801195ad5ad63b5e4d3",
+          "chamber-sq7551068-verovio-6.svg": "cdd8147dbf895778ee92976acdc1e7130eb9168bde44667626a494460f62a7c3",
+          "chamber-sq7551068-verovio-7.svg": "9a7d7c38a21c0977f446239cd5af8650e47d97c6d46aab9980d76682694803c3",
+          "chamber-sq7551068-verovio-8.svg": "595a16050d34202e85874d01a8fcf6bfb189afb9b3b3e92d0be705f4ae03b120",
+          "chamber-sq7551068-verovio-9.svg": "8cba6d86e7048e14b32533de5b5ca049bf4662a4f038d656b74c19ef3c40dc5a"
+        }
+      }
+    },
+    {
+      "score": "chamber-sq8437358",
+      "group": "chamber",
+      "input_sha256": "c91e2e3778980b42ae6adf6a8655f06ced82cf32d7dabd30190d1d5b5097848c",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 16,
+        "seconds": 0.69,
+        "svg_sha256": {
+          "chamber-sq8437358-acorde-page-1.svg": "48383278e0ece872a9e5a4013a73209b5604d546322eb1feae799c5d41a29796",
+          "chamber-sq8437358-acorde-page-10.svg": "a8fbabda898c675f66c757ed2af9a8f6fce6a76dae6a3da0264ed7c03c381f57",
+          "chamber-sq8437358-acorde-page-11.svg": "14874ffc1d1434c2aec08db43e0d98f35cb12b4226cda28975d7849db66a81c5",
+          "chamber-sq8437358-acorde-page-12.svg": "36ceae0d7327863171c4678fcca521ce471d11b2f9e58eb55c2d98ea4b96dce8",
+          "chamber-sq8437358-acorde-page-13.svg": "e7db1748ac93feb707d4e79957ff8b219ed7a0c3e8c32e4e644c6a9827496223",
+          "chamber-sq8437358-acorde-page-14.svg": "47f2dc926e5d2fa2717bfab3ea6b2fe6ca5db787d7ec4d920d8feb0df0c7c721",
+          "chamber-sq8437358-acorde-page-15.svg": "a35bbe1fa6135e63cda2686d67441221344b1890e59d85d17dc46f21c3ff7c72",
+          "chamber-sq8437358-acorde-page-16.svg": "198fab5a5c1759319c5be09603654e9e94de0eb69596da9fdb09e4520a0f3824",
+          "chamber-sq8437358-acorde-page-2.svg": "c386257838aae39cde44a620e018d5f5e8e1860a7e1ed1d1482b4434c37bbb9e",
+          "chamber-sq8437358-acorde-page-3.svg": "54c9f75aa1059f473ab5bdaa788f6f67152ecba5e356b10a4382cd5f5f323619",
+          "chamber-sq8437358-acorde-page-4.svg": "cc85f39d27454df7d0d985e226c67d4db5b002084a19cfc0a3631f05285de238",
+          "chamber-sq8437358-acorde-page-5.svg": "286cab39550a405392af38f24a20de170abb1129ca753bc9a87253f16ba81a1e",
+          "chamber-sq8437358-acorde-page-6.svg": "bce9d5b48443e44878464a185a0134784e6175c7569baa112259cb9c23339bce",
+          "chamber-sq8437358-acorde-page-7.svg": "9a836005a267c6c65601561e8dc35ea8ea05500448289ebce957c9b96411961a",
+          "chamber-sq8437358-acorde-page-8.svg": "21a5ee60368a753c7bccec318970024b38ca9c96f0dbb3945da96f1c453c9b87",
+          "chamber-sq8437358-acorde-page-9.svg": "d719b2f2f8d32012fe583e2cf1694c8672349c5a6b271cce511c552cc732ef1c"
+        },
+        "pdf_sha256": "77f9872151604ff1dea3648a7209cc4cc4c030e5f0d910ad7e81b8ddc387fec9"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 14,
+        "seconds": 0.65,
+        "svg_sha256": {
+          "chamber-sq8437358-verovio-1.svg": "607ddca2d13463766dd1b27c68fb20b3942abf8d50e6212895cdf346c01ec496",
+          "chamber-sq8437358-verovio-10.svg": "d966c2b9e3b6e5db30057f6de42d7ddc0b4eec04ef8a7991d892b08004aad140",
+          "chamber-sq8437358-verovio-11.svg": "9493f2f29fdbc183668f5d36e2c28017964c58fa08e7cfc8e3ea0a6065a64b41",
+          "chamber-sq8437358-verovio-12.svg": "7a5d1e882a26529fbe057da4ca66337fbd58a37bdb50cf3c879dcd6fc837e9db",
+          "chamber-sq8437358-verovio-13.svg": "30b4f6fd7bb0c753783124d76421f83043d22cc5d903b84453daf56b0764ee5e",
+          "chamber-sq8437358-verovio-14.svg": "b3624e70669a757d68975f3244849bc25c4c110e9fb14b06fdde204b07f99885",
+          "chamber-sq8437358-verovio-2.svg": "7c16b51eff8ff821d61760ee1cbae3dc6e2f022ac19019d23a396aa6df5edb82",
+          "chamber-sq8437358-verovio-3.svg": "007006a8a126dfb917663a09439b26488f607b39bbaee02db9032093b10c234e",
+          "chamber-sq8437358-verovio-4.svg": "d58e4d9553c148a63384ceae1a38d7f09fe2ebdeeaac14fb5e1f4e638df23250",
+          "chamber-sq8437358-verovio-5.svg": "200aeb2a7193bab3ae7e3d7d6a24ed91f0370fb4a38ac17c16ddbe46d5bf0014",
+          "chamber-sq8437358-verovio-6.svg": "ac499b881ef86093f48f9da42053d546b17f6607e4b0c922790020d312ce1e30",
+          "chamber-sq8437358-verovio-7.svg": "db012afb2e3940f816a397fa0eaad5a63cda5ab0fa78670f588d32c2a7e97b77",
+          "chamber-sq8437358-verovio-8.svg": "e7252500d80fa63dbe3a262b7c9a178e8f9d8ac9ba4488d7f6aaaef04fd446cf",
+          "chamber-sq8437358-verovio-9.svg": "ec9671a29712943e39f9c35d44b092ba7e8f899019368b7fc1a471ff70d331b6"
+        }
+      }
+    },
+    {
+      "score": "chamber-sq7648382",
+      "group": "chamber",
+      "input_sha256": "dbac0c7e10cac61f67452209fecbdbbe10ad4be49defd221360ed51f548190df",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 23,
+        "seconds": 1.03,
+        "svg_sha256": {
+          "chamber-sq7648382-acorde-page-1.svg": "4979a72862c30cc6564ef5b7266af9f95f4b5e6c81c3c3174a6ebb4194644ca5",
+          "chamber-sq7648382-acorde-page-10.svg": "30d45420c0d5abf0ac36c123cb21f13cd1d4afa24abd8673efaa430cc703e160",
+          "chamber-sq7648382-acorde-page-11.svg": "7ef7cfdc400adeaeea0522d85597b54257bd5ed2dab6153770a56fb6b5092a2d",
+          "chamber-sq7648382-acorde-page-12.svg": "ee47dd573b2d285810e695d71c8c0d6b9bc6023b6329e9e44865927fb99f0019",
+          "chamber-sq7648382-acorde-page-13.svg": "0044b82e5d80056dd8a66490d4fcd24cf4812d1ed793a27b3833ef71a2364a4d",
+          "chamber-sq7648382-acorde-page-14.svg": "7e8c553ad644192c8d39be651557ea5ac9e747c1c916e5462e36d495316499ed",
+          "chamber-sq7648382-acorde-page-15.svg": "566ff0aed3b749148aa01bee21a46070ff5a9fddc368cf7c8be62b8b50fd0e61",
+          "chamber-sq7648382-acorde-page-16.svg": "33f277955cea86a8828d260b1955faaf97fd9ff3d9f845f8e936217db3505600",
+          "chamber-sq7648382-acorde-page-17.svg": "ed439af1686e3078d80301b6c3ceff18a23f87e82424a9af5b0278d64ec8b396",
+          "chamber-sq7648382-acorde-page-18.svg": "14db98c2ce0a93377fb5d499efdec670814b9666165f90ead0d89a14d7fe5830",
+          "chamber-sq7648382-acorde-page-19.svg": "0d2c122da0f5113a0cdff4bd729069332f6445a84a37a73944ccd5c755c37ff4",
+          "chamber-sq7648382-acorde-page-2.svg": "24922501796b69d3cbf8a8cfef9575a4b1de1e1ee5f2491558243002857a65aa",
+          "chamber-sq7648382-acorde-page-20.svg": "69ae46cf334d2d2732b39e63e5b44e37b3efe90999cfd5da98f5fc46826ac8be",
+          "chamber-sq7648382-acorde-page-21.svg": "9517fd217b557eddb8c6a25db64fa3174fa742c6e104ae409c20a64d1be6c4b2",
+          "chamber-sq7648382-acorde-page-22.svg": "8c6a606dcae401f2dfcb57d22edf90476c18c6c3e193b58c9ec15d63517be03c",
+          "chamber-sq7648382-acorde-page-23.svg": "b2050d17b7aef3e1fea6407c3a41896c6cebb46d6be2dd3997fab31d663444a4",
+          "chamber-sq7648382-acorde-page-3.svg": "623fb49bdf73afeb2b3ca58899cec29b33a82085dfa58b692826c485e3de18c1",
+          "chamber-sq7648382-acorde-page-4.svg": "791c8e8c3a602f3d741c0e327dcd65c50970b1ed95bbb755ff99188835355317",
+          "chamber-sq7648382-acorde-page-5.svg": "afc7bf89e8db0502edab8f5ade25242142ec4cec7815bc8933882be43cebe9d7",
+          "chamber-sq7648382-acorde-page-6.svg": "fa30a367204dc0d3a9c379b4d25aa91280ff698d68fbc9ba8fa4c930ec54c110",
+          "chamber-sq7648382-acorde-page-7.svg": "22ba0174d642986165f1c3c3497cd1a5b42ce0f36b4b1e8ca5170b2b0882f004",
+          "chamber-sq7648382-acorde-page-8.svg": "ea29e2521e74f9769bcb4523ea02c6ab7971371a75f42c2fb0f440483158e2f9",
+          "chamber-sq7648382-acorde-page-9.svg": "057ad5acbf9e37bef1d199345ac0041e89abcef3edbadc3aa41c55ec97441fd8"
+        },
+        "pdf_sha256": "7b9706b357ae9627478bcd4f9083656a0256a144636d75132cb23792d0850f1b"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 21,
+        "seconds": 0.96,
+        "svg_sha256": {
+          "chamber-sq7648382-verovio-1.svg": "c279826ae38571ba7582a9a8d373e1c072058b546ce4a27f9a8d9879a1b23c24",
+          "chamber-sq7648382-verovio-10.svg": "3de03121409dd96e453bb69a9140d606070afbffe0a6c335ea07a39b4c4a467d",
+          "chamber-sq7648382-verovio-11.svg": "33f69002a70eefd526afa587f7ccc30f273a1768bcff5031ee22c043edc7d98e",
+          "chamber-sq7648382-verovio-12.svg": "01b01fcc094e5bbcf67e88dd6efd83a3a7fd01c1be62b1b5c6efae9737b769de",
+          "chamber-sq7648382-verovio-13.svg": "31be25332fdb9daae9fb6ae687ad973c390bb0417b2b1f0d39ffdce245d693ba",
+          "chamber-sq7648382-verovio-14.svg": "2327f6a7e4d5507fac2701ec170a96c6c3e21a09ef5fa86b6f7f8b4bcd514dcf",
+          "chamber-sq7648382-verovio-15.svg": "e4534bd5b863096a8f2d77e23bb06c91433cea03169d483057831142a40e0acd",
+          "chamber-sq7648382-verovio-16.svg": "46b7739781fd3ab20b0e2a96d0558a24242187dfa409bd72f9f8bfd2af3094c6",
+          "chamber-sq7648382-verovio-17.svg": "53d6db49db53f32a8fb4f9c7c49489ee9afde1ad1a9dcca7119d6d02f220997f",
+          "chamber-sq7648382-verovio-18.svg": "cf2002b0538c19f8d15b9287b7d3cade3115e9ee3fdcc5252fd6f518406639dc",
+          "chamber-sq7648382-verovio-19.svg": "b26f1243f526f828b856a41df4145e44a7b0d325981f894ec4ce9ca15f85ade4",
+          "chamber-sq7648382-verovio-2.svg": "f81f259e0a51fc25e9ff0e613fefd6c21daee26005d8cc5ab005025d635c6387",
+          "chamber-sq7648382-verovio-20.svg": "8e8ceb67b0ca2c4b816492a5da5df221d3bc30d7b5f662d35ca31c8bcd35d959",
+          "chamber-sq7648382-verovio-21.svg": "b61616eedb4916284e6b991dd06ce2345bd0e04a42e37fc77bab2b9b2b6d8411",
+          "chamber-sq7648382-verovio-3.svg": "e3a0669d5f4c3bcbadda7999538c496a732809fe1c4a5c221f3d1c269ced2cdd",
+          "chamber-sq7648382-verovio-4.svg": "88d9c3c7defff7141f933b42c19dce68dcb53eff97c067cf9d466a496df542df",
+          "chamber-sq7648382-verovio-5.svg": "6a6581b381937606f01adb459d2c9771e583b43d10150b543af28a0d0bf00332",
+          "chamber-sq7648382-verovio-6.svg": "e3923de1a7569b254dac7b7b11796b86fa436eec54505eeaf258304e9fca71b0",
+          "chamber-sq7648382-verovio-7.svg": "ccb7fdd1ab6ce3f9049d3f734583bf3ea8ec3d38dc7c50dfd78bb017d8575eda",
+          "chamber-sq7648382-verovio-8.svg": "2a77aa7b09c9670026835d170206e513a71bee08e748998f84ae8296ed48ec5d",
+          "chamber-sq7648382-verovio-9.svg": "1663e334c241bde896a950fa526a0625a8bedb24ebd6a57493a2e9f0891cf28c"
+        }
+      }
+    },
+    {
+      "score": "chamber-sq8812200",
+      "group": "chamber",
+      "input_sha256": "9c1a19ede6f1eba3bb12760aa4f5f3639d677c84f4eeb52e7a745ed5b79bf3ad",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 37,
+        "seconds": 2.17,
+        "svg_sha256": {
+          "chamber-sq8812200-acorde-page-1.svg": "0243062fccc1c20bf6389715a82c28536a134b853554d45464a76f6d33df67c5",
+          "chamber-sq8812200-acorde-page-10.svg": "08dc926e8f5a0911057c696b1e5051ca640108ab6aa95456807ee0364b3e3f2a",
+          "chamber-sq8812200-acorde-page-11.svg": "67e34fe1862e1aa6e4c7270d1416e77d8cc932e7e9157819c0296a6fa73e9688",
+          "chamber-sq8812200-acorde-page-12.svg": "98055f83bdd1b97fbd91ffae9accd806eeb7aa641baa719b65d299292905270d",
+          "chamber-sq8812200-acorde-page-13.svg": "9f849c6333d0ff21c0b713da2308c5b819b2c75b70b855c1992bff96ecf187b2",
+          "chamber-sq8812200-acorde-page-14.svg": "990ac51cf8e18fe5bc48dde684785f05c7652e18f1c56fb9538768596fa3ea44",
+          "chamber-sq8812200-acorde-page-15.svg": "db980d4c633f8fb41a93772d0c752741420a0808c0ba218833270615718712a0",
+          "chamber-sq8812200-acorde-page-16.svg": "c765ed1ff591918e07e664be1eac6720afe95bd5a4e34e8f653f3fd082402fc8",
+          "chamber-sq8812200-acorde-page-17.svg": "c29300f592a0e27ca8c4ba972fe9d873c850eeaec5b92e517809c5536fe05a98",
+          "chamber-sq8812200-acorde-page-18.svg": "35e033ee5628e9b548dd32b3e4e46547022e743998a16c25d711a08385c3add1",
+          "chamber-sq8812200-acorde-page-19.svg": "5da55fca3bcff26f4a7257cec5f869bbd620707a1905eeefd19ed040e4219de7",
+          "chamber-sq8812200-acorde-page-2.svg": "261f77dae75a7673cac11ec906cfcbf04cec26f37dcf16bc8d8ba3041fda4ecb",
+          "chamber-sq8812200-acorde-page-20.svg": "244776e9760f0a5f9a0b670318b836f0c896a6d6038bcca6a85eacfb5c79e0c5",
+          "chamber-sq8812200-acorde-page-21.svg": "72f44747fb42b6f5920996d57429a2ef1c902dc3e72a1a4de89ff766e05e95e3",
+          "chamber-sq8812200-acorde-page-22.svg": "b286764307c8ffc097b462b7544f322e1adfa6646dc40fb4f7e5ed9d44c58003",
+          "chamber-sq8812200-acorde-page-23.svg": "0321b553fc757e9bcd490f998c3d5fba0f23ac43b0b762cfbd3940538fec4585",
+          "chamber-sq8812200-acorde-page-24.svg": "558cc8a91be9b6ecfb9e28e051821f913c798a1419937411c7218a25f9ee1948",
+          "chamber-sq8812200-acorde-page-25.svg": "4257f57abae0846af8b16c3c58c6340ab540749544575f37986d05d05dbdc04b",
+          "chamber-sq8812200-acorde-page-26.svg": "9113d952a25e5064aab3cc75397946d755f9ee310a0bc2a320fc02f496f326ae",
+          "chamber-sq8812200-acorde-page-27.svg": "bcc9b521043f3f1e47fed7a2210b1cc96740c9e4fa1a203b4ccff851bba98519",
+          "chamber-sq8812200-acorde-page-28.svg": "a9af34463a6b86f30bfd852b2a587c4179103f6af99fc426ae46281bf7a7c158",
+          "chamber-sq8812200-acorde-page-29.svg": "c553427cd3e0795d138b58acb1b86dd5e4abf1a1a8931f4d32bf0d8531c97741",
+          "chamber-sq8812200-acorde-page-3.svg": "bded042bc96efc63bb72ee41efcf9d5581d9c1ad880c6ad36dc84dab6c99e0b9",
+          "chamber-sq8812200-acorde-page-30.svg": "21350676b3b5072520efb0fb2ec18852a0d86a1693bae33545cc03f2407f4c33",
+          "chamber-sq8812200-acorde-page-31.svg": "c1ea7e1075ff4bae812e97a3965c06de5782e104135a932003918f597017a953",
+          "chamber-sq8812200-acorde-page-32.svg": "4731066b256a29a69e8ef61b12cbf3b7978343b40f064db56ac52d8ad5a6790f",
+          "chamber-sq8812200-acorde-page-33.svg": "0d704e113491ae6a3ac9a39cc19ae206ddde107686c2cf5978d98c847e3c1e9b",
+          "chamber-sq8812200-acorde-page-34.svg": "3160e1a2d32533bd3d44c816cd24a0faec25ba022fa5fd9c4a29446be88348aa",
+          "chamber-sq8812200-acorde-page-35.svg": "8802e9681e4bfb656f4e0ec3e31d4021f085eb8ac2ebefd384c18cdaf8173e53",
+          "chamber-sq8812200-acorde-page-36.svg": "e0691e7269fb940cd440a5c9f663f09f9921a26ff4e48925e9e3f97a8b047bbe",
+          "chamber-sq8812200-acorde-page-37.svg": "839e9b3654c77a89aeff561a7b9d47481ee3b4f03b038748ec9d8106f5e798c4",
+          "chamber-sq8812200-acorde-page-4.svg": "dbf7faa9766a7cb457b66adcdb590f13ca7ee62b6ebda714df72a52137691149",
+          "chamber-sq8812200-acorde-page-5.svg": "2e1726971de35866c7656d9ae9449f19ea94b1cbf87b07a0c3b274422cdcd7f8",
+          "chamber-sq8812200-acorde-page-6.svg": "b479654d11fcd893d2b07ba3e20e2cb7bdc203812c8b0ec3f0213b01c40abce5",
+          "chamber-sq8812200-acorde-page-7.svg": "8d08e098bdebcda14fcc123946a3b8b48ad05fc2474205248b3340a42f247791",
+          "chamber-sq8812200-acorde-page-8.svg": "2308f3d5760f291e3b1b4fdaeb715ffb54afd735cb5f412ed4e059ff4a624106",
+          "chamber-sq8812200-acorde-page-9.svg": "46d0ad25a2aa92e1091ce677ed73039a00ece293218d2e6d1e8c541cec0f64e1"
+        },
+        "pdf_sha256": "12c47402547f25f1b5ffac01d875350f3bffa1dc6344567ccc5ab67c7fc78982"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 25,
+        "seconds": 1.7,
+        "svg_sha256": {
+          "chamber-sq8812200-verovio-1.svg": "064cadff7d2575c8d13857fe03f72282741a50b68a691d3650a941b3006c5635",
+          "chamber-sq8812200-verovio-10.svg": "eb5516d2177ac1c510ad269585c89d570b5db8eca7d2e352f2fb9cfa55766a9c",
+          "chamber-sq8812200-verovio-11.svg": "094e77c1289349ad062e4ed0522268460522fe49a2ea84062e356f8d325cfbad",
+          "chamber-sq8812200-verovio-12.svg": "c28b6c2581c938031366c3996158e93a6dd97e6c25d39e4008c27ba351ad3b0d",
+          "chamber-sq8812200-verovio-13.svg": "3a4de2335be9ee6aaa0ddc99fd0a6c71141bddee53a0ab167ab3cfd1b007cf71",
+          "chamber-sq8812200-verovio-14.svg": "44dfcc44c7767399a8988550b8d263ebc9d83e8edfc4b8e7f049910aecd320c3",
+          "chamber-sq8812200-verovio-15.svg": "6c619e3c58c1800815d33e81a6dd2414025fd3003c34012f280b4aa6507e8bca",
+          "chamber-sq8812200-verovio-16.svg": "1934b8a661f33885681fadf8efb7e2654cf53df51e9e0b39126516e8f88aaf9d",
+          "chamber-sq8812200-verovio-17.svg": "2137bb5084586ab8070dfafcb9c501d12c3cd80717bc30a3807932e6d8ee97e9",
+          "chamber-sq8812200-verovio-18.svg": "095013278e26c35eb06612818a4efc55b1ea0832b4fd754472f8b7656a6fa626",
+          "chamber-sq8812200-verovio-19.svg": "eb5c5bdeab39a8f5065c7c3225778e56b9e83afbb14bae7812fecdbe62b71117",
+          "chamber-sq8812200-verovio-2.svg": "a898895407371d72dc16a97bd4b286d8de6478e3ef6cc2f07b1105593bd0100a",
+          "chamber-sq8812200-verovio-20.svg": "bba031c9e68409d540c7c83e794c1c93136de373115a937c20445c48ab65fe60",
+          "chamber-sq8812200-verovio-21.svg": "078d0e3cafc9ac795fc167976eacaccc8d4d909532bbe075ef8f0f31c9e1825c",
+          "chamber-sq8812200-verovio-22.svg": "40df98441f29dd5baea206e56ea23ba7a3a6b8d38f8cb8d841401fc47736df0e",
+          "chamber-sq8812200-verovio-23.svg": "e37169e9fc47c3a71da69af5ba313f43c2539f7227649507644f80585e3a1bdb",
+          "chamber-sq8812200-verovio-24.svg": "b40ee19869e59ff591e2d4bf68194541e300dbea5c7780b2bc3b7e88bee8b3ce",
+          "chamber-sq8812200-verovio-25.svg": "fa854d830c55cfe3dce7b5ef20e06bbee518f80657e59633c0913704d65278bf",
+          "chamber-sq8812200-verovio-3.svg": "44cfc2b7050f6cc19a095198a74b70809e5926db96dfdf20b4c2cdb8ee673e51",
+          "chamber-sq8812200-verovio-4.svg": "e2368a49d854f3057b578c256d7e9705e00603b0a83748c67be8543db7190153",
+          "chamber-sq8812200-verovio-5.svg": "065460d492c0e7253a456b5cab2add910f9dc5e7a28f1a9b8353de7ed3190c98",
+          "chamber-sq8812200-verovio-6.svg": "44878b98ad437425821bb1e32439b06cf4d4c51d74b6beb3183b1d3a1fcb67c7",
+          "chamber-sq8812200-verovio-7.svg": "c8a4f872618dbaa97ba708ad74ddb8bbf6f89b00c9f4ffd53720912004ad3180",
+          "chamber-sq8812200-verovio-8.svg": "c99981c263efea6bbe0dbba52ca16067e45c1c9e8ec46995efd6b416a935028e",
+          "chamber-sq8812200-verovio-9.svg": "4d506a18482c278c7195247be9b1843e8f5cfb2fb5e054be432f71450762afa2"
+        }
+      }
+    },
+    {
+      "score": "part-sq27449398",
+      "group": "part",
+      "input_sha256": "ec4d14e1a23513c374b2bdbd373db2f72b5183dd09219c122fcc8da8bd4ade5e",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 6,
+        "seconds": 0.31,
+        "svg_sha256": {
+          "part-sq27449398-acorde-page-1.svg": "c778488dc82d96ad0da23fdb650a045b7949ac891422777d4add0938a1626d64",
+          "part-sq27449398-acorde-page-2.svg": "0daca6ca5783f30d3698f27fc0b4b114c4405b08d8e7d27459b9b82de1672b87",
+          "part-sq27449398-acorde-page-3.svg": "1598b7fd042dfcacf86f608f936b62ea8362c8547e60241b760e3f80b763ff3e",
+          "part-sq27449398-acorde-page-4.svg": "b7825541e45fe8c4cded49c1d5907f4df541467a6ce06dc5074943bf43b7f8a8",
+          "part-sq27449398-acorde-page-5.svg": "d74682451206dcf5ed4e2907476f0502f4eedfc75a90f4f03fb958fb2005343c",
+          "part-sq27449398-acorde-page-6.svg": "81c263713465f5b147ce92177ab2ad0ba0c3d79b0a1b533fadded50dbb6e4023"
+        },
+        "pdf_sha256": "18c69fa7abbd593fd3cce31bdbefefca733332eb5489792f74a919244987d3a0"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 5,
+        "seconds": 0.36,
+        "svg_sha256": {
+          "part-sq27449398-verovio-1.svg": "342f62072821412496a8f13af728af18c27ee25d283366036352635ebdf84f3e",
+          "part-sq27449398-verovio-2.svg": "4aa4c629f3f4c82cddc72e45e1e969ee8a41f49f86d689d94406ba4a81e0e6bc",
+          "part-sq27449398-verovio-3.svg": "fc26c80b59239113112127e278f89a40ad6d0169f9c87237af7dbd4a8473bec0",
+          "part-sq27449398-verovio-4.svg": "1bbfb9270dc19f5eb8a6552038ed5383d61d49913457857f4ef39d535b37ab59",
+          "part-sq27449398-verovio-5.svg": "a60e32288baa72f36ba7908b58b8f70b5b52b2a40f650fcc75fb8329867bb598"
+        }
+      }
+    },
+    {
+      "score": "part-sq12701461",
+      "group": "part",
+      "input_sha256": "9ce5da4f9ccc81b48c60b5b7153b9ad56c484e9e544f8937c7c1d46f3899e192",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 5,
+        "seconds": 0.29,
+        "svg_sha256": {
+          "part-sq12701461-acorde-page-1.svg": "1d6032bf47ee898bec769e98048286c8b09f34b5c518a1e7621a86dc1073129d",
+          "part-sq12701461-acorde-page-2.svg": "654ff30f77644dc3a60722f6fec241172592cd157f2f515e1ed7816ef205901e",
+          "part-sq12701461-acorde-page-3.svg": "69b13e99536a6d5afd61b54b54c0bd70a8ec16475dc9f5d12ee361c1cbf53d3b",
+          "part-sq12701461-acorde-page-4.svg": "9a79162d2ea9efe5464def7d78189b4f2358578c52c8533fe3870a40ecb9114a",
+          "part-sq12701461-acorde-page-5.svg": "07b7c1a027c47cecfef6d13cdb8c63d99d0e0a55b52bc70a15e014b787144ee1"
+        },
+        "pdf_sha256": "7e14b5d631b90dc2a72f86f4ad1b2a230d7e6920cdb13167133af8da4795ff6a"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 6,
+        "seconds": 0.4,
+        "svg_sha256": {
+          "part-sq12701461-verovio-1.svg": "94f661d61cd3ebbfcf0cdbcc4e90c57cc47ed89150664c0cde802a5ea8c1a7a7",
+          "part-sq12701461-verovio-2.svg": "d0a7257b4532347aeca44ca0332c299615b9db9bf2f18ed486ccc81e5153baee",
+          "part-sq12701461-verovio-3.svg": "c1db7f71e6989a0581ba41f13d75cfeb5b8ddff17cf6e10b8ec8c9532a8434c8",
+          "part-sq12701461-verovio-4.svg": "ee32ff8a35121604b1e37e06b95c3fd1959c972ebbc91151b574274bc04b2393",
+          "part-sq12701461-verovio-5.svg": "c87241fd5e505a41d33e956096eabbd9b184c0546da05484d070041154663d63",
+          "part-sq12701461-verovio-6.svg": "cfc8a989c79612b7719b85ea76ea16101ee3d8fb9d1409df6324164a2748e03b"
+        }
+      }
+    },
+    {
+      "score": "part-sq15230467",
+      "group": "part",
+      "input_sha256": "1d47323fa8a2fd3b2b6c5d278f9541f8b505618a1caaa3a3b733c42513f74a82",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 5,
+        "seconds": 0.24,
+        "svg_sha256": {
+          "part-sq15230467-acorde-page-1.svg": "8d4df42b11ae6ec37c437be0c1034a3920867807e0265a28cae07c3a8937a69c",
+          "part-sq15230467-acorde-page-2.svg": "ff8fbb14de62e3ee0f962efcd97f2f7119c96121e8a43f171a490dac2084eee4",
+          "part-sq15230467-acorde-page-3.svg": "11b2756d8c72f2ba0879203a1e3fc5ea66c6ed5c3b0e565b4ea570c67eb2ae0b",
+          "part-sq15230467-acorde-page-4.svg": "ee3d5796f8fab27cdb48cc00ea26c8bd77b55fd9a1104da16d1bead299595072",
+          "part-sq15230467-acorde-page-5.svg": "6beef9949de9e228ee1dcb0d44d3768b51ca984fc8dd18e4dbf2b5b011fd6712"
+        },
+        "pdf_sha256": "50f2e2ab60f38a86c04f4c695eb1b9c39209a2b38a9031559811764ba3d8a3d2"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 5,
+        "seconds": 0.37,
+        "svg_sha256": {
+          "part-sq15230467-verovio-1.svg": "0d61489f5ff66601615d1792e014343629cc16fb8ae637247ab6453399df95c5",
+          "part-sq15230467-verovio-2.svg": "272b270accb42ccce84eecc540370238f56c072f3dee66813dbd32ea290a17a2",
+          "part-sq15230467-verovio-3.svg": "6130a89b6a9b6e7ced3674cf13d5f7a56ebe26c9a61bb74f4a8b671e53a1bda4",
+          "part-sq15230467-verovio-4.svg": "ea96c4f3c7c1469448b28dc66354610e71671d2cfd87b281799222bb02ae5a2c",
+          "part-sq15230467-verovio-5.svg": "8a189323f6c471ef3abea6b929d702e025d532b34bae3d3746804cf427a518ad"
+        }
+      }
+    },
+    {
+      "score": "part-sq9146376",
+      "group": "part",
+      "input_sha256": "600f51257d0200cfc5f26ba8abcbe9505cdda3396484dbf2a8d8227ac768833b",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 5,
+        "seconds": 0.26,
+        "svg_sha256": {
+          "part-sq9146376-acorde-page-1.svg": "afee7f5538b42eb26c3482b52d350df80ebf401e11778f98073fcfc4ffdd886a",
+          "part-sq9146376-acorde-page-2.svg": "101e20941b59c25f4d0ad4113e22b2ba5c381af842a64ecf2d39b65a824aa6a1",
+          "part-sq9146376-acorde-page-3.svg": "59dad3c2c7ee9b9a62ba1905b99a15107ec23625cf4a8245b4ae9c8e153fd4db",
+          "part-sq9146376-acorde-page-4.svg": "050199c3eef921ed5aae1c4eb81b23bb712c4f175d68f884fe7692f0aee8894c",
+          "part-sq9146376-acorde-page-5.svg": "7e74f162ad9a6dd76755e4e469c20f22a056f8d96559a3d6e2e38010bead9b51"
+        },
+        "pdf_sha256": "df47b3ddcac2d6891d5931eb89f9333b8119e4117172bfaf07566654f7dfe428"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 5,
+        "seconds": 0.38,
+        "svg_sha256": {
+          "part-sq9146376-verovio-1.svg": "96200d09bcdd138fbadf7125cba417f7649b34079f94298c6ee34394c40a5bdc",
+          "part-sq9146376-verovio-2.svg": "a93fa92ca1bdc52ba33047951f4c9b2d76ac304c122f3d60d05db1f6d8cd72e4",
+          "part-sq9146376-verovio-3.svg": "97cf296e4d4af7c8ccfea422f20a5f9d644b42420c4fa19f84c5bd9b9602be95",
+          "part-sq9146376-verovio-4.svg": "58c2fca0a243a77259c61d86b790d541ba8df43fcc1baa675e2b246d4452bc2a",
+          "part-sq9146376-verovio-5.svg": "44060f30a9784e0b0b1d453bdd7d987cc348a2398e5fa6a4406667498eb0150a"
+        }
+      }
+    },
+    {
+      "score": "part-sq7070319",
+      "group": "part",
+      "input_sha256": "7cb5fd55f8318b69457ffd173e82632f9583402327f7a9cd7e4a5b994381b6ef",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 3,
+        "seconds": 0.15,
+        "svg_sha256": {
+          "part-sq7070319-acorde-page-1.svg": "5cce38ab6eb0c064524b09433a883bccc182ccaa49b763b0b4ccc98bbd6d091d",
+          "part-sq7070319-acorde-page-2.svg": "fdd39b31e78a4e90ff99a3e83eed9b8cf37459780c9a6ae1f31d7acc14cb278c",
+          "part-sq7070319-acorde-page-3.svg": "e0f2ec8df0ba6fbcca4c37128c815b21ee3c653b76d3f0d93ace71a9a01a8d62"
+        },
+        "pdf_sha256": "c25068769fdea664fd11687773b2fd4aa655a086f548f4aa1b1883afae369cd1"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 2,
+        "seconds": 0.26,
+        "svg_sha256": {
+          "part-sq7070319-verovio-1.svg": "e9d73ffde16b25d75c23f9e272b01c9949da534d22f309c36990a7d1d85ccb9c",
+          "part-sq7070319-verovio-2.svg": "7bdd2ad4a3a3ca245273c1f7b2fec86dea846e2979079e34c670070eeb361ebb"
+        }
+      }
+    },
+    {
+      "score": "part-sq24409123",
+      "group": "part",
+      "input_sha256": "671d6a77a6f9c19fe6e943d47a05686b929f9ffc951d1627c070658f219e72db",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 2,
+        "seconds": 0.17,
+        "svg_sha256": {
+          "part-sq24409123-acorde-page-1.svg": "b368c818db5c49f4dd5b71bc03daf789c62f8a344cbe60380a445630b2924933",
+          "part-sq24409123-acorde-page-2.svg": "ef6746a6bf7cd24d5c8f9bf8c2a65499b158fc326878aa2585db2e4dfdeda65e"
+        },
+        "pdf_sha256": "c3d145cfb8640ceb594ff7daf4fb2324d0df0ded5461bdcffd17bdac09badfcb"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 2,
+        "seconds": 0.25,
+        "svg_sha256": {
+          "part-sq24409123-verovio-1.svg": "a02a77403d06f4ed3bfb6adcc014dfa8354f66fe6c5967294332bdca20d20ea9",
+          "part-sq24409123-verovio-2.svg": "ed5d6495d57f4734bcf98fdbd446ff0a06e750505a8440cbb2d2734cc0f0ecd3"
+        }
+      }
+    }
+  ]
+}

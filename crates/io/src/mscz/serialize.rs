@@ -232,7 +232,7 @@ fn can_emit_cross_staff_or_voice_slur(
 /// Report canonical score fields that the deliberately bounded MSCX serializer cannot emit.
 pub fn export_loss_diagnostics(score: &Score) -> Vec<crate::Diagnostic> {
     const MAX_DIAGNOSTICS: usize = 1_024;
-    let mut diagnostics = Vec::new();
+    let mut diagnostics = crate::report::lyric_placement_export_losses(score, "mscx");
     let mut push = |path: String, value: String, reason: &str| {
         if diagnostics.len() >= MAX_DIAGNOSTICS {
             return;
@@ -1005,6 +1005,7 @@ fn write_staff(
             write_styled_text(
                 xml,
                 &acorde_core::StyledText {
+                    enclosure: None,
                     position_beats: None,
                     style: acorde_core::TextStyle::Expression,
                     text: text.clone(),
@@ -2262,6 +2263,7 @@ mod tests {
     fn offset_staff_text_round_trips_through_mscx() {
         let mut score = Score::default();
         let styled = acorde_core::StyledText {
+            enclosure: None,
             position_beats: None,
             style: acorde_core::TextStyle::Expression,
             text: "Chorus".to_string(),
@@ -2285,6 +2287,7 @@ mod tests {
         let mut score = Score::default();
         let texts = vec![
             acorde_core::StyledText {
+                enclosure: None,
                 position_beats: None,
                 style: acorde_core::TextStyle::Lyrics,
                 text: "la".to_string(),
@@ -2295,6 +2298,7 @@ mod tests {
                 relative_y: None,
             },
             acorde_core::StyledText {
+                enclosure: None,
                 position_beats: None,
                 style: acorde_core::TextStyle::FiguredBass,
                 text: "6".to_string(),
@@ -2316,6 +2320,7 @@ mod tests {
     fn score_level_text_round_trips_through_mscx_vbox() {
         let score = Score {
             texts: vec![acorde_core::StyledText {
+                enclosure: None,
                 position_beats: None,
                 style: acorde_core::TextStyle::Expression,
                 text: "Title".to_string(),

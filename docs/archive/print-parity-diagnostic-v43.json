@@ -1,0 +1,169 @@
+{
+  "classification": "four-input development diagnostic, not a complete corpus or visual pass",
+  "rows": [
+    {
+      "score": "piano-wq117n11",
+      "classification": "development diagnostic",
+      "source_sha256": "aea3592cfe0decaf67366cd8be1a517f1f635ae193d19acb4d06b69d74d3407a",
+      "binary_sha256": "3d9192efda7684f745c556d10ce5c9fb1861982e88ce345da49da07ed9041ae6",
+      "pitch_audit": {
+        "source": 254,
+        "imported": 254,
+        "missing": 0,
+        "extra": 0
+      },
+      "acorde": {
+        "pages": 1,
+        "marks": {
+          "noteheads": 254,
+          "rests": 14,
+          "slurs": 0,
+          "ties": 2,
+          "lyrics": 0,
+          "dynamics": 6,
+          "hairpins": 0,
+          "articulations": 22
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 2,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "edge_candidates": [],
+        "text_text_candidates": [],
+        "lyric_staff_candidates": [],
+        "dynamic_staff_candidates": [],
+        "text_curve_candidates": [],
+        "text_notation_candidates": [],
+        "staff_space_mm": 1.8,
+        "lyric_font_mm": null,
+        "text_font_mm": 3.24,
+        "min_text_font_mm": 1.94,
+        "systems": null
+      },
+      "status": "rendered"
+    },
+    {
+      "score": "piano-n07",
+      "classification": "development diagnostic",
+      "source_sha256": "7b1a25296e9a6d49c40768fff35edb10c1e881efb080cbf888042ae9df4c8fb0",
+      "binary_sha256": "3d9192efda7684f745c556d10ce5c9fb1861982e88ce345da49da07ed9041ae6",
+      "pitch_audit": {
+        "source": 402,
+        "imported": 402,
+        "missing": 0,
+        "extra": 0
+      },
+      "acorde": {
+        "pages": 2,
+        "marks": {
+          "noteheads": 402,
+          "rests": 12,
+          "slurs": 44,
+          "ties": 43,
+          "lyrics": 0,
+          "dynamics": 2,
+          "hairpins": 8,
+          "articulations": 4
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 4,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "edge_candidates": [],
+        "text_text_candidates": [],
+        "lyric_staff_candidates": [],
+        "dynamic_staff_candidates": [],
+        "text_curve_candidates": [],
+        "text_notation_candidates": [],
+        "staff_space_mm": 1.8,
+        "lyric_font_mm": null,
+        "text_font_mm": 3.24,
+        "min_text_font_mm": 1.26,
+        "systems": null
+      },
+      "status": "rendered"
+    },
+    {
+      "score": "vocal-lc6302395",
+      "classification": "development diagnostic",
+      "source_sha256": "bc77093a7c07cde40b940f65ce339c986ac4c338a9a7fe7ea50be0ec06218537",
+      "binary_sha256": "3d9192efda7684f745c556d10ce5c9fb1861982e88ce345da49da07ed9041ae6",
+      "pitch_audit": {
+        "source": 1785,
+        "imported": 1785,
+        "missing": 0,
+        "extra": 0
+      },
+      "acorde": {
+        "pages": 12,
+        "marks": {
+          "noteheads": 1785,
+          "rests": 348,
+          "slurs": 299,
+          "ties": 117,
+          "lyrics": 168,
+          "dynamics": 25,
+          "hairpins": 102,
+          "articulations": 4
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 61,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "edge_candidates": [],
+        "text_text_candidates": [],
+        "lyric_staff_candidates": [],
+        "dynamic_staff_candidates": [],
+        "text_curve_candidates": [],
+        "text_notation_candidates": [],
+        "staff_space_mm": 1.8,
+        "lyric_font_mm": 4.05,
+        "text_font_mm": 4.05,
+        "min_text_font_mm": 1.92,
+        "systems": null
+      },
+      "status": "rendered"
+    },
+    {
+      "score": "chamber-sq14387632",
+      "classification": "development diagnostic",
+      "source_sha256": "924ce674731e2c15c613019051b3a7a6a8612ec3b86efffe824d936d5494f21f",
+      "binary_sha256": "3d9192efda7684f745c556d10ce5c9fb1861982e88ce345da49da07ed9041ae6",
+      "pitch_audit": {
+        "source": 5016,
+        "imported": 5016,
+        "missing": 0,
+        "extra": 0
+      },
+      "acorde": {
+        "pages": 28,
+        "marks": {
+          "noteheads": 5016,
+          "rests": 847,
+          "slurs": 912,
+          "ties": 558,
+          "lyrics": 0,
+          "dynamics": 277,
+          "hairpins": 239,
+          "articulations": 720
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 140,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "edge_candidates": [],
+        "text_text_candidates": [],
+        "lyric_staff_candidates": [],
+        "dynamic_staff_candidates": [],
+        "text_curve_candidates": [],
+        "text_notation_candidates": [],
+        "staff_space_mm": 1.8,
+        "lyric_font_mm": null,
+        "text_font_mm": 3.0,
+        "min_text_font_mm": 2.13,
+        "systems": null
+      },
+      "status": "rendered"
+    }
+  ]
+}

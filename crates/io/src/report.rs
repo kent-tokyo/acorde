@@ -55,6 +55,43 @@ impl Diagnostic {
     }
 }
 
+/// Report lyric side metadata that an exporter cannot write, grouped by part.
+#[cfg(any(feature = "abc", feature = "mei", feature = "mscz", feature = "midi"))]
+pub(crate) fn lyric_placement_export_losses(score: &Score, format: &str) -> Vec<Diagnostic> {
+    score
+        .parts
+        .iter()
+        .enumerate()
+        .filter_map(|(index, part)| {
+            let count = part
+                .staves
+                .iter()
+                .flat_map(|staff| &staff.measures)
+                .flat_map(|measure| &measure.voices)
+                .flatten()
+                .flat_map(|note| {
+                    note.lyric
+                        .iter()
+                        .chain(note.additional_lyrics.iter().map(|v| &v.lyric))
+                })
+                .filter(|lyric| lyric.placement_above.is_some())
+                .count();
+            (count > 0).then(|| {
+                let mut diagnostic = Diagnostic::warning(
+                    format!("{format}.export-unsupported-lyric-placement"),
+                    format!(
+                        "{format} export does not preserve explicit lyric staff-side placement"
+                    ),
+                );
+                diagnostic.source_location = Some(format!("/score/part/{}/lyrics", index + 1));
+                diagnostic.preserved_value = Some(count.to_string());
+                diagnostic
+            })
+        })
+        .take(1024)
+        .collect()
+}
+
 /// Result of importing a notation document, including conversion diagnostics.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImportReport {

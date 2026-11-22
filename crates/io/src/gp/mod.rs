@@ -1035,6 +1035,7 @@ fn convert_beat(
                 continue;
             }
             let lyric = Lyric {
+                placement_above: None,
                 text: text.to_string(),
                 syllabic: "single".to_string(),
                 extend: false,
@@ -1049,6 +1050,7 @@ fn convert_beat(
     }
     if let Some(text) = beat.text_at("FreeText").filter(|text| !text.is_empty()) {
         measure.texts.push(StyledText {
+            enclosure: None,
             position_beats: None,
             style: TextStyle::Generic,
             text: text.to_string(),

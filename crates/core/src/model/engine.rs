@@ -1656,6 +1656,7 @@ mod tests {
         third.tuplet = Some(ratio.clone());
         third.tie_start = true;
         third.lyric = Some(Lyric {
+            placement_above: None,
             text: "tri".into(),
             syllabic: "begin".into(),
             extend: false,
@@ -1663,6 +1664,7 @@ mod tests {
         let mut fourth = Note::new(Pitch::new(Step::F, 4), Duration::Half);
         fourth.tie_end = true;
         fourth.lyric = Some(Lyric {
+            placement_above: None,
             text: "plet".into(),
             syllabic: "end".into(),
             extend: false,

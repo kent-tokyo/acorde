@@ -6,15 +6,59 @@ use acorde_core::{
     HarpPedalPosition, KeySignature, Lyric, Measure, MeasureLength, MetronomeMark,
     MidiControlChange, MidiProgramChange, NotationSpanner, NotationSpannerKind, Note, NoteAddr,
     NoteHead, OttavaKind, Part, PartGroup, PartGroupSymbol, PercussionInstrument, Pitch, Score,
-    Staff, StaffKind, Step, StyledText, TextStyle, TimeSignature, TimeSymbol, TupletBoundary,
-    TupletInfo, VerseLyric, VoltaBracket,
+    Staff, StaffGroup, StaffKind, Step, StyledText, TextStyle, TimeSignature, TimeSymbol,
+    TupletBoundary, TupletInfo, VerseLyric, VoltaBracket,
 };
-use quick_xml::events::Event;
+use quick_xml::events::{BytesStart, Event};
 use quick_xml::reader::Reader;
 use std::collections::HashMap;
 
 use super::attributes::{attr_is_yes, attr_present, attr_str};
 use super::{pan_to_cc, volume_to_cc};
+
+// MusicXML puts a new-page/new-system directive at the start of the next
+// measure, whereas the score model stores a break after the previous one.
+fn apply_print_breaks(
+    score: &mut Score,
+    part_index: Option<usize>,
+    print: &BytesStart<'_>,
+    diagnostics: &mut Vec<crate::Diagnostic>,
+) {
+    for (attribute, value) in [
+        (
+            "new-system",
+            attr_str(print, b"new-system").filter(|s| s == "no"),
+        ),
+        (
+            "new-page",
+            attr_str(print, b"new-page").filter(|s| s == "no"),
+        ),
+        ("blank-page", attr_str(print, b"blank-page")),
+        ("page-number", attr_str(print, b"page-number")),
+    ] {
+        if let Some(value) = value {
+            let mut diagnostic = crate::Diagnostic::warning(
+                "musicxml.unsupported-print-pagination-attribute",
+                "this print pagination constraint is not represented by the score model",
+            );
+            diagnostic.source_location =
+                Some(format!("/score-partwise/part/measure/print/@{attribute}"));
+            diagnostic.preserved_value = Some(value);
+            diagnostics.push(diagnostic);
+        }
+    }
+    let Some(staff) = part_index
+        .and_then(|index| score.parts.get_mut(index))
+        .and_then(|part| part.staves.first_mut())
+    else {
+        return;
+    };
+    let Some(previous) = staff.measures.len().checked_sub(2) else {
+        return;
+    };
+    staff.measures[previous].system_break |= attr_is_yes(print, b"new-system");
+    staff.measures[previous].page_break |= attr_is_yes(print, b"new-page");
+}
 
 fn attach_pending_figured_bass(
     measure: &mut Measure,
@@ -54,6 +98,7 @@ const MAX_STAVES: usize = 32;
 const MAX_NOTES_PER_VOICE: usize = 50_000;
 const MAX_SOURCE_VOICE_NUMBER: u32 = 1_000_000;
 const MAX_DEPTH: usize = 64;
+type ParsedPartSymbol = (PartGroupSymbol, Option<usize>, Option<usize>);
 
 /// Accept only the conventional external MusicXML DTD declaration.
 ///
@@ -122,6 +167,10 @@ struct OpenSpanner {
 /// A hairpin start whose stop is resolved by time at the end of its part.
 struct HairpinRecord {
     start: NoteAddr,
+    end: Option<NoteAddr>,
+    kind: HairpinKind,
+    number: u16,
+    above: Option<bool>,
     /// (measure index, quarter-note offset) of the stop, when it is placed by time.
     stop: Option<(usize, f64)>,
 }
@@ -142,10 +191,12 @@ fn note_at_mut<'a>(part: &'a mut acorde_core::Part, address: &NoteAddr) -> Optio
 /// before the stop; among notes starting together, the one whose end is nearest the stop.
 /// A hairpin lasts to the end of its end note, as in playback; layout pairs hairpin starts and
 /// ends per staff in time order.
-fn end_hairpin_by_time(part: &mut acorde_core::Part, start: &NoteAddr, stop: (usize, f64)) {
-    let Some(staff) = part.staves.get(start.staff) else {
-        return;
-    };
+fn end_hairpin_by_time(
+    part: &mut acorde_core::Part,
+    start: &NoteAddr,
+    stop: (usize, f64),
+) -> Option<NoteAddr> {
+    let staff = part.staves.get(start.staff)?;
     let mut best: Option<((usize, f64), f64, NoteAddr)> = None;
     let mut start_position = None;
     for (mi, measure) in staff.measures.iter().enumerate().skip(start.measure) {
@@ -194,6 +245,9 @@ fn end_hairpin_by_time(part: &mut acorde_core::Part, start: &NoteAddr, stop: (us
     };
     if let Some(note) = note_at_mut(part, &end) {
         note.hairpin_end = true;
+        Some(end)
+    } else {
+        None
     }
 }
 
@@ -332,11 +386,48 @@ fn add_tuplet_boundary(boundary: &mut Option<TupletBoundary>, kind: Option<&str>
     };
 }
 
+fn tuplet_display(
+    e: &quick_xml::events::BytesStart<'_>,
+    hidden: bool,
+) -> Option<acorde_core::TupletDisplay> {
+    (attr_str(e, b"type").as_deref() == Some("start")).then(|| acorde_core::TupletDisplay {
+        bracket: if hidden {
+            Some(false)
+        } else {
+            attr_str(e, b"bracket").and_then(|v| match v.as_str() {
+                "yes" => Some(true),
+                "no" => Some(false),
+                _ => None,
+            })
+        },
+        number: match (hidden, attr_str(e, b"show-number").as_deref()) {
+            (true, _) => acorde_core::TupletNumberDisplay::None,
+            (_, Some("none")) => acorde_core::TupletNumberDisplay::None,
+            (_, Some("both")) => acorde_core::TupletNumberDisplay::Both,
+            _ => acorde_core::TupletNumberDisplay::Actual,
+        },
+        above: attr_str(e, b"placement").and_then(|v| match v.as_str() {
+            "above" => Some(true),
+            "below" => Some(false),
+            _ => None,
+        }),
+    })
+}
+
 // Resolve after all voices are known: MusicXML directions may precede their target in
 // document order, or use a negative offset after a backup. Dynamics remain staff scoped.
+struct PlacedDynamic {
+    value: Dynamic,
+    above: Option<bool>,
+    components: Vec<acorde_core::DynamicDirectionComponent>,
+}
+
+type DynamicAddress = (usize, usize, usize, usize, usize);
+type AssignedDynamic = (f64, usize, PlacedDynamic);
+
 fn resolve_direction_dynamics(
     score: &mut Score,
-    events: Vec<(usize, usize, usize, f64, Dynamic)>,
+    events: Vec<(usize, usize, usize, f64, PlacedDynamic)>,
     tolerated: &mut Vec<crate::Diagnostic>,
 ) {
     let max_bars = score
@@ -354,13 +445,14 @@ fn resolve_direction_dynamics(
     let mut candidates: HashMap<(usize, usize), Vec<(f64, NoteAddr)>> = HashMap::new();
     for (pi, part) in score.parts.iter().enumerate() {
         for (si, staff) in part.staves.iter().enumerate() {
-            let list = candidates.entry((pi, si)).or_default();
             for (mi, measure) in staff.measures.iter().enumerate() {
                 for (vi, voice) in measure.voices.iter().enumerate() {
                     let mut beat = starts[mi];
                     for (ni, note) in voice.iter().enumerate() {
                         if !note.is_rest && !note.is_grace && !note.is_cue {
-                            list.push((
+                            let physical_staff =
+                                note.cross_staff.as_ref().map_or(si, |c| c.target_staff);
+                            candidates.entry((pi, physical_staff)).or_default().push((
                                 beat,
                                 NoteAddr {
                                     part: pi,
@@ -375,8 +467,10 @@ fn resolve_direction_dynamics(
                     }
                 }
             }
-            list.sort_by(|a, b| a.0.total_cmp(&b.0));
         }
+    }
+    for list in candidates.values_mut() {
+        list.sort_by(|a, b| a.0.total_cmp(&b.0));
     }
     let mut ordered: Vec<_> = events
         .into_iter()
@@ -392,25 +486,57 @@ fn resolve_direction_dynamics(
         })
         .collect();
     ordered.sort_by(|a, b| a.0.total_cmp(&b.0).then(a.1.cmp(&b.1)));
-    let mut assigned: HashMap<(usize, usize, usize, usize, usize), Dynamic> = HashMap::new();
+    let mut assigned: HashMap<DynamicAddress, AssignedDynamic> = HashMap::new();
+    let mut timed = Vec::new();
     for (beat, _, pi, si, dynamic) in ordered {
         let target = candidates.get(&(pi, si)).and_then(|list| {
             let index = list.partition_point(|(onset, _)| *onset < beat - 1e-9);
             list.get(index)
         });
-        if let Some((_, addr)) = target {
-            assigned.insert((pi, si, addr.measure, addr.voice, addr.note), dynamic);
+        if let Some((_, addr)) = target
+            .filter(|(onset, _)| (*onset - beat).abs() < 1e-9 && dynamic.components.is_empty())
+        {
+            if let Some(previous) = assigned.insert(
+                (addr.part, addr.staff, addr.measure, addr.voice, addr.note),
+                (beat, si, dynamic),
+            ) {
+                timed.push((previous.0, pi, previous.1, previous.2));
+            }
+        } else {
+            timed.push((beat, pi, si, dynamic));
+        }
+    }
+    for ((pi, si, mi, vi, ni), (beat, physical_staff, dynamic)) in assigned {
+        let note = &mut score.parts[pi].staves[si].measures[mi].voices[vi][ni];
+        if note.dynamic.is_none() {
+            note.dynamic = Some(dynamic.value);
+            note.dynamic_above = dynamic.above;
+        } else {
+            timed.push((beat, pi, physical_staff, dynamic));
+        }
+    }
+    for (beat, pi, si, dynamic) in timed {
+        let index = starts.partition_point(|start| *start <= beat + 1e-9);
+        let measure_index = index.saturating_sub(1).min(max_bars.saturating_sub(1));
+        let measure = score
+            .parts
+            .get_mut(pi)
+            .and_then(|part| part.staves.get_mut(si))
+            .and_then(|staff| staff.measures.get_mut(measure_index));
+        if let Some(measure) = measure.filter(|_| beat >= -1e-9) {
+            measure
+                .timed_dynamics
+                .push(acorde_core::TimedDynamicDirection {
+                    position_beats: (beat - starts[measure_index]).max(0.0),
+                    dynamic: dynamic.value,
+                    above: dynamic.above,
+                    components: dynamic.components,
+                });
         } else {
             tolerated.push(crate::Diagnostic::warning(
                 "musicxml.unattached-dynamic",
-                "MusicXML dynamic has no following sounding note on its staff",
+                "MusicXML dynamic falls outside its staff's score time",
             ));
-        }
-    }
-    for ((pi, si, mi, vi, ni), dynamic) in assigned {
-        let note = &mut score.parts[pi].staves[si].measures[mi].voices[vi][ni];
-        if note.dynamic.is_none() {
-            note.dynamic = Some(dynamic);
         }
     }
 }
@@ -468,6 +594,8 @@ pub(crate) fn parse_musicxml_collecting(
     let mut slur_events: Vec<(NoteAddr, f64, ParsedSpannerEvent)> = Vec::new();
     let mut open_ottava_types: HashMap<u16, String> = HashMap::new();
     let mut in_notations = false;
+    let mut notations_hidden = false;
+    let mut notations_articulation_start = 0usize;
     let mut in_artic_block = false;
     let mut in_ornament_block = false;
     let mut in_technical_block = false;
@@ -476,9 +604,11 @@ pub(crate) fn parse_musicxml_collecting(
     let mut pending_fret: Option<u8> = None;
     let mut pending_technique_text: Option<String> = None;
     let mut pending_articulations: Vec<Articulation> = Vec::new();
+    let mut pending_hidden_articulations: Vec<usize> = Vec::new();
     let mut pending_tremolo = false;
     let mut pending_tremolo_pair: Option<String> = None;
     let mut note_arpeggiate: Option<bool> = None;
+    let mut note_arpeggio_number: Option<u16> = None;
     let mut pending_note_head: Option<NoteHead> = None;
     let mut in_pitch = false;
     let mut note_step = Step::C;
@@ -511,6 +641,7 @@ pub(crate) fn parse_musicxml_collecting(
     let mut note_tuplet_actual: Option<u8> = None;
     let mut note_tuplet_normal: Option<u8> = None;
     let mut note_tuplet_boundary: Option<TupletBoundary> = None;
+    let mut note_tuplet_display: Option<acorde_core::TupletDisplay> = None;
     let mut in_time_modification = false;
     let mut note_trill_line_start = false;
     let mut note_trill_line_end = false;
@@ -541,6 +672,9 @@ pub(crate) fn parse_musicxml_collecting(
     let mut harmony_root_step = String::new();
     let mut harmony_root_alter: i8 = 0;
     let mut harmony_kind = String::new();
+    let mut harmony_written = acorde_core::WrittenHarmony::default();
+    let mut in_harmony_numeral = false;
+    let mut in_numeral_key = false;
     let mut harmony_kind_text: Option<String> = None;
     let mut harmony_function: Option<String> = None;
     let mut harmony_bass_step = String::new();
@@ -582,6 +716,7 @@ pub(crate) fn parse_musicxml_collecting(
     let mut lyric_syllabic = String::new();
     // Source `<lyric number>` of the lyric being read, and the note's completed lyrics.
     let mut lyric_number: Option<u8> = None;
+    let mut lyric_placement_above: Option<bool> = None;
     let mut note_lyrics: Vec<(Option<u8>, Lyric)> = Vec::new();
     let mut in_measure_style = false;
     // `<measure-repeat type="start">n</measure-repeat>` repeats the previous n measures until a
@@ -602,14 +737,19 @@ pub(crate) fn parse_musicxml_collecting(
     let mut in_barline = false;
     let mut barline_location = String::new();
     let mut in_direction = false;
+    // Acorde currently stores a part's connector globally; later changes are diagnosed.
+    let mut part_symbols: Vec<Option<ParsedPartSymbol>> = Vec::new();
+    let mut part_symbol_bounds: Option<(Option<usize>, Option<usize>)> = None;
     let mut in_direction_type = false;
     // Direction dynamics are resolved by written time after parsing all voices; inline
     // notations belong to their note.
     let mut in_dynamics = false;
     let mut pending_direction_dynamic: Option<Dynamic> = None;
+    let mut pending_dynamic_components: Vec<acorde_core::DynamicDirectionComponent> = Vec::new();
     let mut pending_direction_staff = 0usize;
-    let mut direction_dynamics: Vec<(usize, usize, usize, f64, Dynamic)> = Vec::new();
+    let mut direction_dynamics: Vec<(usize, usize, usize, f64, PlacedDynamic)> = Vec::new();
     let mut note_inline_dynamic: Option<Dynamic> = None;
+    let mut note_inline_dynamic_above: Option<bool> = None;
     let mut pending_tempo_text: Option<String> = None;
     let mut pending_expression_text: Option<String> = None;
     let mut pending_rehearsal: Option<String> = None;
@@ -619,7 +759,8 @@ pub(crate) fn parse_musicxml_collecting(
     let mut in_metronome = false;
     let mut metronome_beat_unit: Option<Duration> = None;
     let mut metronome_dots = 0u8;
-    let mut metronome_per_minute: Option<u16> = None;
+    let mut metronome_per_minute: Option<String> = None;
+    let mut metronome_words_before = String::new();
     let mut metronome_parentheses = false;
     let mut pending_metronome: Option<MetronomeMark> = None;
     let mut pending_direction_placement: Option<String> = None;
@@ -627,6 +768,8 @@ pub(crate) fn parse_musicxml_collecting(
     let mut pending_direction_offset_y: Option<f64> = None;
     let mut pending_direction_relative_x: Option<f64> = None;
     let mut pending_direction_relative_y: Option<f64> = None;
+    let mut pending_words_enclosure: Option<String> = None;
+    let mut pending_rehearsal_enclosure: Option<String> = None;
     let mut pending_direction_position_beats: Option<f64> = None;
     let mut pending_harp_pedal_diagrams: Vec<HarpPedalDiagram> = Vec::new();
     let mut pending_harp_pedal_diagram: Option<HarpPedalDiagram> = None;
@@ -635,6 +778,12 @@ pub(crate) fn parse_musicxml_collecting(
     let mut harp_pedal_step = Step::C;
     let mut harp_pedal_alter = 0i8;
     let mut in_work = false;
+    let mut in_credit = false;
+    let mut credit_page = 1u32;
+    let mut credit_types: Vec<String> = Vec::new();
+    let mut credit_text = String::new();
+    let mut credit_formatting_lost = false;
+    let mut credit_word_count = 0usize;
     let mut in_identification = false;
     let mut creator_type = String::new();
     let mut in_backup = false;
@@ -659,12 +808,14 @@ pub(crate) fn parse_musicxml_collecting(
 
     // Collect <midi-instrument> data from <score-part> declarations.
     let mut part_midi: HashMap<String, (u8, u8, Option<u8>, Option<u8>)> = HashMap::new();
-    let mut part_names: HashMap<String, (String, String)> = HashMap::new();
+    let mut part_names: HashMap<String, (String, String, bool, bool)> = HashMap::new();
     let mut part_percussion: HashMap<String, Vec<PercussionInstrument>> = HashMap::new();
     let mut in_score_part = false;
     let mut score_part_id = String::new();
     let mut pending_part_name = String::new();
     let mut pending_part_abbreviation = String::new();
+    let mut pending_part_name_hidden = false;
+    let mut pending_part_abbreviation_hidden = false;
     let mut pending_midi_channel: u8 = 0;
     let mut pending_midi_program: u8 = 0;
     let mut pending_midi_volume: Option<u8> = None;
@@ -692,7 +843,7 @@ pub(crate) fn parse_musicxml_collecting(
     let mut in_part_group = false;
     let mut part_group_number = String::new();
     let mut part_group_type = String::new();
-    let mut part_group_symbol = PartGroupSymbol::Bracket;
+    let mut part_group_symbol = PartGroupSymbol::None;
     let mut part_group_barlines = false;
     let mut part_list_part_count: usize = 0;
 
@@ -715,6 +866,7 @@ pub(crate) fn parse_musicxml_collecting(
 
                 match tag.as_str() {
                     "identification" => in_identification = true,
+                    "print" => apply_print_breaks(&mut score, part_index, e, tolerated),
                     "creator" if in_identification => {
                         creator_type = attr_str(e, b"type").unwrap_or_default();
                     }
@@ -726,6 +878,15 @@ pub(crate) fn parse_musicxml_collecting(
                     }
                     // Paired and self-closing fermata elements have the same XML meaning.
                     "fermata" if in_notations => pending_articulations.push(Articulation::Fermata),
+                    // MusicXML breath marks commonly carry a glyph name such as `comma`.
+                    // The text does not change our articulation kind, but the paired element
+                    // must be imported just like `<breath-mark/>`.
+                    "breath-mark" if in_artic_block => {
+                        pending_articulations.push(Articulation::BreathMark)
+                    }
+                    "caesura" if in_artic_block => {
+                        pending_articulations.push(Articulation::Caesura)
+                    }
                     // `<tap>T</tap>`: tapping with its displayed text.
                     "tap" if in_technical_block => pending_articulations.push(
                         if attr_str(e, b"hand").as_deref() == Some("left") {
@@ -754,6 +915,8 @@ pub(crate) fn parse_musicxml_collecting(
                         score_part_id = attr_str(e, b"id").unwrap_or_default();
                         pending_part_name.clear();
                         pending_part_abbreviation.clear();
+                        pending_part_name_hidden = false;
+                        pending_part_abbreviation_hidden = false;
                         pending_midi_channel = 0;
                         pending_midi_program = 0;
                         pending_midi_volume = None;
@@ -761,6 +924,12 @@ pub(crate) fn parse_musicxml_collecting(
                         part_list_part_count += 1;
                     }
                     "part-name" | "part-abbreviation" if in_score_part => {
+                        let hidden = attr_str(e, b"print-object").as_deref() == Some("no");
+                        if tag == "part-name" {
+                            pending_part_name_hidden = hidden;
+                        } else {
+                            pending_part_abbreviation_hidden = hidden;
+                        }
                         // Preserve spaces around XML references, which arrive as separate events.
                         reader.config_mut().trim_text(false);
                     }
@@ -794,7 +963,7 @@ pub(crate) fn parse_musicxml_collecting(
                         part_group_number =
                             attr_str(e, b"number").unwrap_or_else(|| "1".to_string());
                         part_group_type = attr_str(e, b"type").unwrap_or_default();
-                        part_group_symbol = PartGroupSymbol::Bracket;
+                        part_group_symbol = PartGroupSymbol::None;
                         part_group_barlines = false;
                     }
                     "midi-instrument" if in_score_part => {
@@ -807,6 +976,9 @@ pub(crate) fn parse_musicxml_collecting(
                         harmony_root_step.clear();
                         harmony_root_alter = 0;
                         harmony_kind.clear();
+                        harmony_written = acorde_core::WrittenHarmony::default();
+                        in_harmony_numeral = false;
+                        in_numeral_key = false;
                         harmony_kind_text = None;
                         harmony_function = None;
                         harmony_bass_step.clear();
@@ -843,8 +1015,35 @@ pub(crate) fn parse_musicxml_collecting(
                         );
                     }
                     "root" if in_harmony => in_harmony_root = true,
+                    "root-step" if in_harmony_root => {
+                        harmony_written.root_text = attr_str(e, b"text")
+                    }
+                    "kind" if in_harmony => {
+                        harmony_written.kind_text = attr_str(e, b"text");
+                        harmony_kind_text = harmony_written.kind_text.clone();
+                    }
+                    "inversion" if in_harmony => {
+                        harmony_written.inversion_text = attr_str(e, b"text")
+                    }
+                    "numeral" if in_harmony => in_harmony_numeral = true,
+                    "numeral-root" if in_harmony_numeral => {
+                        harmony_written.numeral = Some(acorde_core::HarmonyNumeral {
+                            root: 1,
+                            text: attr_str(e, b"text"),
+                            alter: 0.0,
+                            key: None,
+                        });
+                    }
+                    "numeral-key" if in_harmony_numeral => {
+                        in_numeral_key = true;
+                        if let Some(numeral) = &mut harmony_written.numeral {
+                            numeral.key = Some(KeySignature {
+                                fifths: 0,
+                                mode: "major".into(),
+                            });
+                        }
+                    }
                     "bass" if in_harmony => in_harmony_bass = true,
-                    "kind" if in_harmony => harmony_kind_text = attr_str(e, b"text"),
                     "degree" if in_harmony => {
                         in_harmony_degree = true;
                         harmony_degree_value.clear();
@@ -855,6 +1054,22 @@ pub(crate) fn parse_musicxml_collecting(
                     "degree-alter" if in_harmony_degree => {}
                     "degree-type" if in_harmony_degree => {}
                     "work" => in_work = true,
+                    "credit" => {
+                        in_credit = true;
+                        credit_page = attr_str(e, b"page")
+                            .and_then(|v| v.parse().ok())
+                            .unwrap_or(1);
+                        credit_types.clear();
+                        credit_text.clear();
+                        credit_formatting_lost = false;
+                        credit_word_count = 0;
+                    }
+                    "credit-words" if in_credit => {
+                        credit_word_count += 1;
+                        credit_formatting_lost |=
+                            e.attributes().next().is_some() || credit_word_count > 1;
+                        reader.config_mut().trim_text(false);
+                    }
                     // An ending with its printed text (`<ending …>1.</ending>`) is not empty.
                     "ending" if in_barline => apply_musicxml_ending(
                         &mut score,
@@ -878,6 +1093,8 @@ pub(crate) fn parse_musicxml_collecting(
                     }
                     "direction" => {
                         in_direction = true;
+                        pending_words_enclosure = None;
+                        pending_rehearsal_enclosure = None;
                         pending_direction_position_beats = (measure_cursor_ticks != 0).then(|| {
                             f64::from(measure_cursor_ticks) / f64::from(current_divisions.max(1))
                         });
@@ -901,15 +1118,35 @@ pub(crate) fn parse_musicxml_collecting(
                         metronome_beat_unit = None;
                         metronome_dots = 0;
                         metronome_per_minute = None;
+                        metronome_words_before =
+                            pending_expression_text.clone().unwrap_or_default();
                         metronome_parentheses = attr_is_yes(e, b"parentheses");
                     }
                     "beat-unit-dot" if in_metronome => {
                         metronome_dots = metronome_dots.saturating_add(1).min(4);
                     }
-                    "dynamics" if in_direction_type || in_notations => in_dynamics = true,
+                    "dynamics" if in_direction_type || in_notations => {
+                        in_dynamics = true;
+                        if in_notations && in_note {
+                            note_inline_dynamic_above = match attr_str(e, b"placement").as_deref() {
+                                Some("above") => Some(true),
+                                Some("below") => Some(false),
+                                _ => None,
+                            };
+                        }
+                    }
                     // Print-style position attributes belong on the text element; they take
                     // precedence over the legacy acorde placement on <direction>.
                     "words" | "rehearsal" if in_direction_type => {
+                        if tag == "rehearsal" {
+                            // Spaces may separate successive formatted components.
+                            reader.config_mut().trim_text(false);
+                        }
+                        if tag == "rehearsal" && pending_rehearsal.is_none() {
+                            pending_rehearsal_enclosure = attr_str(e, b"enclosure");
+                        } else if tag == "words" {
+                            pending_words_enclosure = attr_str(e, b"enclosure");
+                        }
                         let position = |name: &[u8]| {
                             attr_str(e, name)
                                 .and_then(|value| value.parse::<f64>().ok())
@@ -965,11 +1202,20 @@ pub(crate) fn parse_musicxml_collecting(
                         Some("stop") => measure_repeat_active = None,
                         _ => measure_repeat_start_pending = true,
                     },
-                    "notations" if in_note => in_notations = true,
-                    "tuplet" if in_notations => add_tuplet_boundary(
-                        &mut note_tuplet_boundary,
-                        attr_str(e, b"type").as_deref(),
-                    ),
+                    "notations" if in_note => {
+                        in_notations = true;
+                        notations_hidden = attr_str(e, b"print-object").as_deref() == Some("no");
+                        notations_articulation_start = pending_articulations.len();
+                    }
+                    "tuplet" if in_notations => {
+                        add_tuplet_boundary(
+                            &mut note_tuplet_boundary,
+                            attr_str(e, b"type").as_deref(),
+                        );
+                        if let Some(display) = tuplet_display(e, notations_hidden) {
+                            note_tuplet_display = Some(display);
+                        }
+                    }
                     "articulations" if in_notations => in_artic_block = true,
                     "ornaments" if in_notations => in_ornament_block = true,
                     "technical" if in_notations => in_technical_block = true,
@@ -1011,6 +1257,11 @@ pub(crate) fn parse_musicxml_collecting(
                     }
                     "lyric" if in_note => {
                         in_lyric = true;
+                        lyric_placement_above = match attr_str(e, b"placement").as_deref() {
+                            Some("above") => Some(true),
+                            Some("below") => Some(false),
+                            _ => None,
+                        };
                         lyric_text.clear();
                         lyric_elision = None;
                         lyric_syllabic = "single".to_string();
@@ -1033,6 +1284,7 @@ pub(crate) fn parse_musicxml_collecting(
                         note_hidden = attr_str(e, b"print-object").as_deref() == Some("no");
                         note_lyrics.clear();
                         note_inline_dynamic = None;
+                        note_inline_dynamic_above = None;
                         // A note's default-x/default-y are absolute positions in the source
                         // engraver's layout (from the measure's left barline and the staff's top
                         // line). acorde lays measures out itself, and `offset_x`/`offset_y` are
@@ -1066,6 +1318,7 @@ pub(crate) fn parse_musicxml_collecting(
                         note_tuplet_actual = None;
                         note_tuplet_normal = None;
                         note_tuplet_boundary = None;
+                        note_tuplet_display = None;
                         in_time_modification = false;
                         note_trill_line_start = false;
                         note_trill_line_end = false;
@@ -1080,9 +1333,11 @@ pub(crate) fn parse_musicxml_collecting(
                         note_glissando_end = false;
                         note_spanner_events.clear();
                         pending_articulations.clear();
+                        pending_hidden_articulations.clear();
                         pending_tremolo = false;
                         pending_tremolo_pair = None;
                         note_arpeggiate = None;
+                        note_arpeggio_number = None;
                         pending_fingerings.clear();
                         pending_string_number = None;
                         pending_fret = None;
@@ -1111,12 +1366,14 @@ pub(crate) fn parse_musicxml_collecting(
                             return Err(Error::Xml("too many parts".into()));
                         }
                         let id = attr_str(e, b"id").unwrap_or_default();
-                        let (name, abbreviation) = part_names
+                        let (name, abbreviation, name_hidden, abbreviation_hidden) = part_names
                             .get(&id)
                             .cloned()
-                            .unwrap_or_else(|| (id.clone(), String::new()));
+                            .unwrap_or_else(|| (id.clone(), String::new(), false, false));
                         let mut part =
                             Part::new(if name.is_empty() { &id } else { &name }, &abbreviation);
+                        part.name_hidden = name_hidden;
+                        part.short_name_hidden = abbreviation_hidden;
                         if let Some(&(ch, prog, volume, pan)) = part_midi.get(&id) {
                             part.midi_channel = ch;
                             part.midi_program = prog;
@@ -1135,6 +1392,7 @@ pub(crate) fn parse_musicxml_collecting(
                             part_percussion.remove(&id).unwrap_or_default();
                         part.staves.push(Staff::new(Clef::Treble));
                         score.parts.push(part);
+                        part_symbols.push(None);
                         part_index = Some(score.parts.len() - 1);
                         current_divisions = 480;
                         current_time = TimeSignature::default();
@@ -1147,6 +1405,43 @@ pub(crate) fn parse_musicxml_collecting(
                         source_voice_slots.clear();
                         preferred_source_voice_slots.clear();
                         measure_repeat_active = None;
+                    }
+                    "part-symbol" => {
+                        if [
+                            b"default-x".as_slice(),
+                            b"default-y",
+                            b"relative-x",
+                            b"relative-y",
+                            b"color",
+                        ]
+                        .iter()
+                        .any(|name| attr_present(e, name))
+                        {
+                            let mut diagnostic = crate::Diagnostic::warning(
+                                "musicxml.part-symbol-formatting-not-preserved",
+                                "part-symbol position and color are not represented",
+                            );
+                            diagnostic.source_location = Some(format!(
+                                "/score-partwise/measure[{current_measure_number}]/attributes/part-symbol"
+                            ));
+                            tolerated.push(diagnostic);
+                        }
+                        let parse_staff = |name: &[u8]| -> Result<Option<usize>, Error> {
+                            attr_str(e, name)
+                                .map(|value| {
+                                    value
+                                        .parse::<usize>()
+                                        .ok()
+                                        .filter(|v| (1..=MAX_STAVES).contains(v))
+                                        .map(|v| v - 1)
+                                        .ok_or_else(|| {
+                                            Error::Xml("invalid part-symbol staff number".into())
+                                        })
+                                })
+                                .transpose()
+                        };
+                        part_symbol_bounds =
+                            Some((parse_staff(b"top-staff")?, parse_staff(b"bottom-staff")?));
                     }
                     "measure" => {
                         current_measure_number = attr_str(e, b"number")
@@ -1192,10 +1487,22 @@ pub(crate) fn parse_musicxml_collecting(
                 let tag = std::str::from_utf8(e.name().as_ref())
                     .unwrap_or("")
                     .to_string();
+                if in_score_part && matches!(tag.as_str(), "part-name" | "part-abbreviation") {
+                    let hidden = attr_str(e, b"print-object").as_deref() == Some("no");
+                    if tag == "part-name" {
+                        pending_part_name_hidden = hidden;
+                    } else {
+                        pending_part_abbreviation_hidden = hidden;
+                    }
+                }
                 if in_dynamics {
                     match musicxml_dynamic(&tag) {
                         Some(dynamic) if in_note => note_inline_dynamic = Some(dynamic),
-                        Some(dynamic) => pending_direction_dynamic = Some(dynamic),
+                        Some(dynamic) => {
+                            pending_direction_dynamic = Some(dynamic);
+                            pending_dynamic_components
+                                .push(acorde_core::DynamicDirectionComponent::Dynamic(dynamic));
+                        }
                         None => {
                             let mut diagnostic = crate::Diagnostic::warning(
                                 "musicxml.unsupported-dynamic",
@@ -1209,6 +1516,10 @@ pub(crate) fn parse_musicxml_collecting(
                     }
                 }
                 match tag.as_str() {
+                    "part-symbol" => return Err(Error::Xml("empty part-symbol".into())),
+                    "per-minute" if in_metronome => {
+                        metronome_per_minute = Some(String::new());
+                    }
                     "extend" if in_figured_figure => {
                         figured_extend_type = Some(attr_str(e, b"type").unwrap_or_default());
                         figured_figure_extender = matches!(
@@ -1228,18 +1539,7 @@ pub(crate) fn parse_musicxml_collecting(
                         // An empty start marker repeats one measure.
                         measure_repeat_active = Some(1);
                     }
-                    "print" => {
-                        if let Some(pi) = part_index
-                            && let Some(m) = score.parts[pi].staves[0].measures.last_mut()
-                        {
-                            if attr_is_yes(e, b"new-system") {
-                                m.system_break = true;
-                            }
-                            if attr_is_yes(e, b"new-page") {
-                                m.page_break = true;
-                            }
-                        }
-                    }
+                    "print" => apply_print_breaks(&mut score, part_index, e, tolerated),
                     "rest" if in_note => {
                         note_rest = true;
                         note_is_measure_rest = attr_is_yes(e, b"measure");
@@ -1250,10 +1550,15 @@ pub(crate) fn parse_musicxml_collecting(
                         metronome_dots = metronome_dots.saturating_add(1).min(4);
                     }
                     "chord" if in_note => note_chord = true,
-                    "tuplet" if in_notations => add_tuplet_boundary(
-                        &mut note_tuplet_boundary,
-                        attr_str(e, b"type").as_deref(),
-                    ),
+                    "tuplet" if in_notations => {
+                        add_tuplet_boundary(
+                            &mut note_tuplet_boundary,
+                            attr_str(e, b"type").as_deref(),
+                        );
+                        if let Some(display) = tuplet_display(e, notations_hidden) {
+                            note_tuplet_display = Some(display);
+                        }
+                    }
                     "slur" if in_note => match attr_str(e, b"type").as_deref() {
                         Some("start") => {
                             note_slur_start = true;
@@ -1362,6 +1667,9 @@ pub(crate) fn parse_musicxml_collecting(
                     "arpeggiate" if in_notations => {
                         let dir = attr_str(e, b"direction");
                         note_arpeggiate = Some(!matches!(dir.as_deref(), Some("down")));
+                        note_arpeggio_number = attr_str(e, b"number")
+                            .and_then(|n| n.parse().ok())
+                            .filter(|n| *n > 0);
                     }
                     "grace" if in_note => {
                         note_is_grace = true;
@@ -1373,7 +1681,12 @@ pub(crate) fn parse_musicxml_collecting(
                     "part-group" => {
                         let pg_type = attr_str(e, b"type").unwrap_or_default();
                         let pg_num = attr_str(e, b"number").unwrap_or_else(|| "1".to_string());
-                        if pg_type == "stop"
+                        if pg_type == "start" {
+                            open_groups.insert(
+                                pg_num.clone(),
+                                (part_list_part_count, PartGroupSymbol::None, false),
+                            );
+                        } else if pg_type == "stop"
                             && let Some((first_part, symbol, barlines_connect)) =
                                 open_groups.remove(&pg_num)
                         {
@@ -1747,8 +2060,37 @@ pub(crate) fn parse_musicxml_collecting(
                     "part" => {
                         if let Some(pi) = part_index {
                             for record in hairpin_records.drain(..) {
-                                if let Some(stop) = record.stop {
-                                    end_hairpin_by_time(&mut score.parts[pi], &record.start, stop);
+                                let end = record.end.or_else(|| {
+                                    record.stop.and_then(|stop| {
+                                        end_hairpin_by_time(
+                                            &mut score.parts[pi],
+                                            &record.start,
+                                            stop,
+                                        )
+                                    })
+                                });
+                                if let Some(end) = end {
+                                    score.spanners.push(NotationSpanner {
+                                        id: format!("musicxml-hairpin-{}", score.spanners.len()),
+                                        kind: match record.kind {
+                                            HairpinKind::Crescendo => {
+                                                NotationSpannerKind::HairpinCrescendo
+                                            }
+                                            HairpinKind::Decrescendo => {
+                                                NotationSpannerKind::HairpinDecrescendo
+                                            }
+                                        },
+                                        start: record.start,
+                                        end,
+                                        number: Some(record.number),
+                                        line_type: None,
+                                        text: None,
+                                        placement: record.above.map(|above| {
+                                            if above { "above" } else { "below" }.to_string()
+                                        }),
+                                        ottava_size: None,
+                                        ottava_type: None,
+                                    });
                                 }
                             }
                         }
@@ -1869,16 +2211,53 @@ pub(crate) fn parse_musicxml_collecting(
                         );
                         part_names.insert(
                             score_part_id.clone(),
-                            (pending_part_name.clone(), pending_part_abbreviation.clone()),
+                            (
+                                pending_part_name.clone(),
+                                pending_part_abbreviation.clone(),
+                                pending_part_name_hidden,
+                                pending_part_abbreviation_hidden,
+                            ),
                         );
                         in_score_part = false;
                     }
                     "group-symbol" if in_part_group => {
                         part_group_symbol = match current_text.trim() {
+                            "none" => PartGroupSymbol::None,
+                            "square" => PartGroupSymbol::Square,
                             "brace" => PartGroupSymbol::Brace,
                             "line" => PartGroupSymbol::Line,
                             _ => PartGroupSymbol::Bracket,
                         };
+                    }
+                    "part-symbol" => {
+                        let symbol = match current_text.trim() {
+                            "none" => PartGroupSymbol::None,
+                            "brace" => PartGroupSymbol::Brace,
+                            "line" => PartGroupSymbol::Line,
+                            "bracket" => PartGroupSymbol::Bracket,
+                            "square" => PartGroupSymbol::Square,
+                            _ => return Err(Error::Xml("invalid part-symbol value".into())),
+                        };
+                        if let (Some(pi), Some((top, bottom))) =
+                            (part_index, part_symbol_bounds.take())
+                        {
+                            let value = (symbol, top, bottom);
+                            if let Some(previous) = &part_symbols[pi] {
+                                if previous != &value {
+                                    let mut diagnostic = crate::Diagnostic::warning(
+                                        "musicxml.part-symbol-change-not-preserved",
+                                        "later part-symbol changes are not represented",
+                                    );
+                                    diagnostic.source_location = Some(format!(
+                                        "/score-partwise/part[{}]/measure[{current_measure_number}]/attributes/part-symbol",
+                                        pi + 1
+                                    ));
+                                    tolerated.push(diagnostic);
+                                }
+                            } else {
+                                part_symbols[pi] = Some(value);
+                            }
+                        }
                     }
                     "group-barline" if in_part_group => {
                         part_group_barlines = current_text.trim() == "yes";
@@ -1932,6 +2311,44 @@ pub(crate) fn parse_musicxml_collecting(
                         pending_midi_pan = pan_to_cc(current_text.trim());
                     }
                     "root" if in_harmony => in_harmony_root = false,
+                    "numeral" if in_harmony => in_harmony_numeral = false,
+                    "numeral-key" if in_harmony_numeral => in_numeral_key = false,
+                    "numeral-root" if in_harmony_numeral => {
+                        if let Some(numeral) = &mut harmony_written.numeral {
+                            numeral.root = current_text.trim().parse().unwrap_or(1);
+                        }
+                    }
+                    "numeral-alter" if in_harmony_numeral => {
+                        if let Some(numeral) = &mut harmony_written.numeral {
+                            numeral.alter = current_text
+                                .trim()
+                                .parse::<f32>()
+                                .ok()
+                                .filter(|v| v.is_finite())
+                                .unwrap_or(0.0);
+                        }
+                    }
+                    "numeral-fifths" if in_numeral_key => {
+                        if let Some(key) = harmony_written
+                            .numeral
+                            .as_mut()
+                            .and_then(|n| n.key.as_mut())
+                        {
+                            key.fifths = current_text.trim().parse().unwrap_or(0);
+                        }
+                    }
+                    "numeral-mode" if in_numeral_key => {
+                        if let Some(key) = harmony_written
+                            .numeral
+                            .as_mut()
+                            .and_then(|n| n.key.as_mut())
+                        {
+                            key.mode = current_text.trim().to_owned();
+                        }
+                    }
+                    "inversion" if in_harmony => {
+                        harmony_written.inversion = current_text.trim().parse().ok()
+                    }
                     "bass" if in_harmony => in_harmony_bass = false,
                     "degree-value" if in_harmony_degree => {
                         harmony_degree_value = current_text.trim().to_string();
@@ -1984,7 +2401,7 @@ pub(crate) fn parse_musicxml_collecting(
                     "harmony" => {
                         in_harmony = false;
                         let root = build_note_name(&harmony_root_step, harmony_root_alter);
-                        if !root.is_empty() {
+                        if !root.is_empty() || harmony_written.numeral.is_some() {
                             let bass = if harmony_bass_step.is_empty() {
                                 None
                             } else {
@@ -2000,6 +2417,9 @@ pub(crate) fn parse_musicxml_collecting(
                                 harmony_function: harmony_function.take(),
                                 harmony_type: None,
                                 chord_ref: None,
+                                written: (harmony_written
+                                    != acorde_core::WrittenHarmony::default())
+                                .then(|| Box::new(std::mem::take(&mut harmony_written))),
                                 range_end: None,
                                 degrees: std::mem::take(&mut harmony_degrees),
                             });
@@ -2075,6 +2495,7 @@ pub(crate) fn parse_musicxml_collecting(
                         }
                         if !figured_bass_text.trim().is_empty() {
                             pending_figured_texts.push(StyledText {
+                                enclosure: None,
                                 position_beats: Some(figured_bass_offset_beats),
                                 style: TextStyle::FiguredBass,
                                 text: figured_bass_text.trim().to_string(),
@@ -2155,22 +2576,27 @@ pub(crate) fn parse_musicxml_collecting(
                         };
                     }
                     "per-minute" if in_metronome => {
-                        metronome_per_minute = current_text
-                            .trim()
-                            .parse::<u16>()
-                            .ok()
-                            .filter(|bpm| *bpm > 0);
+                        metronome_per_minute = Some(current_text.trim().to_owned());
                     }
                     "metronome" if in_metronome => {
                         in_metronome = false;
                         if let (Some(beat_unit), Some(per_minute)) =
                             (metronome_beat_unit.take(), metronome_per_minute.take())
                         {
+                            let numeric = per_minute.parse::<u16>().ok().filter(|bpm| *bpm > 0);
+                            let written = (numeric.map(|n| n.to_string()).as_deref()
+                                != Some(per_minute.as_str()))
+                            .then(|| acorde_core::MetronomeText {
+                                per_minute,
+                                before: metronome_words_before.clone(),
+                                after: String::new(),
+                            });
                             pending_metronome = Some(MetronomeMark {
                                 beat_unit,
                                 beat_unit_dots: metronome_dots,
-                                per_minute,
+                                per_minute: numeric.unwrap_or(0),
                                 parentheses: metronome_parentheses,
+                                written,
                             });
                         } else {
                             tolerated.push(crate::Diagnostic::warning(
@@ -2187,21 +2613,96 @@ pub(crate) fn parse_musicxml_collecting(
                                 }
                             }
                         }
-                        if let Some(pi) = part_index
-                            && let Some(m) = score.parts[pi].staves[0].measures.last_mut()
-                        {
-                            if let Some(nav) = pending_navigation.take() {
+                        let navigation = pending_navigation.take();
+                        let has_navigation = navigation.is_some();
+                        let has_tempo =
+                            pending_sound_tempo.is_some() || pending_metronome.is_some();
+                        if let Some(pi) = part_index {
+                            if let Some(m) = score.parts[pi].staves[0].measures.last_mut() {
                                 if m.navigation.is_none() {
-                                    m.navigation = Some(nav);
+                                    m.navigation = navigation;
                                 }
-                            } else if pending_sound_tempo.is_some() {
-                                if let Some(text) = pending_tempo_text.take() {
-                                    if m.tempo_text.is_none() {
-                                        m.tempo_text = Some(text.clone());
+                                if let Some(bpm) = pending_sound_tempo.take() {
+                                    m.tempo = Some(bpm);
+                                }
+                                if let Some(mark) = pending_metronome.take() {
+                                    m.metronome_mark = Some(mark);
+                                }
+                                for mut diagram in std::mem::take(&mut pending_harp_pedal_diagrams)
+                                {
+                                    diagram.placement = pending_direction_placement.clone();
+                                    m.harp_pedal_diagrams.push(diagram);
+                                }
+                            }
+                            let staff_index = if has_tempo {
+                                // Tempo and its written mark are currently stored as one global
+                                // measure property; keep them together for MusicXML export.
+                                0
+                            } else if pending_direction_staff < score.parts[pi].staves.len() {
+                                pending_direction_staff
+                            } else {
+                                let mut diagnostic = crate::Diagnostic::warning(
+                                    "musicxml.direction-staff-out-of-range",
+                                    "direction staff does not exist; text was attached to the first staff",
+                                );
+                                diagnostic.source_location = Some(format!(
+                                    "/score-partwise/measure[{current_measure_number}]/direction/staff"
+                                ));
+                                tolerated.push(diagnostic);
+                                0
+                            };
+                            if staff_index > 0 {
+                                // A direction can precede this staff's first note. The common
+                                // case only needs the current bar; avoid rescanning prior bars.
+                                let part = &mut score.parts[pi];
+                                let primary_len = part.staves[0].measures.len();
+                                let staff_len = part.staves[staff_index].measures.len();
+                                if staff_len + 1 == primary_len {
+                                    let source = &part.staves[0].measures[primary_len - 1];
+                                    let mut measure = Measure::empty(
+                                        current_time.numerator,
+                                        current_time.denominator,
+                                    );
+                                    measure.number = source.number;
+                                    measure.actual_length = source.actual_length;
+                                    measure.time_sig = source.time_sig.clone();
+                                    measure.time_sig_hidden = source.time_sig_hidden;
+                                    measure.time_symbol = source.time_symbol;
+                                    measure.voices[0].clear();
+                                    part.staves[staff_index].measures.push(measure);
+                                } else if staff_len < primary_len {
+                                    pad_declared_staff_measures(part);
+                                }
+                            }
+                            if let Some(m) = score.parts[pi].staves[staff_index].measures.last_mut()
+                            {
+                                if !has_navigation && has_tempo {
+                                    if let Some(text) = pending_tempo_text.take() {
+                                        if m.tempo_text.is_none() {
+                                            m.tempo_text = Some(text.clone());
+                                        }
+                                        m.texts.push(StyledText {
+                                            enclosure: pending_words_enclosure.clone(),
+                                            position_beats: pending_direction_position_beats,
+                                            style: TextStyle::Generic,
+                                            text,
+                                            placement: pending_direction_placement.clone(),
+                                            offset_x: pending_direction_offset_x,
+                                            offset_y: pending_direction_offset_y,
+                                            relative_x: pending_direction_relative_x,
+                                            relative_y: pending_direction_relative_y,
+                                        });
+                                    }
+                                } else if !has_navigation
+                                    && let Some(text) = pending_expression_text.take()
+                                {
+                                    if m.expression_text.is_none() {
+                                        m.expression_text = Some(text.clone());
                                     }
                                     m.texts.push(StyledText {
+                                        enclosure: pending_words_enclosure.clone(),
                                         position_beats: pending_direction_position_beats,
-                                        style: TextStyle::Generic,
+                                        style: TextStyle::Expression,
                                         text,
                                         placement: pending_direction_placement.clone(),
                                         offset_x: pending_direction_offset_x,
@@ -2210,45 +2711,22 @@ pub(crate) fn parse_musicxml_collecting(
                                         relative_y: pending_direction_relative_y,
                                     });
                                 }
-                            } else if let Some(text) = pending_expression_text.take() {
-                                if m.expression_text.is_none() {
-                                    m.expression_text = Some(text.clone());
+                                if let Some(reh) = pending_rehearsal.take() {
+                                    if m.rehearsal.is_none() {
+                                        m.rehearsal = Some(reh.clone());
+                                    }
+                                    m.texts.push(StyledText {
+                                        enclosure: pending_rehearsal_enclosure.clone(),
+                                        position_beats: pending_direction_position_beats,
+                                        style: TextStyle::RehearsalMark,
+                                        text: reh,
+                                        placement: pending_direction_placement.clone(),
+                                        offset_x: pending_direction_offset_x,
+                                        offset_y: pending_direction_offset_y,
+                                        relative_x: pending_direction_relative_x,
+                                        relative_y: pending_direction_relative_y,
+                                    });
                                 }
-                                m.texts.push(StyledText {
-                                    position_beats: pending_direction_position_beats,
-                                    style: TextStyle::Expression,
-                                    text,
-                                    placement: pending_direction_placement.clone(),
-                                    offset_x: pending_direction_offset_x,
-                                    offset_y: pending_direction_offset_y,
-                                    relative_x: pending_direction_relative_x,
-                                    relative_y: pending_direction_relative_y,
-                                });
-                            }
-                            if let Some(reh) = pending_rehearsal.take()
-                                && m.rehearsal.is_none()
-                            {
-                                m.rehearsal = Some(reh.clone());
-                                m.texts.push(StyledText {
-                                    position_beats: pending_direction_position_beats,
-                                    style: TextStyle::RehearsalMark,
-                                    text: reh,
-                                    placement: pending_direction_placement.clone(),
-                                    offset_x: pending_direction_offset_x,
-                                    offset_y: pending_direction_offset_y,
-                                    relative_x: pending_direction_relative_x,
-                                    relative_y: pending_direction_relative_y,
-                                });
-                            }
-                            if let Some(bpm) = pending_sound_tempo.take() {
-                                m.tempo = Some(bpm);
-                            }
-                            if let Some(mark) = pending_metronome.take() {
-                                m.metronome_mark = Some(mark);
-                            }
-                            for mut diagram in std::mem::take(&mut pending_harp_pedal_diagrams) {
-                                diagram.placement = pending_direction_placement.clone();
-                                m.harp_pedal_diagrams.push(diagram);
                             }
                         }
                         if let Some(pi) = part_index {
@@ -2279,9 +2757,23 @@ pub(crate) fn parse_musicxml_collecting(
                                 pending_direction_staff,
                                 measure,
                                 pending_direction_position_beats.unwrap_or(0.0),
-                                dynamic,
+                                PlacedDynamic {
+                                    value: dynamic,
+                                    above: match pending_direction_placement.as_deref() {
+                                        Some("above") => Some(true),
+                                        Some("below") => Some(false),
+                                        _ => None,
+                                    },
+                                    components: if pending_dynamic_components.len() > 1 {
+                                        std::mem::take(&mut pending_dynamic_components)
+                                    } else {
+                                        pending_dynamic_components.clear();
+                                        Vec::new()
+                                    },
+                                },
                             ));
                         }
+                        pending_dynamic_components.clear();
                         pending_sound_tempo = None;
                         pending_metronome = None;
                         let hairpin_above = match pending_direction_placement.as_deref() {
@@ -2290,11 +2782,12 @@ pub(crate) fn parse_musicxml_collecting(
                             _ => None,
                         };
                         pending_direction_placement = None;
-                        pending_direction_position_beats = None;
                         pending_direction_offset_x = None;
                         pending_direction_offset_y = None;
                         pending_direction_relative_x = None;
                         pending_direction_relative_y = None;
+                        pending_words_enclosure = None;
+                        pending_rehearsal_enclosure = None;
                         pending_tempo_text = None;
                         pending_expression_text = None;
                         pending_rehearsal = None;
@@ -2343,8 +2836,11 @@ pub(crate) fn parse_musicxml_collecting(
                                         let latest = last_voice_notes.get(&(key.0, voice));
                                         match (part_index, latest) {
                                             (Some(pi), Some(address))
-                                                if *address != hairpin_records[record].start =>
+                                                if *address != hairpin_records[record].start
+                                                    && address.staff
+                                                        == hairpin_records[record].start.staff =>
                                             {
+                                                hairpin_records[record].end = Some(address.clone());
                                                 if let Some(note) =
                                                     note_at_mut(&mut score.parts[pi], address)
                                                 {
@@ -2359,6 +2855,7 @@ pub(crate) fn parse_musicxml_collecting(
                             }
                             None => {}
                         }
+                        pending_direction_position_beats = None;
                         pending_direction_staff = 0;
                         in_direction = false;
                     }
@@ -2384,6 +2881,19 @@ pub(crate) fn parse_musicxml_collecting(
                             if let Some(nav) = words_to_navigation(&text) {
                                 pending_navigation = Some(nav);
                             } else {
+                                if let Some(mark) = pending_metronome.as_mut() {
+                                    let written = mark.written.get_or_insert_with(|| {
+                                        acorde_core::MetronomeText {
+                                            per_minute: mark.per_minute.to_string(),
+                                            before: metronome_words_before.clone(),
+                                            after: String::new(),
+                                        }
+                                    });
+                                    if !written.after.is_empty() {
+                                        written.after.push(' ');
+                                    }
+                                    written.after.push_str(&text);
+                                }
                                 // Several <words> in one direction (often split around a
                                 // <metronome>) form one text, not last-wins.
                                 let text = match pending_expression_text.take() {
@@ -2400,13 +2910,72 @@ pub(crate) fn parse_musicxml_collecting(
                         pending_section_break = current_text.trim() == "acorde:section-break";
                     }
                     "rehearsal" if in_direction_type => {
-                        let text = current_text.trim().to_string();
-                        if !text.is_empty() {
-                            pending_rehearsal = Some(text);
+                        reader.config_mut().trim_text(true);
+                        if !current_text.is_empty() {
+                            if let Some(previous) = pending_rehearsal.as_mut() {
+                                previous.push_str(&current_text);
+                                let mut diagnostic = crate::Diagnostic::warning(
+                                    "musicxml.rehearsal-components-flattened",
+                                    "multiple rehearsal components are joined; individual formatting and positions are not preserved",
+                                );
+                                diagnostic.source_location = Some(format!(
+                                    "/score-partwise/measure[{current_measure_number}]/direction/rehearsal"
+                                ));
+                                tolerated.push(diagnostic);
+                            } else {
+                                pending_rehearsal = Some(current_text.clone());
+                            }
                         }
                     }
                     "work-title" if in_work => {
                         score.metadata.title = current_text.clone();
+                    }
+                    "work-number" if in_work => {
+                        score.metadata.work_number = current_text.clone();
+                    }
+                    "credit-type" if in_credit => credit_types.push(current_text.trim().to_owned()),
+                    "credit-words" if in_credit => {
+                        reader.config_mut().trim_text(true);
+                        credit_text.push_str(&current_text);
+                    }
+                    "credit" if in_credit => {
+                        let title_kind = credit_types
+                            .iter()
+                            .any(|kind| kind == "title" || kind == "subtitle");
+                        if title_kind
+                            && !credit_text.trim().is_empty()
+                            && (credit_page != 1
+                                || (credit_types.iter().any(|kind| kind == "title")
+                                    && !score.metadata.print_title.is_empty())
+                                || (credit_types.iter().any(|kind| kind == "subtitle")
+                                    && !score.metadata.print_subtitle.is_empty()))
+                        {
+                            let mut diagnostic = crate::Diagnostic::warning(
+                                "musicxml.additional-title-credit-not-preserved",
+                                "additional or later-page title credit is not preserved",
+                            );
+                            diagnostic.source_location = Some("/score-partwise/credit".to_string());
+                            tolerated.push(diagnostic);
+                        }
+                        if credit_page == 1 && !credit_text.trim().is_empty() {
+                            let is_title = credit_types.iter().any(|kind| kind == "title");
+                            let is_subtitle = credit_types.iter().any(|kind| kind == "subtitle");
+                            if credit_formatting_lost && (is_title || is_subtitle) {
+                                let mut diagnostic = crate::Diagnostic::warning(
+                                    "musicxml.credit-formatting-not-preserved",
+                                    "title credit text is retained, but individual formatting and positions are not preserved",
+                                );
+                                diagnostic.source_location =
+                                    Some("/score-partwise/credit/credit-words".to_string());
+                                tolerated.push(diagnostic);
+                            }
+                            if is_title && score.metadata.print_title.is_empty() {
+                                score.metadata.print_title = credit_text.trim().to_owned();
+                            } else if is_subtitle && score.metadata.print_subtitle.is_empty() {
+                                score.metadata.print_subtitle = credit_text.trim().to_owned();
+                            }
+                        }
+                        in_credit = false;
                     }
                     "movement-title" => {
                         score.metadata.movement_title = current_text.clone();
@@ -2717,6 +3286,7 @@ pub(crate) fn parse_musicxml_collecting(
                             note_lyrics.push((
                                 lyric_number,
                                 Lyric {
+                                    placement_above: lyric_placement_above.take(),
                                     text: std::mem::take(&mut lyric_text),
                                     syllabic: if lyric_syllabic.is_empty() {
                                         "single".to_string()
@@ -2728,6 +3298,7 @@ pub(crate) fn parse_musicxml_collecting(
                             ));
                         }
                         lyric_extend = false;
+                        lyric_placement_above = None;
                         lyric_syllabic = "single".to_string();
                     }
                     "offset" if in_direction => {
@@ -2832,10 +3403,9 @@ pub(crate) fn parse_musicxml_collecting(
                         let text = current_text.trim();
                         let preserved = in_direction_type && !text.is_empty();
                         if preserved {
-                            pending_expression_text = Some(match pending_expression_text.take() {
-                                Some(previous) => format!("{previous} {text}"),
-                                None => text.to_string(),
-                            });
+                            pending_dynamic_components.push(
+                                acorde_core::DynamicDirectionComponent::Text(text.to_owned()),
+                            );
                         }
                         let mut diagnostic = crate::Diagnostic::warning(
                             "musicxml.unsupported-dynamic",
@@ -2850,7 +3420,22 @@ pub(crate) fn parse_musicxml_collecting(
                         ));
                         tolerated.push(diagnostic);
                     }
-                    "dynamics" => in_dynamics = false,
+                    "dynamics" => {
+                        if in_direction_type && pending_direction_dynamic.is_none() {
+                            for component in pending_dynamic_components.drain(..) {
+                                if let acorde_core::DynamicDirectionComponent::Text(text) =
+                                    component
+                                {
+                                    pending_expression_text =
+                                        Some(match pending_expression_text.take() {
+                                            Some(previous) => format!("{previous} {text}"),
+                                            None => text,
+                                        });
+                                }
+                            }
+                        }
+                        in_dynamics = false;
+                    }
                     "staff" if in_direction && !in_note => {
                         pending_direction_staff = current_text
                             .trim()
@@ -2872,7 +3457,14 @@ pub(crate) fn parse_musicxml_collecting(
                         pending_articulations.push(Articulation::Tremolo(n));
                         pending_tremolo = false;
                     }
-                    "notations" => in_notations = false,
+                    "notations" => {
+                        if notations_hidden {
+                            pending_hidden_articulations
+                                .extend(notations_articulation_start..pending_articulations.len());
+                        }
+                        in_notations = false;
+                        notations_hidden = false;
+                    }
                     "articulations" => in_artic_block = false,
                     "ornaments" => in_ornament_block = false,
                     "technical" => in_technical_block = false,
@@ -3064,17 +3656,52 @@ pub(crate) fn parse_musicxml_collecting(
                         if let Some(pi) = part_index {
                             let requested_staff_index = note_staff.saturating_sub(1);
                             let staff_count = score.parts[pi].staves.len();
+                            // A beamed voice can begin on either staff. Keep a continuous
+                            // authored beam together even before its conventional home staff
+                            // has sounded; a backup/forward clears last_note_start.
+                            let beam_home = last_note_start.and_then(|(staff, slot, _)| {
+                                let previous = last_note_address.as_ref().and_then(|addr| {
+                                    score
+                                        .parts
+                                        .get(addr.part)?
+                                        .staves
+                                        .get(addr.staff)?
+                                        .measures
+                                        .get(addr.measure)?
+                                        .voices
+                                        .get(addr.voice)?
+                                        .get(addr.note)
+                                })?;
+                                (staff != requested_staff_index
+                                    && requested_staff_index < staff_count
+                                    && source_voice_slots.get(&(staff, note_voice)) == Some(&slot)
+                                    && voice_cursor_ticks.get(&(staff, slot))
+                                        == Some(&measure_cursor_ticks)
+                                    && matches!(
+                                        previous.beam,
+                                        acorde_core::BeamState::Begin
+                                            | acorde_core::BeamState::Continue
+                                    )
+                                    && matches!(
+                                        note_beam,
+                                        acorde_core::BeamState::Continue
+                                            | acorde_core::BeamState::End
+                                    ))
+                                .then_some(staff)
+                            });
                             let cross_home = if note_chord {
                                 last_note_cross_home
                             } else {
-                                declared_cross_staff_home(
-                                    requested_staff_index,
-                                    staff_count,
-                                    note_voice,
-                                    measure_cursor_ticks,
-                                    &source_voice_slots,
-                                    &voice_cursor_ticks,
-                                )
+                                beam_home.or_else(|| {
+                                    declared_cross_staff_home(
+                                        requested_staff_index,
+                                        staff_count,
+                                        note_voice,
+                                        measure_cursor_ticks,
+                                        &source_voice_slots,
+                                        &voice_cursor_ticks,
+                                    )
+                                })
                             };
                             let (target_staff_index, cross_target) = if let Some(home) = cross_home
                             {
@@ -3350,15 +3977,24 @@ pub(crate) fn parse_musicxml_collecting(
                                     }
                                     // MusicXML permits an ornament on any chord member;
                                     // the canonical note stores the chord as one event.
-                                    for mark in pending_articulations.drain(..) {
+                                    for (index, mark) in pending_articulations.drain(..).enumerate()
+                                    {
                                         if matches!(mark, Articulation::Tremolo(_))
                                             && !last.articulations.contains(&mark)
                                         {
+                                            if pending_hidden_articulations.contains(&index) {
+                                                last.hidden_articulations
+                                                    .push(last.articulations.len());
+                                            }
                                             last.articulations.push(mark);
                                         }
                                     }
                                     if pending_tremolo_pair.is_some() {
                                         last.tremolo_pair = pending_tremolo_pair.take();
+                                    }
+                                    if let Some(direction) = note_arpeggiate.take() {
+                                        last.arpeggiate = Some(direction);
+                                        last.arpeggio_number = note_arpeggio_number.take();
                                     }
                                     merge_musicxml_chord_note(
                                         last,
@@ -3413,22 +4049,34 @@ pub(crate) fn parse_musicxml_collecting(
                                             normal_notes,
                                         });
                                         note.tuplet_boundary = note_tuplet_boundary;
+                                        note.tuplet_display = note_tuplet_display.clone();
                                     }
-                                    let mut started_hairpin = None;
+                                    let mut started_hairpins = Vec::new();
                                     if !note.is_grace {
                                         let mut numbers = staff_hairpin_starts
                                             .keys()
-                                            .filter(|(staff, _)| *staff == target_staff_index)
-                                            .map(|(_, number)| *number)
+                                            .filter(|(staff, _)| {
+                                                *staff == target_staff_index
+                                                    || cross_target == Some(*staff)
+                                            })
+                                            .copied()
                                             .collect::<Vec<_>>();
                                         numbers.sort_unstable();
-                                        if let Some(&number) = numbers.first()
-                                            && let Some((kind, above)) = staff_hairpin_starts
-                                                .remove(&(target_staff_index, number))
-                                        {
-                                            note.hairpin_start = Some(kind);
-                                            note.hairpin_above = above;
-                                            started_hairpin = Some(number);
+                                        for (direction_staff, number) in numbers {
+                                            if let Some((kind, above)) = staff_hairpin_starts
+                                                .remove(&(direction_staff, number))
+                                            {
+                                                if note.hairpin_start.is_none() {
+                                                    note.hairpin_start = Some(kind);
+                                                    note.hairpin_above = above;
+                                                }
+                                                started_hairpins.push((
+                                                    direction_staff,
+                                                    number,
+                                                    kind,
+                                                    above,
+                                                ));
+                                            }
                                         }
                                     }
                                     if let Some(cs) = pending_chord.take() {
@@ -3447,6 +4095,7 @@ pub(crate) fn parse_musicxml_collecting(
                                     note.glissando_end = note_glissando_end;
                                     if let Some(arp) = note_arpeggiate.take() {
                                         note.arpeggiate = Some(arp);
+                                        note.arpeggio_number = note_arpeggio_number.take();
                                     }
                                     if !pending_fingerings.is_empty() {
                                         note.fingerings = std::mem::take(&mut pending_fingerings);
@@ -3496,6 +4145,8 @@ pub(crate) fn parse_musicxml_collecting(
                                     if !pending_articulations.is_empty() {
                                         note.articulations =
                                             std::mem::take(&mut pending_articulations);
+                                        note.hidden_articulations =
+                                            std::mem::take(&mut pending_hidden_articulations);
                                     }
                                     crate::assign_note_verses(
                                         &mut note,
@@ -3503,6 +4154,7 @@ pub(crate) fn parse_musicxml_collecting(
                                     );
                                     if !note.is_rest && !note.is_grace {
                                         note.dynamic = note_inline_dynamic.take();
+                                        note.dynamic_above = note_inline_dynamic_above.take();
                                     }
                                     note.hidden = note_hidden;
                                     voice.push(note);
@@ -3545,7 +4197,7 @@ pub(crate) fn parse_musicxml_collecting(
                                     last_note_start =
                                         Some((target_staff_index, voice_index, note_start));
                                     last_note_cross_home = cross_home;
-                                    if let Some(number) = started_hairpin {
+                                    for (direction_staff, number, kind, above) in started_hairpins {
                                         let record = hairpin_records.len();
                                         let start_position = (
                                             address.measure,
@@ -3555,19 +4207,23 @@ pub(crate) fn parse_musicxml_collecting(
                                         // A stop read before this start but timed after it.
                                         let early = early_hairpin_stops.iter().position(
                                             |&(staff, stop_number, position)| {
-                                                staff == target_staff_index
+                                                staff == direction_staff
                                                     && stop_number == number
                                                     && position_after(position, start_position)
                                             },
                                         );
                                         hairpin_records.push(HairpinRecord {
                                             start: address.clone(),
+                                            end: None,
+                                            kind,
+                                            number,
+                                            above,
                                             stop: early
                                                 .map(|index| early_hairpin_stops.remove(index).2),
                                         });
                                         if early.is_none() {
                                             open_hairpin_voices.insert(
-                                                (target_staff_index, number),
+                                                (direction_staff, number),
                                                 (voice_index, record),
                                             );
                                         }
@@ -3676,8 +4332,42 @@ pub(crate) fn parse_musicxml_collecting(
             tolerated.push(diagnostic);
         }
     }
-    for part in &mut score.parts {
+    for (part, symbol) in score.parts.iter_mut().zip(part_symbols) {
         pad_declared_staff_measures(part);
+        // A MusicXML barline belongs to a part's measure. A secondary staff may
+        // not have had a current measure when the barline event was read; copy
+        // the primary staff's final barlines after all staves have been padded.
+        if let Some((first, rest)) = part.staves.split_first_mut() {
+            for staff in rest {
+                for (target, source) in staff.measures.iter_mut().zip(&first.measures) {
+                    target.barline_left = source.barline_left.clone();
+                    target.barline_right = source.barline_right.clone();
+                }
+            }
+        }
+        let count = part.staves.len();
+        if let Some((symbol, top, bottom)) = symbol {
+            let first_staff = top.unwrap_or(0);
+            let last_staff = bottom.unwrap_or_else(|| count.saturating_sub(1));
+            if count == 0 || first_staff > last_staff || last_staff >= count {
+                return Err(Error::Xml(
+                    "part-symbol staff range is out of bounds".into(),
+                ));
+            }
+            part.staff_groups.push(StaffGroup {
+                first_staff,
+                last_staff,
+                symbol,
+                barlines_connect: true,
+            });
+        } else if count > 1 {
+            part.staff_groups.push(StaffGroup {
+                first_staff: 0,
+                last_staff: count - 1,
+                symbol: PartGroupSymbol::Brace,
+                barlines_connect: true,
+            });
+        }
         // The first staff's opening clef is read into its first bar; mirror it on the staff.
         if let Some(staff) = part.staves.first_mut()
             && let Some(clef) = staff
@@ -4506,6 +5196,68 @@ mod tests {
     }
 
     #[test]
+    fn simultaneous_numbered_wedges_keep_both_sides_through_roundtrip() {
+        let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>2</beats><beat-type>4</beat-type></time></attributes><direction placement="above"><direction-type><wedge type="crescendo" number="1"/></direction-type></direction><direction placement="below"><direction-type><wedge type="crescendo" number="2"/></direction-type></direction><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note><note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note><direction><direction-type><wedge type="stop" number="1"/></direction-type></direction><direction><direction-type><wedge type="stop" number="2"/></direction-type></direction></measure></part></score-partwise>"#;
+        let assert_wedges = |score: &Score| {
+            let wedges = score
+                .spanners
+                .iter()
+                .filter(|span| span.kind == NotationSpannerKind::HairpinCrescendo)
+                .collect::<Vec<_>>();
+            assert_eq!(wedges.len(), 2);
+            assert_eq!(
+                wedges.iter().map(|span| span.number).collect::<Vec<_>>(),
+                vec![Some(1), Some(2)]
+            );
+            assert_eq!(
+                wedges
+                    .iter()
+                    .map(|span| span.placement.as_deref())
+                    .collect::<Vec<_>>(),
+                vec![Some("above"), Some("below")]
+            );
+            assert!(
+                wedges
+                    .iter()
+                    .all(|span| span.start.note == 0 && span.end.note == 1)
+            );
+        };
+        let score = parse_musicxml(xml).expect("imports both wedges");
+        assert_wedges(&score);
+        let restored =
+            parse_musicxml(&crate::serialize_musicxml(&score).expect("serializes wedges"))
+                .expect("reimports wedges");
+        assert_wedges(&restored);
+    }
+
+    #[test]
+    fn wedge_on_cross_staff_beam_attaches_to_displayed_staff_note() {
+        let xml = r#"<score-partwise><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>24</divisions><staves>2</staves><time><beats>2</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>B</step><octave>2</octave></pitch><duration>4</duration><voice>1</voice><type>16th</type><stem>up</stem><staff>2</staff><beam number="1">begin</beam></note><note><pitch><step>D</step><octave>3</octave></pitch><duration>4</duration><voice>1</voice><type>16th</type><stem>up</stem><staff>1</staff><beam number="1">continue</beam></note><direction placement="below"><direction-type><wedge type="crescendo" number="1"/></direction-type><staff>1</staff></direction><note><pitch><step>C</step><octave>4</octave></pitch><duration>12</duration><voice>1</voice><type>eighth</type><stem>up</stem><staff>1</staff><beam number="1">end</beam></note><direction><direction-type><wedge type="stop" number="1"/></direction-type><staff>1</staff></direction><direction placement="below"><direction-type><wedge type="diminuendo" number="1"/></direction-type><staff>1</staff></direction><note><pitch><step>C</step><octave>4</octave></pitch><duration>8</duration><voice>1</voice><type>eighth</type><staff>1</staff></note><direction><direction-type><wedge type="stop" number="1"/></direction-type><staff>1</staff></direction></measure></part></score-partwise>"#;
+        let score = parse_musicxml(xml).expect("imports cross-staff wedges");
+        let wedges = score
+            .spanners
+            .iter()
+            .filter(|span| {
+                matches!(
+                    span.kind,
+                    NotationSpannerKind::HairpinCrescendo | NotationSpannerKind::HairpinDecrescendo
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            wedges.len(),
+            2,
+            "{wedges:?} notes={:?}",
+            score.parts[0]
+                .staves
+                .iter()
+                .map(|staff| &staff.measures[0].voices[0])
+                .collect::<Vec<_>>()
+        );
+        assert_ne!(wedges[0].start, wedges[1].start);
+    }
+
+    #[test]
     fn sparse_source_voice_numbers_use_stable_editing_slots_without_renumbering() {
         let xml = r#"<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>1</beats><beat-type>4</beat-type></time></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><type>quarter</type></note><backup><duration>1</duration></backup><note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><voice>5</voice><type>quarter</type></note></measure><measure number="2"><note><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration><voice>5</voice><type>quarter</type></note></measure></part></score-partwise>"#;
         let score = parse_musicxml(xml).expect("sparse voices parse");
@@ -4955,20 +5707,24 @@ mod tests {
 
     #[test]
     fn breath_mark_parsed_from_notations() {
-        let xml = xml_with_notations("<breath-mark/>");
-        let score = parse_musicxml(&xml).unwrap();
-        let notes = &score.parts[0].staves[0].measures[0].voices[0];
-        let note = notes.iter().find(|n| !n.is_rest).unwrap();
-        assert!(note.articulations.contains(&Articulation::BreathMark));
+        for element in ["<breath-mark/>", "<breath-mark>comma</breath-mark>"] {
+            let xml = xml_with_notations(&format!("<articulations>{element}</articulations>"));
+            let score = parse_musicxml(&xml).unwrap();
+            let notes = &score.parts[0].staves[0].measures[0].voices[0];
+            let note = notes.iter().find(|n| !n.is_rest).unwrap();
+            assert!(note.articulations.contains(&Articulation::BreathMark));
+        }
     }
 
     #[test]
     fn caesura_parsed_from_notations() {
-        let xml = xml_with_notations("<caesura/>");
-        let score = parse_musicxml(&xml).unwrap();
-        let notes = &score.parts[0].staves[0].measures[0].voices[0];
-        let note = notes.iter().find(|n| !n.is_rest).unwrap();
-        assert!(note.articulations.contains(&Articulation::Caesura));
+        for element in ["<caesura/>", "<caesura>normal</caesura>"] {
+            let xml = xml_with_notations(&format!("<articulations>{element}</articulations>"));
+            let score = parse_musicxml(&xml).unwrap();
+            let notes = &score.parts[0].staves[0].measures[0].voices[0];
+            let note = notes.iter().find(|n| !n.is_rest).unwrap();
+            assert!(note.articulations.contains(&Articulation::Caesura));
+        }
     }
 
     #[test]

@@ -1,5 +1,6 @@
-//! `cargo run -p acorde-pdf --example print_mxl -- score.mxl font.ttf output.pdf [measures-per-system] [density]`
+//! `cargo run -p acorde-pdf --example print_mxl -- score.mxl font.ttf output.pdf [measures-per-system] [density|measured] [config.json]`
 //! Plain `.musicxml` input is also accepted for same-input engraving comparisons.
+//! An explicit configuration replaces the example's configuration, including paper size.
 
 use std::path::Path;
 
@@ -9,9 +10,9 @@ use acorde_render_svg::render_print_page_svgs;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = std::env::args().collect::<Vec<_>>();
-    if !(4..=6).contains(&args.len()) {
+    if !(4..=7).contains(&args.len()) {
         return Err(
-            "usage: print_mxl INPUT.{mxl,musicxml} FONT.ttf OUTPUT.pdf [measures-per-system] [density]"
+            "usage: print_mxl INPUT.{mxl,musicxml} FONT.ttf OUTPUT.pdf [measures-per-system] [density|measured] [config.json]"
                 .into(),
         );
     }
@@ -30,12 +31,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         config.measures_per_system = measures_per_system.parse::<usize>()?.max(1);
     }
     if let Some(strategy) = args.get(5) {
-        if strategy != "density" {
-            return Err("system break strategy must be 'density'".into());
+        if strategy != "density" && strategy != "measured" {
+            return Err("system break strategy must be 'density' or 'measured'".into());
         }
         config.system_break_strategy = PrintSystemBreakStrategy::NotationDensity;
     }
-    let layout = compute_print_layout(&import.score, &config)?;
+    if let Some(path) = args.get(6) {
+        config = serde_json::from_slice(&std::fs::read(path)?)?;
+    }
+    let font = std::fs::read(&args[2])?;
+    let (layout, pages) = if args.get(5).is_some_and(|value| value == "measured") {
+        #[cfg(feature = "measured-print")]
+        {
+            let output = acorde_render_svg::engrave_print_pages(&import.score, &config, &font)?;
+            if std::env::var_os("ACORDE_PRINT_DIAGNOSTICS").is_some() {
+                eprintln!("physical measurements: {:?}", output.measurements);
+            }
+            (output.layout, output.pages)
+        }
+        #[cfg(not(feature = "measured-print"))]
+        {
+            return Err("enable the measured-print feature".into());
+        }
+    } else {
+        let layout = compute_print_layout(&import.score, &config)?;
+        let pages = render_print_page_svgs(&import.score, &layout)?;
+        (layout, pages)
+    };
     for page in &layout.pages {
         eprintln!(
             "page {}: {:?}",
@@ -46,7 +68,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .collect::<Vec<_>>()
         );
     }
-    let pages = render_print_page_svgs(&import.score, &layout)?;
     let output = Path::new(&args[3]);
     let stem = output
         .file_stem()
@@ -56,7 +77,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let page_path = output.with_file_name(format!("{stem}-page-{}.svg", index + 1));
         std::fs::write(page_path, svg)?;
     }
-    let font = std::fs::read(&args[2])?;
     let pdf = export_print_layout_pdf(&layout, &pages, &font)?;
     std::fs::write(output, pdf)?;
     eprintln!("wrote {} physical pages", pages.len());

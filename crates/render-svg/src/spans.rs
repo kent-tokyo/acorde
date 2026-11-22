@@ -15,6 +15,7 @@ use crate::render::{NoteKey, NotePoint};
 /// Conventional single-voice slurs sit opposite stems. For a lower voice,
 /// keep the slur below the staff to distinguish it from the upper voice;
 /// a single-voice phrase with mixed stem directions uses the upper side.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn slur_above(
     score: &Score,
     layout: &LayoutResult,
@@ -23,15 +24,27 @@ pub(crate) fn slur_above(
     end: &NoteAddr,
     up1: bool,
     up2: bool,
+    span_index: usize,
 ) -> bool {
+    // Different numbered slurs may share both endpoints but have opposite sides.
+    // resolve_spans appends typed slurs in their source order; retain that occurrence.
+    let occurrence = layout
+        .spans
+        .iter()
+        .take(span_index)
+        .filter(
+            |span| matches!(span, SpanMark::Slur { start: a, end: b } if a == start && b == end),
+        )
+        .count();
     if let Some(placement) = layout
         .typed_spanners
         .iter()
-        .find(|span| {
+        .filter(|span| {
             span.kind == acorde_core::NotationSpannerKind::Slur
                 && span.start == *start
                 && span.end == *end
         })
+        .nth(occurrence)
         .and_then(|span| span.placement.as_deref())
     {
         match placement {
@@ -154,9 +167,52 @@ fn has_overlapping_lower_voice(score: &Score, start: &NoteAddr, end: &NoteAddr) 
 }
 
 /// Place an authored hairpin on its chosen side; unqualified marks default below.
+pub(crate) fn hairpin_above(score: &Score, layout: &LayoutResult, span_index: usize) -> bool {
+    let Some(SpanMark::Hairpin { kind, start, end }) = layout.spans.get(span_index) else {
+        return false;
+    };
+    let rank = layout.spans[..span_index]
+        .iter()
+        .filter(|span| matches!(span, SpanMark::Hairpin { kind: other_kind, start: other_start, end: other_end }
+            if other_kind == kind && other_start == start && other_end == end))
+        .count();
+    let typed = score
+        .spanners
+        .iter()
+        .filter(|span| {
+            span.start == *start
+                && span.end == *end
+                && matches!(
+                    (&span.kind, kind),
+                    (
+                        acorde_core::NotationSpannerKind::HairpinCrescendo,
+                        acorde_core::HairpinKind::Crescendo
+                    ) | (
+                        acorde_core::NotationSpannerKind::HairpinDecrescendo,
+                        acorde_core::HairpinKind::Decrescendo
+                    )
+                )
+        })
+        .nth(rank);
+    if let Some(span) = typed {
+        return span.placement.as_deref() == Some("above");
+    }
+    score
+        .parts
+        .get(start.part)
+        .and_then(|part| part.staves.get(start.staff))
+        .and_then(|staff| staff.measures.get(start.measure))
+        .and_then(|measure| measure.voices.get(start.voice))
+        .and_then(|voice| voice.get(start.note))
+        .and_then(|note| note.hairpin_above)
+        .unwrap_or(false)
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn hairpin_baseline(
     score: &Score,
+    layout: &LayoutResult,
+    span_index: usize,
     points: &HashMap<NoteKey, NotePoint>,
     beam_tips: &HashMap<NoteKey, f32>,
     staff_bottoms: &HashMap<(usize, usize, usize), f32>,
@@ -166,20 +222,25 @@ pub(crate) fn hairpin_baseline(
     fallback_y: f32,
     space: f32,
 ) -> (f32, bool) {
-    let above = score
-        .parts
-        .get(start.part)
-        .and_then(|p| p.staves.get(start.staff))
-        .and_then(|s| s.measures.get(start.measure))
-        .and_then(|m| m.voices.get(start.voice))
-        .and_then(|v| v.get(start.note))
-        .and_then(|n| n.hairpin_above)
-        .unwrap_or(false);
+    let physical_staff = if crate::render::measured_print_active() {
+        score
+            .parts
+            .get(start.part)
+            .and_then(|p| p.staves.get(start.staff))
+            .and_then(|s| s.measures.get(start.measure))
+            .and_then(|m| m.voices.get(start.voice))
+            .and_then(|v| v.get(start.note))
+            .and_then(|n| n.cross_staff.as_ref())
+            .map_or(start.staff, |c| c.target_staff)
+    } else {
+        start.staff
+    };
+    let above = hairpin_above(score, layout, span_index);
     let mut extreme: Option<f32> = None;
     let mut beam_extreme: Option<f32> = None;
     for (&key @ (part, staff, measure, voice, note_index), &(x, y, stem_up, point_row)) in points {
         if part != start.part
-            || staff != start.staff
+            || (!crate::render::measured_print_active() && staff != start.staff)
             || point_row != row
             || x < x_range.0.min(x_range.1) - 0.5 * space
             || x > x_range.0.max(x_range.1) + 0.5 * space
@@ -187,6 +248,12 @@ pub(crate) fn hairpin_baseline(
             continue;
         }
         let note = &score.parts[part].staves[staff].measures[measure].voices[voice][note_index];
+        if crate::render::measured_print_active()
+            && (note.is_rest
+                || note.cross_staff.as_ref().map_or(staff, |c| c.target_staff) != physical_staff)
+        {
+            continue;
+        }
         let positions: Vec<_> = note
             .pitches
             .iter()
@@ -224,7 +291,7 @@ pub(crate) fn hairpin_baseline(
         }
     }
     let staff_floor = staff_bottoms
-        .get(&(start.part, start.staff, row))
+        .get(&(start.part, physical_staff, row))
         .copied()
         .unwrap_or(fallback_y);
     if above {
@@ -250,9 +317,7 @@ pub(crate) fn resolve_lane_offsets(
     points: &HashMap<NoteKey, NotePoint>,
     beam_tips: &HashMap<NoteKey, f32>,
     staff_bottoms: &HashMap<(usize, usize, usize), f32>,
-    width: f32,
-    left_margin_u: f32,
-    right_margin_u: f32,
+    row_edges: &[(f32, f32)],
     space: f32,
     resolved_annotation_obstacles: &[GlyphPlacement],
 ) -> HashMap<(usize, usize), f32> {
@@ -283,11 +348,13 @@ pub(crate) fn resolve_lane_offsets(
             continue;
         };
         let slur_side = matches!(span, SpanMark::Slur { .. })
-            .then(|| slur_above(score, layout, points, start, end, up1, up2));
+            .then(|| slur_above(score, layout, points, start, end, up1, up2, span_index));
         let mut add_segment = |row: usize, left: f32, right: f32, anchor_y: f32, stem_up: bool| {
             let (baseline, above) = if matches!(span, SpanMark::Hairpin { .. }) {
                 hairpin_baseline(
                     score,
+                    layout,
+                    span_index,
                     points,
                     beam_tips,
                     staff_bottoms,
@@ -329,8 +396,8 @@ pub(crate) fn resolve_lane_offsets(
         if row1 == row2 {
             add_segment(row1, x1, x2, (y1 + y2) / 2.0, up1 || up2);
         } else {
-            add_segment(row1, x1, width - right_margin_u * space, y1, up1);
-            add_segment(row2, left_margin_u * space, x2, y2, up2);
+            add_segment(row1, x1, row_edges[row1].1, y1, up1);
+            add_segment(row2, row_edges[row2].0, x2, y2, up2);
         }
     }
     if keys.is_empty() || owner.resolve(SVG_ANNOTATION_COLLISION_GAP_PX).is_err() {

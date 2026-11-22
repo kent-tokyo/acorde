@@ -1,6 +1,7 @@
 //! Semantic-annotation collision ownership for SVG rendering.
 
 use std::collections::HashMap;
+use std::fmt::Write as _;
 
 use acorde_core::{Articulation, Measure};
 use acorde_layout::{GlyphCollisionClass, GlyphCollisionDirection, GlyphMetrics, GlyphPlacement};
@@ -46,6 +47,8 @@ enum SemanticAnnotation<'a> {
 pub(crate) struct StaffBand {
     pub(crate) top_y: f32,
     pub(crate) bottom_y: f32,
+    pub(crate) lyric_baseline_y: Option<f32>,
+    pub(crate) lyric_above_baseline_y: Option<f32>,
 }
 
 /// Where an articulation belongs, following engraving practice: staccato, staccatissimo,
@@ -79,6 +82,8 @@ pub(crate) fn render_measure_semantic_annotations(
     lyric_char_width_u: f32,
     kinds: Kinds,
     band: StaffBand,
+    cross_bands: &HashMap<usize, StaffBand>,
+    end_anchor: (f64, f32),
 ) -> Result<Vec<GlyphPlacement>, RenderError> {
     let mut annotations = Vec::new();
     let mut owner = CollisionOwner::with_fixed_obstacles(&[]);
@@ -103,6 +108,12 @@ pub(crate) fn render_measure_semantic_annotations(
             else {
                 continue;
             };
+            let band = note
+                .cross_staff
+                .as_ref()
+                .and_then(|cross| cross_bands.get(&cross.target_staff))
+                .copied()
+                .unwrap_or(band);
             let lower_voice = active_voices > 1 && voice_idx % 2 == 1;
             // The note's highest and lowest drawn point (notehead or stem tip).
             let (note_top, note_bottom) = if note.is_rest {
@@ -119,7 +130,7 @@ pub(crate) fn render_measure_semantic_annotations(
                         note.dynamic
                             .as_ref()
                             .map(|value| value.to_musicxml_str().to_owned()),
-                        has_lyrics && !lower_voice,
+                        note.dynamic_above.unwrap_or(has_lyrics && !lower_voice),
                         1,
                     ),
                     (
@@ -147,10 +158,7 @@ pub(crate) fn render_measure_semantic_annotations(
                         x,
                         italic: true,
                     });
-                    let width = text.chars().count() as f32
-                        * crate::render::ANNOTATION_CHAR_WIDTH_U
-                        * space
-                        + 0.6 * space;
+                    let width = crate::render::annotation_text_width_u(&text) * space + 0.6 * space;
                     owner.push(
                         GlyphPlacement {
                             resource_key: format!(
@@ -159,9 +167,9 @@ pub(crate) fn render_measure_semantic_annotations(
                             metrics: GlyphMetrics {
                                 advance_mm: 0.0,
                                 left_mm: -width / 2.0,
-                                top_mm: -crate::render::ANNOTATION_FONT_SIZE_U * space,
+                                top_mm: -crate::render::annotation_font_size_u() * space,
                                 width_mm: width,
-                                height_mm: 1.25 * crate::render::ANNOTATION_FONT_SIZE_U * space,
+                                height_mm: 1.25 * crate::render::annotation_font_size_u() * space,
                             },
                             x_mm: x,
                             y_mm: y,
@@ -180,8 +188,10 @@ pub(crate) fn render_measure_semantic_annotations(
             // reaches below it), with dynamics under a lyric line moved above the staff.
             // The baseline leaves 1.8 spaces under the staff and 0.6 under the lowest note above
             // the lyric's cap height.
-            let lyric_baseline = (band.bottom_y + (1.8 + lyric_font_size_u) * space)
-                .max(note_bottom + (0.6 + lyric_font_size_u) * space);
+            let lyric_baseline = band.lyric_baseline_y.unwrap_or_else(|| {
+                (band.bottom_y + (1.8 + lyric_font_size_u) * space)
+                    .max(note_bottom + (0.6 + lyric_font_size_u) * space)
+            });
             if kinds.lyrics
                 && let Some(lyric) = &note.lyric
             {
@@ -209,11 +219,23 @@ pub(crate) fn render_measure_semantic_annotations(
                             height_mm: 1.25 * lyric_font_size_u * space,
                         },
                         x_mm: x,
-                        y_mm: lyric_baseline,
+                        y_mm: if lyric.placement_above == Some(true)
+                            && crate::render::measured_print_active()
+                        {
+                            band.lyric_above_baseline_y
+                                .unwrap_or(band.top_y - 8.0 * space)
+                        } else {
+                            lyric_baseline
+                        },
                         priority: 1,
                     },
                     GlyphCollisionClass::Annotation,
-                    GlyphCollisionDirection::Down,
+                    if lyric.placement_above == Some(true) && crate::render::measured_print_active()
+                    {
+                        GlyphCollisionDirection::Up
+                    } else {
+                        GlyphCollisionDirection::Down
+                    },
                 );
             }
             if kinds.lyrics {
@@ -232,7 +254,7 @@ pub(crate) fn render_measure_semantic_annotations(
                         lyric_char_width_u,
                     ) * space;
                     let verse_offset =
-                        crate::render::LYRIC_VERSE_SPACING * f32::from(entry.verse - 1);
+                        crate::render::lyric_verse_spacing_u() * f32::from(entry.verse - 1);
                     owner.push(
                         GlyphPlacement {
                             resource_key: format!(
@@ -247,16 +269,30 @@ pub(crate) fn render_measure_semantic_annotations(
                                 height_mm: 1.25 * lyric_font_size_u * space,
                             },
                             x_mm: x,
-                            y_mm: lyric_baseline + verse_offset * space,
+                            y_mm: if entry.lyric.placement_above == Some(true)
+                                && crate::render::measured_print_active()
+                            {
+                                band.lyric_above_baseline_y
+                                    .unwrap_or(band.top_y - 8.0 * space)
+                                    - verse_offset * space
+                            } else {
+                                lyric_baseline + verse_offset * space
+                            },
                             priority: 1,
                         },
                         GlyphCollisionClass::Annotation,
-                        GlyphCollisionDirection::Down,
+                        if entry.lyric.placement_above == Some(true)
+                            && crate::render::measured_print_active()
+                        {
+                            GlyphCollisionDirection::Up
+                        } else {
+                            GlyphCollisionDirection::Down
+                        },
                     );
                 }
             }
             if kinds.articulations {
-                for (articulation_idx, articulation) in note.articulations.iter().enumerate() {
+                for (articulation_idx, articulation) in note.visible_articulations().enumerate() {
                     if matches!(articulation, Articulation::Tremolo(_)) {
                         // Tremolo strokes cross the stem; they are not stacked with the rest.
                         crate::render::write_stem_tremolo(body, note, x, anchor_y, stem_up, space);
@@ -314,6 +350,77 @@ pub(crate) fn render_measure_semantic_annotations(
             }
         }
     }
+    if kinds.dynamics_and_chords {
+        for (index, direction) in measure.timed_dynamics.iter().enumerate() {
+            let Some(x) = crate::render::measure_text_beat_x(
+                measure,
+                part,
+                staff,
+                measure_idx,
+                direction.position_beats,
+                note_points,
+                Some(end_anchor),
+            ) else {
+                continue;
+            };
+            let above = direction.above.unwrap_or(has_lyrics);
+            let text = if direction.components.is_empty() {
+                direction.dynamic.to_musicxml_str().to_owned()
+            } else {
+                direction
+                    .components
+                    .iter()
+                    .map(|component| match component {
+                        acorde_core::DynamicDirectionComponent::Dynamic(dynamic) => {
+                            dynamic.to_musicxml_str().to_owned()
+                        }
+                        acorde_core::DynamicDirectionComponent::Text(text) => text.clone(),
+                    })
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            };
+            let y = if above {
+                band.top_y - 2.0 * space
+            } else {
+                band.bottom_y + 2.6 * space
+            };
+            let width = crate::render::annotation_text_width_u(&text) * space + 0.6 * space;
+            // A combined direction reads from its first mark at the written beat.
+            // Simple dynamic glyphs remain centered on that beat.
+            let x = if direction.components.is_empty() {
+                x
+            } else {
+                x + width / 2.0
+            };
+            annotations.push(SemanticAnnotation::Text {
+                class: "acorde-dynamic",
+                text,
+                x,
+                italic: true,
+            });
+            owner.push(
+                GlyphPlacement {
+                    resource_key: format!("timed-dynamic:{part}:{staff}:{measure_idx}:{index}"),
+                    metrics: GlyphMetrics {
+                        advance_mm: 0.0,
+                        left_mm: -width / 2.0,
+                        top_mm: -crate::render::annotation_font_size_u() * space,
+                        width_mm: width,
+                        height_mm: 1.25 * crate::render::annotation_font_size_u() * space,
+                    },
+                    x_mm: x,
+                    y_mm: y,
+                    priority: 1,
+                },
+                GlyphCollisionClass::Annotation,
+                if above {
+                    GlyphCollisionDirection::Up
+                } else {
+                    GlyphCollisionDirection::Down
+                },
+            );
+        }
+    }
     owner
         .resolve(SVG_ANNOTATION_COLLISION_GAP_PX)
         .map_err(|_| RenderError::InvalidNotePlacement {
@@ -328,6 +435,13 @@ pub(crate) fn render_measure_semantic_annotations(
                 x,
                 italic,
             } => {
+                if crate::render::measured_print_active() {
+                    let address = placement
+                        .resource_key
+                        .split_once(':')
+                        .map_or("", |(_, address)| address);
+                    let _ = write!(body, "<g data-print-note-addr=\"{address}\">");
+                }
                 // Dynamics are drawn as engraved letter shapes when every letter has one.
                 let drawn = (class == "acorde-dynamic")
                     .then(|| crate::glyphs::dynamic_mark(class, &text, x, placement.y_mm, space))
@@ -345,12 +459,42 @@ pub(crate) fn render_measure_semantic_annotations(
                         lyric_font_size_u,
                     ),
                 }
+                if crate::render::measured_print_active() {
+                    body.push_str("</g>");
+                }
             }
             SemanticAnnotation::Articulation {
                 articulation,
                 x,
                 direction,
-            } => render_articulation(body, articulation, x, placement.y_mm, direction, space),
+            } => {
+                if crate::render::measured_print_active() {
+                    let radius = if articulation_at_notehead(articulation) {
+                        0.5
+                    } else {
+                        1.2
+                    } * space;
+                    let address = placement
+                        .resource_key
+                        .split(':')
+                        .skip(1)
+                        .take(5)
+                        .collect::<Vec<_>>()
+                        .join(":");
+                    let _ = write!(
+                        body,
+                        "<g data-print-articulation=\"true\" data-print-note-addr=\"{address}\" data-part=\"{part}\" data-staff=\"{staff}\" data-measure=\"{measure_idx}\" data-print-left=\"{}\" data-print-right=\"{}\" data-print-top=\"{}\" data-print-bottom=\"{}\">",
+                        x - radius,
+                        x + radius,
+                        placement.y_mm - radius,
+                        placement.y_mm + radius
+                    );
+                }
+                render_articulation(body, articulation, x, placement.y_mm, direction, space);
+                if crate::render::measured_print_active() {
+                    body.push_str("</g>");
+                }
+            }
         }
     }
     Ok(placements)

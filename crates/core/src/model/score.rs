@@ -12,6 +12,10 @@ use crate::Error;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+fn is_false(value: &bool) -> bool {
+    !*value
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScoreMetadata {
     pub title: String,
@@ -20,6 +24,12 @@ pub struct ScoreMetadata {
     pub copyright: String,
     pub work_number: String,
     pub movement_title: String,
+    /// Authored first-page title credit, distinct from the work title.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub print_title: String,
+    /// Authored first-page subtitle credit, when a print title is supplied.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub print_subtitle: String,
 }
 
 impl Default for ScoreMetadata {
@@ -31,6 +41,30 @@ impl Default for ScoreMetadata {
             copyright: String::new(),
             work_number: String::new(),
             movement_title: String::new(),
+            print_title: String::new(),
+            print_subtitle: String::new(),
+        }
+    }
+}
+
+impl ScoreMetadata {
+    /// First-page title, falling back to the work title when no credit was authored.
+    pub fn display_title(&self) -> &str {
+        if self.print_title.trim().is_empty() {
+            &self.title
+        } else {
+            &self.print_title
+        }
+    }
+
+    /// First-page subtitle, falling back to the movement title only without a title credit.
+    pub fn display_subtitle(&self) -> &str {
+        if !self.print_subtitle.trim().is_empty() {
+            &self.print_subtitle
+        } else if self.print_title.trim().is_empty() {
+            &self.movement_title
+        } else {
+            &self.print_subtitle
         }
     }
 }
@@ -55,7 +89,9 @@ impl Default for ScoreSettings {
 /// Visual connector symbol for a group of adjacent parts.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum PartGroupSymbol {
+    None,    // no group symbol; barline grouping may still apply
     Bracket, // square bracket — orchestral strings, woodwinds
+    Square,  // square-cornered bracket
     Brace,   // curly brace — piano grand staff
     Line,    // thin vertical line
 }
@@ -336,6 +372,8 @@ pub enum NotationSpannerKind {
     TrillLine,
     Pedal,
     Ottava,
+    HairpinCrescendo,
+    HairpinDecrescendo,
     /// A dashed continuation line after a text direction ("cresc. - - -"), MusicXML
     /// `<dashes>`.
     Dashes,
@@ -457,6 +495,16 @@ impl Score {
                     !start.is_some_and(|n| n.ottava_start.is_some())
                         || !end.is_some_and(|n| n.ottava_end)
                 }
+                NotationSpannerKind::HairpinCrescendo => {
+                    !start.is_some_and(|n| {
+                        n.hairpin_start == Some(crate::model::notation::HairpinKind::Crescendo)
+                    }) || !end.is_some_and(|n| n.hairpin_end)
+                }
+                NotationSpannerKind::HairpinDecrescendo => {
+                    !start.is_some_and(|n| {
+                        n.hairpin_start == Some(crate::model::notation::HairpinKind::Decrescendo)
+                    }) || !end.is_some_and(|n| n.hairpin_end)
+                }
                 // No note flag holds dashes; consumers read the typed spanner.
                 NotationSpannerKind::Dashes => false,
             }
@@ -472,6 +520,12 @@ impl Score {
                     NotationSpannerKind::Glissando => note.glissando_start = true,
                     NotationSpannerKind::TrillLine => note.trill_line_start = true,
                     NotationSpannerKind::Pedal => note.pedal_start = true,
+                    NotationSpannerKind::HairpinCrescendo if note.hairpin_start.is_none() => {
+                        note.hairpin_start = Some(crate::model::notation::HairpinKind::Crescendo);
+                    }
+                    NotationSpannerKind::HairpinDecrescendo if note.hairpin_start.is_none() => {
+                        note.hairpin_start = Some(crate::model::notation::HairpinKind::Decrescendo);
+                    }
                     NotationSpannerKind::Ottava if note.ottava_start.is_none() => {
                         let two = spanner.ottava_size.is_some_and(|size| size >= 15);
                         // MusicXML `up` displays the notes higher: an 8vb.
@@ -483,7 +537,10 @@ impl Score {
                             (true, true) => OttavaKind::Mb15,
                         });
                     }
-                    NotationSpannerKind::Ottava | NotationSpannerKind::Dashes => {}
+                    NotationSpannerKind::Ottava
+                    | NotationSpannerKind::Dashes
+                    | NotationSpannerKind::HairpinCrescendo
+                    | NotationSpannerKind::HairpinDecrescendo => {}
                 }
             }
             if let Some(note) = score.note_at_mut(&spanner.end) {
@@ -492,6 +549,8 @@ impl Score {
                     NotationSpannerKind::Glissando => note.glissando_end = true,
                     NotationSpannerKind::TrillLine => note.trill_line_end = true,
                     NotationSpannerKind::Pedal => note.pedal_end = true,
+                    NotationSpannerKind::HairpinCrescendo
+                    | NotationSpannerKind::HairpinDecrescendo => note.hairpin_end = true,
                     NotationSpannerKind::Ottava => note.ottava_end = true,
                     NotationSpannerKind::Dashes => {}
                 }
@@ -1816,6 +1875,12 @@ pub struct Part {
     pub id: String,
     pub name: String,
     pub short_name: String,
+    /// Whether the full part name is suppressed in the source score.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub name_hidden: bool,
+    /// Whether the abbreviated part name is suppressed in the source score.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub short_name_hidden: bool,
     pub staves: Vec<Staff>,
     /// MIDI channel (0–15). Channel 9 is conventionally used for percussion.
     #[serde(default)]
@@ -1933,6 +1998,8 @@ impl Part {
             id: Uuid::new_v4().to_string(),
             name: name.to_string(),
             short_name: short_name.to_string(),
+            name_hidden: false,
+            short_name_hidden: false,
             staves: Vec::new(),
             midi_channel: 0,
             midi_program: 0,
@@ -2345,9 +2412,26 @@ pub struct MetronomeMark {
     pub beat_unit: Duration,
     #[serde(default)]
     pub beat_unit_dots: u8,
+    /// Exact positive integer when available; zero when `written` contains a textual
+    /// or empty value. This is notation, never the playback tempo.
     pub per_minute: u16,
     #[serde(default)]
     pub parentheses: bool,
+    /// Source spelling and words surrounding the beat symbol. When present, these
+    /// runs replace the corresponding merged `Measure::tempo_text` on the page.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub written: Option<MetronomeText>,
+}
+
+/// Ordered text runs in a written metronome direction. An empty `per_minute`
+/// prints only the beat symbol; a range or qualified value stays textual.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MetronomeText {
+    pub per_minute: String,
+    #[serde(default)]
+    pub before: String,
+    #[serde(default)]
+    pub after: String,
 }
 
 /// A pedal direction at a score-time position within this staff's measure.
@@ -2365,6 +2449,28 @@ pub struct TimedPedalDirection {
     /// Optional authored placement, such as "above" or "below".
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub placement: Option<String>,
+}
+
+/// One item in an ordered MusicXML dynamics group.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "value", rename_all = "snake_case")]
+pub enum DynamicDirectionComponent {
+    Dynamic(Dynamic),
+    Text(String),
+}
+
+/// A dynamic at a score-time position within a staff's measure.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TimedDynamicDirection {
+    /// Position in quarter-note beats from the start of the measure.
+    pub position_beats: f64,
+    pub dynamic: Dynamic,
+    /// Explicit above/below placement, when supplied by the source.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub above: Option<bool>,
+    /// Ordered printed components when a source direction combines multiple markings or text.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub components: Vec<DynamicDirectionComponent>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -2429,6 +2535,9 @@ pub struct Measure {
     /// Pedal signs whose score-time positions need not coincide with notes.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub timed_pedals: Vec<TimedPedalDirection>,
+    /// Dynamics whose printed positions are independent of note onsets.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub timed_dynamics: Vec<TimedDynamicDirection>,
     /// When ≥ 2, this measure is displayed as a multi-measure rest spanning N measures.
     #[serde(default)]
     pub multi_rest_count: Option<u8>,
@@ -2517,6 +2626,7 @@ impl Measure {
             harp_pedal_diagrams: Vec::new(),
             channel_switches: Vec::new(),
             timed_pedals: Vec::new(),
+            timed_dynamics: Vec::new(),
             multi_rest_count: None,
             system_break: false,
             page_break: false,
@@ -2686,10 +2796,17 @@ pub struct Note {
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub explicit_unbeamed: bool,
     pub articulations: Vec<Articulation>,
+    /// Indices of articulations retained for performance but not printed.
+    /// Out-of-range indices have no effect; editing commands keep indices aligned.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub hidden_articulations: Vec<usize>,
     /// Two-note tremolo endpoint ("start" or "stop"); absent for a single-note tremolo.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tremolo_pair: Option<String>,
     pub dynamic: Option<Dynamic>,
+    /// Authored dynamic side: true is above, false is below, None uses layout policy.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dynamic_above: Option<bool>,
     pub stem_up: Option<bool>,
     #[serde(default)]
     pub hairpin_start: Option<HairpinKind>,
@@ -2703,6 +2820,8 @@ pub struct Note {
     /// Start/stop of an authored tuplet group, independent of the rhythmic ratio.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tuplet_boundary: Option<TupletBoundary>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tuplet_display: Option<super::notation::TupletDisplay>,
     #[serde(default)]
     pub chord_symbol: Option<ChordSymbol>,
     #[serde(default)]
@@ -2730,6 +2849,9 @@ pub struct Note {
     /// Arpeggiate direction: `Some(true)` = up, `Some(false)` = down, `None` = none.
     #[serde(default)]
     pub arpeggiate: Option<bool>,
+    /// MusicXML group joining simultaneous arpeggiated chords across voices/staves.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub arpeggio_number: Option<u16>,
     /// Technique/style instruction attached to this note ("pizz.", "arco", "con sord.", etc.).
     #[serde(default)]
     pub technique_text: Option<String>,
@@ -2784,6 +2906,16 @@ pub struct GuitarBendPoint {
 }
 
 impl Note {
+    /// Articulations whose source visibility permits engraving; playback retains all marks.
+    pub fn visible_articulations(&self) -> impl Iterator<Item = &Articulation> {
+        self.articulations
+            .iter()
+            .enumerate()
+            .filter_map(|(index, mark)| {
+                (!self.hidden_articulations.contains(&index)).then_some(mark)
+            })
+    }
+
     /// Select one authored fingering candidate without changing the score.
     pub fn select_fingering(
         &self,
@@ -2832,14 +2964,17 @@ impl Note {
             beam: BeamState::None,
             explicit_unbeamed: false,
             articulations: Vec::new(),
+            hidden_articulations: Vec::new(),
             tremolo_pair: None,
             dynamic: None,
+            dynamic_above: None,
             stem_up: None,
             hairpin_start: None,
             hairpin_above: None,
             hairpin_end: false,
             tuplet: None,
             tuplet_boundary: None,
+            tuplet_display: None,
             chord_symbol: None,
             is_grace: false,
             grace_slash: false,
@@ -2852,6 +2987,7 @@ impl Note {
             slur_start: false,
             slur_end: false,
             arpeggiate: None,
+            arpeggio_number: None,
             technique_text: None,
             glissando_start: false,
             glissando_end: false,
@@ -2897,14 +3033,17 @@ impl Note {
             beam: BeamState::None,
             explicit_unbeamed: false,
             articulations: Vec::new(),
+            hidden_articulations: Vec::new(),
             tremolo_pair: None,
             dynamic: None,
+            dynamic_above: None,
             stem_up: None,
             hairpin_start: None,
             hairpin_above: None,
             hairpin_end: false,
             tuplet: None,
             tuplet_boundary: None,
+            tuplet_display: None,
             chord_symbol: None,
             is_grace: false,
             grace_slash: false,
@@ -2917,6 +3056,7 @@ impl Note {
             slur_start: false,
             slur_end: false,
             arpeggiate: None,
+            arpeggio_number: None,
             technique_text: None,
             glissando_start: false,
             glissando_end: false,
@@ -3269,6 +3409,13 @@ pub enum ScoreChange {
         old: Vec<TimedPedalDirection>,
         new: Vec<TimedPedalDirection>,
     },
+    TimedDynamicsChanged {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        old: Vec<TimedDynamicDirection>,
+        new: Vec<TimedDynamicDirection>,
+    },
     ChordDefinitionsChanged {
         old: Vec<ChordDefinition>,
         new: Vec<ChordDefinition>,
@@ -3519,6 +3666,8 @@ pub fn diff(a: &Score, b: &Score) -> Vec<ScoreChange> {
     meta!(copyright, "copyright");
     meta!(work_number, "work_number");
     meta!(movement_title, "movement_title");
+    meta!(print_title, "print_title");
+    meta!(print_subtitle, "print_subtitle");
 
     if a.settings.tempo_bpm != b.settings.tempo_bpm {
         changes.push(ScoreChange::TempoChanged {
@@ -3833,6 +3982,15 @@ pub fn diff(a: &Score, b: &Score) -> Vec<ScoreChange> {
                         new: bm.timed_pedals.clone(),
                     });
                 }
+                if am.timed_dynamics != bm.timed_dynamics {
+                    changes.push(ScoreChange::TimedDynamicsChanged {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        old: am.timed_dynamics.clone(),
+                        new: bm.timed_dynamics.clone(),
+                    });
+                }
             }
         }
     }
@@ -3863,6 +4021,9 @@ fn first_unrepresented_field_change(a: &Score, b: &Score) -> Option<String> {
 
 fn first_unrepresented_part_change(part_index: usize, a: &Part, b: &Part) -> Option<String> {
     let prefix = format!("parts[{part_index}]");
+    if a.name_hidden != b.name_hidden || a.short_name_hidden != b.short_name_hidden {
+        return Some(format!("{prefix}.name_visibility"));
+    }
     if a.named_channels != b.named_channels {
         return Some(format!("{prefix}.named_channels"));
     }
@@ -3956,6 +4117,12 @@ pub enum ScorePatch {
         staff: usize,
         measure: usize,
         value: Vec<TimedPedalDirection>,
+    },
+    SetTimedDynamics {
+        part: usize,
+        staff: usize,
+        measure: usize,
+        value: Vec<TimedDynamicDirection>,
     },
     SetChordDefinitions {
         value: Vec<ChordDefinition>,
@@ -4150,7 +4317,9 @@ fn patch_requires_replace(a: &Score, b: &Score) -> bool {
         return true;
     }
     for (ap, bp) in a.parts.iter().zip(&b.parts) {
-        if ap.percussion_instruments != bp.percussion_instruments
+        if ap.name_hidden != bp.name_hidden
+            || ap.short_name_hidden != bp.short_name_hidden
+            || ap.percussion_instruments != bp.percussion_instruments
             || ap.named_channels != bp.named_channels
             || ap.staff_groups != bp.staff_groups
             || ap.staves.len() != bp.staves.len()
@@ -4218,6 +4387,8 @@ pub fn score_patch(a: &Score, b: &Score) -> Vec<ScorePatch> {
     meta!(copyright, "copyright");
     meta!(work_number, "work_number");
     meta!(movement_title, "movement_title");
+    meta!(print_title, "print_title");
+    meta!(print_subtitle, "print_subtitle");
 
     if a.settings.tempo_bpm != b.settings.tempo_bpm {
         patches.push(ScorePatch::SetTempo {
@@ -4458,6 +4629,15 @@ pub fn score_patch(a: &Score, b: &Score) -> Vec<ScorePatch> {
                     });
                 }
 
+                if am.timed_dynamics != bm.timed_dynamics {
+                    patches.push(ScorePatch::SetTimedDynamics {
+                        part: pi,
+                        staff: si,
+                        measure: mi,
+                        value: bm.timed_dynamics.clone(),
+                    });
+                }
+
                 for vi in 0..4usize {
                     let av = &am.voices[vi];
                     let bv = &bm.voices[vi];
@@ -4603,6 +4783,23 @@ pub fn apply_patch(score: &Score, patches: &[ScorePatch]) -> Result<Score, Error
                     .get_mut(*measure)
                     .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
                     .timed_pedals = value.clone();
+            }
+            ScorePatch::SetTimedDynamics {
+                part,
+                staff,
+                measure,
+                value,
+            } => {
+                s.parts
+                    .get_mut(*part)
+                    .ok_or_else(|| Error::InvalidPatch(format!("part {part} out of range")))?
+                    .staves
+                    .get_mut(*staff)
+                    .ok_or_else(|| Error::InvalidPatch(format!("staff {staff} out of range")))?
+                    .measures
+                    .get_mut(*measure)
+                    .ok_or_else(|| Error::InvalidPatch(format!("measure {measure} out of range")))?
+                    .timed_dynamics = value.clone();
             }
             ScorePatch::SetChordDefinitions { value } => {
                 s.chord_definitions = value.clone();
@@ -4765,6 +4962,8 @@ pub fn apply_patch(score: &Score, patches: &[ScorePatch]) -> Result<Score, Error
                 "copyright" => s.metadata.copyright = value.clone(),
                 "work_number" => s.metadata.work_number = value.clone(),
                 "movement_title" => s.metadata.movement_title = value.clone(),
+                "print_title" => s.metadata.print_title = value.clone(),
+                "print_subtitle" => s.metadata.print_subtitle = value.clone(),
                 other => {
                     return Err(Error::InvalidPatch(format!(
                         "unknown metadata field: {other}"
@@ -5541,12 +5740,15 @@ fn note_content_eq(a: &Note, b: &Note) -> bool {
         && a.beam == b.beam
         && a.explicit_unbeamed == b.explicit_unbeamed
         && a.articulations == b.articulations
+        && a.hidden_articulations == b.hidden_articulations
         && a.dynamic == b.dynamic
+        && a.dynamic_above == b.dynamic_above
         && a.stem_up == b.stem_up
         && a.hairpin_start == b.hairpin_start
         && a.hairpin_above == b.hairpin_above
         && a.hairpin_end == b.hairpin_end
         && a.tuplet == b.tuplet
+        && a.tuplet_display == b.tuplet_display
         && a.chord_symbol == b.chord_symbol
         && a.is_grace == b.is_grace
         && a.grace_slash == b.grace_slash
@@ -5559,6 +5761,7 @@ fn note_content_eq(a: &Note, b: &Note) -> bool {
         && a.slur_start == b.slur_start
         && a.slur_end == b.slur_end
         && a.arpeggiate == b.arpeggiate
+        && a.arpeggio_number == b.arpeggio_number
         && a.tab_position == b.tab_position
         && a.tab_positions == b.tab_positions
         && a.guitar_technique == b.guitar_technique
@@ -6607,6 +6810,7 @@ mod tests {
             numbers: Vec::new(),
         });
         measure.texts.push(StyledText {
+            enclosure: None,
             position_beats: None,
             style: TextStyle::RehearsalMark,
             text: "A".to_string(),
@@ -6889,10 +7093,85 @@ mod tests {
     }
 
     #[test]
+    fn print_credits_survive_metadata_patches_and_old_json() {
+        let before = Score::new("Work", 120, 4, 4, 0, 1);
+        let mut after = before.clone();
+        after.metadata.print_title = "Printed title".into();
+        after.metadata.print_subtitle = "Printed subtitle".into();
+        let patched = apply_patch(&before, &score_patch(&before, &after)).unwrap();
+        assert_eq!(patched.metadata.print_title, after.metadata.print_title);
+        assert_eq!(
+            patched.metadata.print_subtitle,
+            after.metadata.print_subtitle
+        );
+        let mut old = serde_json::to_value(&before).unwrap();
+        old["metadata"]
+            .as_object_mut()
+            .unwrap()
+            .remove("print_title");
+        old["metadata"]
+            .as_object_mut()
+            .unwrap()
+            .remove("print_subtitle");
+        let decoded: Score = serde_json::from_value(old).unwrap();
+        assert_eq!(decoded.metadata.display_title(), "Work");
+        assert!(decoded.metadata.print_title.is_empty());
+    }
+
+    #[test]
+    fn part_name_visibility_uses_lossless_replacement_patch() {
+        let before = Score::new("T", 120, 4, 4, 0, 1);
+        let mut after = before.clone();
+        after.parts[0].name_hidden = true;
+        after.parts[0].short_name_hidden = true;
+        let patch = score_patch(&before, &after);
+        let result = apply_patch(&before, &patch).unwrap();
+        assert!(result.parts[0].name_hidden && result.parts[0].short_name_hidden);
+        let mut old = serde_json::to_value(&before).unwrap();
+        old["parts"][0]
+            .as_object_mut()
+            .unwrap()
+            .remove("name_hidden");
+        old["parts"][0]
+            .as_object_mut()
+            .unwrap()
+            .remove("short_name_hidden");
+        let restored: Score = serde_json::from_value(old).unwrap();
+        assert!(!restored.parts[0].name_hidden && !restored.parts[0].short_name_hidden);
+    }
+
+    #[test]
+    fn print_defaults_are_omitted_but_authored_values_round_trip() {
+        let mut score = Score::new("Work", 120, 4, 4, 0, 1);
+        let json = serde_json::to_value(&score).unwrap();
+        assert!(json["metadata"].get("print_title").is_none());
+        assert!(json["metadata"].get("print_subtitle").is_none());
+        assert!(json["parts"][0].get("name_hidden").is_none());
+        assert!(json["parts"][0].get("short_name_hidden").is_none());
+        score.metadata.print_title = "Print title".into();
+        score.metadata.print_subtitle = "Subtitle".into();
+        score.parts[0].name_hidden = true;
+        score.parts[0].short_name_hidden = true;
+        let json = serde_json::to_value(&score).unwrap();
+        assert_eq!(json["metadata"]["print_title"], "Print title");
+        assert_eq!(json["metadata"]["print_subtitle"], "Subtitle");
+        assert_eq!(json["parts"][0]["name_hidden"], true);
+        assert_eq!(json["parts"][0]["short_name_hidden"], true);
+        let decoded: Score = serde_json::from_value(json).unwrap();
+        assert_eq!(decoded.metadata.print_title, score.metadata.print_title);
+        assert_eq!(
+            decoded.metadata.print_subtitle,
+            score.metadata.print_subtitle
+        );
+        assert!(decoded.parts[0].name_hidden && decoded.parts[0].short_name_hidden);
+    }
+
+    #[test]
     fn diff_and_patch_preserve_score_level_texts() {
         let a = Score::new("T", 120, 4, 4, 0, 1);
         let mut b = a.clone();
         b.texts.push(StyledText {
+            enclosure: None,
             position_beats: None,
             style: TextStyle::Expression,
             text: "Prelude".to_string(),
@@ -7289,6 +7568,7 @@ mod tests {
         let mut b = a.clone();
         let measure = &mut b.parts[0].staves[0].measures[0];
         measure.texts.push(StyledText {
+            enclosure: None,
             position_beats: None,
             style: TextStyle::Lyrics,
             text: "la".to_string(),
@@ -7405,6 +7685,21 @@ mod tests {
     }
 
     #[test]
+    fn legacy_metronome_json_has_no_written_override() {
+        let original = MetronomeMark {
+            beat_unit: Duration::Quarter,
+            beat_unit_dots: 0,
+            per_minute: 120,
+            parentheses: false,
+            written: None,
+        };
+        let mut json = serde_json::to_value(&original).unwrap();
+        json.as_object_mut().unwrap().remove("written");
+        let restored: MetronomeMark = serde_json::from_value(json).unwrap();
+        assert_eq!(restored, original);
+    }
+
+    #[test]
     fn diff_and_patch_preserve_written_metronome_marks() {
         let a = Score::new("T", 120, 4, 4, 0, 1);
         let mut b = a.clone();
@@ -7413,6 +7708,11 @@ mod tests {
             beat_unit_dots: 0,
             per_minute: 69,
             parentheses: true,
+            written: Some(MetronomeText {
+                per_minute: "ca 69".into(),
+                before: "Moderato".into(),
+                after: String::new(),
+            }),
         });
         let changes = diff(&a, &b);
         assert!(changes.iter().any(|change| matches!(
@@ -7863,6 +8163,41 @@ mod tests {
         a.stem_up = Some(true);
         c.stem_up = Some(false);
         assert!(!note_content_eq(&a, &c));
+    }
+
+    #[test]
+    fn diff_and_patch_preserve_note_print_visibility_and_placement() {
+        let mut before = Score::new("Print metadata", 120, 4, 4, 0, 1);
+        before.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(crate::Step::C, 4), Duration::Whole)];
+        before.parts[0].staves[0].measures[0].voices[0][0]
+            .articulations
+            .push(Articulation::Staccato);
+        for field in 0..3 {
+            let mut after = before.clone();
+            let note = &mut after.parts[0].staves[0].measures[0].voices[0][0];
+            match field {
+                0 => note.hidden_articulations = vec![0],
+                1 => note.dynamic_above = Some(true),
+                _ => {
+                    note.tuplet_display = Some(crate::TupletDisplay {
+                        bracket: Some(false),
+                        number: crate::TupletNumberDisplay::None,
+                        above: None,
+                    });
+                }
+            }
+            assert!(
+                diff(&before, &after)
+                    .iter()
+                    .any(|change| matches!(change, ScoreChange::NoteModified { .. }))
+            );
+            let patched = apply_patch(&before, &score_patch(&before, &after)).unwrap();
+            assert_eq!(
+                serde_json::to_value(&patched).unwrap(),
+                serde_json::to_value(&after).unwrap()
+            );
+        }
     }
 
     #[test]

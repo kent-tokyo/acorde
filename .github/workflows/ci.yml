@@ -97,6 +97,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+      - name: Test default IO round trips
+        run: cargo test -p acorde-io --test roundtrip --locked
+      - name: Test MEI without ABC and MSCZ
+        run: cargo test -p acorde-io --test roundtrip --features mei --locked
       - name: Test ABC and MSCZ without MEI
         run: cargo test -p acorde-io --features "abc mscz" --locked
 
@@ -129,6 +133,9 @@ jobs:
   wasm:
     name: WASM build
     runs-on: ubuntu-latest
+    env:
+      CARGO_PROFILE_RELEASE_OPT_LEVEL: s
+      CARGO_PROFILE_RELEASE_LTO: thin
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
@@ -172,6 +179,21 @@ jobs:
 
       - name: Check opt-in OMR bindings for wasm32
         run: cargo check -p acorde-wasm --target wasm32-unknown-unknown --all-features --locked
+
+      - name: Test measured print in Chrome
+        run: wasm-pack test --headless --chrome crates/wasm --features measured-print
+
+      - name: Build and budget measured print profile
+        shell: bash
+        run: |
+          wasm-pack build crates/wasm --target web --release \
+            --out-dir ../../target/wasm-profiles/measured-print \
+            --features measured-print
+          size=$(stat -c%s target/wasm-profiles/measured-print/acorde_wasm_bg.wasm)
+          echo "Measured print WASM bytes: $size"
+          # Includes caller-font shaping and outline geometry. The release
+          # build uses the size-oriented Cargo settings documented in README.
+          test "$size" -le 11450000
 
       - name: Check WASM artifact budget
         shell: bash
@@ -291,6 +313,10 @@ jobs:
           # measured 7,130,353 bytes, +35,427 over the same-base #433 build.
           # The prior Linux #433 artifact was 7,169,359 bytes; this gate leaves
           # about 15 KB above its size plus the measured feature delta.
+          # Print/source-fidelity repairs on d65041b3 measured 7,338,641 bytes
+          # on Linux CI (run 43678938474). Hidden articulation visibility adds
+          # model/import/export handling. The combined print/arrangement cost
+          # must be measured on this branch before release qualification.
           # Arrangement integration (PR #442) measured 8,046,523 bytes versus
           # 7,198,793 at b12bf625: +847,730 bytes. Both are Linux CI builds
           # with Rust 1.100.0, wasm-pack 0.15.0 and the same -Oz optimization.
@@ -321,7 +347,9 @@ jobs:
           # The old 8,690,000-byte gate failed by 14,678 bytes. Set a measured
           # 8,740,000-byte gate with 35,322 bytes of headroom; receipt in
           # docs/arrangement-stage7-wasm-size.json.
-          test "$size" -le 8740000
+          # Provisional combined bound: 8,706,630 measured arrangement bytes
+          # plus 139,848 measured print increment, with 53,522 bytes of margin.
+          test "$size" -le 8900000
 
   renderer-benchmark:
     name: Renderer performance budget
@@ -367,6 +395,9 @@ jobs:
     name: Browser smoke (${{ matrix.browser }})
     # Playwright 1.55.0 does not install browsers on ubuntu-26.04.
     runs-on: ubuntu-24.04
+    env:
+      CARGO_PROFILE_RELEASE_OPT_LEVEL: s
+      CARGO_PROFILE_RELEASE_LTO: thin
     strategy:
       fail-fast: false
       matrix:
@@ -399,6 +430,9 @@ jobs:
   browser-hidpi:
     name: Browser smoke (Chromium HiDPI)
     runs-on: ubuntu-24.04
+    env:
+      CARGO_PROFILE_RELEASE_OPT_LEVEL: s
+      CARGO_PROFILE_RELEASE_LTO: thin
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable

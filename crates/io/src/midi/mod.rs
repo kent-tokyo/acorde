@@ -299,7 +299,7 @@ pub fn loss_diagnostics(data: &[u8]) -> Result<Vec<Diagnostic>, Error> {
 /// caller must decide whether to supply a bend stream or accept the rounded note-key boundary.
 pub fn export_loss_diagnostics(score: &acorde_core::Score) -> Vec<Diagnostic> {
     const MAX_DIAGNOSTICS: usize = 1_024;
-    let mut diagnostics = Vec::new();
+    let mut diagnostics = crate::report::lyric_placement_export_losses(score, "midi");
     for (part_index, part) in score.parts.iter().enumerate() {
         for (staff_index, staff) in part.staves.iter().enumerate() {
             for (measure_index, measure) in staff.measures.iter().enumerate() {
@@ -1036,6 +1036,7 @@ mod tests {
         let mut score = acorde_core::Score::new("MIDI annotations", 120, 4, 4, 0, 1);
         let note = &mut score.parts[0].staves[0].measures[0].voices[0][0];
         note.lyric = Some(acorde_core::Lyric {
+            placement_above: None,
             text: "la".to_owned(),
             syllabic: "single".to_owned(),
             extend: false,

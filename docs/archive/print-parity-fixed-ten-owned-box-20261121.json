@@ -1,0 +1,231 @@
+{
+  "classification": "development rendering; visual review pending",
+  "printer_sha256": "549114cb7766b7da5efa085d4a235d9700196815e6ebd8ff29836334a29cc0dc",
+  "font_sha256": "b97cd5005278b24aabb69b8b6ead98860955599558f6e8119483b575a5fdce98",
+  "rows": [
+    {
+      "score": "openscore_lieder_aloha_oe",
+      "source_sha256": "b195ae477a10cbaee281d9b728cac001ae1d50fe4527078ccae14092eee4936c",
+      "preparation": "reused the previously audited shared MusicXML input",
+      "shared_sha256": "9e79bc1ed711b586f0b3ab4535544b3d77d9f0633c26c7eb395d4e3671e6d921",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 3,
+        "svg_sha256": {
+          "openscore_lieder_aloha_oe-acorde-page-3.svg": "acc7781eb223b543254cc36bca72e7cc0ccaa42a2887674277398c9a041e6365",
+          "openscore_lieder_aloha_oe-acorde-page-2.svg": "f5bd4f02b0b8f991f71b48bc966c82a6f63f53a1a20c5feda65698dc3a26f1bc",
+          "openscore_lieder_aloha_oe-acorde-page-1.svg": "f9a2fac6ce393202f03a56a547ed0b25d26d6e12c8193307e40f2ed4ffe0cab7"
+        },
+        "pdf_sha256": "0f2af4a67456ae3a76bb208f20f68ccb0f9dca8c9d959ceaceee8fbe8e955b48"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 3,
+        "svg_sha256": {
+          "openscore_lieder_aloha_oe-verovio-2.svg": "854aff194b5d5024f067e175cc5e8939e9a33a66f4ab0c196cb777b4254040c5",
+          "openscore_lieder_aloha_oe-verovio-3.svg": "1b844d9c3ff571b3d82b8518a80c5d8de6bbed1600d4b5ed937c807888453f04",
+          "openscore_lieder_aloha_oe-verovio-1.svg": "f91c41ac3c323bee3cb7cfc1e87862017e7885168061fd9de789492ae8b6a506"
+        }
+      }
+    },
+    {
+      "score": "openscore_lieder_just_for_today",
+      "source_sha256": "79a19736fcce71c0acf4b39feff63723d2ff75e29285ea2ab594f9b2b6a835ff",
+      "preparation": "reused the previously audited shared MusicXML input",
+      "shared_sha256": "82e5bb47853858c554a31b38030306152b955795a3394bf6c8e05fd8957b2ef2",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 3,
+        "svg_sha256": {
+          "openscore_lieder_just_for_today-acorde-page-1.svg": "a47a6c38eb3790f9cc969ab2b2315fc71e9f0139c1f049d3b72c01b542860d45",
+          "openscore_lieder_just_for_today-acorde-page-3.svg": "4b9e73b914b9799fa6e3252dc5bb04b617f29c9c15cc772c1fb81f30c63563c5",
+          "openscore_lieder_just_for_today-acorde-page-2.svg": "247abb0a8ed995170088cabd4fcdc57c251fa5971c4e23a926253200085e94e3"
+        },
+        "pdf_sha256": "470b8421b369289956fc15abf5edfccf6242dd4b4a5b12f52bfa7e07ed80b59b"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 3,
+        "svg_sha256": {
+          "openscore_lieder_just_for_today-verovio-3.svg": "09ae1f64bfb5cfbcb7e6681b60c38eac1baa219547314d5fa4247596a2dbcc34",
+          "openscore_lieder_just_for_today-verovio-2.svg": "0639e827794217a10307a253f32352ee9eba5997bc737744b9edfba2c86d49be",
+          "openscore_lieder_just_for_today-verovio-1.svg": "5935170b6f211567221d3995d1b35a81ddf69622e162bde044aff1b59c0e819a"
+        }
+      }
+    },
+    {
+      "score": "openscore_lieder_quilter_prelude",
+      "source_sha256": "6b85a51cc92fc93f561fd07cbd553d2ac9d4e53bd403637e85bd888495af6aa4",
+      "preparation": "reused the previously audited shared MusicXML input",
+      "shared_sha256": "ef2d90f34e931b98f67fa669304b2b11efab7bd40eaa7b948f339b30e65a0991",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 1,
+        "svg_sha256": {
+          "openscore_lieder_quilter_prelude-acorde-page-1.svg": "0f14fdac12eac72943e02b1311b013fbda8db8403c1c7fd20bcdbbec9f3d9254"
+        },
+        "pdf_sha256": "016f2bb4acb57f00e8215245f84d50d37daacb31b44459db3565325e4f95fa85"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 1,
+        "svg_sha256": {
+          "openscore_lieder_quilter_prelude-verovio-1.svg": "568030723954d8a44738f74e364411fc4811d3f9ae2156c6c8d75d00431789e9"
+        }
+      }
+    },
+    {
+      "score": "openscore_lieder_webern_so_ich_traurig_bin",
+      "source_sha256": "609b32d0829c48ab9a134308d8694fd5b1ee7de89acba11f76084a32f56ca8a3",
+      "preparation": "reused the previously audited shared MusicXML input",
+      "shared_sha256": "611e3c0233c7d4ada95c6923fbb7db31fcb986babb25dec2196d45e3cc6e7263",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 2,
+        "svg_sha256": {
+          "openscore_lieder_webern_so_ich_traurig_bin-acorde-page-1.svg": "e164844384534af0817c1f48fdb2213921fbebd04e0a61d24f1d4b203eee89e0",
+          "openscore_lieder_webern_so_ich_traurig_bin-acorde-page-2.svg": "9d97ba9578653d7fb11e9ae52000a9256c897ffa8ad2f588aaf567d11582a6fc"
+        },
+        "pdf_sha256": "7a255c58494cb88be29d475d1119fe3c2400510fec641d46e3395d845cfda027"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 2,
+        "svg_sha256": {
+          "openscore_lieder_webern_so_ich_traurig_bin-verovio-1.svg": "1ef1aa3c23b59cc62d78e65ea6cbb9515b5db03cfbc128b21d204de59cc31d90",
+          "openscore_lieder_webern_so_ich_traurig_bin-verovio-2.svg": "6030f5b643ec454c0d771571c28fd0b72351ee3e1370e48ef14aa5e486a94b67"
+        }
+      }
+    },
+    {
+      "score": "openscore_omr_score_1003",
+      "source_sha256": "77ec1090af66b21a726e29d9e36e119d4a4ef112d25a4f758b5d00e8bd865711",
+      "preparation": "reused the previously audited shared MusicXML input",
+      "shared_sha256": "c3310136d683d4837ab165e4446bddd6848bcc3436c063286c5af78e7144a274",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 1,
+        "svg_sha256": {
+          "openscore_omr_score_1003-acorde-page-1.svg": "b070abf6284347d485f90aeba03b4dbfb1fec0af6b1a525845960562872fea02"
+        },
+        "pdf_sha256": "734610528408f25226fe61c08b6a342ccf8f689066dc8051bc6d3279dd23a78b"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 1,
+        "svg_sha256": {
+          "openscore_omr_score_1003-verovio-1.svg": "80c4a05df9bae22f11275905d05f5467c3f0ac0c420046a2dd612bd0322b5c7a"
+        }
+      }
+    },
+    {
+      "score": "openscore_omr_score_1016",
+      "source_sha256": "2cbfa80c4a2694b70d1646c214147e184a5baa8f2628bd7dee85b9547d062562",
+      "preparation": "reused the previously audited shared MusicXML input",
+      "shared_sha256": "6a876bd11e029ca6fac36765be8e8583959bc95c397f9dece5cbb0e49a03a46c",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 1,
+        "svg_sha256": {
+          "openscore_omr_score_1016-acorde-page-1.svg": "048e2518d6c89e5f3e368f01a577c3725d063700c9feddf5830cc833d3209d11"
+        },
+        "pdf_sha256": "fc025e29b301100c090897142268f106bb5bfdfd33d8b0c29cf5fa6021cacf4f"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 1,
+        "svg_sha256": {
+          "openscore_omr_score_1016-verovio-1.svg": "80bafaebc1decac558ac485a60bfcbce4c0eb345b28033f4a0778badef3c3911"
+        }
+      }
+    },
+    {
+      "score": "openscore_omr_score_1033",
+      "source_sha256": "5c863d3b3dd1d055aeb74e3dabe3343090277578c4b9dd14d94c988b8b1a6687",
+      "preparation": "reused the previously audited shared MusicXML input",
+      "shared_sha256": "3aca9241be50c459ff897fec07e0d63fabf9d39dad9c4a642863eb8ff9b98552",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 1,
+        "svg_sha256": {
+          "openscore_omr_score_1033-acorde-page-1.svg": "aae6a5e042e28de60f8db8c03d2155f15a3b1ce8e31effbb02b9c379a53021ea"
+        },
+        "pdf_sha256": "4dfed8b9f13433ae08406bd8958dbaffc0c06fb0422efc97a68157b649aa306b"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 1,
+        "svg_sha256": {
+          "openscore_omr_score_1033-verovio-1.svg": "79dddd5cf17ab304e4a913e6f6a8521716644d68ed9da39da0307c220e8c11bf"
+        }
+      }
+    },
+    {
+      "score": "openscore_omr_score_1035",
+      "source_sha256": "025ce7fac23a85b2b94beba67cac4005e24b5a93c10c5e78cbc7b7e4a307321f",
+      "preparation": "reused the previously audited shared MusicXML input",
+      "shared_sha256": "b03fdc01685ccb14e640150368bb4bd90c1620ad8014e4d0417cf545e695ff5a",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 1,
+        "svg_sha256": {
+          "openscore_omr_score_1035-acorde-page-1.svg": "997cbe9ff7bed59b4725c2e59562305bfa13278e406c09acc88119b867cb7fe7"
+        },
+        "pdf_sha256": "26e8b9646c56da887566090c46d73e6a648e38eb4312a43363bc131ef5d3b6ee"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 1,
+        "svg_sha256": {
+          "openscore_omr_score_1035-verovio-1.svg": "9adac6568382a731b5a7b26b7c7dd6abfeac5757ac38222cc56bc662ff641ba1"
+        }
+      }
+    },
+    {
+      "score": "openscore_omr_score_1036",
+      "source_sha256": "d8206afe80f76d6aa4d4a31c3158714edd848865aabfbe21a3917d7dbd2e005c",
+      "preparation": "reused the previously audited shared MusicXML input",
+      "shared_sha256": "a0ee7ed61b32ed2da8466703f8819521727085a414facb574a78d49ab690e525",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 2,
+        "svg_sha256": {
+          "openscore_omr_score_1036-acorde-page-1.svg": "860eec7874f8f616cd311d8bd5351794826a38efc1fe1c0bb1c9ef8b5f95ca74",
+          "openscore_omr_score_1036-acorde-page-2.svg": "cc3c2188ad1958c711007a8bba8f262b6fbb0da87e422a3fb00a566f2a3c5883"
+        },
+        "pdf_sha256": "720d65f3d90e60a02edc554c9a0502db3402a2299b968e40b9a5a310b942694f"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 2,
+        "svg_sha256": {
+          "openscore_omr_score_1036-verovio-1.svg": "abc4df68eb17fec434a92e372db663ca762ca0688dcd52a31b429fdc980e2bf0",
+          "openscore_omr_score_1036-verovio-2.svg": "d31069d416f169f33afde717be23f7296f3bc972fba448384e7e787cd26404cc"
+        }
+      }
+    },
+    {
+      "score": "freilachs_no_17",
+      "source_sha256": "35cb6480a7bb3df84995a1dc0829b24af19bf1d049a8a159eb4a52f4cc1ec696",
+      "preparation": "reused the previously audited shared MusicXML input",
+      "shared_sha256": "a9242135a3b9e9a6a4cd56b1d07a0abfd4e9b951b12a3ae1a4b107440c214d3e",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 1,
+        "svg_sha256": {
+          "freilachs_no_17-acorde-page-1.svg": "6c6a78c6b6243704c77b3652db939d1721df14ef6557f067df385e7ae928a1ea"
+        },
+        "pdf_sha256": "c28cb71e18ae6602a030bc8e4adc719d4235791f7d21e58d38b8455743426f81"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 1,
+        "svg_sha256": {
+          "freilachs_no_17-verovio-1.svg": "664c4982968c30f213c7e60000ac2465c3733b665f398e97ade3eaefabea4601"
+        }
+      }
+    }
+  ],
+  "source_commit": "966a5392 with boxed direction ownership correction",
+  "source_diff_sha256": "073319c624cf5864d55ce7e061305cf2a334b5ad6bc4749e0c5e2fcc8113f818"
+}

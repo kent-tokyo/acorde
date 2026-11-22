@@ -1,0 +1,1062 @@
+{
+  "raw_sha256": "8f2cc5584d2d0bb959d196e40662b119b71e2f895b8768dd31e887caf2375c3c",
+  "classification": "automatic screen; visual review pending",
+  "rows": [
+    {
+      "score": "piano-wq117n11",
+      "group": "piano",
+      "acorde": {
+        "pages": 1,
+        "marks": {
+          "noteheads": 254,
+          "rests": 14,
+          "slurs": 0,
+          "ties": 2,
+          "lyrics": 0,
+          "dynamics": 6,
+          "hairpins": 0,
+          "articulations": 22
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 2,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      },
+      "verovio": {
+        "pages": 1,
+        "marks": {
+          "noteheads": 254,
+          "rests": 14,
+          "slurs": 0,
+          "ties": 2,
+          "lyrics": 0,
+          "dynamics": 6,
+          "hairpins": 0,
+          "articulations": 22
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 18,
+        "text_over_notation": 0,
+        "text_over_text": 9,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      }
+    },
+    {
+      "score": "piano-wq117n12",
+      "group": "piano",
+      "acorde": {
+        "pages": 1,
+        "marks": {
+          "noteheads": 214,
+          "rests": 25,
+          "slurs": 0,
+          "ties": 3,
+          "lyrics": 0,
+          "dynamics": 0,
+          "hairpins": 0,
+          "articulations": 30
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 2,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      },
+      "verovio": {
+        "pages": 1,
+        "marks": {
+          "noteheads": 214,
+          "rests": 25,
+          "slurs": 0,
+          "ties": 3,
+          "lyrics": 0,
+          "dynamics": 0,
+          "hairpins": 0,
+          "articulations": 29
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 21,
+        "text_over_notation": 0,
+        "text_over_text": 1,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 6
+      }
+    },
+    {
+      "score": "piano-BI105-1op30-1",
+      "group": "piano",
+      "acorde": {
+        "pages": 2,
+        "marks": {
+          "noteheads": 613,
+          "rests": 52,
+          "slurs": 35,
+          "ties": 30,
+          "lyrics": 0,
+          "dynamics": 8,
+          "hairpins": 11,
+          "articulations": 60
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 4,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      },
+      "verovio": {
+        "pages": 2,
+        "marks": {
+          "noteheads": 613,
+          "rests": 52,
+          "slurs": 39,
+          "ties": 28,
+          "lyrics": 0,
+          "dynamics": 10,
+          "hairpins": 12,
+          "articulations": 55
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 34,
+        "text_over_notation": 0,
+        "text_over_text": 1,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 2
+      }
+    },
+    {
+      "score": "piano-BI115-1op33-1",
+      "group": "piano",
+      "acorde": {
+        "pages": 2,
+        "marks": {
+          "noteheads": 509,
+          "rests": 62,
+          "slurs": 57,
+          "ties": 18,
+          "lyrics": 0,
+          "dynamics": 5,
+          "hairpins": 1,
+          "articulations": 29
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 6,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      },
+      "verovio": {
+        "pages": 2,
+        "marks": {
+          "noteheads": 509,
+          "rests": 62,
+          "slurs": 58,
+          "ties": 18,
+          "lyrics": 0,
+          "dynamics": 7,
+          "hairpins": 1,
+          "articulations": 18
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 32,
+        "text_over_notation": 0,
+        "text_over_text": 6,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 8
+      }
+    },
+    {
+      "score": "piano-n02",
+      "group": "piano",
+      "acorde": {
+        "pages": 3,
+        "marks": {
+          "noteheads": 632,
+          "rests": 39,
+          "slurs": 72,
+          "ties": 10,
+          "lyrics": 0,
+          "dynamics": 8,
+          "hairpins": 12,
+          "articulations": 4
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 6,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      },
+      "verovio": {
+        "pages": 2,
+        "marks": {
+          "noteheads": 632,
+          "rests": 39,
+          "slurs": 74,
+          "ties": 10,
+          "lyrics": 0,
+          "dynamics": 8,
+          "hairpins": 12,
+          "articulations": 4
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 12,
+        "text_over_notation": 0,
+        "text_over_text": 18,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 4
+      }
+    },
+    {
+      "score": "piano-n07",
+      "group": "piano",
+      "acorde": {
+        "pages": 2,
+        "marks": {
+          "noteheads": 402,
+          "rests": 12,
+          "slurs": 44,
+          "ties": 47,
+          "lyrics": 0,
+          "dynamics": 2,
+          "hairpins": 8,
+          "articulations": 4
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 4,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      },
+      "verovio": {
+        "pages": 2,
+        "marks": {
+          "noteheads": 402,
+          "rests": 12,
+          "slurs": 48,
+          "ties": 47,
+          "lyrics": 0,
+          "dynamics": 2,
+          "hairpins": 8,
+          "articulations": 0
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 15,
+        "text_over_notation": 0,
+        "text_over_text": 7,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 7
+      }
+    },
+    {
+      "score": "vocal-lc6212179",
+      "group": "vocal",
+      "acorde": {
+        "pages": 3,
+        "marks": {
+          "noteheads": 1033,
+          "rests": 28,
+          "slurs": 8,
+          "ties": 41,
+          "lyrics": 55,
+          "dynamics": 11,
+          "hairpins": 7,
+          "articulations": 20
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 9,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      },
+      "verovio": {
+        "pages": 3,
+        "marks": {
+          "noteheads": 1033,
+          "rests": 28,
+          "slurs": 8,
+          "ties": 41,
+          "lyrics": 56,
+          "dynamics": 13,
+          "hairpins": 7,
+          "articulations": 17
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 25,
+        "text_over_notation": 6,
+        "text_over_text": 4,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 46
+      }
+    },
+    {
+      "score": "vocal-lc6302395",
+      "group": "vocal",
+      "acorde": {
+        "pages": 13,
+        "marks": {
+          "noteheads": 1785,
+          "rests": 348,
+          "slurs": 299,
+          "ties": 116,
+          "lyrics": 168,
+          "dynamics": 25,
+          "hairpins": 110,
+          "articulations": 4
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 66,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      },
+      "verovio": {
+        "pages": 8,
+        "marks": {
+          "noteheads": 1785,
+          "rests": 348,
+          "slurs": 298,
+          "ties": 124,
+          "lyrics": 172,
+          "dynamics": 40,
+          "hairpins": 112,
+          "articulations": 0
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 8,
+        "text_over_notation": 7,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 26
+      }
+    },
+    {
+      "score": "vocal-lc6260992",
+      "group": "vocal",
+      "acorde": {
+        "pages": 4,
+        "marks": {
+          "noteheads": 931,
+          "rests": 24,
+          "slurs": 49,
+          "ties": 17,
+          "lyrics": 137,
+          "dynamics": 25,
+          "hairpins": 16,
+          "articulations": 25
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 16,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      },
+      "verovio": {
+        "pages": 3,
+        "marks": {
+          "noteheads": 931,
+          "rests": 24,
+          "slurs": 49,
+          "ties": 23,
+          "lyrics": 139,
+          "dynamics": 32,
+          "hairpins": 16,
+          "articulations": 14
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 27,
+        "text_over_notation": 5,
+        "text_over_text": 6,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 14
+      }
+    },
+    {
+      "score": "vocal-lc6810863",
+      "group": "vocal",
+      "acorde": {
+        "pages": 4,
+        "marks": {
+          "noteheads": 1246,
+          "rests": 11,
+          "slurs": 16,
+          "ties": 25,
+          "lyrics": 261,
+          "dynamics": 7,
+          "hairpins": 19,
+          "articulations": 0
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 12,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      },
+      "verovio": {
+        "pages": 4,
+        "marks": {
+          "noteheads": 1246,
+          "rests": 11,
+          "slurs": 16,
+          "ties": 25,
+          "lyrics": 272,
+          "dynamics": 10,
+          "hairpins": 19,
+          "articulations": 0
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 34,
+        "text_over_notation": 1,
+        "text_over_text": 125,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 17
+      }
+    },
+    {
+      "score": "vocal-lc5093434",
+      "group": "vocal",
+      "acorde": {
+        "pages": 8,
+        "marks": {
+          "noteheads": 1198,
+          "rests": 96,
+          "slurs": 85,
+          "ties": 22,
+          "lyrics": 221,
+          "dynamics": 22,
+          "hairpins": 36,
+          "articulations": 157
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 32,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      },
+      "verovio": {
+        "pages": 5,
+        "marks": {
+          "noteheads": 1198,
+          "rests": 96,
+          "slurs": 86,
+          "ties": 20,
+          "lyrics": 223,
+          "dynamics": 28,
+          "hairpins": 36,
+          "articulations": 78
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 41,
+        "text_over_notation": 1,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 63
+      }
+    },
+    {
+      "score": "vocal-lc5133602",
+      "group": "vocal",
+      "acorde": {
+        "pages": 3,
+        "marks": {
+          "noteheads": 935,
+          "rests": 20,
+          "slurs": 22,
+          "ties": 5,
+          "lyrics": 83,
+          "dynamics": 2,
+          "hairpins": 20,
+          "articulations": 13
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 9,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      },
+      "verovio": {
+        "pages": 3,
+        "marks": {
+          "noteheads": 935,
+          "rests": 20,
+          "slurs": 23,
+          "ties": 4,
+          "lyrics": 83,
+          "dynamics": 3,
+          "hairpins": 20,
+          "articulations": 13
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 24,
+        "text_over_notation": 0,
+        "text_over_text": 1,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 23
+      }
+    },
+    {
+      "score": "chamber-sq14387632",
+      "group": "chamber",
+      "acorde": {
+        "pages": 28,
+        "marks": {
+          "noteheads": 5016,
+          "rests": 847,
+          "slurs": 912,
+          "ties": 558,
+          "lyrics": 0,
+          "dynamics": 278,
+          "hairpins": 240,
+          "articulations": 720
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 140,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      },
+      "verovio": {
+        "pages": 27,
+        "marks": {
+          "noteheads": 5016,
+          "rests": 847,
+          "slurs": 920,
+          "ties": 571,
+          "lyrics": 0,
+          "dynamics": 311,
+          "hairpins": 258,
+          "articulations": 646
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 353,
+        "text_over_notation": 26,
+        "text_over_text": 7,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 74
+      }
+    },
+    {
+      "score": "chamber-sq27571393",
+      "group": "chamber",
+      "acorde": {
+        "pages": 18,
+        "marks": {
+          "noteheads": 3486,
+          "rests": 348,
+          "slurs": 844,
+          "ties": 20,
+          "lyrics": 0,
+          "dynamics": 165,
+          "hairpins": 9,
+          "articulations": 823
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 90,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      },
+      "verovio": {
+        "pages": 16,
+        "marks": {
+          "noteheads": 3486,
+          "rests": 348,
+          "slurs": 844,
+          "ties": 22,
+          "lyrics": 0,
+          "dynamics": 176,
+          "hairpins": 9,
+          "articulations": 795
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 197,
+        "text_over_notation": 2,
+        "text_over_text": 4,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 17
+      }
+    },
+    {
+      "score": "chamber-sq7551068",
+      "group": "chamber",
+      "acorde": {
+        "pages": 20,
+        "marks": {
+          "noteheads": 3810,
+          "rests": 410,
+          "slurs": 673,
+          "ties": 70,
+          "lyrics": 0,
+          "dynamics": 205,
+          "hairpins": 139,
+          "articulations": 294
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 100,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      },
+      "verovio": {
+        "pages": 15,
+        "marks": {
+          "noteheads": 3810,
+          "rests": 410,
+          "slurs": 681,
+          "ties": 70,
+          "lyrics": 0,
+          "dynamics": 253,
+          "hairpins": 144,
+          "articulations": 269
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 204,
+        "text_over_notation": 13,
+        "text_over_text": 6,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 98
+      }
+    },
+    {
+      "score": "chamber-sq8437358",
+      "group": "chamber",
+      "acorde": {
+        "pages": 16,
+        "marks": {
+          "noteheads": 3211,
+          "rests": 275,
+          "slurs": 436,
+          "ties": 51,
+          "lyrics": 0,
+          "dynamics": 147,
+          "hairpins": 9,
+          "articulations": 292
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 81,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      },
+      "verovio": {
+        "pages": 14,
+        "marks": {
+          "noteheads": 3211,
+          "rests": 275,
+          "slurs": 436,
+          "ties": 52,
+          "lyrics": 0,
+          "dynamics": 148,
+          "hairpins": 9,
+          "articulations": 219
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 184,
+        "text_over_notation": 1,
+        "text_over_text": 2,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 2
+      }
+    },
+    {
+      "score": "chamber-sq7648382",
+      "group": "chamber",
+      "acorde": {
+        "pages": 23,
+        "marks": {
+          "noteheads": 4336,
+          "rests": 393,
+          "slurs": 333,
+          "ties": 197,
+          "lyrics": 0,
+          "dynamics": 230,
+          "hairpins": 147,
+          "articulations": 519
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 115,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      },
+      "verovio": {
+        "pages": 21,
+        "marks": {
+          "noteheads": 4336,
+          "rests": 393,
+          "slurs": 334,
+          "ties": 200,
+          "lyrics": 0,
+          "dynamics": 265,
+          "hairpins": 149,
+          "articulations": 424
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 262,
+        "text_over_notation": 15,
+        "text_over_text": 2,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 27
+      }
+    },
+    {
+      "score": "chamber-sq8812200",
+      "group": "chamber",
+      "acorde": {
+        "pages": 36,
+        "marks": {
+          "noteheads": 6397,
+          "rests": 1453,
+          "slurs": 521,
+          "ties": 465,
+          "lyrics": 0,
+          "dynamics": 431,
+          "hairpins": 276,
+          "articulations": 929
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 180,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      },
+      "verovio": {
+        "pages": 25,
+        "marks": {
+          "noteheads": 6397,
+          "rests": 1453,
+          "slurs": 513,
+          "ties": 448,
+          "lyrics": 0,
+          "dynamics": 496,
+          "hairpins": 273,
+          "articulations": 759
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 334,
+        "text_over_notation": 61,
+        "text_over_text": 5,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 62
+      }
+    },
+    {
+      "score": "part-sq27449398",
+      "group": "part",
+      "acorde": {
+        "pages": 6,
+        "marks": {
+          "noteheads": 1120,
+          "rests": 265,
+          "slurs": 101,
+          "ties": 37,
+          "lyrics": 0,
+          "dynamics": 68,
+          "hairpins": 0,
+          "articulations": 251
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 12,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      },
+      "verovio": {
+        "pages": 5,
+        "marks": {
+          "noteheads": 1120,
+          "rests": 234,
+          "slurs": 100,
+          "ties": 34,
+          "lyrics": 0,
+          "dynamics": 79,
+          "hairpins": 0,
+          "articulations": 235
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 73,
+        "text_over_notation": 0,
+        "text_over_text": 1,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 7
+      }
+    },
+    {
+      "score": "part-sq12701461",
+      "group": "part",
+      "acorde": {
+        "pages": 5,
+        "marks": {
+          "noteheads": 1268,
+          "rests": 278,
+          "slurs": 68,
+          "ties": 5,
+          "lyrics": 0,
+          "dynamics": 50,
+          "hairpins": 3,
+          "articulations": 491
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 10,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      },
+      "verovio": {
+        "pages": 6,
+        "marks": {
+          "noteheads": 1268,
+          "rests": 249,
+          "slurs": 70,
+          "ties": 6,
+          "lyrics": 0,
+          "dynamics": 53,
+          "hairpins": 3,
+          "articulations": 448
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 90,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 6
+      }
+    },
+    {
+      "score": "part-sq15230467",
+      "group": "part",
+      "acorde": {
+        "pages": 5,
+        "marks": {
+          "noteheads": 1303,
+          "rests": 116,
+          "slurs": 146,
+          "ties": 12,
+          "lyrics": 0,
+          "dynamics": 24,
+          "hairpins": 0,
+          "articulations": 124
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 10,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      },
+      "verovio": {
+        "pages": 5,
+        "marks": {
+          "noteheads": 1303,
+          "rests": 105,
+          "slurs": 147,
+          "ties": 12,
+          "lyrics": 0,
+          "dynamics": 24,
+          "hairpins": 0,
+          "articulations": 107
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 71,
+        "text_over_notation": 0,
+        "text_over_text": 6,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      }
+    },
+    {
+      "score": "part-sq9146376",
+      "group": "part",
+      "acorde": {
+        "pages": 5,
+        "marks": {
+          "noteheads": 1228,
+          "rests": 229,
+          "slurs": 132,
+          "ties": 79,
+          "lyrics": 0,
+          "dynamics": 47,
+          "hairpins": 4,
+          "articulations": 291
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 10,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      },
+      "verovio": {
+        "pages": 5,
+        "marks": {
+          "noteheads": 1228,
+          "rests": 218,
+          "slurs": 133,
+          "ties": 76,
+          "lyrics": 0,
+          "dynamics": 49,
+          "hairpins": 4,
+          "articulations": 290
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 72,
+        "text_over_notation": 0,
+        "text_over_text": 1,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 2
+      }
+    },
+    {
+      "score": "part-sq7070319",
+      "group": "part",
+      "acorde": {
+        "pages": 3,
+        "marks": {
+          "noteheads": 293,
+          "rests": 45,
+          "slurs": 54,
+          "ties": 18,
+          "lyrics": 0,
+          "dynamics": 17,
+          "hairpins": 16,
+          "articulations": 29
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 6,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      },
+      "verovio": {
+        "pages": 2,
+        "marks": {
+          "noteheads": 293,
+          "rests": 34,
+          "slurs": 57,
+          "ties": 19,
+          "lyrics": 0,
+          "dynamics": 23,
+          "hairpins": 17,
+          "articulations": 27
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 32,
+        "text_over_notation": 0,
+        "text_over_text": 5,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 3
+      }
+    },
+    {
+      "score": "part-sq24409123",
+      "group": "part",
+      "acorde": {
+        "pages": 2,
+        "marks": {
+          "noteheads": 390,
+          "rests": 59,
+          "slurs": 40,
+          "ties": 4,
+          "lyrics": 0,
+          "dynamics": 32,
+          "hairpins": 29,
+          "articulations": 60
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 4,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      },
+      "verovio": {
+        "pages": 2,
+        "marks": {
+          "noteheads": 388,
+          "rests": 59,
+          "slurs": 40,
+          "ties": 4,
+          "lyrics": 0,
+          "dynamics": 34,
+          "hairpins": 29,
+          "articulations": 52
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 25,
+        "text_over_notation": 0,
+        "text_over_text": 2,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 6
+      }
+    }
+  ]
+}

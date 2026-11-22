@@ -23,6 +23,13 @@ fn serialize_musicxml_inner(
     score: &Score,
     auto_beam_unmarked_voices: bool,
 ) -> Result<String, Error> {
+    for part in &score.parts {
+        if part.staff_groups.iter().any(|group| {
+            group.first_staff > group.last_staff || group.last_staff >= part.staves.len()
+        }) {
+            return Err(Error::Xml("staff group range is out of bounds".into()));
+        }
+    }
     for styled in score
         .parts
         .iter()
@@ -41,6 +48,12 @@ fn serialize_musicxml_inner(
     xml.push_str("<score-partwise version=\"4.0\">\n");
 
     xml.push_str("  <work>\n");
+    if !score.metadata.work_number.is_empty() {
+        xml.push_str(&format!(
+            "    <work-number>{}</work-number>\n",
+            escape_xml(&score.metadata.work_number)
+        ));
+    }
     xml.push_str(&format!(
         "    <work-title>{}</work-title>\n",
         escape_xml(&score.metadata.title)
@@ -79,6 +92,15 @@ fn serialize_musicxml_inner(
         xml.push_str("  </identification>\n");
     }
 
+    for (kind, text) in [
+        ("title", &score.metadata.print_title),
+        ("subtitle", &score.metadata.print_subtitle),
+    ] {
+        if !text.is_empty() {
+            xml.push_str(&format!("  <credit page=\"1\"><credit-type>{kind}</credit-type><credit-words>{}</credit-words></credit>\n", escape_xml(text)));
+        }
+    }
+
     xml.push_str("  <part-list>\n");
     // Assign a stable 1-based number to each group in declaration order.
     let numbered_groups: Vec<(&PartGroup, u32)> = score
@@ -93,6 +115,8 @@ fn serialize_musicxml_inner(
         for (g, n) in &numbered_groups {
             if g.first_part == pi {
                 let sym = match g.symbol {
+                    PartGroupSymbol::None => "none",
+                    PartGroupSymbol::Square => "square",
                     PartGroupSymbol::Brace => "brace",
                     PartGroupSymbol::Line => "line",
                     PartGroupSymbol::Bracket => "bracket",
@@ -110,12 +134,22 @@ fn serialize_musicxml_inner(
             escape_xml(&musicxml_part_id(&part.id))
         ));
         xml.push_str(&format!(
-            "      <part-name>{}</part-name>\n",
+            "      <part-name{}>{}</part-name>\n",
+            if part.name_hidden {
+                " print-object=\"no\""
+            } else {
+                ""
+            },
             escape_xml(&part.name)
         ));
         if !part.short_name.is_empty() {
             xml.push_str(&format!(
-                "      <part-abbreviation>{}</part-abbreviation>\n",
+                "      <part-abbreviation{}>{}</part-abbreviation>\n",
+                if part.short_name_hidden {
+                    " print-object=\"no\""
+                } else {
+                    ""
+                },
                 escape_xml(&part.short_name)
             ));
         }
@@ -229,14 +263,17 @@ fn serialize_musicxml_inner(
                 measure.number
             ));
 
-            // System / page break (written before barlines, as a print element)
-            if measure.system_break || measure.page_break {
-                let ns = if measure.system_break {
+            // MusicXML starts a new system/page at this measure; the model
+            // records that boundary on the preceding measure.
+            if let Some(previous) = i.checked_sub(1).and_then(|index| staff.measures.get(index))
+                && (previous.system_break || previous.page_break)
+            {
+                let ns = if previous.system_break {
                     " new-system=\"yes\""
                 } else {
                     ""
                 };
-                let np = if measure.page_break {
+                let np = if previous.page_break {
                     " new-page=\"yes\""
                 } else {
                     ""
@@ -351,6 +388,18 @@ fn serialize_musicxml_inner(
                     // Declare every canonical staff, including an empty one, so the staff
                     // count and note staff ownership survive a MusicXML round-trip.
                     xml.push_str(&format!("        <staves>{}</staves>\n", part.staves.len()));
+                }
+                if i == 0
+                    && let Some(group) = part.staff_groups.first()
+                {
+                    let symbol = match group.symbol {
+                        PartGroupSymbol::None => "none",
+                        PartGroupSymbol::Brace => "brace",
+                        PartGroupSymbol::Line => "line",
+                        PartGroupSymbol::Bracket => "bracket",
+                        PartGroupSymbol::Square => "square",
+                    };
+                    xml.push_str(&format!("        <part-symbol top-staff=\"{}\" bottom-staff=\"{}\">{symbol}</part-symbol>\n", group.first_staff + 1, group.last_staff + 1));
                 }
                 if i == 0 || measure.clef.is_some() {
                     let clef = measure.clef.as_ref().unwrap_or(&staff.clef);
@@ -667,6 +716,45 @@ fn serialize_musicxml_inner(
                 xml.push_str("      </figured-bass>\n");
             }
 
+            // A timed dynamic may occur during a sustained note or rest.
+            for (staff_index, staff) in part.staves.iter().enumerate() {
+                if let Some(measure) = staff.measures.get(i) {
+                    for direction in &measure.timed_dynamics {
+                        if !direction.position_beats.is_finite() || direction.position_beats < 0.0 {
+                            continue;
+                        }
+                        let placement = match direction.above {
+                            Some(true) => " placement=\"above\"",
+                            Some(false) => " placement=\"below\"",
+                            None => "",
+                        };
+                        let offset =
+                            (direction.position_beats * f64::from(DIVISIONS)).round() as u64;
+                        xml.push_str(&format!(
+                            "      <direction{placement}><direction-type><dynamics>"
+                        ));
+                        if direction.components.is_empty() {
+                            xml.push_str(&format!("<{}/>", direction.dynamic.to_musicxml_str()));
+                        } else {
+                            for component in &direction.components {
+                                match component {
+                                    acorde_core::DynamicDirectionComponent::Dynamic(dynamic) => {
+                                        xml.push_str(&format!("<{}/>", dynamic.to_musicxml_str()));
+                                    }
+                                    acorde_core::DynamicDirectionComponent::Text(text) => {
+                                        xml.push_str(&format!(
+                                            "<other-dynamics>{}</other-dynamics>",
+                                            escape_xml(text)
+                                        ));
+                                    }
+                                }
+                            }
+                        }
+                        xml.push_str(&format!("</dynamics></direction-type><offset>{offset}</offset><staff>{}</staff></direction>\n", staff_index + 1));
+                    }
+                }
+            }
+
             // These directions are emitted at the measure cursor origin; offset preserves
             // their independent score-time position even when it falls inside a note.
             for (staff_index, event_index, direction) in
@@ -777,6 +865,13 @@ fn serialize_musicxml_inner(
                 xml.push_str("</words></direction-type>");
                 xml.push_str(&styled_text_offset_xml(Some(styled)));
                 xml.push_str("</direction>\n");
+            }
+
+            // Text on later staves must be emitted while the measure cursor is still at zero.
+            for (staff_index, extra_staff) in part.staves.iter().enumerate().skip(1) {
+                if let Some(extra_measure) = extra_staff.measures.get(i) {
+                    write_extra_staff_measure_text(&mut xml, extra_measure, staff_index + 1);
+                }
             }
 
             // Emit each populated voice in stable model order. MusicXML advances one shared
@@ -1105,25 +1200,58 @@ fn serialize_note(
             xml.push_str(&format!(" placement=\"{}\"", escape_xml(placement)));
         }
         xml.push_str(">\n");
-        xml.push_str("        <root>\n");
-        xml.push_str(&format!(
-            "          <root-step>{}</root-step>\n",
-            escape_xml(root_step)
-        ));
-        if root_alter != 0 {
-            xml.push_str(&format!(
-                "          <root-alter>{}</root-alter>\n",
-                root_alter
-            ));
+        let written = cs.written.as_ref();
+        if let Some(numeral) = written.and_then(|w| w.numeral.as_ref()) {
+            xml.push_str("        <numeral>\n          <numeral-root");
+            if let Some(text) = &numeral.text {
+                xml.push_str(&format!(" text=\"{}\"", escape_xml(text)));
+            }
+            xml.push_str(&format!(">{}</numeral-root>\n", numeral.root));
+            if numeral.alter != 0.0 {
+                xml.push_str(&format!(
+                    "          <numeral-alter>{}</numeral-alter>\n",
+                    numeral.alter
+                ));
+            }
+            if let Some(key) = &numeral.key {
+                xml.push_str(&format!("          <numeral-key><numeral-fifths>{}</numeral-fifths><numeral-mode>{}</numeral-mode></numeral-key>\n", key.fifths, escape_xml(&key.mode)));
+            }
+            xml.push_str("        </numeral>\n");
+        } else {
+            xml.push_str("        <root>\n          <root-step");
+            if let Some(text) = written.and_then(|w| w.root_text.as_ref()) {
+                xml.push_str(&format!(" text=\"{}\"", escape_xml(text)));
+            }
+            xml.push_str(&format!(">{}</root-step>\n", escape_xml(root_step)));
+            if root_alter != 0 {
+                xml.push_str(&format!(
+                    "          <root-alter>{}</root-alter>\n",
+                    root_alter
+                ));
+            }
+            xml.push_str("        </root>\n");
         }
-        xml.push_str("        </root>\n");
-        match cs.kind.as_str() {
-            "major-add9" => xml.push_str("        <kind text=\"add9\">other</kind>\n"),
-            "minor-add9" => xml.push_str("        <kind text=\"madd9\">other</kind>\n"),
-            _ => xml.push_str(&format!(
-                "        <kind>{}</kind>\n",
-                escape_xml(&musicxml_harmony_kind(&cs.kind))
-            )),
+        xml.push_str("        <kind");
+        let kind_text = written
+            .and_then(|w| w.kind_text.as_deref())
+            .or(match cs.kind.as_str() {
+                "major-add9" => Some("add9"),
+                "minor-add9" => Some("madd9"),
+                _ => None,
+            });
+        if let Some(text) = kind_text {
+            xml.push_str(&format!(" text=\"{}\"", escape_xml(text)));
+        }
+        xml.push_str(&format!(
+            ">{}</kind>\n",
+            escape_xml(&musicxml_harmony_kind(&cs.kind))
+        ));
+        if let Some(inversion) = written.and_then(|w| w.inversion) {
+            xml.push_str("        <inversion");
+            if let Some(text) = written.and_then(|w| w.inversion_text.as_ref()) {
+                xml.push_str(&format!(" text=\"{}\"", escape_xml(text)));
+            }
+            xml.push_str(&format!(">{inversion}</inversion>\n"));
         }
         if let Some(function) = &cs.harmony_function {
             xml.push_str(&format!(
@@ -1173,7 +1301,11 @@ fn serialize_note(
 
     // Dynamic
     if let Some(dyn_val) = &note.dynamic {
-        xml.push_str("      <direction placement=\"below\">\n");
+        xml.push_str(match note.dynamic_above {
+            Some(true) => "      <direction placement=\"above\">\n",
+            Some(false) => "      <direction placement=\"below\">\n",
+            None => "      <direction>\n",
+        });
         xml.push_str("        <direction-type>\n");
         xml.push_str(&format!(
             "          <dynamics><{}/></dynamics>\n",
@@ -1198,7 +1330,10 @@ fn serialize_note(
     );
 
     // Hairpin start
-    if let Some(hp) = &note.hairpin_start {
+    if let Some(hp) = &note.hairpin_start
+        && !has_typed_endpoint(NotationSpannerKind::HairpinCrescendo)
+        && !has_typed_endpoint(NotationSpannerKind::HairpinDecrescendo)
+    {
         let wedge_type = match hp {
             HairpinKind::Crescendo => "crescendo",
             HairpinKind::Decrescendo => "diminuendo",
@@ -1441,7 +1576,12 @@ fn serialize_note(
                 .map(|entry| (entry.verse, &entry.lyric)),
         );
         for (verse, lyric) in verses {
-            xml.push_str(&format!("        <lyric number=\"{verse}\">\n"));
+            let placement = match lyric.placement_above {
+                Some(true) => " placement=\"above\"",
+                Some(false) => " placement=\"below\"",
+                None => "",
+            };
+            xml.push_str(&format!("        <lyric number=\"{verse}\"{placement}>\n"));
             xml.push_str(&format!(
                 "          <syllabic>{}</syllabic>\n",
                 escape_xml(&lyric.syllabic)
@@ -1528,7 +1668,10 @@ fn serialize_note(
     }
 
     // Hairpin stop
-    if note.hairpin_end {
+    if note.hairpin_end
+        && !has_typed_endpoint(NotationSpannerKind::HairpinCrescendo)
+        && !has_typed_endpoint(NotationSpannerKind::HairpinDecrescendo)
+    {
         xml.push_str("      <direction placement=\"below\">\n");
         xml.push_str("        <direction-type>\n");
         xml.push_str("          <wedge type=\"stop\"/>\n");
@@ -1829,6 +1972,29 @@ fn serialize_typed_direction_spanners(
         };
         let number = spanner.number.unwrap_or(1);
         match spanner.kind {
+            NotationSpannerKind::HairpinCrescendo | NotationSpannerKind::HairpinDecrescendo => {
+                let wedge_type = if endpoint == "stop" {
+                    "stop"
+                } else if spanner.kind == NotationSpannerKind::HairpinCrescendo {
+                    "crescendo"
+                } else {
+                    "diminuendo"
+                };
+                let placement = spanner
+                    .placement
+                    .as_deref()
+                    .map_or_else(String::new, |value| {
+                        format!(" placement=\"{}\"", escape_xml(value))
+                    });
+                xml.push_str(&format!("      <direction{placement}>\n"));
+                xml.push_str("        <direction-type>\n");
+                xml.push_str(&format!(
+                    "          <wedge type=\"{wedge_type}\" number=\"{number}\"/>\n"
+                ));
+                xml.push_str("        </direction-type>\n");
+                xml.push_str(&format!("        <staff>{}</staff>\n", address.staff + 1));
+                xml.push_str("      </direction>\n");
+            }
             NotationSpannerKind::Pedal => {
                 let paired = paired_timed_pedal(score, spanner, endpoint == "start");
                 let placement = spanner.placement.as_deref().map_or_else(
@@ -1904,6 +2070,43 @@ fn serialize_notations(
     tab_lines: Option<u8>,
     tuplet_marks: (bool, bool),
 ) {
+    if note.hidden_articulations.is_empty() {
+        serialize_visible_notations(xml, note, typed_spanners, address, tab_lines, tuplet_marks);
+        return;
+    }
+    let mut visible = note.clone();
+    visible.articulations = note.visible_articulations().cloned().collect();
+    visible.hidden_articulations.clear();
+    serialize_visible_notations(
+        xml,
+        &visible,
+        typed_spanners,
+        address,
+        tab_lines,
+        tuplet_marks,
+    );
+    let mut hidden = Note::rest(Duration::Quarter);
+    hidden.articulations = note
+        .articulations
+        .iter()
+        .enumerate()
+        .filter(|(index, _)| note.hidden_articulations.contains(index))
+        .map(|(_, mark)| mark.clone())
+        .collect();
+    hidden.tremolo_pair = note.tremolo_pair.clone();
+    let mut contents = String::new();
+    serialize_visible_notations(&mut contents, &hidden, &[], address, None, (false, false));
+    xml.push_str(&contents.replacen("<notations>", "<notations print-object=\"no\">", 1));
+}
+
+fn serialize_visible_notations(
+    xml: &mut String,
+    note: &Note,
+    typed_spanners: &[&NotationSpanner],
+    address: &NoteAddr,
+    tab_lines: Option<u8>,
+    tuplet_marks: (bool, bool),
+) {
     let typed_has =
         |kind: NotationSpannerKind| typed_spanners.iter().any(|spanner| spanner.kind == kind);
     // The first (written) pitch's own ties; chord members write theirs separately.
@@ -1947,7 +2150,31 @@ fn serialize_notations(
         xml.push_str("          <tied type=\"start\"/>\n");
     }
     if tuplet_marks.0 {
-        xml.push_str("          <tuplet type=\"start\" bracket=\"yes\"/>\n");
+        xml.push_str("          <tuplet type=\"start\"");
+        if let Some(display) = &note.tuplet_display {
+            if let Some(bracket) = display.bracket {
+                xml.push_str(if bracket {
+                    " bracket=\"yes\""
+                } else {
+                    " bracket=\"no\""
+                });
+            }
+            xml.push_str(match display.number {
+                acorde_core::TupletNumberDisplay::Actual => " show-number=\"actual\"",
+                acorde_core::TupletNumberDisplay::Both => " show-number=\"both\"",
+                acorde_core::TupletNumberDisplay::None => " show-number=\"none\"",
+            });
+            if let Some(above) = display.above {
+                xml.push_str(if above {
+                    " placement=\"above\""
+                } else {
+                    " placement=\"below\""
+                });
+            }
+        } else {
+            xml.push_str(" bracket=\"yes\"");
+        }
+        xml.push_str("/>\n");
     }
     if tuplet_marks.1 {
         xml.push_str("          <tuplet type=\"stop\"/>\n");
@@ -1991,6 +2218,8 @@ fn serialize_notations(
             )),
             NotationSpannerKind::Pedal
             | NotationSpannerKind::Ottava
+            | NotationSpannerKind::HairpinCrescendo
+            | NotationSpannerKind::HairpinDecrescendo
             | NotationSpannerKind::Dashes => {}
         }
     }
@@ -2106,8 +2335,11 @@ fn serialize_notations(
     }
     if let Some(dir) = note.arpeggiate {
         let dir_str = if dir { "up" } else { "down" };
+        let number = note
+            .arpeggio_number
+            .map_or_else(String::new, |n| format!(" number=\"{n}\""));
         xml.push_str(&format!(
-            "          <arpeggiate direction=\"{}\"/>\n",
+            "          <arpeggiate direction=\"{}\"{number}/>\n",
             dir_str
         ));
     }
@@ -2336,6 +2568,9 @@ fn push_tempo_direction(
     measure: Option<&acorde_core::Measure>,
 ) {
     let words = measure.and_then(|measure| measure.tempo_text.as_deref());
+    let written = measure
+        .and_then(|m| m.metronome_mark.as_ref())
+        .and_then(|m| m.written.as_ref());
     let attrs = words
         .and_then(|text| {
             measure.map(|measure| measure_text_direction_attrs(measure, TextStyle::Generic, text))
@@ -2345,16 +2580,33 @@ fn push_tempo_direction(
     if let Some((measure, text)) =
         measure.and_then(|measure| measure.tempo_text.as_deref().map(|text| (measure, text)))
     {
-        xml.push_str("        <direction-type>\n");
-        xml.push_str(&format!(
-            "          <words{}>{}</words>\n",
-            styled_text_position_attrs(measure_styled_text(measure, TextStyle::Generic, text)),
-            escape_xml(text)
-        ));
-        xml.push_str("        </direction-type>\n");
+        let before = written.map_or(text, |w| w.before.as_str());
+        if !before.is_empty() {
+            xml.push_str("        <direction-type>\n");
+            xml.push_str(&format!(
+                "          <words{}>{}</words>\n",
+                styled_text_position_attrs(measure_styled_text(measure, TextStyle::Generic, text)),
+                escape_xml(before)
+            ));
+            xml.push_str("        </direction-type>\n");
+        }
     }
     if let Some(mark) = measure.and_then(|measure| measure.metronome_mark.as_ref()) {
+        if words.is_none()
+            && let Some(written) = written.filter(|w| !w.before.is_empty())
+        {
+            xml.push_str(&format!(
+                "        <direction-type><words>{}</words></direction-type>\n",
+                escape_xml(&written.before)
+            ));
+        }
         push_metronome_type(xml, mark);
+        if let Some(written) = written.filter(|w| !w.after.is_empty()) {
+            xml.push_str(&format!(
+                "        <direction-type><words>{}</words></direction-type>\n",
+                escape_xml(&written.after)
+            ));
+        }
     } else if words.is_none()
         && let Some(bpm) = bpm
     {
@@ -2394,7 +2646,12 @@ fn push_metronome_type(xml: &mut String, mark: &acorde_core::MetronomeMark) {
     }
     xml.push_str(&format!(
         "            <per-minute>{}</per-minute>\n",
-        mark.per_minute
+        escape_xml(
+            &mark
+                .written
+                .as_ref()
+                .map_or_else(|| mark.per_minute.to_string(), |w| w.per_minute.clone())
+        )
     ));
     xml.push_str("          </metronome>\n");
     xml.push_str("        </direction-type>\n");
@@ -2409,6 +2666,68 @@ fn measure_styled_text<'a>(
         .texts
         .iter()
         .find(|styled| styled.style == style && styled.text == text)
+}
+
+fn write_extra_staff_measure_text(xml: &mut String, measure: &acorde_core::Measure, staff: usize) {
+    let mut expression_emitted = false;
+    let mut rehearsal_emitted = false;
+    for (style, legacy) in [
+        (TextStyle::Expression, measure.expression_text.as_deref()),
+        (TextStyle::RehearsalMark, measure.rehearsal.as_deref()),
+    ] {
+        if let Some(text) = legacy {
+            let styled = measure_styled_text(measure, style, text);
+            write_staff_text_direction(xml, style, text, styled, staff);
+            match style {
+                TextStyle::Expression => expression_emitted = true,
+                TextStyle::RehearsalMark => rehearsal_emitted = true,
+                _ => {}
+            }
+        }
+    }
+    for styled in &measure.texts {
+        let duplicate = match styled.style {
+            TextStyle::Expression
+                if expression_emitted
+                    && measure.expression_text.as_deref() == Some(styled.text.as_str()) =>
+            {
+                expression_emitted = false;
+                true
+            }
+            TextStyle::RehearsalMark
+                if rehearsal_emitted
+                    && measure.rehearsal.as_deref() == Some(styled.text.as_str()) =>
+            {
+                rehearsal_emitted = false;
+                true
+            }
+            _ => false,
+        };
+        if !duplicate
+            && matches!(
+                styled.style,
+                TextStyle::Expression | TextStyle::RehearsalMark
+            )
+        {
+            write_staff_text_direction(xml, styled.style, &styled.text, Some(styled), staff);
+        }
+    }
+}
+
+fn write_staff_text_direction(
+    xml: &mut String,
+    style: TextStyle,
+    text: &str,
+    styled: Option<&acorde_core::StyledText>,
+    staff: usize,
+) {
+    let tag = if style == TextStyle::RehearsalMark {
+        "rehearsal"
+    } else {
+        "words"
+    };
+    let direction_attrs = styled.map(styled_direction_attrs).unwrap_or_default();
+    xml.push_str(&format!("      <direction{direction_attrs}><direction-type><{tag}{}>{}</{tag}></direction-type>{}<staff>{staff}</staff></direction>\n", styled_text_position_attrs(styled), escape_xml(text), styled_text_offset_xml(styled)));
 }
 
 fn measure_text_direction_attrs(
@@ -2449,6 +2768,9 @@ fn styled_text_position_attrs(styled: Option<&acorde_core::StyledText>) -> Strin
         return String::new();
     };
     let mut attrs = String::new();
+    if let Some(enclosure) = &styled.enclosure {
+        attrs.push_str(&format!(" enclosure=\"{}\"", escape_xml(enclosure)));
+    }
     if let Some(offset_x) = styled.offset_x {
         attrs.push_str(&format!(" default-x=\"{}\"", offset_x));
     }

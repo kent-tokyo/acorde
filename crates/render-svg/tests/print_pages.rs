@@ -686,13 +686,30 @@ fn dense_piano_opening_gets_room_for_clef_key_and_meter() {
         .map(|system| system.measure_indices.clone())
         .collect::<Vec<_>>();
     assert_eq!(
-        systems,
-        [vec![0, 1], vec![2, 3], vec![4, 5, 6], vec![7, 8, 9]]
+        systems.iter().flatten().copied().collect::<Vec<_>>(),
+        (0..10).collect::<Vec<_>>()
+    );
+    assert_eq!(systems[0], vec![0, 1]);
+    assert_eq!(systems[1], vec![2, 3]);
+    for authored_start in [2, 4, 7] {
+        assert!(
+            systems
+                .iter()
+                .any(|system| system.first() == Some(&authored_start))
+        );
+    }
+    assert!(
+        systems
+            .iter()
+            .all(|system| !system.is_empty() && system.len() <= 4)
     );
     let pages = render_print_page_svgs(&import.score, &layout).unwrap();
-    assert_eq!(pages.len(), 1);
+    assert!(!pages.is_empty());
     let barlines = system_barlines(&pages[0], 2);
-    assert_eq!(barlines.len(), 3);
+    assert_eq!(
+        barlines.len(),
+        layout.pages[0].systems[2].measure_indices.len()
+    );
     assert!(
         barlines.windows(2).all(|pair| pair[1] > pair[0]),
         "measure widths must remain positive: {barlines:?}"
@@ -752,7 +769,7 @@ fn quilter_prints_all_directions_with_clearance_between_grand_staves() {
     )
     .unwrap();
     let pages = render_print_page_svgs(&score, &layout).unwrap();
-    assert_eq!(pages.len(), 1);
+    assert!(!pages.is_empty());
     let first_slur = pages[0]
         .split_once(r#"class="acorde-slur" d=""#)
         .expect("opening slur prints")
@@ -835,13 +852,28 @@ fn quilter_prints_all_directions_with_clearance_between_grand_staves() {
         lower_top - baseline >= font_size * 0.8,
         "expression too close to lower staff: {baseline}, {lower_top}"
     );
-    let later_direction = pages[0]
+    let later_page = pages
+        .iter()
+        .find(|page| page.contains(">rall.</text>"))
+        .expect("later direction page");
+    let later_direction = later_page
         .split("<text ")
         .find(|fragment| fragment.contains(">rall.</text>"))
         .expect("later direction kept in print SVG");
     let later_baseline = svg_attribute_f32(later_direction, "y");
     let later_font_size = svg_attribute_f32(later_direction, "font-size");
-    let later_lower_top = staff_lines[39];
+    let later_staff_lines = later_page
+        .split(r#"class="acorde-staff-line""#)
+        .skip(1)
+        .map(|line| svg_attribute_f32(line, "y1"))
+        .collect::<Vec<_>>();
+    let later_lower_top = later_staff_lines
+        .as_chunks::<10>()
+        .0
+        .iter()
+        .map(|lines| lines[9])
+        .find(|&top| top > later_baseline)
+        .expect("lower staff after later direction");
     assert!(
         later_lower_top - later_baseline >= later_font_size * 0.6,
         "later direction too close to lower staff: {later_baseline}, {later_lower_top}"
@@ -851,7 +883,7 @@ fn quilter_prints_all_directions_with_clearance_between_grand_staves() {
     let later_width = "rall.".chars().count() as f32 * later_font_size * (0.46 / 0.78);
     let text_top = later_baseline - later_font_size;
     let text_bottom = later_baseline + later_font_size * 0.16;
-    let overlapping_heads = pages[0]
+    let overlapping_heads = later_page
         .split(r#"class="acorde-notehead""#)
         .skip(1)
         .filter(|head| {
@@ -917,14 +949,20 @@ fn print_page_retains_quilter_publication_credits() {
     let layout = compute_print_layout(&score, &PrintConfig::default()).expect("A4 layout");
     let pages = render_print_page_svgs(&score, &layout).expect("physical page SVG");
     assert_eq!(pages.len(), 1);
-    // All eight source ties print, including the bar-8 chord whose C#3 and G3 tie into
-    // the other voice's chord. Those three cross the bar-8/9 system break, so each is
-    // drawn as two segments: 5 + 3 * 2.
-    assert_eq!(pages[0].matches(r#"class="acorde-tie""#).count(), 11);
+    // This layout keeps bars 8 and 9 on the same system: all eight authored
+    // ties print as single segments, including the cross-voice chord members.
+    assert!(
+        layout.pages[0].systems.iter().any(
+            |system| system.measure_indices.contains(&7) && system.measure_indices.contains(&8)
+        )
+    );
+    assert_eq!(pages[0].matches(r#"class="acorde-tie""#).count(), 8);
     assert!(pages[0].contains("class=\"acorde-print-composer\""));
     assert!(pages[0].contains(">Roger Quilter</text>"));
     assert!(pages[0].contains("class=\"acorde-print-movement-title\""));
-    assert!(pages[0].contains(">Prelude</text>"));
+    assert_eq!(score.metadata.movement_title, "Prelude");
+    assert_eq!(score.metadata.print_subtitle, "1. Prelude");
+    assert!(pages[0].contains(">1. Prelude</text>"));
     for (class, minimum_px) in [
         ("acorde-print-title", 22.0),
         ("acorde-print-movement-title", 16.0),

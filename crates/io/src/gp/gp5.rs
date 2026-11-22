@@ -640,6 +640,7 @@ impl Reader<'_> {
             let measure = &mut measures[measure_index];
             if !measure.texts.iter().any(|existing| existing.text == text) {
                 measure.texts.push(StyledText {
+                    enclosure: None,
                     position_beats: None,
                     style: TextStyle::Generic,
                     text,
@@ -1347,6 +1348,7 @@ fn apply_lyrics(measures: &mut [Measure], lines: &[(usize, String)]) {
                     _ => "middle",
                 };
                 syllables.push(Lyric {
+                    placement_above: None,
                     text: part.to_string(),
                     syllabic: syllabic.to_string(),
                     extend: false,

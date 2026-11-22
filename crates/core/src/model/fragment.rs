@@ -11,7 +11,7 @@ use super::notation::{
 };
 use super::score::{
     HarpPedalDiagram, InstrumentDefinition, Measure, MidMeasureClef, NotationSpanner, Note,
-    NoteAddr, Score, TimedPedalDirection, VoiceChannelSwitch, VoltaBracket,
+    NoteAddr, Score, TimedDynamicDirection, TimedPedalDirection, VoiceChannelSwitch, VoltaBracket,
 };
 use crate::Error;
 use serde::{Deserialize, Serialize};
@@ -132,6 +132,8 @@ pub struct ScoreFragmentMeasureAttributes {
     pub channel_switches: Vec<VoiceChannelSwitch>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub timed_pedals: Vec<TimedPedalDirection>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub timed_dynamics: Vec<TimedDynamicDirection>,
     #[serde(default)]
     pub multi_rest_count: Option<u8>,
     #[serde(default)]
@@ -167,6 +169,7 @@ impl ScoreFragmentMeasureAttributes {
             harp_pedal_diagrams: measure.harp_pedal_diagrams.clone(),
             channel_switches: measure.channel_switches.clone(),
             timed_pedals: measure.timed_pedals.clone(),
+            timed_dynamics: measure.timed_dynamics.clone(),
             multi_rest_count: measure.multi_rest_count,
             system_break: measure.system_break,
             page_break: measure.page_break,
@@ -205,6 +208,7 @@ impl ScoreFragmentMeasureAttributes {
         measure.harp_pedal_diagrams = self.harp_pedal_diagrams.clone();
         measure.channel_switches = self.channel_switches.clone();
         measure.timed_pedals = self.timed_pedals.clone();
+        measure.timed_dynamics = self.timed_dynamics.clone();
         measure.multi_rest_count = self.multi_rest_count;
         measure.system_break = self.system_break;
         measure.page_break = self.page_break;
@@ -419,6 +423,27 @@ mod tests {
             voice,
             note,
         }
+    }
+
+    #[test]
+    fn measure_attributes_keep_timed_dynamics() {
+        let mut source = Measure::empty(4, 4);
+        source.timed_dynamics.push(TimedDynamicDirection {
+            position_beats: 2.0,
+            dynamic: crate::Dynamic::Pp,
+            above: Some(false),
+            components: vec![
+                crate::DynamicDirectionComponent::Dynamic(crate::Dynamic::P),
+                crate::DynamicDirectionComponent::Text("second time".into()),
+                crate::DynamicDirectionComponent::Dynamic(crate::Dynamic::Pp),
+            ],
+        });
+        let attributes = ScoreFragmentMeasureAttributes::from_measure(&source);
+        let json = serde_json::to_string(&attributes).unwrap();
+        let restored: ScoreFragmentMeasureAttributes = serde_json::from_str(&json).unwrap();
+        let mut destination = Measure::empty(4, 4);
+        restored.apply_to_measure(&mut destination);
+        assert_eq!(destination.timed_dynamics, source.timed_dynamics);
     }
 
     #[test]

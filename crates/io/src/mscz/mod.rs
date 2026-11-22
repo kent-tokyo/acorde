@@ -1515,6 +1515,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             harp_pedal_diagrams: Vec::new(),
                             channel_switches: std::mem::take(&mut cur_channel_switches),
                             timed_pedals: Vec::new(),
+                            timed_dynamics: Vec::new(),
                             multi_rest_count: None,
                             system_break: cur_system_break,
                             page_break: cur_page_break,
@@ -1723,6 +1724,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                         // Without a root the chord cannot be a symbol; keep its text.
                         if harmony_root.is_none() && !harmony_name.trim().is_empty() {
                             cur_texts.push(StyledText {
+                                enclosure: None,
                                 position_beats: None,
                                 style: TextStyle::ChordSymbol,
                                 text: harmony_name.trim().to_string(),
@@ -1759,6 +1761,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     "Text" if in_text_element => {
                         if !mscx_text_value.trim().is_empty() {
                             let styled = StyledText {
+                                enclosure: None,
                                 position_beats: None,
                                 style: mscx_text_style,
                                 text: mscx_text_value.trim().to_string(),
@@ -1780,6 +1783,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                     "StaffText" | "Expression" | "SystemText" if in_text_element => {
                         if !mscx_text_value.trim().is_empty() {
                             let styled = StyledText {
+                                enclosure: None,
                                 position_beats: None,
                                 style: mscx_text_style,
                                 text: mscx_text_value.trim().to_string(),
@@ -1844,6 +1848,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                                 .collect::<Vec<_>>()
                                 .join(" ");
                             cur_texts.push(StyledText {
+                                enclosure: None,
                                 position_beats: None,
                                 style: TextStyle::FiguredBass,
                                 text: display,
@@ -2158,6 +2163,7 @@ pub fn parse_mscx(xml: &str) -> Result<Score, Error> {
                             chord_lyrics.push((
                                 Some(lyrics_no.unwrap_or(1)),
                                 Lyric {
+                                    placement_above: None,
                                     text: std::mem::take(&mut lyrics_text),
                                     syllabic: if lyrics_syllabic.is_empty() {
                                         "single".to_string()
@@ -3912,6 +3918,7 @@ fn mscx_chord_symbol(
         harmony_function,
         harmony_type: None,
         chord_ref: None,
+        written: None,
         range_end: None,
         degrees,
     }
@@ -5010,6 +5017,7 @@ mod tests {
         assert_eq!(
             measure.texts,
             vec![StyledText {
+                enclosure: None,
                 position_beats: None,
                 style: TextStyle::FiguredBass,
                 text: "6 4".to_string(),
@@ -5556,6 +5564,7 @@ mod tests {
                 harmony_function: Some("D".to_string()),
                 harmony_type: None,
                 chord_ref: None,
+                written: None,
                 range_end: None,
                 degrees: vec![
                     ChordDegree {
@@ -5678,6 +5687,7 @@ mod tests {
         assert_eq!(
             report.score.parts[0].staves[0].measures[0].texts,
             vec![acorde_core::StyledText {
+                enclosure: None,
                 position_beats: None,
                 style: TextStyle::Expression,
                 text: "dolce".to_string(),
@@ -5704,6 +5714,7 @@ mod tests {
         assert_eq!(
             report.score.parts[0].staves[0].measures[0].texts[0],
             StyledText {
+                enclosure: None,
                 position_beats: None,
                 style: TextStyle::Generic,
                 text: "Chorus".to_string(),

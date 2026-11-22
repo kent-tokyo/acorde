@@ -294,6 +294,8 @@ fn parse_staff_group_symbol(value: Option<String>) -> PartGroupSymbol {
         .to_ascii_lowercase()
         .as_str()
     {
+        "none" => PartGroupSymbol::None,
+        "bracketsq" => PartGroupSymbol::Square,
         "brace" => PartGroupSymbol::Brace,
         "line" => PartGroupSymbol::Line,
         _ => PartGroupSymbol::Bracket,
@@ -2983,6 +2985,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                     {
                         // Words in a `<dynam>` (Verovio writes cresc. and dim. there).
                         measure.texts.push(StyledText {
+                            enclosure: None,
                             position_beats: None,
                             style: TextStyle::Expression,
                             text: text.to_string(),
@@ -3029,6 +3032,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                 b"syl" => {
                     if !syllable_text.trim().is_empty() {
                         let lyric = acorde_core::Lyric {
+                            placement_above: None,
                             text: syllable_text.trim().to_string(),
                             syllabic: match syllable_wordpos.as_deref() {
                                 Some("i") => "begin",
@@ -3087,6 +3091,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                                         harmony_function: harm_function.clone(),
                                         harmony_type: harm_type.clone(),
                                         chord_ref: harm_chord_ref.clone(),
+                                        written: None,
                                         ..chord
                                     },
                                     label: text.to_string(),
@@ -3097,6 +3102,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                                 score.parts[0].staves[current_staff].measures[measure_index]
                                     .texts
                                     .push(StyledText {
+                                        enclosure: None,
                                         position_beats: None,
                                         style: TextStyle::ChordSymbol,
                                         text: text.to_string(),
@@ -3136,6 +3142,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                             let measure =
                                 &mut score.parts[0].staves[current_staff].measures[measure_index];
                             measure.texts.push(StyledText {
+                                enclosure: None,
                                 position_beats: None,
                                 style: TextStyle::FiguredBass,
                                 text,
@@ -3188,6 +3195,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                                 .and_then(|staff| staff.measures.get_mut(measure_index))
                         {
                             measure.texts.push(StyledText {
+                                enclosure: None,
                                 position_beats: None,
                                 style,
                                 text: text.to_string(),
@@ -3217,6 +3225,7 @@ pub fn parse_mei(text: &str) -> Result<Score, Error> {
                                     measure.expression_text = Some(text.to_string());
                                 } else {
                                     measure.texts.push(StyledText {
+                                        enclosure: None,
                                         position_beats: None,
                                         style: TextStyle::Expression,
                                         text: text.to_string(),
@@ -3694,6 +3703,7 @@ fn apply_pending_harm_symbols(
             .and_then(|staff| staff.measures.get_mut(pending.measure))
         {
             measure.texts.push(StyledText {
+                enclosure: None,
                 position_beats: None,
                 style: TextStyle::ChordSymbol,
                 text: pending.label,
@@ -4651,6 +4661,8 @@ fn push_articulation(note: &mut Note, articulation: Articulation) {
 
 fn mei_staff_group_symbol(symbol: &PartGroupSymbol) -> &'static str {
     match symbol {
+        PartGroupSymbol::None => "none",
+        PartGroupSymbol::Square => "bracketsq",
         PartGroupSymbol::Brace => "brace",
         PartGroupSymbol::Line => "line",
         PartGroupSymbol::Bracket => "bracket",
@@ -5679,7 +5691,7 @@ pub fn serialize_mei(score: &Score) -> Result<String, Error> {
 /// Report score fields that the MEI subset serializer cannot represent.
 pub fn export_loss_diagnostics(score: &Score) -> Vec<Diagnostic> {
     const MAX_DIAGNOSTICS: usize = 1_024;
-    let mut diagnostics = Vec::new();
+    let mut diagnostics = crate::report::lyric_placement_export_losses(score, "mei");
     let push = |diagnostics: &mut Vec<Diagnostic>, path: String, value: String| {
         if diagnostics.len() >= MAX_DIAGNOSTICS {
             return;
@@ -6339,6 +6351,7 @@ mod tests {
                 harmony_function: Some("D".to_string()),
                 harmony_type: Some("roman".to_string()),
                 chord_ref: Some("#harmonychordA".to_string()),
+                written: None,
                 range_end: None,
                 degrees: vec![
                     ChordDegree {
@@ -6888,6 +6901,7 @@ mod tests {
     fn typed_measure_texts_round_trip_as_dir() {
         let mut score = Score::new("texts", 120, 4, 4, 0, 1);
         score.parts[0].staves[0].measures[0].texts.push(StyledText {
+            enclosure: None,
             position_beats: None,
             style: TextStyle::Technique,
             text: "pizz. & sul tasto".into(),
@@ -7413,6 +7427,7 @@ mod tests {
         assert_eq!(
             measure.texts,
             vec![StyledText {
+                enclosure: None,
                 position_beats: None,
                 style: TextStyle::FiguredBass,
                 text: "6".to_string(),

@@ -1,0 +1,307 @@
+{
+  "classification": "development only; final reserved evaluation pending",
+  "reviewer": "single implementing assistant, unblinded",
+  "candidate_source_commit": "a1051f2f",
+  "rows": [
+    {
+      "score": "aloha",
+      "engine": "acorde",
+      "pdf_sha256": "5d6006028746054e00e5a7f742e872318811d5b441c3628e5aab03ce1bbbd76f",
+      "pages": [
+        {
+          "file": "aloha-acorde-1.png",
+          "sha256": "47aa6788fb387b91b67f175dac2f4ad1a6b6bf8646f20080f5d7f0876cff5c5d",
+          "review": "reused exact previously inspected raster"
+        },
+        {
+          "file": "aloha-acorde-2.png",
+          "sha256": "619e4a724535e534a289901d028ee22f712015e415dcfc06371826427804b732",
+          "review": "reused exact previously inspected raster"
+        },
+        {
+          "file": "aloha-acorde-3.png",
+          "sha256": "8c21f68a8ec55bb7d4a44314cbb86eb4fab3d8b1a97f3fc24edfe0ed69929c76",
+          "review": "reused exact previously inspected raster"
+        }
+      ]
+    },
+    {
+      "score": "aloha",
+      "engine": "verovio",
+      "pdf_sha256": "3410d3c285197bce4fe0e63c8cb228a125ec161ba4df2b5d59982ae19bb30069",
+      "pages": [
+        {
+          "file": "aloha-verovio-1.png",
+          "sha256": "298d43263c329e054f02c2320c948f7e0eccbd5358ac53da74da5fab74099b36",
+          "review": "reused exact previously inspected raster"
+        },
+        {
+          "file": "aloha-verovio-2.png",
+          "sha256": "29cf9a484b1ae4eed4f33bab908196e14d4e0218304b8cebfaf71e9d32e8fd2c",
+          "review": "reused exact previously inspected raster"
+        },
+        {
+          "file": "aloha-verovio-3.png",
+          "sha256": "efcfa744f60833cf1bf6e9ee1149a416173ed7e01fe716664b177172941fef36",
+          "review": "reused exact previously inspected raster"
+        }
+      ]
+    },
+    {
+      "score": "just-for-today",
+      "engine": "acorde",
+      "pdf_sha256": "ffcc1366264c4c84e7eb1c885c5ec2055dcc25d3cfe6f4d9a552f2a181c9db90",
+      "pages": [
+        {
+          "file": "just-for-today-acorde-1.png",
+          "sha256": "7970fc882a5839fa6ad9f1dee21a10b53de9fd401db304281dab6dc19259e18f",
+          "review": "reused exact previously inspected raster"
+        },
+        {
+          "file": "just-for-today-acorde-2.png",
+          "sha256": "fcd0bd0f259dd767cafab3d44eb8d35055e36bb5fc512716d5d475ad2ce1c315",
+          "review": "reused exact previously inspected raster"
+        },
+        {
+          "file": "just-for-today-acorde-3.png",
+          "sha256": "01402743ea76b4b4f9e82332e31c3e85904c9f7383b670eb8e97d8700a65c4b2",
+          "review": "reused exact previously inspected raster"
+        }
+      ]
+    },
+    {
+      "score": "just-for-today",
+      "engine": "verovio",
+      "pdf_sha256": "d33aaaf24f60821395e314f2a28774ba984a5013822dac187a2c717cff256e9e",
+      "pages": [
+        {
+          "file": "just-for-today-verovio-1.png",
+          "sha256": "48b4a110eeb5d927f22b972da4ec0b8c897b2f7d3f853197880fb424bdfc7085",
+          "review": "reused exact previously inspected raster"
+        },
+        {
+          "file": "just-for-today-verovio-2.png",
+          "sha256": "054ff18eab9751b44384b5605d7a930ff3a4a2217d80ebab79f5e606ac37dd6c",
+          "review": "reused exact previously inspected raster"
+        },
+        {
+          "file": "just-for-today-verovio-3.png",
+          "sha256": "88ef274ed6db5fa7a96caa7dda3cba7a0aa9cc09d64ba2adcaa57f49d549814d",
+          "review": "reused exact previously inspected raster"
+        }
+      ]
+    },
+    {
+      "score": "quilter",
+      "engine": "acorde",
+      "pdf_sha256": "eeaf92b0b506298fd37d3f7af019cb7c1d9373c5759d58910e5acff4f17800e5",
+      "pages": [
+        {
+          "file": "quilter-acorde-1.png",
+          "sha256": "334f7893c3ae69664662c564d1c072e59c6ea32098b5583728c5541023369836",
+          "review": "reused exact previously inspected raster"
+        }
+      ]
+    },
+    {
+      "score": "quilter",
+      "engine": "verovio",
+      "pdf_sha256": "e4ccfc06c1a1e95cde9709e570e28574e11a329e07aaa340537aee3ec5169354",
+      "pages": [
+        {
+          "file": "quilter-verovio-1.png",
+          "sha256": "2aeaed9eed95c1933052c477888696008be8c11a806dfd80ff2693811541123f",
+          "review": "reused exact previously inspected raster"
+        }
+      ]
+    },
+    {
+      "score": "webern",
+      "engine": "acorde",
+      "pdf_sha256": "b36ff3d1c84054310252f9d56f55f8a6196822980584246d3e20506f08e44c16",
+      "pages": [
+        {
+          "file": "webern-acorde-1.png",
+          "sha256": "7be6db56c75f5484b0f5eb4161d8afffd274e9382e8f9f0c393396c18652497e",
+          "review": "reused exact previously inspected raster"
+        },
+        {
+          "file": "webern-acorde-2.png",
+          "sha256": "47c548f18b7ca9fe6ddde8e77620d85ba98af68b2c807bf8b056f243894362b1",
+          "review": "reused exact previously inspected raster"
+        }
+      ]
+    },
+    {
+      "score": "webern",
+      "engine": "verovio",
+      "pdf_sha256": "11c8ccba9f73aebf6d11ceee0037e9f39fcc9a164da22c1359127a7a68f0f947",
+      "pages": [
+        {
+          "file": "webern-verovio-1.png",
+          "sha256": "90d9e426cb70bc54565f4f281e1fd2ebe3c7150f4b590567af4bebc2670eb1a8",
+          "review": "reused exact previously inspected raster"
+        },
+        {
+          "file": "webern-verovio-2.png",
+          "sha256": "c590409b197c0d4dbbbabb813a720e13039218c5109c91008cb287c9852b5e30",
+          "review": "reused exact previously inspected raster"
+        }
+      ]
+    },
+    {
+      "score": "omr-1003",
+      "engine": "acorde",
+      "pdf_sha256": "07903604f41729a19bbabb5ce2bc58840213212e4a49dbb7bcbb854b011f7fcc",
+      "pages": [
+        {
+          "file": "omr-1003-acorde-1.png",
+          "sha256": "aebb2b696424e066e13a630097d9efab35ef592e2c080efb622c1827e050dbc8",
+          "review": "reused exact previously inspected raster"
+        }
+      ]
+    },
+    {
+      "score": "omr-1003",
+      "engine": "verovio",
+      "pdf_sha256": "a18756f9fba4584772ee1d9d56ae98a69ab4cb5e05e15fdc3b58091a125b3815",
+      "pages": [
+        {
+          "file": "omr-1003-verovio-1.png",
+          "sha256": "afcc0997c2103cd940f0ad0714e01c68d17249efd5ac2a2547dc4d2f0526f966",
+          "review": "reused exact previously inspected raster"
+        }
+      ]
+    },
+    {
+      "score": "omr-1016",
+      "engine": "acorde",
+      "pdf_sha256": "6bd0ae93db5d7e5520f564f928b5c5308a7d8ca6028fc9ef77708920dfe7472b",
+      "pages": [
+        {
+          "file": "omr-1016-acorde-1.png",
+          "sha256": "2a097b19bce5672a874b5a6aa873026fb1e9f3c8dde47305261ebddb49bd65cb",
+          "review": "reused exact previously inspected raster"
+        }
+      ]
+    },
+    {
+      "score": "omr-1016",
+      "engine": "verovio",
+      "pdf_sha256": "d7d8166df40488c2de766209685b014c952e0e3084769856c27faaf8e5cada5f",
+      "pages": [
+        {
+          "file": "omr-1016-verovio-1.png",
+          "sha256": "8d98bdba2fdec3f54b42f4f63acf988db815c9b68eae6ab479c42f13e90b5048",
+          "review": "reused exact previously inspected raster"
+        }
+      ]
+    },
+    {
+      "score": "omr-1033",
+      "engine": "acorde",
+      "pdf_sha256": "a180f1bd4fd2b98e3c4907503a55aaccd470920bc0aebc6424d416d16046cd37",
+      "pages": [
+        {
+          "file": "omr-1033-acorde-1.png",
+          "sha256": "1b1e8309d89613616ce733412849d18f3710799f649d3832cebd63707dba7993",
+          "review": "assistant re-inspected full page: repeat strokes and dots now distinct; no new reading obstruction observed"
+        }
+      ]
+    },
+    {
+      "score": "omr-1033",
+      "engine": "verovio",
+      "pdf_sha256": "4dd83aed90a84d93bcf55dc816d72177dc5a087f03b9828ff2424594e77079fc",
+      "pages": [
+        {
+          "file": "omr-1033-verovio-1.png",
+          "sha256": "515a6a0125d8a3440215c38350016cc84f90f33f48a704b67e67cc17b34c78e5",
+          "review": "reused exact previously inspected raster"
+        }
+      ]
+    },
+    {
+      "score": "omr-1035",
+      "engine": "acorde",
+      "pdf_sha256": "9ffeb5f90238356923c7f09e5a7baff2e9cd76b2ebfd7e9139f0463bef81456b",
+      "pages": [
+        {
+          "file": "omr-1035-acorde-1.png",
+          "sha256": "b34ae27f2872376d40f7cef95f0f03b6668933fc18a1a882e2507f76e4e7d911",
+          "review": "reused exact previously inspected raster"
+        }
+      ]
+    },
+    {
+      "score": "omr-1035",
+      "engine": "verovio",
+      "pdf_sha256": "dd9d5e37a6ff3f844c8d2b106e2b64fba1aab6307ba2c1a33324e0a0e8c9d160",
+      "pages": [
+        {
+          "file": "omr-1035-verovio-1.png",
+          "sha256": "dd0fe52b7c73d47ca8601eda828708623d1ae8a16883868c0f4366346683aa12",
+          "review": "reused exact previously inspected raster"
+        }
+      ]
+    },
+    {
+      "score": "omr-1036",
+      "engine": "acorde",
+      "pdf_sha256": "69d546485ad276de3afa139df54cd3c664331a40c0249f78324145a7cf60bf99",
+      "pages": [
+        {
+          "file": "omr-1036-acorde-1.png",
+          "sha256": "f48d82551f42c388624dcc1cb372468e0a3117f54f2b8d55504050dd5b25831a",
+          "review": "reused exact previously inspected raster"
+        },
+        {
+          "file": "omr-1036-acorde-2.png",
+          "sha256": "4128dc620fed4295d2535638a60123d43e79bdd0d8a337052c55f02b0c42413e",
+          "review": "reused exact previously inspected raster"
+        }
+      ]
+    },
+    {
+      "score": "omr-1036",
+      "engine": "verovio",
+      "pdf_sha256": "a57fca4415f116e280da17c46dc4d2f8790f15580d14f22b5dcf1978037ed3e6",
+      "pages": [
+        {
+          "file": "omr-1036-verovio-1.png",
+          "sha256": "2c29e6f1826a72cd14afd4def039dd847f554dcaeaf2ccdfc913554b00d92979",
+          "review": "reused exact previously inspected raster"
+        },
+        {
+          "file": "omr-1036-verovio-2.png",
+          "sha256": "3e763702867e9649f36432862cf3c5a39dea1b6e2a0fac8c2e3c882430844a07",
+          "review": "reused exact previously inspected raster"
+        }
+      ]
+    },
+    {
+      "score": "freilachs",
+      "engine": "acorde",
+      "pdf_sha256": "a96d8b65365c70efea8e06fa38415e5a2bb1b898f4eaafe4362492f4a88edb3f",
+      "pages": [
+        {
+          "file": "freilachs-acorde-1.png",
+          "sha256": "5cfb14973029052af24c7e80e339b376fc7e89bd311788cbacfe210fa9105ced",
+          "review": "assistant re-inspected full page: repeat strokes and dots now distinct; no new reading obstruction observed"
+        }
+      ]
+    },
+    {
+      "score": "freilachs",
+      "engine": "verovio",
+      "pdf_sha256": "f967ca1360846908914dead4657104276816421bf109fbc85a71a975a10b7ab3",
+      "pages": [
+        {
+          "file": "freilachs-verovio-1.png",
+          "sha256": "2ffc5176d1e35a9d2d3130433c2bc0cc11e4e2f37a5c5bbae7e1ac04c0f9e7e1",
+          "review": "reused exact previously inspected raster"
+        }
+      ]
+    }
+  ]
+}

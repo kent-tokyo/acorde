@@ -49,14 +49,14 @@ rendering SVG.
 
 ```toml
 [dependencies]
-acorde = "=1.3.15"
-acorde-render-svg = "=1.3.15"
+acorde = "=2.0.0"
+acorde-render-svg = "=2.0.0"
 ```
 
 Default I/O features are MusicXML and MIDI. Enable optional formats explicitly:
 
 ```toml
-acorde = { version = "=1.3.15", features = ["abc", "mei", "mscz", "gp"] }
+acorde = { version = "=2.0.0", features = ["abc", "mei", "mscz", "gp"] }
 ```
 
 ```rust
@@ -138,3 +138,20 @@ Fixture provenance and capability boundaries are part of the review contract.
 ## License
 
 MIT OR Apache-2.0, at your option.
+
+### Size-oriented WASM builds
+
+The CI size budgets and browser smoke tests use the following release build
+settings. Apply them to `wasm-pack build` for full, viewer, playback-only, and
+optional `measured-print` packages. The settings affect WASM build commands,
+not native release profiles.
+
+```sh
+CARGO_PROFILE_RELEASE_OPT_LEVEL=s CARGO_PROFILE_RELEASE_LTO=thin \
+  wasm-pack build crates/wasm --target web --release
+```
+
+For measured print, add `--features measured-print`. A plain `wasm-pack build`
+without these environment variables uses the default Cargo release settings
+and may produce larger artifacts. Performance depends on the score and runtime;
+the size-oriented build can be slower for some operations.

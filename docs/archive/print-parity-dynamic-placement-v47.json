@@ -1,0 +1,5887 @@
+{
+  "classification": "development diagnostic; no all-page or unseen-corpus pass",
+  "freeze": {
+    "classification": "development diagnostic",
+    "base_commit": "6ac403d3c40c1247fd9cad8032d6d16ff9aa7367",
+    "sha256": {
+      "/private/tmp/acorde-print-parity-20261115/target/release/examples/print_mxl": "48597eb0d89f35c146a0af92cf6da1195c638fff0d28fa5b465e0b0c0c9d5f9b",
+      "/private/tmp/acorde-print-parity-20261115/target/release/examples/measured_print": "27781c23beadedd925d8fa3c63464d6b91d8ec17740b27b34fd7e4536d57e46c",
+      "/private/tmp/acorde-print-parity-20261115/crates/render-svg/tests/fixtures/Tuffy.ttf": "b97cd5005278b24aabb69b8b6ead98860955599558f6e8119483b575a5fdce98",
+      "/private/tmp/acorde-print-parity-diagnostic-v46/source.patch": "759278e1664d38493a883ef1b272de1c28139601a3baa3950ad6a24ad3f66ae7"
+    }
+  },
+  "normalization": {
+    "classification": "shared equal-staff-size comparison input; authored output remains separate",
+    "source": "/private/tmp/acorde-print-parity-holdout-prepared-v20/vocal-lc6302395.musicxml",
+    "source_sha256": "bc77093a7c07cde40b940f65ce339c986ac4c338a9a7fe7ea50be0ec06218537",
+    "output": "/private/tmp/acorde-print-parity-diagnostic-v46/vocal-lc6302395-equal.musicxml",
+    "output_sha256": "ccd20d50db27f898ef7d4a27e65937f02a4aa75b6958ec30d468b9827658d10a",
+    "staff_size_changes": [
+      {
+        "part": "P2",
+        "measure": "0",
+        "staff": "1",
+        "authored_percent": 70.0,
+        "comparison_percent": 100
+      }
+    ],
+    "all_other_parsed_content_unchanged": true
+  },
+  "physical_comparison_utf8": {
+    "acorde_full_size": {
+      "pages": 12,
+      "marks": {
+        "noteheads": 1785,
+        "rests": 348,
+        "slurs": 299,
+        "ties": 117,
+        "lyrics": 168,
+        "dynamics": 25,
+        "hairpins": 102,
+        "articulations": 4
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 61,
+      "text_over_notation": 0,
+      "text_over_text": 0,
+      "edge_candidates": [],
+      "text_text_candidates": [],
+      "lyric_staff_candidates": [],
+      "dynamic_staff_candidates": [],
+      "text_curve_candidates": [],
+      "text_notation_candidates": [],
+      "staff_space_mm": 1.8,
+      "staff_space_samples_mm": [
+        {
+          "page": 1,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 1,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 3,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 5,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 6,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 7,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 1,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 3,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 5,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 6,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 7,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 1,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 3,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 5,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 6,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 7,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 1,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 2,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 3,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 5,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 6,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 7,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 0,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 1,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 2,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 3,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 5,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 6,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 7,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 0,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 1,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 2,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 3,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 5,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 6,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 7,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 0,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 1,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 2,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 3,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 5,
+          "space_mm": 1.79938
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 6,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 7,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 0,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 1,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 2,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 3,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 5,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 6,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 7,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 0,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 1,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 2,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 3,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 5,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 6,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 7,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 8,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 9,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 10,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 11,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 0,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 1,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 2,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 3,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 5,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 6,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 7,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 0,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 1,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 2,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 3,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 5,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 6,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 7,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 12,
+          "staff_ordinal": 0,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 12,
+          "staff_ordinal": 1,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 12,
+          "staff_ordinal": 2,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 12,
+          "staff_ordinal": 3,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 12,
+          "staff_ordinal": 4,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 12,
+          "staff_ordinal": 5,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 12,
+          "staff_ordinal": 6,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 12,
+          "staff_ordinal": 7,
+          "space_mm": 1.79999
+        }
+      ],
+      "min_staff_space_mm": 1.79938,
+      "max_staff_space_mm": 1.80005,
+      "lyric_font_mm": 4.05,
+      "text_font_mm": 4.05,
+      "min_text_font_mm": 1.92,
+      "systems": null
+    },
+    "verovio_authored_size": {
+      "pages": 8,
+      "marks": {
+        "noteheads": 1785,
+        "rests": 348,
+        "slurs": 298,
+        "ties": 124,
+        "lyrics": 172,
+        "dynamics": 40,
+        "hairpins": 112,
+        "articulations": 0
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 8,
+      "text_over_notation": 7,
+      "text_over_text": 0,
+      "edge_candidates": [],
+      "text_text_candidates": [],
+      "lyric_staff_candidates": [],
+      "dynamic_staff_candidates": [],
+      "text_curve_candidates": [
+        {
+          "page": 1,
+          "text": "legato",
+          "textBox": {
+            "x0": 60.849998474121094,
+            "y0": 78.88999938964844,
+            "x1": 70.9671859741211,
+            "y1": 83.38999938964844
+          },
+          "markClass": "stem",
+          "markBox": {
+            "x0": 60.9900016784668,
+            "y0": 69.1500015258789,
+            "x1": 60.9900016784668,
+            "y1": 80.12000274658203
+          }
+        },
+        {
+          "page": 1,
+          "text": "legato",
+          "textBox": {
+            "x0": 60.849998474121094,
+            "y0": 78.88999938964844,
+            "x1": 70.9671859741211,
+            "y1": 83.38999938964844
+          },
+          "markClass": "stem",
+          "markBox": {
+            "x0": 66.04000091552734,
+            "y0": 70.94999694824219,
+            "x1": 66.04000091552734,
+            "y1": 80.55999755859375
+          }
+        },
+        {
+          "page": 1,
+          "text": "legato",
+          "textBox": {
+            "x0": 60.849998474121094,
+            "y0": 78.88999938964844,
+            "x1": 70.9671859741211,
+            "y1": 83.38999938964844
+          },
+          "markClass": "stem",
+          "markBox": {
+            "x0": 69.91999816894531,
+            "y0": 73.6500015258789,
+            "x1": 69.91999816894531,
+            "y1": 80.88999938964844
+          }
+        },
+        {
+          "page": 1,
+          "text": "poco cresc.",
+          "textBox": {
+            "x0": 75.7230453491211,
+            "y0": 126.16000366210938,
+            "x1": 88.72515869140625,
+            "y1": 129.41000366210938
+          },
+          "markClass": "tie",
+          "markBox": {
+            "x0": 77.83000183105469,
+            "y0": 125.69999694824219,
+            "x1": 94.02999877929688,
+            "y1": 126.51000213623047
+          }
+        },
+        {
+          "page": 1,
+          "text": "poco cresc.",
+          "textBox": {
+            "x0": 75.62971496582031,
+            "y0": 159.6999969482422,
+            "x1": 94.22515869140625,
+            "y1": 164.1999969482422
+          },
+          "markClass": "stem",
+          "markBox": {
+            "x0": 85.26000213623047,
+            "y0": 149.17999267578125,
+            "x1": 85.26000213623047,
+            "y1": 160.02000427246094
+          }
+        },
+        {
+          "page": 1,
+          "text": "poco cresc.",
+          "textBox": {
+            "x0": 75.62971496582031,
+            "y0": 159.6999969482422,
+            "x1": 94.22515869140625,
+            "y1": 164.1999969482422
+          },
+          "markClass": "stem",
+          "markBox": {
+            "x0": 90.4000015258789,
+            "y0": 158.8699951171875,
+            "x1": 90.4000015258789,
+            "y1": 168.6999969482422
+          }
+        },
+        {
+          "page": 1,
+          "text": "poco cresc.",
+          "textBox": {
+            "x0": 75.62971496582031,
+            "y0": 159.6999969482422,
+            "x1": 94.22515869140625,
+            "y1": 164.1999969482422
+          },
+          "markClass": "stem",
+          "markBox": {
+            "x0": 93.45999908447266,
+            "y0": 159.25,
+            "x1": 93.45999908447266,
+            "y1": 170.5
+          }
+        },
+        {
+          "page": 1,
+          "text": "dim.",
+          "textBox": {
+            "x0": 175.0399932861328,
+            "y0": 230.6699981689453,
+            "x1": 182.1259307861328,
+            "y1": 235.1699981689453
+          },
+          "markClass": "beam",
+          "markBox": {
+            "x0": 174.97999572753906,
+            "y0": 231.47999572753906,
+            "x1": 192.97000122070312,
+            "y1": 234.17999267578125
+          }
+        },
+        {
+          "page": 1,
+          "text": "dim.",
+          "textBox": {
+            "x0": 175.0399932861328,
+            "y0": 230.6699981689453,
+            "x1": 182.1259307861328,
+            "y1": 235.1699981689453
+          },
+          "markClass": "beam",
+          "markBox": {
+            "x0": 174.97999572753906,
+            "y0": 231.63999938964844,
+            "x1": 178.02999877929688,
+            "y1": 232.8300018310547
+          }
+        },
+        {
+          "page": 1,
+          "text": "dim.",
+          "textBox": {
+            "x0": 175.0399932861328,
+            "y0": 230.6699981689453,
+            "x1": 182.1259307861328,
+            "y1": 235.1699981689453
+          },
+          "markClass": "beam",
+          "markBox": {
+            "x0": 178.02999877929688,
+            "y0": 231.19000244140625,
+            "x1": 182.47999572753906,
+            "y1": 232.5399932861328
+          }
+        },
+        {
+          "page": 1,
+          "text": "dim.",
+          "textBox": {
+            "x0": 175.0399932861328,
+            "y0": 230.6699981689453,
+            "x1": 182.1259307861328,
+            "y1": 235.1699981689453
+          },
+          "markClass": "stem",
+          "markBox": {
+            "x0": 178.02999877929688,
+            "y0": 231.63999938964844,
+            "x1": 178.02999877929688,
+            "y1": 243.1300048828125
+          }
+        },
+        {
+          "page": 3,
+          "text": "in",
+          "textBox": {
+            "x0": 47.2400016784668,
+            "y0": 198.8399658203125,
+            "x1": 51.4001579284668,
+            "y1": 203.3399658203125
+          },
+          "markClass": "slur",
+          "markBox": {
+            "x0": 49.27000045776367,
+            "y0": 197.16998291015625,
+            "x1": 58.400001525878906,
+            "y1": 199.25115966796875
+          }
+        },
+        {
+          "page": 4,
+          "text": "sche,",
+          "textBox": {
+            "x0": 129.77000427246094,
+            "y0": 35.3900146484375,
+            "x1": 137.97703552246094,
+            "y1": 39.8900146484375
+          },
+          "markClass": "stem",
+          "markBox": {
+            "x0": 132.99000549316406,
+            "y0": 29.96002197265625,
+            "x1": 132.99000549316406,
+            "y1": 35.67999267578125
+          }
+        },
+        {
+          "page": 4,
+          "text": "poco  &nbsp;\n                        ",
+          "textBox": {
+            "x0": 120.34304809570312,
+            "y0": 55.71002197265625,
+            "x1": 133.40765380859375,
+            "y1": 60.96002197265625
+          },
+          "markClass": "hairpin",
+          "markBox": {
+            "x0": 120.55999755859375,
+            "y0": 58.70001220703125,
+            "x1": 129.44000244140625,
+            "y1": 60.58001708984375
+          }
+        },
+        {
+          "page": 4,
+          "text": "re",
+          "textBox": {
+            "x0": 176.4600067138672,
+            "y0": 35.3900146484375,
+            "x1": 179.6045379638672,
+            "y1": 39.8900146484375
+          },
+          "markClass": "stem",
+          "markBox": {
+            "x0": 177.4499969482422,
+            "y0": 29.96002197265625,
+            "x1": 177.4499969482422,
+            "y1": 35.67999267578125
+          }
+        },
+        {
+          "page": 4,
+          "text": "poco  &nbsp;\n                        ",
+          "textBox": {
+            "x0": 33.27971649169922,
+            "y0": 158.5699462890625,
+            "x1": 51.58609390258789,
+            "y1": 165.820068359375
+          },
+          "markClass": "hairpin",
+          "markBox": {
+            "x0": 40.43000030517578,
+            "y0": 162.6600341796875,
+            "x1": 86.19000244140625,
+            "y1": 165.3599853515625
+          }
+        },
+        {
+          "page": 4,
+          "text": "und",
+          "textBox": {
+            "x0": 109.87000274658203,
+            "y0": 117.8900146484375,
+            "x1": 115.94422149658203,
+            "y1": 122.3900146484375
+          },
+          "markClass": "stem",
+          "markBox": {
+            "x0": 110.86000061035156,
+            "y0": 112.46002197265625,
+            "x1": 110.86000061035156,
+            "y1": 118.17999267578125
+          }
+        },
+        {
+          "page": 5,
+          "text": "nen,",
+          "textBox": {
+            "x0": 52.22999954223633,
+            "y0": 35.449951171875,
+            "x1": 59.08937454223633,
+            "y1": 39.949951171875
+          },
+          "markClass": "stem",
+          "markBox": {
+            "x0": 53.220001220703125,
+            "y0": 30.02001953125,
+            "x1": 53.220001220703125,
+            "y1": 35.739990234375
+          }
+        },
+        {
+          "page": 5,
+          "text": "be",
+          "textBox": {
+            "x0": 126.79000091552734,
+            "y0": 35.449951171875,
+            "x1": 130.6103057861328,
+            "y1": 39.949951171875
+          },
+          "markClass": "stem",
+          "markBox": {
+            "x0": 127.77999877929688,
+            "y0": 30.02001953125,
+            "x1": 127.77999877929688,
+            "y1": 35.739990234375
+          }
+        },
+        {
+          "page": 5,
+          "text": "we",
+          "textBox": {
+            "x0": 135.4600067138672,
+            "y0": 35.449951171875,
+            "x1": 140.1826629638672,
+            "y1": 39.949951171875
+          },
+          "markClass": "stem",
+          "markBox": {
+            "x0": 136.4499969482422,
+            "y0": 30.02001953125,
+            "x1": 136.4499969482422,
+            "y1": 35.739990234375
+          }
+        },
+        {
+          "page": 5,
+          "text": "hest",
+          "textBox": {
+            "x0": 188.99000549316406,
+            "y0": 35.449951171875,
+            "x1": 195.51382446289062,
+            "y1": 39.949951171875
+          },
+          "markClass": "stem",
+          "markBox": {
+            "x0": 192.0399932861328,
+            "y0": 30.02001953125,
+            "x1": 192.0399932861328,
+            "y1": 35.739990234375
+          }
+        },
+        {
+          "page": 5,
+          "text": "ge",
+          "textBox": {
+            "x0": 106.29000091552734,
+            "y0": 210.300048828125,
+            "x1": 110.11031341552734,
+            "y1": 214.800048828125
+          },
+          "markClass": "beam",
+          "markBox": {
+            "x0": 107.19000244140625,
+            "y0": 209.3299560546875,
+            "x1": 111.97000122070312,
+            "y1": 210.679931640625
+          }
+        },
+        {
+          "page": 5,
+          "text": "ge",
+          "textBox": {
+            "x0": 106.29000091552734,
+            "y0": 210.300048828125,
+            "x1": 110.11031341552734,
+            "y1": 214.800048828125
+          },
+          "markClass": "stem",
+          "markBox": {
+            "x0": 107.27999877929688,
+            "y0": 204.2099609375,
+            "x1": 107.27999877929688,
+            "y1": 210.5
+          }
+        },
+        {
+          "page": 6,
+          "text": "dim.",
+          "textBox": {
+            "x0": 70.53999328613281,
+            "y0": 50.449951171875,
+            "x1": 75.49311828613281,
+            "y1": 53.699951171875
+          },
+          "markClass": "slur",
+          "markBox": {
+            "x0": 71.33000183105469,
+            "y0": 47.31005859375,
+            "x1": 78.52999877929688,
+            "y1": 50.718017578125
+          }
+        },
+        {
+          "page": 6,
+          "text": "ihr",
+          "textBox": {
+            "x0": 151.69000244140625,
+            "y0": 35.4300537109375,
+            "x1": 156.199951171875,
+            "y1": 39.9300537109375
+          },
+          "markClass": "stem",
+          "markBox": {
+            "x0": 152.67999267578125,
+            "y0": 30,
+            "x1": 152.67999267578125,
+            "y1": 35.719970703125
+          }
+        },
+        {
+          "page": 8,
+          "text": "ben",
+          "textBox": {
+            "x0": 44.060001373291016,
+            "y0": 114.949951171875,
+            "x1": 49.907657623291016,
+            "y1": 119.449951171875
+          },
+          "markClass": "stem",
+          "markBox": {
+            "x0": 45.04999923706055,
+            "y0": 109.52001953125,
+            "x1": 45.04999923706055,
+            "y1": 115.239990234375
+          }
+        }
+      ],
+      "text_notation_candidates": [
+        {
+          "page": 2,
+          "text": "A",
+          "textClass": "",
+          "markClass": "notehead",
+          "overlap_mm2": 0.7851350586861372,
+          "textBox": {
+            "x0": 130.05999755859375,
+            "y0": 34.760009765625,
+            "x1": 132.98577880859375,
+            "y1": 39.260009765625
+          },
+          "markBox": {
+            "x0": 130.9600067138672,
+            "y0": 33.232391357421875,
+            "x1": 133.22079467773438,
+            "y1": 35.1475830078125
+          }
+        },
+        {
+          "page": 2,
+          "text": "stehn!",
+          "textClass": "",
+          "markClass": "notehead",
+          "overlap_mm2": 0.8762958291918039,
+          "textBox": {
+            "x0": 135.8699951171875,
+            "y0": 115.89999389648438,
+            "x1": 145.7645263671875,
+            "y1": 120.39999389648438
+          },
+          "markBox": {
+            "x0": 136.77000427246094,
+            "y0": 114.37240600585938,
+            "x1": 139.0308074951172,
+            "y1": 116.28759765625
+          }
+        },
+        {
+          "page": 4,
+          "text": "dim.",
+          "textClass": "",
+          "markClass": "notehead",
+          "overlap_mm2": 0.6275705387815833,
+          "textBox": {
+            "x0": 44.43000030517578,
+            "y0": 73.71002197265625,
+            "x1": 51.51593780517578,
+            "y1": 78.21002197265625
+          },
+          "markBox": {
+            "x0": 44.43000030517578,
+            "y0": 72.0723876953125,
+            "x1": 46.690799713134766,
+            "y1": 73.98760986328125
+          }
+        },
+        {
+          "page": 6,
+          "text": "dim.",
+          "textClass": "",
+          "markClass": "notehead",
+          "overlap_mm2": 0.6275705387815833,
+          "textBox": {
+            "x0": 60.59000015258789,
+            "y0": 71.4599609375,
+            "x1": 67.67593383789062,
+            "y1": 75.9599609375
+          },
+          "markBox": {
+            "x0": 60.59000015258789,
+            "y0": 69.8223876953125,
+            "x1": 62.850799560546875,
+            "y1": 71.737548828125
+          }
+        },
+        {
+          "page": 6,
+          "text": "mehr",
+          "textClass": "",
+          "markClass": "notehead",
+          "overlap_mm2": 0.8762268349528313,
+          "textBox": {
+            "x0": 128.77999877929688,
+            "y0": 114.489990234375,
+            "x1": 137.11016845703125,
+            "y1": 118.989990234375
+          },
+          "markBox": {
+            "x0": 129.67999267578125,
+            "y0": 112.96240234375,
+            "x1": 131.9407958984375,
+            "y1": 114.8775634765625
+          }
+        },
+        {
+          "page": 6,
+          "text": "eilt,",
+          "textClass": "",
+          "markClass": "notehead",
+          "overlap_mm2": 0.8762268349528313,
+          "textBox": {
+            "x0": 156.69000244140625,
+            "y0": 194.3699951171875,
+            "x1": 162.87359619140625,
+            "y1": 198.8699951171875
+          },
+          "markBox": {
+            "x0": 157.58999633789062,
+            "y0": 192.8424072265625,
+            "x1": 159.85079956054688,
+            "y1": 194.757568359375
+          }
+        },
+        {
+          "page": 8,
+          "text": "dim.",
+          "textClass": "",
+          "markClass": "notehead",
+          "overlap_mm2": 0.6275715976953506,
+          "textBox": {
+            "x0": 146.12998962402344,
+            "y0": 152.510009765625,
+            "x1": 153.21592712402344,
+            "y1": 157.010009765625
+          },
+          "markBox": {
+            "x0": 146.1300048828125,
+            "y0": 150.872314453125,
+            "x1": 148.39080810546875,
+            "y1": 152.78759765625
+          }
+        }
+      ],
+      "staff_space_mm": 1.8,
+      "staff_space_samples_mm": [
+        {
+          "page": 1,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 1,
+          "space_mm": 1.26
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 3,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 5,
+          "space_mm": 1.26
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 6,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 7,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 8,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 9,
+          "space_mm": 1.26
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 10,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 11,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 12,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 13,
+          "space_mm": 1.26
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 14,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 15,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 16,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 17,
+          "space_mm": 1.26
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 18,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 19,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 20,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 21,
+          "space_mm": 1.26
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 22,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 23,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 24,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 25,
+          "space_mm": 1.26
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 26,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 27,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 28,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 29,
+          "space_mm": 1.26
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 30,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 31,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 32,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 33,
+          "space_mm": 1.26
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 34,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 35,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 36,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 37,
+          "space_mm": 1.26
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 38,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 39,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 40,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 41,
+          "space_mm": 1.26
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 42,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 43,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 1,
+          "space_mm": 1.26
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 3,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 5,
+          "space_mm": 1.26
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 6,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 7,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 8,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 9,
+          "space_mm": 1.26
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 10,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 11,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 12,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 13,
+          "space_mm": 1.26
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 14,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 15,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 16,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 17,
+          "space_mm": 1.26
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 18,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 19,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 20,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 21,
+          "space_mm": 1.26
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 22,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 23,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 24,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 25,
+          "space_mm": 1.26
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 26,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 27,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 28,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 29,
+          "space_mm": 1.26
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 30,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 31,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 32,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 33,
+          "space_mm": 1.26
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 34,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 35,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 36,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 37,
+          "space_mm": 1.26
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 38,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 39,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 40,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 41,
+          "space_mm": 1.26
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 42,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 43,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 44,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 45,
+          "space_mm": 1.26
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 46,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 47,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 48,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 49,
+          "space_mm": 1.26
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 50,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 51,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 1,
+          "space_mm": 1.25999
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 3,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 5,
+          "space_mm": 1.25999
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 6,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 7,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 8,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 9,
+          "space_mm": 1.25999
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 10,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 11,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 12,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 13,
+          "space_mm": 1.25999
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 14,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 15,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 16,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 17,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 18,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 19,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 20,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 21,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 22,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 23,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 24,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 25,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 26,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 27,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 28,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 29,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 30,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 31,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 32,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 33,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 34,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 35,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 36,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 37,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 38,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 39,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 40,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 41,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 42,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 43,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 44,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 45,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 46,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 47,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 48,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 49,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 50,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 51,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 52,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 53,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 54,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 55,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 56,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 57,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 58,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 59,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 1,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 3,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 5,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 6,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 7,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 8,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 9,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 10,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 11,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 12,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 13,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 14,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 15,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 16,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 17,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 18,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 19,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 20,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 21,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 22,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 23,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 24,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 25,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 26,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 27,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 28,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 29,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 30,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 31,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 32,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 33,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 34,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 35,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 0,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 1,
+          "space_mm": 1.25998
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 2,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 3,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 5,
+          "space_mm": 1.25998
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 6,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 7,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 8,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 9,
+          "space_mm": 1.25998
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 10,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 11,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 12,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 13,
+          "space_mm": 1.25998
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 14,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 15,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 16,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 17,
+          "space_mm": 1.25998
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 18,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 19,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 20,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 21,
+          "space_mm": 1.25998
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 22,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 23,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 24,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 25,
+          "space_mm": 1.25998
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 26,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 27,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 28,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 29,
+          "space_mm": 1.25998
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 30,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 31,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 32,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 33,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 34,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 35,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 36,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 37,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 38,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 39,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 40,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 41,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 42,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 43,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 44,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 45,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 46,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 47,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 0,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 1,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 2,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 3,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 5,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 6,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 7,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 8,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 9,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 10,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 11,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 12,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 13,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 14,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 15,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 16,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 17,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 18,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 19,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 20,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 21,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 22,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 23,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 24,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 25,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 26,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 27,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 28,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 29,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 30,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 31,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 32,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 33,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 34,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 35,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 36,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 37,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 38,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 39,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 40,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 41,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 42,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 43,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 44,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 45,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 46,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 47,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 48,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 49,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 50,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 51,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 52,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 53,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 54,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 55,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 0,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 1,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 2,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 3,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 5,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 6,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 7,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 8,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 9,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 10,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 11,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 12,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 13,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 14,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 15,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 16,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 17,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 18,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 19,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 20,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 21,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 22,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 23,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 24,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 25,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 26,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 27,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 28,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 29,
+          "space_mm": 1.25998
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 30,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 31,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 32,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 33,
+          "space_mm": 1.25998
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 34,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 35,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 36,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 37,
+          "space_mm": 1.25998
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 38,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 39,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 40,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 41,
+          "space_mm": 1.25998
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 42,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 43,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 0,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 1,
+          "space_mm": 1.25995
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 2,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 3,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 5,
+          "space_mm": 1.25995
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 6,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 7,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 8,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 9,
+          "space_mm": 1.25995
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 10,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 11,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 12,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 13,
+          "space_mm": 1.25995
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 14,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 15,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 16,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 17,
+          "space_mm": 1.25995
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 18,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 19,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 20,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 21,
+          "space_mm": 1.25995
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 22,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 23,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 24,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 25,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 26,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 27,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 28,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 29,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 30,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 31,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 32,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 33,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 34,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 35,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 36,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 37,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 38,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 39,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 40,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 41,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 42,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 43,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 44,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 45,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 46,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 47,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 48,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 49,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 50,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 51,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 52,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 53,
+          "space_mm": 1.26001
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 54,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 55,
+          "space_mm": 1.79999
+        }
+      ],
+      "min_staff_space_mm": 1.25995,
+      "max_staff_space_mm": 1.80005,
+      "lyric_font_mm": 4.05,
+      "text_font_mm": 4.05,
+      "min_text_font_mm": 2.83,
+      "systems": 23
+    },
+    "verovio_equal_size": {
+      "pages": 11,
+      "marks": {
+        "noteheads": 1785,
+        "rests": 348,
+        "slurs": 300,
+        "ties": 116,
+        "lyrics": 175,
+        "dynamics": 40,
+        "hairpins": 110,
+        "articulations": 0
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 12,
+      "text_over_notation": 8,
+      "text_over_text": 0,
+      "edge_candidates": [],
+      "text_text_candidates": [],
+      "lyric_staff_candidates": [],
+      "dynamic_staff_candidates": [],
+      "text_curve_candidates": [
+        {
+          "page": 1,
+          "text": "legato",
+          "textBox": {
+            "x0": 60.41999816894531,
+            "y0": 84.22000122070312,
+            "x1": 70.53718566894531,
+            "y1": 88.72000122070312
+          },
+          "markClass": "stem",
+          "markBox": {
+            "x0": 60.7400016784668,
+            "y0": 74.55000305175781,
+            "x1": 60.7400016784668,
+            "y1": 85.5199966430664
+          }
+        },
+        {
+          "page": 1,
+          "text": "legato",
+          "textBox": {
+            "x0": 60.41999816894531,
+            "y0": 84.22000122070312,
+            "x1": 70.53718566894531,
+            "y1": 88.72000122070312
+          },
+          "markClass": "stem",
+          "markBox": {
+            "x0": 65.36000061035156,
+            "y0": 76.3499984741211,
+            "x1": 65.36000061035156,
+            "y1": 85.91000366210938
+          }
+        },
+        {
+          "page": 1,
+          "text": "legato",
+          "textBox": {
+            "x0": 60.41999816894531,
+            "y0": 84.22000122070312,
+            "x1": 70.53718566894531,
+            "y1": 88.72000122070312
+          },
+          "markClass": "stem",
+          "markBox": {
+            "x0": 69.04000091552734,
+            "y0": 79.05000305175781,
+            "x1": 69.04000091552734,
+            "y1": 86.22000122070312
+          }
+        },
+        {
+          "page": 1,
+          "text": "poco cresc.",
+          "textBox": {
+            "x0": 75.38970947265625,
+            "y0": 142.1999969482422,
+            "x1": 93.98515319824219,
+            "y1": 146.6999969482422
+          },
+          "markClass": "beam",
+          "markBox": {
+            "x0": 93.5,
+            "y0": 141.6999969482422,
+            "x1": 108.52999877929688,
+            "y1": 142.60000610351562
+          }
+        },
+        {
+          "page": 1,
+          "text": "poco cresc.",
+          "textBox": {
+            "x0": 75.38970947265625,
+            "y0": 142.1999969482422,
+            "x1": 93.98515319824219,
+            "y1": 146.6999969482422
+          },
+          "markClass": "stem",
+          "markBox": {
+            "x0": 93.58999633789062,
+            "y0": 136.1300048828125,
+            "x1": 93.58999633789062,
+            "y1": 142.4199981689453
+          }
+        },
+        {
+          "page": 1,
+          "text": "poco cresc.",
+          "textBox": {
+            "x0": 75.38970947265625,
+            "y0": 172.52000427246094,
+            "x1": 93.98515319824219,
+            "y1": 177.02000427246094
+          },
+          "markClass": "stem",
+          "markBox": {
+            "x0": 84.72000122070312,
+            "y0": 162,
+            "x1": 84.72000122070312,
+            "y1": 172.83999633789062
+          }
+        },
+        {
+          "page": 1,
+          "text": "poco cresc.",
+          "textBox": {
+            "x0": 75.38970947265625,
+            "y0": 172.52000427246094,
+            "x1": 93.98515319824219,
+            "y1": 177.02000427246094
+          },
+          "markClass": "stem",
+          "markBox": {
+            "x0": 89.76000213623047,
+            "y0": 171.69000244140625,
+            "x1": 89.76000213623047,
+            "y1": 181.52000427246094
+          }
+        },
+        {
+          "page": 1,
+          "text": "poco cresc.",
+          "textBox": {
+            "x0": 75.38970947265625,
+            "y0": 172.52000427246094,
+            "x1": 93.98515319824219,
+            "y1": 177.02000427246094
+          },
+          "markClass": "stem",
+          "markBox": {
+            "x0": 92.72000122070312,
+            "y0": 172.07000732421875,
+            "x1": 92.72000122070312,
+            "y1": 183.32000732421875
+          }
+        },
+        {
+          "page": 2,
+          "text": "dim.",
+          "textBox": {
+            "x0": 55.2400016784668,
+            "y0": 162.739990234375,
+            "x1": 62.3259391784668,
+            "y1": 167.239990234375
+          },
+          "markClass": "beam",
+          "markBox": {
+            "x0": 54.630001068115234,
+            "y0": 162.79998779296875,
+            "x1": 75.77999877929688,
+            "y1": 165.5
+          }
+        },
+        {
+          "page": 2,
+          "text": "dim.",
+          "textBox": {
+            "x0": 55.2400016784668,
+            "y0": 162.739990234375,
+            "x1": 62.3259391784668,
+            "y1": 167.239990234375
+          },
+          "markClass": "beam",
+          "markBox": {
+            "x0": 54.630001068115234,
+            "y0": 162.97998046875,
+            "x1": 57.970001220703125,
+            "y1": 164.14999389648438
+          }
+        },
+        {
+          "page": 2,
+          "text": "dim.",
+          "textBox": {
+            "x0": 55.2400016784668,
+            "y0": 162.739990234375,
+            "x1": 62.3259391784668,
+            "y1": 167.239990234375
+          },
+          "markClass": "beam",
+          "markBox": {
+            "x0": 57.970001220703125,
+            "y0": 162.55999755859375,
+            "x1": 62.849998474121094,
+            "y1": 163.8800048828125
+          }
+        },
+        {
+          "page": 2,
+          "text": "dim.",
+          "textBox": {
+            "x0": 55.2400016784668,
+            "y0": 162.739990234375,
+            "x1": 62.3259391784668,
+            "y1": 167.239990234375
+          },
+          "markClass": "stem",
+          "markBox": {
+            "x0": 57.970001220703125,
+            "y0": 162.97998046875,
+            "x1": 57.970001220703125,
+            "y1": 174
+          }
+        },
+        {
+          "page": 3,
+          "text": "Wäl",
+          "textBox": {
+            "x0": 151.12998962402344,
+            "y0": 36.780029296875,
+            "x1": 157.87217712402344,
+            "y1": 41.280029296875
+          },
+          "markClass": "slur",
+          "markBox": {
+            "x0": 153.16000366210938,
+            "y0": 34.41998291015625,
+            "x1": 163,
+            "y1": 37.1683349609375
+          }
+        },
+        {
+          "page": 5,
+          "text": "mer",
+          "textBox": {
+            "x0": 55.7599983215332,
+            "y0": 35.449951171875,
+            "x1": 62.066429138183594,
+            "y1": 39.949951171875
+          },
+          "markClass": "stem",
+          "markBox": {
+            "x0": 57.560001373291016,
+            "y0": 30.02001953125,
+            "x1": 57.560001373291016,
+            "y1": 35.739990234375
+          }
+        },
+        {
+          "page": 5,
+          "text": "dim.",
+          "textBox": {
+            "x0": 130.3000030517578,
+            "y0": 53.9200439453125,
+            "x1": 137.3859405517578,
+            "y1": 58.4200439453125
+          },
+          "markClass": "stem",
+          "markBox": {
+            "x0": 130.38999938964844,
+            "y0": 48.0799560546875,
+            "x1": 130.38999938964844,
+            "y1": 54.0999755859375
+          }
+        },
+        {
+          "page": 5,
+          "text": "sche,",
+          "textBox": {
+            "x0": 52.56999969482422,
+            "y0": 117.8599853515625,
+            "x1": 60.77703094482422,
+            "y1": 122.3599853515625
+          },
+          "markClass": "stem",
+          "markBox": {
+            "x0": 56.2599983215332,
+            "y0": 112.4300537109375,
+            "x1": 56.2599983215332,
+            "y1": 118.1500244140625
+          }
+        },
+        {
+          "page": 5,
+          "text": "poco  &nbsp;\n                        ",
+          "textBox": {
+            "x0": 36.04971694946289,
+            "y0": 145.239990234375,
+            "x1": 54.35609436035156,
+            "y1": 152.489990234375
+          },
+          "markClass": "hairpin",
+          "markBox": {
+            "x0": 36.36000061035156,
+            "y0": 149.3299560546875,
+            "x1": 50.86000061035156,
+            "y1": 152.030029296875
+          }
+        },
+        {
+          "page": 5,
+          "text": "re",
+          "textBox": {
+            "x0": 118.68998718261719,
+            "y0": 117.8599853515625,
+            "x1": 121.83451843261719,
+            "y1": 122.3599853515625
+          },
+          "markClass": "stem",
+          "markBox": {
+            "x0": 119.68000030517578,
+            "y0": 112.4300537109375,
+            "x1": 119.68000030517578,
+            "y1": 118.1500244140625
+          }
+        },
+        {
+          "page": 5,
+          "text": "poco  &nbsp;\n                        ",
+          "textBox": {
+            "x0": 147.01971435546875,
+            "y0": 164.3800048828125,
+            "x1": 165.3260955810547,
+            "y1": 171.6300048828125
+          },
+          "markClass": "hairpin",
+          "markBox": {
+            "x0": 157.9499969482422,
+            "y0": 168.9200439453125,
+            "x1": 194.08999633789062,
+            "y1": 170.719970703125
+          }
+        },
+        {
+          "page": 6,
+          "text": "und",
+          "textBox": {
+            "x0": 81.68000030517578,
+            "y0": 35.4300537109375,
+            "x1": 87.75421905517578,
+            "y1": 39.9300537109375
+          },
+          "markClass": "stem",
+          "markBox": {
+            "x0": 82.66999816894531,
+            "y0": 30,
+            "x1": 82.66999816894531,
+            "y1": 35.719970703125
+          }
+        },
+        {
+          "page": 6,
+          "text": "nen,",
+          "textBox": {
+            "x0": 53.02000045776367,
+            "y0": 130.469970703125,
+            "x1": 59.87937545776367,
+            "y1": 134.969970703125
+          },
+          "markClass": "stem",
+          "markBox": {
+            "x0": 54.0099983215332,
+            "y0": 125.0400390625,
+            "x1": 54.0099983215332,
+            "y1": 130.760009765625
+          }
+        },
+        {
+          "page": 6,
+          "text": "be",
+          "textBox": {
+            "x0": 127.7599868774414,
+            "y0": 130.469970703125,
+            "x1": 131.58030700683594,
+            "y1": 134.969970703125
+          },
+          "markClass": "stem",
+          "markBox": {
+            "x0": 128.75,
+            "y0": 125.0400390625,
+            "x1": 128.75,
+            "y1": 130.760009765625
+          }
+        },
+        {
+          "page": 6,
+          "text": "we",
+          "textBox": {
+            "x0": 136.27000427246094,
+            "y0": 130.469970703125,
+            "x1": 140.99266052246094,
+            "y1": 134.969970703125
+          },
+          "markClass": "stem",
+          "markBox": {
+            "x0": 137.25999450683594,
+            "y0": 125.0400390625,
+            "x1": 137.25999450683594,
+            "y1": 130.760009765625
+          }
+        },
+        {
+          "page": 6,
+          "text": "hest",
+          "textBox": {
+            "x0": 189.08999633789062,
+            "y0": 130.469970703125,
+            "x1": 195.61383056640625,
+            "y1": 134.969970703125
+          },
+          "markClass": "stem",
+          "markBox": {
+            "x0": 192.27000427246094,
+            "y0": 125.0400390625,
+            "x1": 192.27000427246094,
+            "y1": 130.760009765625
+          }
+        },
+        {
+          "page": 7,
+          "text": "Beim",
+          "textBox": {
+            "x0": 174.97999572753906,
+            "y0": 37.2099609375,
+            "x1": 183.74952697753906,
+            "y1": 41.7099609375
+          },
+          "markClass": "slur",
+          "markBox": {
+            "x0": 177.00999450683594,
+            "y0": 34.3699951171875,
+            "x1": 190.92999267578125,
+            "y1": 37.60986328125
+          }
+        },
+        {
+          "page": 7,
+          "text": "lein,",
+          "textBox": {
+            "x0": 32.70000076293945,
+            "y0": 203.6300048828125,
+            "x1": 39.78203201293945,
+            "y1": 208.1300048828125
+          },
+          "markClass": "slur",
+          "markBox": {
+            "x0": 34.72999954223633,
+            "y0": 201.530029296875,
+            "x1": 46.52000045776367,
+            "y1": 203.9984130859375
+          }
+        },
+        {
+          "page": 7,
+          "text": "den",
+          "textBox": {
+            "x0": 108.5099868774414,
+            "y0": 203.6300048828125,
+            "x1": 114.3576431274414,
+            "y1": 208.1300048828125
+          },
+          "markClass": "stem",
+          "markBox": {
+            "x0": 109.5,
+            "y0": 197.989990234375,
+            "x1": 109.5,
+            "y1": 203.7099609375
+          }
+        },
+        {
+          "page": 7,
+          "text": "dim.",
+          "textBox": {
+            "x0": 165.19000244140625,
+            "y0": 225.5899658203125,
+            "x1": 172.27593994140625,
+            "y1": 230.0899658203125
+          },
+          "markClass": "slur",
+          "markBox": {
+            "x0": 166.32000732421875,
+            "y0": 221.02001953125,
+            "x1": 176.4600067138672,
+            "y1": 225.8759765625
+          }
+        },
+        {
+          "page": 8,
+          "text": "ihr",
+          "textBox": {
+            "x0": 79.22000122070312,
+            "y0": 35.39990234375,
+            "x1": 83.7299575805664,
+            "y1": 39.89990234375
+          },
+          "markClass": "stem",
+          "markBox": {
+            "x0": 80.20999908447266,
+            "y0": 29.969970703125,
+            "x1": 80.20999908447266,
+            "y1": 35.68994140625
+          }
+        },
+        {
+          "page": 10,
+          "text": "ge",
+          "textBox": {
+            "x0": 129.3000030517578,
+            "y0": 130.030029296875,
+            "x1": 133.1203155517578,
+            "y1": 134.530029296875
+          },
+          "markClass": "beam",
+          "markBox": {
+            "x0": 130.1999969482422,
+            "y0": 127.7099609375,
+            "x1": 136.50999450683594,
+            "y1": 130.409912109375
+          }
+        },
+        {
+          "page": 10,
+          "text": "ge",
+          "textBox": {
+            "x0": 129.3000030517578,
+            "y0": 130.030029296875,
+            "x1": 133.1203155517578,
+            "y1": 134.530029296875
+          },
+          "markClass": "stem",
+          "markBox": {
+            "x0": 130.2899932861328,
+            "y0": 124.389892578125,
+            "x1": 130.2899932861328,
+            "y1": 130.22998046875
+          }
+        }
+      ],
+      "text_notation_candidates": [
+        {
+          "page": 2,
+          "text": "A",
+          "textClass": "",
+          "markClass": "notehead",
+          "overlap_mm2": 0.7852027947083116,
+          "textBox": {
+            "x0": 174.8000030517578,
+            "y0": 115.72000122070312,
+            "x1": 177.7257843017578,
+            "y1": 120.22000122070312
+          },
+          "markBox": {
+            "x0": 175.6999969482422,
+            "y0": 114.19241333007812,
+            "x1": 177.96080017089844,
+            "y1": 116.10760498046875
+          }
+        },
+        {
+          "page": 3,
+          "text": "stehn!",
+          "textClass": "",
+          "markClass": "notehead",
+          "overlap_mm2": 0.8762253564782441,
+          "textBox": {
+            "x0": 34.459999084472656,
+            "y0": 126.030029296875,
+            "x1": 44.354530334472656,
+            "y1": 130.530029296875
+          },
+          "markBox": {
+            "x0": 35.36000061035156,
+            "y0": 124.50238037109375,
+            "x1": 37.62080001831055,
+            "y1": 126.4176025390625
+          }
+        },
+        {
+          "page": 5,
+          "text": "dim.",
+          "textClass": "",
+          "markClass": "notehead",
+          "overlap_mm2": 0.6275715976953506,
+          "textBox": {
+            "x0": 130.3000030517578,
+            "y0": 73.6800537109375,
+            "x1": 137.3859405517578,
+            "y1": 78.1800537109375
+          },
+          "markBox": {
+            "x0": 130.3000030517578,
+            "y0": 72.0423583984375,
+            "x1": 132.56080627441406,
+            "y1": 73.9576416015625
+          }
+        },
+        {
+          "page": 7,
+          "text": "dim.",
+          "textClass": "",
+          "markClass": "notehead",
+          "overlap_mm2": 0.6275715976953506,
+          "textBox": {
+            "x0": 155.94000244140625,
+            "y0": 243.510009765625,
+            "x1": 163.02593994140625,
+            "y1": 248.010009765625
+          },
+          "markBox": {
+            "x0": 155.94000244140625,
+            "y0": 241.8724365234375,
+            "x1": 158.2008056640625,
+            "y1": 243.78759765625
+          }
+        },
+        {
+          "page": 8,
+          "text": "Fer",
+          "textClass": "",
+          "markClass": "notehead",
+          "overlap_mm2": 0.8759479019790888,
+          "textBox": {
+            "x0": 123.11000061035156,
+            "y0": 120.590087890625,
+            "x1": 128.51918029785156,
+            "y1": 125.090087890625
+          },
+          "markBox": {
+            "x0": 124.01000213623047,
+            "y0": 119.0625,
+            "x1": 126.27079772949219,
+            "y1": 120.9775390625
+          }
+        },
+        {
+          "page": 9,
+          "text": "eilt,",
+          "textClass": "",
+          "markClass": "notehead",
+          "overlap_mm2": 0.8765028119087219,
+          "textBox": {
+            "x0": 77.66999816894531,
+            "y0": 37.4599609375,
+            "x1": 83.85359191894531,
+            "y1": 41.9599609375
+          },
+          "markBox": {
+            "x0": 78.56999969482422,
+            "y0": 35.932373046875,
+            "x1": 80.83080291748047,
+            "y1": 37.84765625
+          }
+        },
+        {
+          "page": 11,
+          "text": "ein.",
+          "textClass": "",
+          "markClass": "notehead",
+          "overlap_mm2": 0.8759508579969406,
+          "textBox": {
+            "x0": 34.36000061035156,
+            "y0": 117.8701171875,
+            "x1": 40.31703186035156,
+            "y1": 122.3701171875
+          },
+          "markBox": {
+            "x0": 35.2599983215332,
+            "y0": 116.34228515625,
+            "x1": 37.52080154418945,
+            "y1": 118.257568359375
+          }
+        },
+        {
+          "page": 11,
+          "text": "dim.",
+          "textClass": "",
+          "markClass": "notehead",
+          "overlap_mm2": 0.627569479867816,
+          "textBox": {
+            "x0": 120.62000274658203,
+            "y0": 159.699951171875,
+            "x1": 127.70594024658203,
+            "y1": 164.199951171875
+          },
+          "markBox": {
+            "x0": 120.62000274658203,
+            "y0": 158.0625,
+            "x1": 122.88079833984375,
+            "y1": 159.9775390625
+          }
+        }
+      ],
+      "staff_space_mm": 1.8,
+      "staff_space_samples_mm": [
+        {
+          "page": 1,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 1,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 3,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 5,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 6,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 7,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 8,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 9,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 10,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 11,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 12,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 13,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 14,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 15,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 16,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 17,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 18,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 19,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 20,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 21,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 22,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 23,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 24,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 25,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 26,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 27,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 1,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 3,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 5,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 6,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 7,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 8,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 9,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 10,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 11,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 12,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 13,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 14,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 15,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 16,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 17,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 18,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 19,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 20,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 21,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 22,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 23,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 24,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 25,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 26,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 27,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 28,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 29,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 30,
+          "space_mm": 1.8
+        },
+        {
+          "page": 2,
+          "staff_ordinal": 31,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 1,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 3,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 5,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 6,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 7,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 8,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 9,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 10,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 11,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 12,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 13,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 14,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 15,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 16,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 17,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 18,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 19,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 20,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 21,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 22,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 23,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 24,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 25,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 26,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 27,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 28,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 29,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 30,
+          "space_mm": 1.8
+        },
+        {
+          "page": 3,
+          "staff_ordinal": 31,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 1,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 3,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 5,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 6,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 7,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 8,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 9,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 10,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 11,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 12,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 13,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 14,
+          "space_mm": 1.8
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 15,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 16,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 17,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 18,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 19,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 20,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 21,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 22,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 23,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 24,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 25,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 26,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 27,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 28,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 29,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 30,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 31,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 32,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 33,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 34,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 35,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 36,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 37,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 38,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 39,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 40,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 41,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 42,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 43,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 44,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 45,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 46,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 47,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 48,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 49,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 50,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 4,
+          "staff_ordinal": 51,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 0,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 1,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 2,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 3,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 5,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 6,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 7,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 8,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 9,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 10,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 11,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 12,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 13,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 14,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 15,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 16,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 17,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 18,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 19,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 20,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 21,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 22,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 23,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 24,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 25,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 26,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 27,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 28,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 29,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 30,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 31,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 32,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 33,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 34,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 5,
+          "staff_ordinal": 35,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 0,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 1,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 2,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 3,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 5,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 6,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 7,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 8,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 9,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 10,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 11,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 12,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 13,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 14,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 15,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 16,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 17,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 18,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 19,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 20,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 21,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 22,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 6,
+          "staff_ordinal": 23,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 0,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 1,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 2,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 3,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 5,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 6,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 7,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 8,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 9,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 10,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 11,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 12,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 13,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 14,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 15,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 16,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 17,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 18,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 19,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 20,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 21,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 22,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 23,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 24,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 25,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 26,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 27,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 28,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 29,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 30,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 31,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 32,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 33,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 34,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 35,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 36,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 37,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 38,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 39,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 40,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 41,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 42,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 7,
+          "staff_ordinal": 43,
+          "space_mm": 1.80002
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 0,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 1,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 2,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 3,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 5,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 6,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 7,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 8,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 9,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 10,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 11,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 12,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 13,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 14,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 15,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 16,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 17,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 18,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 19,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 20,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 21,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 22,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 23,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 24,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 25,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 26,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 27,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 28,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 29,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 30,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 31,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 32,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 33,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 34,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 35,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 36,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 37,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 38,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 8,
+          "staff_ordinal": 39,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 0,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 1,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 2,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 3,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 5,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 6,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 7,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 8,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 9,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 10,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 11,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 12,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 13,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 14,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 15,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 16,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 17,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 18,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 19,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 20,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 21,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 22,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 23,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 24,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 25,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 26,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 9,
+          "staff_ordinal": 27,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 0,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 1,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 2,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 3,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 5,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 6,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 7,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 8,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 9,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 10,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 11,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 12,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 13,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 14,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 15,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 16,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 17,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 18,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 19,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 20,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 21,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 22,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 23,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 24,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 25,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 26,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 10,
+          "staff_ordinal": 27,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 0,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 1,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 2,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 3,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 4,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 5,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 6,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 7,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 8,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 9,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 10,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 11,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 12,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 13,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 14,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 15,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 16,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 17,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 18,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 19,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 20,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 21,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 22,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 23,
+          "space_mm": 1.80005
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 24,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 25,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 26,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 27,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 28,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 29,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 30,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 31,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 32,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 33,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 34,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 35,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 36,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 37,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 38,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 39,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 40,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 41,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 42,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 43,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 44,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 45,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 46,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 47,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 48,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 49,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 50,
+          "space_mm": 1.79999
+        },
+        {
+          "page": 11,
+          "staff_ordinal": 51,
+          "space_mm": 1.79999
+        }
+      ],
+      "min_staff_space_mm": 1.79999,
+      "max_staff_space_mm": 1.80005,
+      "lyric_font_mm": 4.05,
+      "text_font_mm": 4.05,
+      "min_text_font_mm": 3.24,
+      "systems": 24
+    }
+  },
+  "review": {
+    "reviewer": "implementing assistant; not independent",
+    "pages_inspected": [
+      "v45 Brahms page 1 PDF",
+      "v46 Brahms page 1 PDF",
+      "original Verovio page 1 SVG diagnostic"
+    ],
+    "findings": [
+      "Explicit piano p returned above the lower staff",
+      "Unspecified legato moved below the piano part",
+      "Complete visual and source-mark review remains pending"
+    ],
+    "normalized_verovio_pages_reviewed": 0
+  },
+  "validation_logs": {
+    "workspace_v44": {
+      "path": "/private/tmp/acorde-print-parity-workspace-tests-v44.log",
+      "sha256": "5972c69ae76813b921f5c1a378983062705fdbaa0dd45f97a5d526179adc20ff"
+    },
+    "dynamic_musicxml_v45": {
+      "path": "/private/tmp/acorde-print-parity-dynamics-v45-tests.log",
+      "sha256": "7970c17ba637219a378f3607edcc309f889e49c93104bbf04f0394e51a2fedda"
+    },
+    "dynamic_core_v45": {
+      "path": "/private/tmp/acorde-print-parity-core-dynamics-v45-tests.log",
+      "sha256": "f1333bcc6bd732d544a67b7a8aeb59d3d73cf7f63c91402d345f6b50ee87d547"
+    },
+    "measured_v47": {
+      "path": "/private/tmp/acorde-print-parity-measured-v47-tests.log",
+      "sha256": "2d7b8a1d521382e3e626547f9d4af4e02be1976891ddae74faa133c796b48ae7"
+    },
+    "clippy_v47": {
+      "path": "/private/tmp/acorde-print-parity-clippy-v47.log",
+      "sha256": "9fae7aada264b8993cca2539f4909a4c7e60568d40a894ac16c738577fa0a1b6"
+    }
+  },
+  "ci": {
+    "merge_commit": "6ac403d3",
+    "run": "https://github.com/kent-tokyo/acorde/actions/runs/43677612867",
+    "three_os_jobs": "failed during Rust 1.100 Clippy; two equivalent chunks_exact_to_as_chunks expressions repaired after the run"
+  }
+}

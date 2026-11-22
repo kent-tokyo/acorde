@@ -1,10 +1,29 @@
 # acorde-render-svg
 
 Pure Rust/WASM SVG rendering driven by `acorde-core` and `acorde-layout`. The renderer is
-deterministic, has no browser or DOM dependency, and never loads fonts. It exposes full-score,
+deterministic, has no browser or DOM dependency, and never reads font files. It exposes full-score,
 layout-aware, per-row, physical print-page, metadata, preflight, and annotation rendering APIs.
 
-Notation is emitted as font-independent geometry. Text, lyrics, chord symbols, and host annotation
+With the opt-in `font-metrics` feature, `engrave_print_pages(&score, &config, font_bytes)`
+measures text from a caller-supplied TrueType/OpenType face, chooses measured system
+breaks, resolves per-system height, and returns outlined page SVGs plus their exact
+`PrintLayoutResult`. It uses 1.8 mm staff space and 4.05 mm lyrics at scale 1.0;
+other scales return a typed error. `measures_per_system` is an upper bound (8 is the
+matched-size evaluation setting). Measured breaking/heights replace the legacy break
+selector and nominal system height within this explicit API. The legacy APIs keep
+their existing behavior. Bold and italic text use synthetic weight/slant of the
+provided face. Pass the returned layout and pages to `acorde_pdf::export_print_layout_pdf`
+for matching PDF geometry. See [the qualification protocol](../../docs/engraving-parity.md)
+for evidence and remaining limits; this feature does not yet carry an overall parity claim.
+
+Inline SMuFL and Unicode music symbols in measured print text use the bundled,
+unmodified Bravura Text 1.482 face. Ordinary text uses the caller's face; missing
+glyphs still return a typed error. The font is outlined into SVG/PDF and requires
+no installed fonts. Its 3.06 MB source, pinned hash and SIL Open Font License are
+in [`fonts/bravura-text`](fonts/bravura-text). The public `TextFont::new` API stays
+strictly bound to its caller-supplied face.
+
+The legacy APIs emit notation as font-independent geometry. Text, lyrics, chord symbols, and host annotation
 marks remain SVG text, so callers own font choice, font metrics, embedding, and publication
 typography. The renderer validates non-finite geometry, invalid XML characters, unsupported glyph
 requests, malformed TAB positions, and bounded annotation/text inputs before emitting SVG.
@@ -21,8 +40,8 @@ let svg = render_svg(&Score::default(), &SvgRenderOptions::default())?;
 ## SMuFL music fonts (opt-in)
 
 `SvgRenderConfig::new(options).with_smufl_font("Bravura")` draws music symbols as SMuFL code
-points in `<text font-family="Bravura" font-size="…">` elements instead of vector paths. No font
-is bundled: the host loads the family (for example with CSS `@font-face`). Without the setting the
+points in `<text font-family="Bravura" font-size="…">` elements instead of vector paths. This API
+requires the host to load the family (for example with CSS `@font-face`). Without the setting the
 output is byte-identical to the vector renderer.
 
 - Mapped: G/F/C/percussion clefs; black, half, whole and breve noteheads plus X, plus, diamond,

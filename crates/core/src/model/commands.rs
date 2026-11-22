@@ -14,8 +14,8 @@ use super::score::{
     HarpPedalDiagram, InstrumentDefinition, InstrumentRange, Measure, MidMeasureClef,
     NotationSpanner, NotationSpannerKind, Note, NoteAddr, ObjectStyleOverride, Part, PartGroup,
     PercussionInstrument, RegionalTranspositionTarget, RespellPolicy, Score, ScoreTemplate,
-    ScoreView, Staff, StaffKind, StaffPresentation, ViewStyleOverride, respell_score,
-    respell_score_to_key, respell_staff_region, transpose_staff_region_checked,
+    ScoreView, Staff, StaffKind, StaffPresentation, TimedDynamicDirection, ViewStyleOverride,
+    respell_score, respell_score_to_key, respell_staff_region, transpose_staff_region_checked,
 };
 use super::validate::validate;
 use crate::Error;
@@ -49,6 +49,8 @@ pub enum Command {
     AddHairpin(AddHairpinCmd),
     ToggleTie(ToggleTieCmd),
     SetDynamic(SetDynamicCmd),
+    SetDynamicPlacement(SetDynamicPlacementCmd),
+    SetHiddenArticulations(SetHiddenArticulationsCmd),
     ToggleArticulation(ToggleArticulationCmd),
     SetKeySignature(SetKeySignatureCmd),
     SetTimeSignature(SetTimeSignatureCmd),
@@ -63,6 +65,7 @@ pub enum Command {
     SetHarmonyRange(SetHarmonyRangeCmd),
     SetFiguredBass(SetFiguredBassCmd),
     SetHarpPedalDiagrams(SetHarpPedalDiagramsCmd),
+    SetTimedDynamics(SetTimedDynamicsCmd),
     SetGrace(SetGraceCmd),
     SetOttava(SetOttavaCmd),
     SetLyric(SetLyricCmd),
@@ -112,6 +115,8 @@ pub enum Command {
     RealizeChordSymbols(RealizeChordSymbolsCmd),
     SetStem(SetStemCmd),
     SetArpeggio(SetArpeggioCmd),
+    SetArpeggioNumber(SetArpeggioNumberCmd),
+    SetTupletDisplay(SetTupletDisplayCmd),
     SetTechniqueText(SetTechniqueTextCmd),
     SetFingering(SetFingeringCmd),
     SetFingerings(SetFingeringsCmd),
@@ -267,6 +272,26 @@ pub struct SetDynamicCmd {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetDynamicPlacementCmd {
+    pub part_index: usize,
+    pub staff_index: usize,
+    pub measure_index: usize,
+    pub voice: usize,
+    pub note_index: usize,
+    pub above: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetHiddenArticulationsCmd {
+    pub part_index: usize,
+    pub staff_index: usize,
+    pub measure_index: usize,
+    pub voice: usize,
+    pub note_index: usize,
+    pub hidden: Vec<usize>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToggleArticulationCmd {
     pub part_index: usize,
     pub staff_index: usize,
@@ -331,6 +356,10 @@ pub struct SetMetadataCmd {
     pub copyright: Option<String>,
     pub work_number: Option<String>,
     pub movement_title: Option<String>,
+    #[serde(default)]
+    pub print_title: Option<String>,
+    #[serde(default)]
+    pub print_subtitle: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -382,6 +411,15 @@ pub struct SetHarpPedalDiagramsCmd {
     pub staff_index: usize,
     pub measure_index: usize,
     pub diagrams: Vec<HarpPedalDiagram>,
+}
+
+/// Replace score-time dynamic directions on one staff-local measure.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetTimedDynamicsCmd {
+    pub part_index: usize,
+    pub staff_index: usize,
+    pub measure_index: usize,
+    pub dynamics: Vec<TimedDynamicDirection>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -824,6 +862,26 @@ pub struct SetArpeggioCmd {
     pub note_index: usize,
     /// `Some(true)` = up, `Some(false)` = down, `None` = clear.
     pub direction: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetArpeggioNumberCmd {
+    pub part_index: usize,
+    pub staff_index: usize,
+    pub measure_index: usize,
+    pub voice_index: usize,
+    pub note_index: usize,
+    pub number: Option<u16>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetTupletDisplayCmd {
+    pub part_index: usize,
+    pub staff_index: usize,
+    pub measure_index: usize,
+    pub voice_index: usize,
+    pub note_index: usize,
+    pub display: Option<super::notation::TupletDisplay>,
 }
 
 /// Set (or clear) the technique-text annotation on a note ("pizz.", "arco", "con sord.", etc.).
@@ -1477,6 +1535,8 @@ pub fn command_hint(cmd: &Command) -> ChangeHint {
         Command::AddHairpin(c) => hint!(meas!(c), false, true),
         Command::ToggleTie(c) => hint!(meas!(c), false, true),
         Command::SetDynamic(c) => hint!(meas!(c), false, true),
+        Command::SetDynamicPlacement(c) => hint!(meas!(c), false, false),
+        Command::SetHiddenArticulations(c) => hint!(meas!(c), false, false),
         Command::ToggleArticulation(c) => hint!(meas!(c), false, true),
         Command::SetGrace(c) => hint!(meas!(c), false, true),
         Command::SetOttava(c) => hint!(meas!(c), false, true),
@@ -1486,6 +1546,7 @@ pub fn command_hint(cmd: &Command) -> ChangeHint {
         Command::SetHarmonyRange(c) => hint!(meas!(c), false, true),
         Command::SetFiguredBass(_) => hint!(Global, false, true),
         Command::SetHarpPedalDiagrams(c) => hint!(meas!(c), false, false),
+        Command::SetTimedDynamics(c) => hint!(meas!(c), false, true),
 
         Command::SetSystemBreak(_) | Command::SetPageBreak(_) | Command::SetSectionBreak(_) => {
             hint!(Global, true, false)
@@ -1518,6 +1579,8 @@ pub fn command_hint(cmd: &Command) -> ChangeHint {
         Command::SetStem(c) => hint!(meas!(c), false, false),
 
         Command::SetArpeggio(c) => hint!(meas!(c), false, false),
+        Command::SetArpeggioNumber(c) => hint!(meas!(c), false, false),
+        Command::SetTupletDisplay(c) => hint!(meas!(c), false, false),
 
         Command::SetTechniqueText(c) => hint!(meas!(c), false, false),
         Command::SetFingering(c) => hint!(meas!(c), false, false),
@@ -1563,6 +1626,8 @@ pub fn command_label(cmd: &Command) -> String {
         Command::AddHairpin(_) => "Add Hairpin".to_string(),
         Command::ToggleTie(_) => "Toggle Tie".to_string(),
         Command::SetDynamic(_) => "Set Dynamic".to_string(),
+        Command::SetDynamicPlacement(_) => "Set Dynamic Placement".to_string(),
+        Command::SetHiddenArticulations(_) => "Set Hidden Articulations".to_string(),
         Command::ToggleArticulation(_) => "Toggle Articulation".to_string(),
         Command::SetKeySignature(_) => "Set Key Signature".to_string(),
         Command::SetTimeSignature(_) => "Set Time Signature".to_string(),
@@ -1576,6 +1641,7 @@ pub fn command_label(cmd: &Command) -> String {
         Command::SetChordSymbol(_) => "Set Chord Symbol".to_string(),
         Command::SetHarmonyRange(_) => "Set Harmony Range".to_string(),
         Command::SetHarpPedalDiagrams(_) => "Set Harp Pedal Diagrams".to_string(),
+        Command::SetTimedDynamics(_) => "Set Timed Dynamics".to_string(),
         Command::SetFiguredBass(_) => "Set Figured Bass".to_string(),
         Command::SetGrace(_) => "Set Grace Note".to_string(),
         Command::SetOttava(_) => "Set Ottava".to_string(),
@@ -1664,6 +1730,8 @@ pub fn command_label(cmd: &Command) -> String {
         Command::RealizeChordSymbols(_) => "Realize Chord Symbols".to_string(),
         Command::SetStem(_) => "Set Stem".to_string(),
         Command::SetArpeggio(_) => "Set Arpeggio".to_string(),
+        Command::SetArpeggioNumber(_) => "Set Arpeggio Number".to_string(),
+        Command::SetTupletDisplay(_) => "Set Tuplet Display".to_string(),
         Command::SetTechniqueText(_) => "Set Technique Text".to_string(),
         Command::SetFingering(_) => "Set Fingering".to_string(),
         Command::SetFingerings(_) => "Set Fingering Candidates".to_string(),
@@ -1727,6 +1795,8 @@ pub fn command_key(cmd: &Command) -> String {
         Command::AddHairpin(_) => "AddHairpin".to_string(),
         Command::ToggleTie(_) => "ToggleTie".to_string(),
         Command::SetDynamic(_) => "SetDynamic".to_string(),
+        Command::SetDynamicPlacement(_) => "SetDynamicPlacement".to_string(),
+        Command::SetHiddenArticulations(_) => "SetHiddenArticulations".to_string(),
         Command::ToggleArticulation(_) => "ToggleArticulation".to_string(),
         Command::SetKeySignature(_) => "SetKeySignature".to_string(),
         Command::SetTimeSignature(_) => "SetTimeSignature".to_string(),
@@ -1741,6 +1811,7 @@ pub fn command_key(cmd: &Command) -> String {
         Command::SetHarmonyRange(_) => "SetHarmonyRange".to_string(),
         Command::SetFiguredBass(_) => "SetFiguredBass".to_string(),
         Command::SetHarpPedalDiagrams(_) => "SetHarpPedalDiagrams".to_string(),
+        Command::SetTimedDynamics(_) => "SetTimedDynamics".to_string(),
         Command::SetGrace(_) => "SetGrace".to_string(),
         Command::SetOttava(_) => "SetOttava".to_string(),
         Command::SetLyric(_) => "SetLyric".to_string(),
@@ -1790,6 +1861,8 @@ pub fn command_key(cmd: &Command) -> String {
         Command::RealizeChordSymbols(_) => "RealizeChordSymbols".to_string(),
         Command::SetStem(_) => "SetStem".to_string(),
         Command::SetArpeggio(_) => "SetArpeggio".to_string(),
+        Command::SetArpeggioNumber(_) => "SetArpeggioNumber".to_string(),
+        Command::SetTupletDisplay(_) => "SetTupletDisplay".to_string(),
         Command::SetTechniqueText(_) => "SetTechniqueText".to_string(),
         Command::SetFingering(_) => "SetFingering".to_string(),
         Command::SetFingerings(_) => "SetFingerings".to_string(),
@@ -1875,6 +1948,38 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
         Command::AddHairpin(c) => apply_add_hairpin(c, score),
         Command::ToggleTie(c) => apply_toggle_tie(c, score),
         Command::SetDynamic(c) => apply_set_dynamic(c, score),
+        Command::SetHiddenArticulations(c) => {
+            let note = get_note_mut(
+                score,
+                c.part_index,
+                c.staff_index,
+                c.measure_index,
+                c.voice,
+                c.note_index,
+            )?;
+            if c.hidden.iter().any(|&i| i >= note.articulations.len()) {
+                return Err(Error::InvalidCommand(
+                    "hidden articulation index is out of range".into(),
+                ));
+            }
+            let mut hidden = c.hidden.clone();
+            hidden.sort_unstable();
+            hidden.dedup();
+            note.hidden_articulations = hidden;
+            Ok(())
+        }
+        Command::SetDynamicPlacement(c) => {
+            get_note_mut(
+                score,
+                c.part_index,
+                c.staff_index,
+                c.measure_index,
+                c.voice,
+                c.note_index,
+            )?
+            .dynamic_above = c.above;
+            Ok(())
+        }
         Command::ToggleArticulation(c) => apply_toggle_articulation(c, score),
         Command::SetKeySignature(c) => {
             score.settings.key_signature = KeySignature {
@@ -1964,6 +2069,20 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
                 .get_mut(c.measure_index)
                 .ok_or(Error::MeasureNotFound(c.measure_index))?;
             measure.harp_pedal_diagrams = c.diagrams.clone();
+            Ok(())
+        }
+        Command::SetTimedDynamics(c) => {
+            let measure = score
+                .parts
+                .get_mut(c.part_index)
+                .ok_or(Error::PartNotFound(c.part_index))?
+                .staves
+                .get_mut(c.staff_index)
+                .ok_or(Error::StaffNotFound(c.staff_index))?
+                .measures
+                .get_mut(c.measure_index)
+                .ok_or(Error::MeasureNotFound(c.measure_index))?;
+            measure.timed_dynamics = c.dynamics.clone();
             Ok(())
         }
         Command::SetGrace(c) => {
@@ -2181,15 +2300,18 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
             Ok(())
         }
         Command::SetArpeggio(c) => {
-            get_note_mut(
+            let note = get_note_mut(
                 score,
                 c.part_index,
                 c.staff_index,
                 c.measure_index,
                 c.voice_index,
                 c.note_index,
-            )?
-            .arpeggiate = c.direction;
+            )?;
+            note.arpeggiate = c.direction;
+            if c.direction.is_none() {
+                note.arpeggio_number = None;
+            }
             Ok(())
         }
         Command::SetTechniqueText(c) => {
@@ -2202,6 +2324,30 @@ pub fn apply_command(cmd: &Command, score: &mut Score) -> Result<(), Error> {
                 c.note_index,
             )?
             .technique_text = c.text.clone();
+            Ok(())
+        }
+        Command::SetArpeggioNumber(c) => {
+            get_note_mut(
+                score,
+                c.part_index,
+                c.staff_index,
+                c.measure_index,
+                c.voice_index,
+                c.note_index,
+            )?
+            .arpeggio_number = c.number;
+            Ok(())
+        }
+        Command::SetTupletDisplay(c) => {
+            get_note_mut(
+                score,
+                c.part_index,
+                c.staff_index,
+                c.measure_index,
+                c.voice_index,
+                c.note_index,
+            )?
+            .tuplet_display = c.display.clone();
             Ok(())
         }
         Command::SetGlissando(c) => {
@@ -3266,6 +3412,15 @@ fn apply_toggle_articulation(cmd: &ToggleArticulationCmd, score: &mut Score) -> 
         .position(|a| a == &cmd.articulation)
     {
         note.articulations.remove(pos);
+        note.hidden_articulations.retain_mut(|index| {
+            if *index == pos {
+                return false;
+            }
+            if *index > pos {
+                *index -= 1;
+            }
+            true
+        });
     } else {
         note.articulations.push(cmd.articulation.clone());
     }
@@ -3499,6 +3654,12 @@ fn apply_set_metadata(cmd: &SetMetadataCmd, score: &mut Score) -> Result<(), Err
     }
     if let Some(v) = &cmd.movement_title {
         score.metadata.movement_title = v.clone();
+    }
+    if let Some(v) = &cmd.print_title {
+        score.metadata.print_title = v.clone();
+    }
+    if let Some(v) = &cmd.print_subtitle {
+        score.metadata.print_subtitle = v.clone();
     }
     Ok(())
 }
@@ -4297,7 +4458,9 @@ fn apply_explode_voices(cmd: &ExplodeVoicesCmd, score: &mut Score) -> Result<(),
 
 fn clear_derived_chord_note_notation(note: &mut Note) {
     note.articulations.clear();
+    note.hidden_articulations.clear();
     note.dynamic = None;
+    note.dynamic_above = None;
     note.stem_up = None;
     note.hairpin_start = None;
     note.hairpin_above = None;
@@ -4312,6 +4475,7 @@ fn clear_derived_chord_note_notation(note: &mut Note) {
     note.slur_start = false;
     note.slur_end = false;
     note.arpeggiate = None;
+    note.arpeggio_number = None;
     note.technique_text = None;
     note.glissando_start = false;
     note.glissando_end = false;
@@ -5360,6 +5524,7 @@ mod tests {
             measure_index: 0,
             text_index: 0,
             text: Some(StyledText {
+                enclosure: Some("rectangle".to_string()),
                 position_beats: None,
                 style: crate::TextStyle::Technique,
                 text: "dolce".to_string(),
@@ -5374,6 +5539,7 @@ mod tests {
         assert_eq!(
             engine.score.parts[0].staves[0].measures[0].texts[0],
             StyledText {
+                enclosure: Some("rectangle".to_string()),
                 position_beats: None,
                 style: crate::TextStyle::Technique,
                 text: "dolce".to_string(),
@@ -5389,6 +5555,7 @@ mod tests {
             .apply(Command::SetMeasureText(SetMeasureTextCmd {
                 text_index: 0,
                 text: Some(StyledText {
+                    enclosure: Some("rectangle".to_string()),
                     position_beats: None,
                     style: crate::TextStyle::RehearsalMark,
                     text: "A".to_string(),
@@ -5428,6 +5595,12 @@ mod tests {
         assert!(engine.score.parts[0].staves[0].measures[0].texts.is_empty());
         engine.undo().unwrap();
         assert_eq!(engine.score.parts[0].staves[0].measures[0].texts.len(), 1);
+        assert_eq!(
+            engine.score.parts[0].staves[0].measures[0].texts[0]
+                .enclosure
+                .as_deref(),
+            Some("rectangle")
+        );
         engine.redo().unwrap();
         assert!(engine.score.parts[0].staves[0].measures[0].texts.is_empty());
     }
@@ -5442,6 +5615,7 @@ mod tests {
             measure_index: 0,
             text_index: 2,
             text: Some(StyledText {
+                enclosure: None,
                 position_beats: None,
                 style: crate::TextStyle::Expression,
                 text: "espressivo".to_string(),
@@ -5469,6 +5643,7 @@ mod tests {
     fn set_score_text_supports_append_replace_remove_and_undo_redo() {
         let mut engine = crate::ScoreEngine::new();
         let text = StyledText {
+            enclosure: None,
             position_beats: None,
             style: crate::TextStyle::Expression,
             text: "Title".to_string(),
@@ -5548,6 +5723,7 @@ mod tests {
     fn set_object_style_overrides_is_undoable_and_requires_existing_target() {
         let mut engine = crate::ScoreEngine::new();
         engine.score.texts.push(StyledText {
+            enclosure: None,
             position_beats: None,
             style: crate::TextStyle::Expression,
             text: "Allegro".into(),
@@ -5607,6 +5783,7 @@ mod tests {
             harmony_function: None,
             harmony_type: None,
             chord_ref: None,
+            written: None,
             range_end: None,
             degrees: Vec::new(),
         });
@@ -5642,6 +5819,42 @@ mod tests {
                 .chord_symbol
                 .as_ref()
                 .is_some_and(|chord| chord.range_end.is_none())
+        );
+    }
+
+    #[test]
+    fn timed_dynamic_command_roundtrips_and_is_undoable() {
+        let mut engine = ScoreEngine::new();
+        engine.replace_score(default_engine_score());
+        let command = Command::SetTimedDynamics(SetTimedDynamicsCmd {
+            part_index: 0,
+            staff_index: 0,
+            measure_index: 0,
+            dynamics: vec![TimedDynamicDirection {
+                position_beats: 2.0,
+                dynamic: Dynamic::P,
+                above: Some(false),
+                components: Vec::new(),
+            }],
+        });
+        let json = serde_json::to_string(&command).unwrap();
+        engine.apply(serde_json::from_str(&json).unwrap()).unwrap();
+        assert_eq!(
+            engine.score.parts[0].staves[0].measures[0]
+                .timed_dynamics
+                .len(),
+            1
+        );
+        engine.undo().unwrap();
+        assert!(
+            engine.score.parts[0].staves[0].measures[0]
+                .timed_dynamics
+                .is_empty()
+        );
+        engine.redo().unwrap();
+        assert_eq!(
+            engine.score.parts[0].staves[0].measures[0].timed_dynamics[0].position_beats,
+            2.0
         );
     }
 
@@ -6050,6 +6263,22 @@ mod tests {
         )
         .unwrap();
         assert_eq!(score.metadata.title, "New Title");
+    }
+
+    #[test]
+    fn set_metadata_updates_print_title_and_subtitle() {
+        let mut score = default_engine_score();
+        apply_command(
+            &Command::SetMetadata(SetMetadataCmd {
+                print_title: Some("Printed title".into()),
+                print_subtitle: Some("Printed subtitle".into()),
+                ..Default::default()
+            }),
+            &mut score,
+        )
+        .unwrap();
+        assert_eq!(score.metadata.print_title, "Printed title");
+        assert_eq!(score.metadata.print_subtitle, "Printed subtitle");
     }
 
     #[test]
@@ -7230,6 +7459,7 @@ mod tests {
         score.parts[0].staves[0].measures[0].voices[0] =
             vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
         let lyric = |text: &str| Lyric {
+            placement_above: None,
             text: text.into(),
             syllabic: "single".into(),
             extend: false,
@@ -7309,6 +7539,45 @@ mod tests {
             error,
             crate::ValidationError::InvalidLyricVerse { verse: 2, .. }
         )));
+    }
+
+    #[test]
+    fn lyric_side_is_preserved_through_edit_undo_and_redo() {
+        let mut score = Score::new("Lyrics", 120, 4, 4, 0, 1);
+        score.parts[0].staves[0].measures[0].voices[0] =
+            vec![Note::new(Pitch::new(Step::C, 4), Duration::Whole)];
+        let lyric = Lyric {
+            placement_above: Some(true),
+            text: "above".into(),
+            syllabic: "single".into(),
+            extend: false,
+        };
+        let command = Command::SetLyric(SetLyricCmd {
+            part_index: 0,
+            staff_index: 0,
+            measure_index: 0,
+            voice: 0,
+            note_index: 0,
+            lyric: Some(lyric.clone()),
+            verse: Some(2),
+        });
+        let mut stack = CommandStack::new(10);
+        stack.execute(command, &mut score).unwrap();
+        assert_eq!(
+            score.parts[0].staves[0].measures[0].voices[0][0].additional_lyrics[0].lyric,
+            lyric
+        );
+        stack.undo(&mut score).unwrap();
+        assert!(
+            score.parts[0].staves[0].measures[0].voices[0][0]
+                .additional_lyrics
+                .is_empty()
+        );
+        stack.redo(&mut score).unwrap();
+        assert_eq!(
+            score.parts[0].staves[0].measures[0].voices[0][0].additional_lyrics[0].lyric,
+            lyric
+        );
     }
 
     #[test]
@@ -7800,6 +8069,228 @@ mod tests {
         assert_eq!(
             serde_json::to_value(&score).unwrap(),
             serde_json::to_value(&original).unwrap()
+        );
+    }
+
+    #[test]
+    fn hidden_articulations_are_undoable_and_remap_when_toggled() {
+        let mut score = Score::new("Visibility", 120, 4, 4, 0, 1);
+        let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+        let old = serde_json::to_value(&note).unwrap();
+        assert!(old.get("hidden_articulations").is_none());
+        assert!(
+            serde_json::from_value::<Note>(old)
+                .unwrap()
+                .hidden_articulations
+                .is_empty()
+        );
+        assert!(Note::rest(Duration::Whole).hidden_articulations.is_empty());
+        note.articulations = vec![Articulation::Tenuto, Articulation::Staccato];
+        score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+        let mut stack = CommandStack::new(4);
+        let command = SetHiddenArticulationsCmd {
+            part_index: 0,
+            staff_index: 0,
+            measure_index: 0,
+            voice: 0,
+            note_index: 0,
+            hidden: vec![1],
+        };
+        stack
+            .execute(Command::SetHiddenArticulations(command.clone()), &mut score)
+            .unwrap();
+        assert_eq!(
+            score.parts[0].staves[0].measures[0].voices[0][0].hidden_articulations,
+            vec![1]
+        );
+        stack.undo(&mut score).unwrap();
+        assert!(
+            score.parts[0].staves[0].measures[0].voices[0][0]
+                .hidden_articulations
+                .is_empty()
+        );
+        stack.redo(&mut score).unwrap();
+        assert_eq!(
+            score.parts[0].staves[0].measures[0].voices[0][0].hidden_articulations,
+            vec![1]
+        );
+        apply_command(
+            &Command::ToggleArticulation(ToggleArticulationCmd {
+                part_index: 0,
+                staff_index: 0,
+                measure_index: 0,
+                voice: 0,
+                note_index: 0,
+                articulation: Articulation::Tenuto,
+            }),
+            &mut score,
+        )
+        .unwrap();
+        let note = &score.parts[0].staves[0].measures[0].voices[0][0];
+        assert_eq!(note.hidden_articulations, vec![0]);
+        assert!(note.visible_articulations().next().is_none());
+        let invalid = SetHiddenArticulationsCmd {
+            hidden: vec![2],
+            ..command
+        };
+        assert!(apply_command(&Command::SetHiddenArticulations(invalid), &mut score).is_err());
+        assert_eq!(
+            score.parts[0].staves[0].measures[0].voices[0][0].hidden_articulations,
+            vec![0]
+        );
+    }
+
+    #[test]
+    fn dynamic_placement_is_backward_compatible_and_undoable() {
+        let mut score = Score::new("Dynamic", 120, 4, 4, 0, 1);
+        let note = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+        let old = serde_json::to_value(&note).unwrap();
+        assert!(old.get("dynamic_above").is_none());
+        assert!(
+            serde_json::from_value::<Note>(old)
+                .unwrap()
+                .dynamic_above
+                .is_none()
+        );
+        assert!(Note::rest(Duration::Whole).dynamic_above.is_none());
+        score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+        let mut stack = CommandStack::new(4);
+        stack
+            .execute(
+                Command::SetDynamicPlacement(SetDynamicPlacementCmd {
+                    part_index: 0,
+                    staff_index: 0,
+                    measure_index: 0,
+                    voice: 0,
+                    note_index: 0,
+                    above: Some(true),
+                }),
+                &mut score,
+            )
+            .unwrap();
+        assert_eq!(
+            score.parts[0].staves[0].measures[0].voices[0][0].dynamic_above,
+            Some(true)
+        );
+        stack.undo(&mut score).unwrap();
+        assert_eq!(
+            score.parts[0].staves[0].measures[0].voices[0][0].dynamic_above,
+            None
+        );
+        stack.redo(&mut score).unwrap();
+        assert_eq!(
+            score.parts[0].staves[0].measures[0].voices[0][0].dynamic_above,
+            Some(true)
+        );
+    }
+
+    #[test]
+    fn tuplet_display_is_backward_compatible_and_undoable() {
+        let mut score = Score::new("Tuplet", 120, 4, 4, 0, 1);
+        let note = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+        let old = serde_json::to_value(&note).unwrap();
+        assert!(old.get("tuplet_display").is_none());
+        assert!(
+            serde_json::from_value::<Note>(old)
+                .unwrap()
+                .tuplet_display
+                .is_none()
+        );
+        score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+        let display = super::super::notation::TupletDisplay {
+            bracket: Some(false),
+            number: super::super::notation::TupletNumberDisplay::None,
+            above: Some(true),
+        };
+        let mut stack = CommandStack::new(4);
+        stack
+            .execute(
+                Command::SetTupletDisplay(SetTupletDisplayCmd {
+                    part_index: 0,
+                    staff_index: 0,
+                    measure_index: 0,
+                    voice_index: 0,
+                    note_index: 0,
+                    display: Some(display.clone()),
+                }),
+                &mut score,
+            )
+            .unwrap();
+        assert_eq!(
+            score.parts[0].staves[0].measures[0].voices[0][0].tuplet_display,
+            Some(display.clone())
+        );
+        stack.undo(&mut score).unwrap();
+        assert!(
+            score.parts[0].staves[0].measures[0].voices[0][0]
+                .tuplet_display
+                .is_none()
+        );
+        stack.redo(&mut score).unwrap();
+        assert_eq!(
+            score.parts[0].staves[0].measures[0].voices[0][0].tuplet_display,
+            Some(display)
+        );
+    }
+
+    #[test]
+    fn arpeggio_group_is_backward_compatible_and_undoable() {
+        let mut score = Score::new("Roll", 120, 4, 4, 0, 1);
+        let mut note = Note::new(Pitch::new(Step::C, 4), Duration::Whole);
+        note.arpeggiate = Some(true);
+        let old_json = serde_json::to_value(&note).unwrap();
+        assert!(old_json.get("arpeggio_number").is_none());
+        assert_eq!(
+            serde_json::from_value::<Note>(old_json)
+                .unwrap()
+                .arpeggio_number,
+            None
+        );
+        score.parts[0].staves[0].measures[0].voices[0] = vec![note];
+        let mut stack = CommandStack::new(4);
+        stack
+            .execute(
+                Command::SetArpeggioNumber(SetArpeggioNumberCmd {
+                    part_index: 0,
+                    staff_index: 0,
+                    measure_index: 0,
+                    voice_index: 0,
+                    note_index: 0,
+                    number: Some(2),
+                }),
+                &mut score,
+            )
+            .unwrap();
+        assert_eq!(
+            score.parts[0].staves[0].measures[0].voices[0][0].arpeggio_number,
+            Some(2)
+        );
+        stack.undo(&mut score).unwrap();
+        assert_eq!(
+            score.parts[0].staves[0].measures[0].voices[0][0].arpeggio_number,
+            None
+        );
+        stack.redo(&mut score).unwrap();
+        assert_eq!(
+            score.parts[0].staves[0].measures[0].voices[0][0].arpeggio_number,
+            Some(2)
+        );
+        stack
+            .execute(
+                Command::SetArpeggio(SetArpeggioCmd {
+                    part_index: 0,
+                    staff_index: 0,
+                    measure_index: 0,
+                    voice_index: 0,
+                    note_index: 0,
+                    direction: None,
+                }),
+                &mut score,
+            )
+            .unwrap();
+        assert_eq!(
+            score.parts[0].staves[0].measures[0].voices[0][0].arpeggio_number,
+            None
         );
     }
 

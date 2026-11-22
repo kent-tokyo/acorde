@@ -1,0 +1,674 @@
+{
+  "classification": "development rendering; visual review pending",
+  "printer_sha256": "f184fa7ee7175b3586117e5572045e7409555cc25ae0fbf77243346abc1430a5",
+  "font_sha256": "b97cd5005278b24aabb69b8b6ead98860955599558f6e8119483b575a5fdce98",
+  "rows": [
+    {
+      "score": "openscore_lieder_aloha_oe",
+      "source_sha256": "b195ae477a10cbaee281d9b728cac001ae1d50fe4527078ccae14092eee4936c",
+      "preparation": "MXL unpacked",
+      "shared_sha256": "9e79bc1ed711b586f0b3ab4535544b3d77d9f0633c26c7eb395d4e3671e6d921",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 3,
+        "svg_sha256": {
+          "openscore_lieder_aloha_oe-acorde-page-3.svg": "546a17b910ab321dfe4ad2897e4d76c9c14926150c7d670e54c32cbbfa02e7d0",
+          "openscore_lieder_aloha_oe-acorde-page-2.svg": "3466fb49a10401617bd00988a46c2398e8b469b8e85191744da79e79bd359ef0",
+          "openscore_lieder_aloha_oe-acorde-page-1.svg": "522986200015c35ae2c75b460ce8afda7829e54da662a4e3c4b399415132e2c8"
+        },
+        "pdf_sha256": "defdde28914616ca10a9f6609a59776d16e0f7453e7a51761e35317f3f4087a7"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 3,
+        "svg_sha256": {
+          "openscore_lieder_aloha_oe-verovio-2.svg": "016a9d81e6a50d1026c46edb63f633479321fcbfbbf5857ccdc68de9e34a7838",
+          "openscore_lieder_aloha_oe-verovio-3.svg": "7122ef0f7cd19ad69ec0cf51734381db5a40284e57f2135a6b5310146ee218d1",
+          "openscore_lieder_aloha_oe-verovio-1.svg": "efca88990e6db6d69f29a82eb1957672e409aaf7d2696e20536a9ef5c0aa582b"
+        }
+      }
+    },
+    {
+      "score": "openscore_lieder_just_for_today",
+      "source_sha256": "79a19736fcce71c0acf4b39feff63723d2ff75e29285ea2ab594f9b2b6a835ff",
+      "preparation": "MXL unpacked",
+      "shared_sha256": "82e5bb47853858c554a31b38030306152b955795a3394bf6c8e05fd8957b2ef2",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 3,
+        "svg_sha256": {
+          "openscore_lieder_just_for_today-acorde-page-1.svg": "3ee94c7ff1703842d7af0dcc40f6cc37c1839ba7974edfb79c012e23cb30b577",
+          "openscore_lieder_just_for_today-acorde-page-3.svg": "54b7dd92fd0c663d7757cb9e3aa588b3c592a7a71eff3c4b2d5ef64ef5c931c9",
+          "openscore_lieder_just_for_today-acorde-page-2.svg": "979e965ac92bd55e6c3ec2cb39a667bd8238d70e5ccf1101cd407a49df07dae8"
+        },
+        "pdf_sha256": "92c6094fe0b2984151b81e9aa467c4057905f2cbc69dc891979c9dcd297cfd03"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 3,
+        "svg_sha256": {
+          "openscore_lieder_just_for_today-verovio-3.svg": "444b6b98a25f131c7b569bf6fe4a148ab4cd43c05ebd28ac83995afe36b7a93c",
+          "openscore_lieder_just_for_today-verovio-2.svg": "10af84f981009be0acb720f3eb03f450882796d0bf86e587012e9cc4eb3d552f",
+          "openscore_lieder_just_for_today-verovio-1.svg": "1522379227b836ef820d4ef17401f523c3c1f64964770a072813c70e0adeb05b"
+        }
+      }
+    },
+    {
+      "score": "openscore_lieder_quilter_prelude",
+      "source_sha256": "6b85a51cc92fc93f561fd07cbd553d2ac9d4e53bd403637e85bd888495af6aa4",
+      "preparation": "MXL unpacked",
+      "shared_sha256": "ef2d90f34e931b98f67fa669304b2b11efab7bd40eaa7b948f339b30e65a0991",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 1,
+        "svg_sha256": {
+          "openscore_lieder_quilter_prelude-acorde-page-1.svg": "7831ba09a557ae386ecd6d935d2ac05129116928b4ecafa4a4c21612904bb35f"
+        },
+        "pdf_sha256": "016f2bb4acb57f00e8215245f84d50d37daacb31b44459db3565325e4f95fa85"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 1,
+        "svg_sha256": {
+          "openscore_lieder_quilter_prelude-verovio-1.svg": "92e7c0828d54c9149ffc0cee53702da0107b70396605246b51896cdd2918e54d"
+        }
+      }
+    },
+    {
+      "score": "openscore_lieder_webern_so_ich_traurig_bin",
+      "source_sha256": "609b32d0829c48ab9a134308d8694fd5b1ee7de89acba11f76084a32f56ca8a3",
+      "preparation": "MXL unpacked",
+      "shared_sha256": "611e3c0233c7d4ada95c6923fbb7db31fcb986babb25dec2196d45e3cc6e7263",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 2,
+        "svg_sha256": {
+          "openscore_lieder_webern_so_ich_traurig_bin-acorde-page-1.svg": "92ba31d6e911b9b9af1a51635adcf3f66be054fce0c8c69def02443c7ce6ebd8",
+          "openscore_lieder_webern_so_ich_traurig_bin-acorde-page-2.svg": "04a0b34cbdbc1c85897b987836e254ca7d00b5df36cb6323cbb6e8e428214f91"
+        },
+        "pdf_sha256": "594071b6fdd0b0b03472aead27a60233b934fe14bd66fca23a2aab63f550741a"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 2,
+        "svg_sha256": {
+          "openscore_lieder_webern_so_ich_traurig_bin-verovio-1.svg": "a80bbadc25bba0baff763ade409d2001027f4eb98f44231e5d8b959ab0e95ed7",
+          "openscore_lieder_webern_so_ich_traurig_bin-verovio-2.svg": "2900b76ac5a8b64bd05de74e23ec14daba9cd1648ac5abbc479f876ab4d8d9de"
+        }
+      }
+    },
+    {
+      "score": "openscore_omr_score_1003",
+      "source_sha256": "77ec1090af66b21a726e29d9e36e119d4a4ef112d25a4f758b5d00e8bd865711",
+      "preparation_exit_code": -6,
+      "preparation_log_sha256": "93a28eb13cf212d9f183900f2bec05ede2b21fa3142eb9b2784b42ebdf86ccd6",
+      "preparation": "output created; independent fidelity audit pending",
+      "shared_sha256": "c3310136d683d4837ab165e4446bddd6848bcc3436c063286c5af78e7144a274",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 1,
+        "svg_sha256": {
+          "openscore_omr_score_1003-acorde-page-1.svg": "1cb49c6f2030b8c63b4626be5d46c0963d2e0c00b2c3804ff8e648574c1a53bb"
+        },
+        "pdf_sha256": "e768547be6b4f549b0c5f1856b59869798df1b86db33237e80ab28a274443273"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 1,
+        "svg_sha256": {
+          "openscore_omr_score_1003-verovio-1.svg": "20c0aa9aabc64273212e421b832c1d3de62b415782577fe9c44accf901412038"
+        }
+      }
+    },
+    {
+      "score": "openscore_omr_score_1016",
+      "source_sha256": "2cbfa80c4a2694b70d1646c214147e184a5baa8f2628bd7dee85b9547d062562",
+      "preparation_exit_code": -6,
+      "preparation_log_sha256": "596b50928aadcbcfe0a86cb6322779d91450cc238b2c049ffd104f27fdf5d30b",
+      "preparation": "output created; independent fidelity audit pending",
+      "shared_sha256": "6a876bd11e029ca6fac36765be8e8583959bc95c397f9dece5cbb0e49a03a46c",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 1,
+        "svg_sha256": {
+          "openscore_omr_score_1016-acorde-page-1.svg": "26b0eef6f70123f8bda762bbebb8756e715cb2770a5dd910f59b2e2a0327c460"
+        },
+        "pdf_sha256": "0924d597a9783ec4aad1ac16e341ec879911337198a2e4852717efc23c18f6f7"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 1,
+        "svg_sha256": {
+          "openscore_omr_score_1016-verovio-1.svg": "476d1673a55be4c6d1de0504a35b7dbf068cfefc7482d57b90cf306f14c9fc08"
+        }
+      }
+    },
+    {
+      "score": "openscore_omr_score_1033",
+      "source_sha256": "5c863d3b3dd1d055aeb74e3dabe3343090277578c4b9dd14d94c988b8b1a6687",
+      "preparation_exit_code": -6,
+      "preparation_log_sha256": "efaa28e8c9f5adbe942cb3e87b4122f11748812edf3de8bdbd6f5756e6230e1a",
+      "preparation": "output created; independent fidelity audit pending",
+      "shared_sha256": "3aca9241be50c459ff897fec07e0d63fabf9d39dad9c4a642863eb8ff9b98552",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 1,
+        "svg_sha256": {
+          "openscore_omr_score_1033-acorde-page-1.svg": "f6cc2b41fdb9d8da219f1750c0087cc325466680a01dd28939dcea8d46916e88"
+        },
+        "pdf_sha256": "4dfed8b9f13433ae08406bd8958dbaffc0c06fb0422efc97a68157b649aa306b"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 1,
+        "svg_sha256": {
+          "openscore_omr_score_1033-verovio-1.svg": "46e115caecdb06bc8eb0488bd3b305018d5b537008807265acd52eae57a0bb09"
+        }
+      }
+    },
+    {
+      "score": "openscore_omr_score_1035",
+      "source_sha256": "025ce7fac23a85b2b94beba67cac4005e24b5a93c10c5e78cbc7b7e4a307321f",
+      "preparation_exit_code": -6,
+      "preparation_log_sha256": "0714df53840ffc3cb8048278a67261cf26434f78bf545c1abfa0b54ea8a357a7",
+      "preparation": "output created; independent fidelity audit pending",
+      "shared_sha256": "b03fdc01685ccb14e640150368bb4bd90c1620ad8014e4d0417cf545e695ff5a",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 1,
+        "svg_sha256": {
+          "openscore_omr_score_1035-acorde-page-1.svg": "6b3a74d6c98765d569700be73730c984de35278eba17ac073a0faab8842d49cc"
+        },
+        "pdf_sha256": "26e8b9646c56da887566090c46d73e6a648e38eb4312a43363bc131ef5d3b6ee"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 1,
+        "svg_sha256": {
+          "openscore_omr_score_1035-verovio-1.svg": "e44c873818eff5e74c4fd9bdf773992d8e75e8a112abff76bb2f6ecebd0d2749"
+        }
+      }
+    },
+    {
+      "score": "openscore_omr_score_1036",
+      "source_sha256": "d8206afe80f76d6aa4d4a31c3158714edd848865aabfbe21a3917d7dbd2e005c",
+      "preparation_exit_code": -6,
+      "preparation_log_sha256": "1b233d98bf6d52e6bcc0f7593de60a0bf31d7226039e3619b72b2ee5868dad28",
+      "preparation": "output created; independent fidelity audit pending",
+      "shared_sha256": "a0ee7ed61b32ed2da8466703f8819521727085a414facb574a78d49ab690e525",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 2,
+        "svg_sha256": {
+          "openscore_omr_score_1036-acorde-page-1.svg": "7af0e301f0dea5873174d44f5bc0461b92d8c51eb4ca46b4203dfc3c4c4c8d1b",
+          "openscore_omr_score_1036-acorde-page-2.svg": "526d9457b2df1b652cf9b1199a902210045cfbc35fe51f40831c5460bc43ad56"
+        },
+        "pdf_sha256": "720d65f3d90e60a02edc554c9a0502db3402a2299b968e40b9a5a310b942694f"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 2,
+        "svg_sha256": {
+          "openscore_omr_score_1036-verovio-1.svg": "7ba9af8c91f6d3bc801f2c911f89fce8b2716fd6f022f49e4fb0f107510d3a1a",
+          "openscore_omr_score_1036-verovio-2.svg": "b805da15eb5460cac55672522fba391934a61e43e12eb7115a39a1949cac2414"
+        }
+      }
+    },
+    {
+      "score": "freilachs_no_17",
+      "source_sha256": "35cb6480a7bb3df84995a1dc0829b24af19bf1d049a8a159eb4a52f4cc1ec696",
+      "preparation_exit_code": -6,
+      "preparation_log_sha256": "0a51be17921ae9992c26bbb244529c348fcf7fea83c989c0a2473d0724759cb8",
+      "preparation": "output created; independent fidelity audit pending",
+      "shared_sha256": "a9242135a3b9e9a6a4cd56b1d07a0abfd4e9b951b12a3ae1a4b107440c214d3e",
+      "acorde": {
+        "exit_code": 0,
+        "pages": 1,
+        "svg_sha256": {
+          "freilachs_no_17-acorde-page-1.svg": "d23c2e17f37c6d34314e8f5a0f5dad3fe77d4195491a42f3be9c8b07905a1a6f"
+        },
+        "pdf_sha256": "c28cb71e18ae6602a030bc8e4adc719d4235791f7d21e58d38b8455743426f81"
+      },
+      "verovio": {
+        "exit_code": 0,
+        "pages": 1,
+        "svg_sha256": {
+          "freilachs_no_17-verovio-1.svg": "f37977f037792c9a057e4a89a41be5f05349987b920d870d16c121e54b634d5b"
+        }
+      }
+    }
+  ],
+  "screen_raw_sha256": "a8f1c9872090cd4be71dd03c6f8c0ece5bdfd28b632762a3bb23b5677fca8a19",
+  "screen": [
+    {
+      "score": "openscore_lieder_aloha_oe",
+      "acorde": {
+        "pages": 3,
+        "marks": {
+          "noteheads": 646,
+          "rests": 53,
+          "slurs": 5,
+          "ties": 2,
+          "lyrics": 146,
+          "dynamics": 5,
+          "hairpins": 0,
+          "articulations": 0
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 15,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      },
+      "verovio": {
+        "pages": 3,
+        "marks": {
+          "noteheads": 646,
+          "rests": 28,
+          "slurs": 5,
+          "ties": 2,
+          "lyrics": 149,
+          "dynamics": 5,
+          "hairpins": 0,
+          "articulations": 0
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 35,
+        "text_over_notation": 2,
+        "text_over_text": 75,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 5
+      }
+    },
+    {
+      "score": "openscore_lieder_just_for_today",
+      "acorde": {
+        "pages": 3,
+        "marks": {
+          "noteheads": 587,
+          "rests": 19,
+          "slurs": 16,
+          "ties": 2,
+          "lyrics": 156,
+          "dynamics": 5,
+          "hairpins": 15,
+          "articulations": 14
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 9,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      },
+      "verovio": {
+        "pages": 3,
+        "marks": {
+          "noteheads": 586,
+          "rests": 19,
+          "slurs": 16,
+          "ties": 2,
+          "lyrics": 157,
+          "dynamics": 5,
+          "hairpins": 15,
+          "articulations": 3
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 21,
+        "text_over_notation": 8,
+        "text_over_text": 61,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 4
+      }
+    },
+    {
+      "score": "openscore_lieder_quilter_prelude",
+      "acorde": {
+        "pages": 1,
+        "marks": {
+          "noteheads": 189,
+          "rests": 13,
+          "slurs": 15,
+          "ties": 8,
+          "lyrics": 0,
+          "dynamics": 2,
+          "hairpins": 0,
+          "articulations": 1
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 2,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      },
+      "verovio": {
+        "pages": 1,
+        "marks": {
+          "noteheads": 189,
+          "rests": 13,
+          "slurs": 16,
+          "ties": 8,
+          "lyrics": 0,
+          "dynamics": 2,
+          "hairpins": 0,
+          "articulations": 1
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 8,
+        "text_over_notation": 1,
+        "text_over_text": 1,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 1
+      }
+    },
+    {
+      "score": "openscore_lieder_webern_so_ich_traurig_bin",
+      "acorde": {
+        "pages": 2,
+        "marks": {
+          "noteheads": 165,
+          "rests": 41,
+          "slurs": 14,
+          "ties": 40,
+          "lyrics": 43,
+          "dynamics": 13,
+          "hairpins": 21,
+          "articulations": 23
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 10,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      },
+      "verovio": {
+        "pages": 2,
+        "marks": {
+          "noteheads": 165,
+          "rests": 41,
+          "slurs": 14,
+          "ties": 40,
+          "lyrics": 44,
+          "dynamics": 13,
+          "hairpins": 21,
+          "articulations": 20
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 14,
+        "text_over_notation": 0,
+        "text_over_text": 1,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 5
+      }
+    },
+    {
+      "score": "openscore_omr_score_1003",
+      "acorde": {
+        "pages": 1,
+        "marks": {
+          "noteheads": 29,
+          "rests": 6,
+          "slurs": 5,
+          "ties": 0,
+          "lyrics": 9,
+          "dynamics": 2,
+          "hairpins": 0,
+          "articulations": 8
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 3,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 1
+      },
+      "verovio": {
+        "pages": 1,
+        "marks": {
+          "noteheads": 29,
+          "rests": 6,
+          "slurs": 5,
+          "ties": 0,
+          "lyrics": 9,
+          "dynamics": 2,
+          "hairpins": 0,
+          "articulations": 8
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 5,
+        "text_over_notation": 0,
+        "text_over_text": 1,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      }
+    },
+    {
+      "score": "openscore_omr_score_1016",
+      "acorde": {
+        "pages": 1,
+        "marks": {
+          "noteheads": 104,
+          "rests": 37,
+          "slurs": 0,
+          "ties": 0,
+          "lyrics": 0,
+          "dynamics": 6,
+          "hairpins": 0,
+          "articulations": 1
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 3,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      },
+      "verovio": {
+        "pages": 1,
+        "marks": {
+          "noteheads": 104,
+          "rests": 37,
+          "slurs": 0,
+          "ties": 0,
+          "lyrics": 0,
+          "dynamics": 6,
+          "hairpins": 0,
+          "articulations": 1
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 15,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      }
+    },
+    {
+      "score": "openscore_omr_score_1033",
+      "acorde": {
+        "pages": 1,
+        "marks": {
+          "noteheads": 64,
+          "rests": 14,
+          "slurs": 0,
+          "ties": 0,
+          "lyrics": 0,
+          "dynamics": 0,
+          "hairpins": 0,
+          "articulations": 0
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 4,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      },
+      "verovio": {
+        "pages": 1,
+        "marks": {
+          "noteheads": 64,
+          "rests": 14,
+          "slurs": 0,
+          "ties": 0,
+          "lyrics": 0,
+          "dynamics": 0,
+          "hairpins": 0,
+          "articulations": 0
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 4,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      }
+    },
+    {
+      "score": "openscore_omr_score_1035",
+      "acorde": {
+        "pages": 1,
+        "marks": {
+          "noteheads": 137,
+          "rests": 8,
+          "slurs": 0,
+          "ties": 10,
+          "lyrics": 0,
+          "dynamics": 0,
+          "hairpins": 0,
+          "articulations": 0
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 3,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      },
+      "verovio": {
+        "pages": 1,
+        "marks": {
+          "noteheads": 137,
+          "rests": 8,
+          "slurs": 0,
+          "ties": 13,
+          "lyrics": 0,
+          "dynamics": 0,
+          "hairpins": 0,
+          "articulations": 0
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 12,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      }
+    },
+    {
+      "score": "openscore_omr_score_1036",
+      "acorde": {
+        "pages": 2,
+        "marks": {
+          "noteheads": 119,
+          "rests": 39,
+          "slurs": 0,
+          "ties": 0,
+          "lyrics": 0,
+          "dynamics": 0,
+          "hairpins": 0,
+          "articulations": 0
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 12,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      },
+      "verovio": {
+        "pages": 2,
+        "marks": {
+          "noteheads": 119,
+          "rests": 39,
+          "slurs": 0,
+          "ties": 0,
+          "lyrics": 0,
+          "dynamics": 0,
+          "hairpins": 0,
+          "articulations": 0
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 3,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      }
+    },
+    {
+      "score": "freilachs_no_17",
+      "acorde": {
+        "pages": 1,
+        "marks": {
+          "noteheads": 119,
+          "rests": 6,
+          "slurs": 33,
+          "ties": 2,
+          "lyrics": 0,
+          "dynamics": 0,
+          "hairpins": 0,
+          "articulations": 2
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 2,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      },
+      "verovio": {
+        "pages": 1,
+        "marks": {
+          "noteheads": 119,
+          "rests": 6,
+          "slurs": 33,
+          "ties": 2,
+          "lyrics": 0,
+          "dynamics": 0,
+          "hairpins": 0,
+          "articulations": 2
+        },
+        "elements_past_page_edge": 0,
+        "elements_past_margins": 2,
+        "text_over_notation": 0,
+        "text_over_text": 0,
+        "lyric_staff_candidates_count": 0,
+        "dynamic_staff_candidates_count": 0,
+        "text_curve_candidates_count": 0
+      }
+    }
+  ]
+}

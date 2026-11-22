@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 // Render every page with an independently pinned Verovio npm package.
-// Usage: node scripts/export_verovio_pages.mjs PREFIX INPUT.musicxml OUTPUT_PREFIX [VERSION]
+// Usage: node scripts/export_verovio_pages.mjs PREFIX INPUT.musicxml OUTPUT_PREFIX [VERSION] [A4|Letter]
 
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-const [prefix, inputPath, outputPrefix, expectedVersion = '6.4.1'] = process.argv.slice(2);
+const [prefix, inputPath, outputPrefix, expectedVersion = '6.4.1', paper = 'A4'] = process.argv.slice(2);
+if (!['A4', 'Letter'].includes(paper)) throw new Error('paper must be A4 or Letter');
 if (!prefix || !inputPath || !outputPrefix) {
     throw new Error('expected PREFIX INPUT.musicxml OUTPUT_PREFIX [VERSION]');
 }
@@ -23,8 +24,8 @@ const { VerovioToolkit } = await import(toolkitUrl);
 const toolkit = new VerovioToolkit(await createVerovioModule());
 toolkit.setOptions({
     inputFrom: 'xml',
-    pageWidth: 2100,
-    pageHeight: 2970,
+    pageWidth: paper === 'Letter' ? 2159 : 2100,
+    pageHeight: paper === 'Letter' ? 2794 : 2970,
     pageMarginTop: 160,
     pageMarginBottom: 160,
     pageMarginLeft: 140,

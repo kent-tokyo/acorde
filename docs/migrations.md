@@ -6,6 +6,30 @@ This page lists changes that can require consumer action. Release history is in
 otherwise, so stored score JSON remains readable. Rust consumers that use exhaustive `match` or
 struct literals must still update for added variants and fields.
 
+## v2.0.0: score model and measured print
+
+This major release adds public fields to score-model types including `Note`,
+`Measure`, `Lyric`, `ChordSymbol`, `Part`, `ScoreMetadata`, and `StyledText`,
+and variants to public enums including `PartGroupSymbol` and notation spanner
+kinds. Complete Rust struct literals and exhaustive `match` expressions must
+be updated for the new fields and variants. Prefer the available constructors
+and defaults where appropriate. Additive Score JSON fields use serde defaults;
+this does not make Rust source literals compatible. Empty print titles and
+false part-name visibility flags are omitted on serialization and default when
+absent; authored non-default values are retained. New enum values may require
+updates in consumers that validate or match serialized values.
+
+Measured printing is opt-in: it uses caller-supplied text-font bytes and does
+not replace the existing default renderer. The current qualification and
+remaining limits are recorded in the [engraving protocol](engraving-parity.md);
+this release does not claim parity with Verovio. Import/export reports identify
+implemented loss diagnostics, which are not exhaustive.
+
+Arrangement replay contracts that derive their engine marker from the crate
+version may reject previously saved configurations. Regenerate those configs
+from their source and options and review the output; do not edit their version
+markers by hand. The minimum supported Rust version remains 1.89.
+
 ## v1.3.15: standard-bass accompaniment staves
 
 New standard-bass scores from `arrange_accordion_preset` and

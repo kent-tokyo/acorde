@@ -487,6 +487,22 @@ fn push_advanced_attribute_diagnostics(
                     "MusicXML direction placement is not above or below; the original value is preserved",
                 )
             }
+            "placement" if path.last().map(String::as_str) == Some("lyric") => {
+                if value == "below" {
+                    continue;
+                }
+                if value == "above" {
+                    (
+                        "musicxml.lyric-above-rendering-unsupported",
+                        "the above placement is retained in the score and MusicXML; measured print support is partial, and other SVG rendering still places lyrics below",
+                    )
+                } else {
+                    (
+                        "musicxml.invalid-lyric-placement",
+                        "MusicXML lyric placement must be above or below; the value cannot be preserved",
+                    )
+                }
+            }
             "default-x" | "default-y" | "relative-x" | "relative-y"
                 if path.last().map(String::as_str) == Some("note") =>
             {
@@ -639,6 +655,36 @@ pub fn export_loss_diagnostics(score: &acorde_core::Score) -> Vec<crate::Diagnos
         diagnostics.push(diagnostic);
     }
     for (part_index, part) in score.parts.iter().enumerate() {
+        if let Some(last) = part.staves.first().and_then(|staff| staff.measures.last())
+            && (last.system_break || last.page_break)
+        {
+            let mut diagnostic = crate::Diagnostic::warning(
+                "musicxml.export-trailing-print-break",
+                "a break after the final measure has no following MusicXML measure on which to write a print directive",
+            );
+            diagnostic.source_location =
+                Some(format!("/score/part/{}/final-measure", part_index + 1));
+            diagnostic.preserved_value = Some(format!(
+                "system={};page={}",
+                last.system_break, last.page_break
+            ));
+            diagnostics.push(diagnostic);
+        }
+        if part.staff_groups.len() > 1
+            || part
+                .staff_groups
+                .first()
+                .is_some_and(|g| !g.barlines_connect)
+        {
+            let mut diagnostic = crate::Diagnostic::warning(
+                "musicxml.export-part-staff-groups-incomplete",
+                "only the first staff connector is exported; its independent barline setting is not represented",
+            );
+            diagnostic.source_location =
+                Some(format!("/score/part/{}/staff-groups", part_index + 1));
+            diagnostic.preserved_value = Some(format!("groups={}", part.staff_groups.len()));
+            diagnostics.push(diagnostic);
+        }
         let partial_count = part
             .staves
             .iter()
@@ -1175,6 +1221,7 @@ mod tests {
 
         let mut score = acorde_core::Score::new("Styled", 120, 4, 4, 0, 1);
         score.texts.push(StyledText {
+            enclosure: None,
             position_beats: None,
             text: "dolce".into(),
             style: TextStyle::Expression,

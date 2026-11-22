@@ -1,0 +1,452 @@
+{
+  "schema_version": 1,
+  "classification": "reserved final v2 metadata selection; score content and renderings unopened",
+  "selected_on": "2026-11-15",
+  "seed": "acorde-print-final-v2-20261115",
+  "selection_rule": "Ascending SHA-256(seed, group, repository, path), complete files with no size, difficulty or feature filters. Two different piano works per composer; six different composers each in vocal, chamber and part groups. Exclude all retired works/cycles and matching imported repository fixtures. Related movements/cycle members remain in one cohort. Parts use the first eight rank hex digits modulo four. This is deterministic coverage sampling, not a random population sample.",
+  "stop_rule": "Freeze candidate, font, source and shared-input hashes before any final render. Any failed or inspected-to-tune cohort becomes development; all failures remain recorded and a later final cohort must be disjoint.",
+  "retired_selection_sha256": "27c2e9dbf8f61c606e39a875aa1ad2026f769b9a7b7f733547f4505c56f74cab",
+  "fixture_manifest_sha256_at_selection": "59a5bf5a9fb6d2cde4010e5e09a6ec26bd4ed6133f2949aaf40dfce18f6cea8f",
+  "metadata_inventories": [
+    {
+      "repository": "DCMLab/mozart_piano_sonatas",
+      "revision": "5337257a5318711e6302cfe85c3f1a6ade3c6271",
+      "metadata_file": "/private/tmp/acorde-print-final-mozart-tree.json",
+      "metadata_sha256": "bbf156eef67ad310746ead9952f21e7d26999345f22864fad3a0e64147470c28"
+    },
+    {
+      "repository": "DCMLab/beethoven_piano_sonatas",
+      "revision": "ea7181bff88abc8713257234f7ec4033178c57a9",
+      "metadata_file": "/private/tmp/acorde-print-final-beethoven-tree.json",
+      "metadata_sha256": "92d5bf72034a4f03e192b85adae9f095f1769dad2ea655b3e48ac33f3ba3c24e"
+    },
+    {
+      "repository": "DCMLab/debussy_other_piano_pieces",
+      "revision": "74224fd3979ddec4a4a818cca51a883f6d91ca94",
+      "metadata_file": "/private/tmp/acorde-print-final-debussy-other-tree.json",
+      "metadata_sha256": "b12d9898148a243de8f1e3efc108c9b9c1ca1611c65f24ca3a4c7fcb32f7d251"
+    },
+    {
+      "repository": "OpenScore/Lieder",
+      "revision": "38c5db510224d9facdc4b08d741fc788cfb58ea8",
+      "metadata_file": "/private/tmp/acorde-print-final-lieder-tree.json",
+      "metadata_sha256": "b29286454f100d6ff4d2a622d2de01bb16677e5d8f3aeaa9fd45ad0cc323291c"
+    },
+    {
+      "repository": "OpenScore/StringQuartets",
+      "revision": "2614b0b2958dd1ce3f52e172a43e5f4d0e29570f",
+      "metadata_file": "/private/tmp/acorde-print-final-quartets-tree.json",
+      "metadata_sha256": "fd42173acd0f2f95b84c61ad7ebfc53bf73aa4b3eb220e894e78a1a0ac7eb74a"
+    }
+  ],
+  "excluded_work_keys": [
+    [
+      "DCMLab/chopin_mazurkas",
+      "BI105"
+    ],
+    [
+      "DCMLab/chopin_mazurkas",
+      "BI115"
+    ],
+    [
+      "DCMLab/cpe_bach_keyboard",
+      "wq117n11"
+    ],
+    [
+      "DCMLab/cpe_bach_keyboard",
+      "wq117n12"
+    ],
+    [
+      "DCMLab/schumann_kinderszenen",
+      "n02"
+    ],
+    [
+      "DCMLab/schumann_kinderszenen",
+      "n07"
+    ],
+    [
+      "OpenScore/Lieder",
+      "Abbott,_Jane_Bingham/_/Just_for_Today"
+    ],
+    [
+      "OpenScore/Lieder",
+      "Beach,_Amy/3_Browning_Songs,_Op.44"
+    ],
+    [
+      "OpenScore/Lieder",
+      "Brahms,_Johannes/2_Gesänge,_Op.91"
+    ],
+    [
+      "OpenScore/Lieder",
+      "Chaminade,_Cécile/_/Alleluia"
+    ],
+    [
+      "OpenScore/Lieder",
+      "Fauré,_Gabriel/3_Songs,_Op.7"
+    ],
+    [
+      "OpenScore/Lieder",
+      "Liliuokalani,_Queen_of_the_Hawaiian_Islands/_/Aloha_Oe"
+    ],
+    [
+      "OpenScore/Lieder",
+      "Quilter,_Roger/To_Julia,_Op.8"
+    ],
+    [
+      "OpenScore/Lieder",
+      "Schubert,_Franz/4_Gesänge_aus_„Wilhelm_Meister“,_D.877"
+    ],
+    [
+      "OpenScore/Lieder",
+      "Schumann,_Clara/6_Lieder,_Op.13"
+    ],
+    [
+      "OpenScore/Lieder",
+      "Webern,_Anton/5_Lieder_nach_Gedichten_von_Stefan_George,_Op.4"
+    ],
+    [
+      "OpenScore/StringQuartets",
+      "Beach,_Amy/String_Quartet,_Op._89"
+    ],
+    [
+      "OpenScore/StringQuartets",
+      "Dittersdorf,_Carl_Ditters_von/String_Quartet_in_D_major,_Kr.191"
+    ],
+    [
+      "OpenScore/StringQuartets",
+      "Dvořák,_Antonín/Echo_of_Songs,_B.152"
+    ],
+    [
+      "OpenScore/StringQuartets",
+      "Gossec,_François_Joseph/String_Quartet_in_C_minor,_RH_189"
+    ],
+    [
+      "OpenScore/StringQuartets",
+      "Haydn,_Joseph/String_Quartet_in_A_major,_Hob.III24,_Op.9_No.6"
+    ],
+    [
+      "OpenScore/StringQuartets",
+      "Hoffmeister,_Franz_Anton/String_Quartet_No.9_in_D_major"
+    ],
+    [
+      "OpenScore/StringQuartets",
+      "Maier,_Amanda/String_Quartet_in_A_major"
+    ],
+    [
+      "OpenScore/StringQuartets",
+      "Mayer,_Emilie/String_Quartet_in_G_minor,_Op.14"
+    ],
+    [
+      "OpenScore/StringQuartets",
+      "Mozart,_Wolfgang_Amadeus/String_Quartet_No.1_in_G_major,_K.8073f"
+    ],
+    [
+      "OpenScore/StringQuartets",
+      "Saint-Georges,_Joseph_Bologne/String_Quartet_in_C_major,_Op.1_No.1"
+    ],
+    [
+      "OpenScore/StringQuartets",
+      "Schubert,_Franz/String_Quartet_in_C_minor,_D.703,_No.12"
+    ],
+    [
+      "OpenScore/StringQuartets",
+      "Wolf,_Hugo/Italian_Serenade"
+    ]
+  ],
+  "works": [
+    {
+      "group": "piano",
+      "id": "K311-1",
+      "repository": "DCMLab/mozart_piano_sonatas",
+      "revision": "5337257a5318711e6302cfe85c3f1a6ade3c6271",
+      "path": "MS3/K311-1.mscx",
+      "git_blob_sha1": "f01d46a81f91ad25b0f1bc9abc1a83ac00f4b642",
+      "bytes": 760473,
+      "work_id": "K311",
+      "selection_rank": "0201815914d56765ab00b5407d23cd34b0f9be96372a4491e8d171eb8f72be10",
+      "license": "CC-BY-NC-SA-4.0"
+    },
+    {
+      "group": "piano",
+      "id": "K570-2",
+      "repository": "DCMLab/mozart_piano_sonatas",
+      "revision": "5337257a5318711e6302cfe85c3f1a6ade3c6271",
+      "path": "MS3/K570-2.mscx",
+      "git_blob_sha1": "bb7b726ad890598764912ed6e577670ec5fdaa7d",
+      "bytes": 501722,
+      "work_id": "K570",
+      "selection_rank": "0221896cc2ab2e81ea5987c209c3440b67891b175cacbca27f5a565990553e04",
+      "license": "CC-BY-NC-SA-4.0"
+    },
+    {
+      "group": "piano",
+      "id": "14-3",
+      "repository": "DCMLab/beethoven_piano_sonatas",
+      "revision": "ea7181bff88abc8713257234f7ec4033178c57a9",
+      "path": "MS3/14-3.mscx",
+      "git_blob_sha1": "c3cba3d5f0a2d1cf7a9ae061a8e427a5e96affc6",
+      "bytes": 1224670,
+      "work_id": "14",
+      "selection_rank": "009d3e8156afb064cb6495988c988deafa90183f74bdf40aa7264a8032e462bd",
+      "license": "CC-BY-NC-SA-4.0"
+    },
+    {
+      "group": "piano",
+      "id": "12-1",
+      "repository": "DCMLab/beethoven_piano_sonatas",
+      "revision": "ea7181bff88abc8713257234f7ec4033178c57a9",
+      "path": "MS3/12-1.mscx",
+      "git_blob_sha1": "849b241497b22c5bf671324461db0badc6e9ab94",
+      "bytes": 929981,
+      "work_id": "12",
+      "selection_rank": "00d84cbfb1c01442106fa991da810ba355e2d084400f0be41c07051b8e7ba90d",
+      "license": "CC-BY-NC-SA-4.0"
+    },
+    {
+      "group": "piano",
+      "id": "l082_nocturne",
+      "repository": "DCMLab/debussy_other_piano_pieces",
+      "revision": "74224fd3979ddec4a4a818cca51a883f6d91ca94",
+      "path": "MS3/l082_nocturne.mscx",
+      "git_blob_sha1": "b607689289bf8fa9e9a6d71949e91cdc11c71743",
+      "bytes": 784757,
+      "work_id": "l082_nocturne",
+      "selection_rank": "0c0b8109f1a5ac486d88b1107043700050654e80c2dc603b50bc9bd2ae268c55",
+      "license": "CC-BY-NC-SA-4.0"
+    },
+    {
+      "group": "piano",
+      "id": "l099_cahier",
+      "repository": "DCMLab/debussy_other_piano_pieces",
+      "revision": "74224fd3979ddec4a4a818cca51a883f6d91ca94",
+      "path": "MS3/l099_cahier.mscx",
+      "git_blob_sha1": "af890f3a6790cdee04a2cc14833ed150697480ff",
+      "bytes": 550737,
+      "work_id": "l099_cahier",
+      "selection_rank": "1737d661e1f282b8c73b6904fd22b187a0df844c49c97cf7ff20d1066050e44f",
+      "license": "CC-BY-NC-SA-4.0"
+    },
+    {
+      "group": "vocal",
+      "id": "lc6898041",
+      "repository": "OpenScore/Lieder",
+      "revision": "38c5db510224d9facdc4b08d741fc788cfb58ea8",
+      "path": "scores/Bizet,_Georges/20_Mélodies,_Op.21/09_Pastorale/lc6898041.mxl",
+      "git_blob_sha1": "c314f1ec8ac799c2d4aa3507f1d07964cb27943e",
+      "bytes": 13605,
+      "work_id": "Bizet,_Georges/20_Mélodies,_Op.21",
+      "selection_rank": "0038a44f9097050262ecaa04534e7487b15086242eaa978b469732ebb632ceb0",
+      "license": "CC0-1.0"
+    },
+    {
+      "group": "vocal",
+      "id": "lc5930707",
+      "repository": "OpenScore/Lieder",
+      "revision": "38c5db510224d9facdc4b08d741fc788cfb58ea8",
+      "path": "scores/Holmès,_Augusta_Mary_Anne/_/À_Trianon/lc5930707.mxl",
+      "git_blob_sha1": "0eefe5c84257e20a7e991280b24228a5361a8e6a",
+      "bytes": 14547,
+      "work_id": "Holmès,_Augusta_Mary_Anne/_/À_Trianon",
+      "selection_rank": "008b990548ee951823235fc9a4ffa8731f1363503457b7803284f2d9ff54d1cf",
+      "license": "CC0-1.0"
+    },
+    {
+      "group": "vocal",
+      "id": "lc5098709",
+      "repository": "OpenScore/Lieder",
+      "revision": "38c5db510224d9facdc4b08d741fc788cfb58ea8",
+      "path": "scores/Brahms,_Johannes/8_Lieder_und_Gesänge,_Op.58/5_Schwermut/lc5098709.mxl",
+      "git_blob_sha1": "c3145c579e3932b3f57c1bc7b6691dc6e9e42a51",
+      "bytes": 6189,
+      "work_id": "Brahms,_Johannes/8_Lieder_und_Gesänge,_Op.58",
+      "selection_rank": "00ec90e3939f38808b1eab851eca198e993ac31d20934e0dc05832969517a34c",
+      "license": "CC0-1.0"
+    },
+    {
+      "group": "vocal",
+      "id": "lc5000341",
+      "repository": "OpenScore/Lieder",
+      "revision": "38c5db510224d9facdc4b08d741fc788cfb58ea8",
+      "path": "scores/Chaminade,_Cécile/_/Ritournelle/lc5000341.mxl",
+      "git_blob_sha1": "9c73603c470a6388861d8cd684db03fd64060302",
+      "bytes": 16309,
+      "work_id": "Chaminade,_Cécile/_/Ritournelle",
+      "selection_rank": "01212959aff14c4c05fbcaafa866e1512194205e2bd2ed1b22d62ec2ea33feb7",
+      "license": "CC0-1.0"
+    },
+    {
+      "group": "vocal",
+      "id": "lc6218728",
+      "repository": "OpenScore/Lieder",
+      "revision": "38c5db510224d9facdc4b08d741fc788cfb58ea8",
+      "path": "scores/Davies,_Walford/8_New_Nursery_Rhymes,_Op.23/3_A_Tragedy/lc6218728.mxl",
+      "git_blob_sha1": "63b96e2b31fdd1c6c5e1e6a1fb66bbf13c6d82e3",
+      "bytes": 8632,
+      "work_id": "Davies,_Walford/8_New_Nursery_Rhymes,_Op.23",
+      "selection_rank": "012af613b7031f479769a8159c077dde921e5eaad4b205e9136de87eda22b07a",
+      "license": "CC0-1.0"
+    },
+    {
+      "group": "vocal",
+      "id": "lc6548330",
+      "repository": "OpenScore/Lieder",
+      "revision": "38c5db510224d9facdc4b08d741fc788cfb58ea8",
+      "path": "scores/Stanford,_Charles_Villiers/Songs_of_a_Roving_Celt,_Op.157/5_The_Call/lc6548330.mxl",
+      "git_blob_sha1": "2c4c2e811c6a733d9535ec8951e12980b98aa7e4",
+      "bytes": 14581,
+      "work_id": "Stanford,_Charles_Villiers/Songs_of_a_Roving_Celt,_Op.157",
+      "selection_rank": "018fd578d0b0281aa066a40b5f1281dd3676ebfacc77cc7bacd43b454c626e9f",
+      "license": "CC0-1.0"
+    },
+    {
+      "group": "chamber",
+      "id": "sq7302710",
+      "repository": "OpenScore/StringQuartets",
+      "revision": "2614b0b2958dd1ce3f52e172a43e5f4d0e29570f",
+      "path": "scores/Mozart,_Wolfgang_Amadeus/String_Quartet_No.16_in_E-flat_major,_K.428421b_(Op._10,_No._4)/sq7302710.mxl",
+      "git_blob_sha1": "9e49034282d0a3a223a6c63a0ba116167e7514c1",
+      "bytes": 160378,
+      "work_id": "Mozart,_Wolfgang_Amadeus/String_Quartet_No.16_in_E-flat_major,_K.428421b_(Op._10,_No._4)",
+      "selection_rank": "0203f293418eed8bf1ee428871646a8df6b1ea96936a5ad72d325b93d8567204",
+      "license": "CC0-1.0"
+    },
+    {
+      "group": "chamber",
+      "id": "sq22759075",
+      "repository": "OpenScore/StringQuartets",
+      "revision": "2614b0b2958dd1ce3f52e172a43e5f4d0e29570f",
+      "path": "scores/Suk,_Josef/String_Quartet_No.1,_Op.11/sq22759075.mxl",
+      "git_blob_sha1": "427bfea9a831a1078a7be2a712ac53e1713e0345",
+      "bytes": 460698,
+      "work_id": "Suk,_Josef/String_Quartet_No.1,_Op.11",
+      "selection_rank": "063d59c64d6f47ef8b22d6efa3e128bc8398d890cc35be3cd6b89d3263d670d8",
+      "license": "CC0-1.0"
+    },
+    {
+      "group": "chamber",
+      "id": "sq26380840",
+      "repository": "OpenScore/StringQuartets",
+      "revision": "2614b0b2958dd1ce3f52e172a43e5f4d0e29570f",
+      "path": "scores/Haydn,_Joseph/String_Quartet_in_E_major,_Hob.III8,_Op.2_No.2/sq26380840.mxl",
+      "git_blob_sha1": "1cc80e254210bbf4f8f3d590b960cbe431cc1edc",
+      "bytes": 111154,
+      "work_id": "Haydn,_Joseph/String_Quartet_in_E_major,_Hob.III8,_Op.2_No.2",
+      "selection_rank": "0780371de7d73af2c3962bbb9075fae6ff48aa201464583dd7e26b199fcad988",
+      "license": "CC0-1.0"
+    },
+    {
+      "group": "chamber",
+      "id": "sq10517302",
+      "repository": "OpenScore/StringQuartets",
+      "revision": "2614b0b2958dd1ce3f52e172a43e5f4d0e29570f",
+      "path": "scores/Stanford,_Charles_Villiers/String_Quartet_No.1,_Op.44/sq10517302.mxl",
+      "git_blob_sha1": "317ae062b6a2be18da815ed0093c6b50d4879460",
+      "bytes": 315551,
+      "work_id": "Stanford,_Charles_Villiers/String_Quartet_No.1,_Op.44",
+      "selection_rank": "0be2c111b23eea1f9b76d7cfcfd705d2ce3b82248d6f8e3597319178da88ab0f",
+      "license": "CC0-1.0"
+    },
+    {
+      "group": "chamber",
+      "id": "sq34642727",
+      "repository": "OpenScore/StringQuartets",
+      "revision": "2614b0b2958dd1ce3f52e172a43e5f4d0e29570f",
+      "path": "scores/Onslow,_George/String_Quartet_No.28_in_E-flat_major,_Op.54/sq34642727.mxl",
+      "git_blob_sha1": "94c3bf11b3c524668ce6b77494abf6e3abad626d",
+      "bytes": 226505,
+      "work_id": "Onslow,_George/String_Quartet_No.28_in_E-flat_major,_Op.54",
+      "selection_rank": "0cbebce4ae10dd78dbf139a7a862476831609f05f68b270a0141940beeb67f3b",
+      "license": "CC0-1.0"
+    },
+    {
+      "group": "chamber",
+      "id": "sq7397765",
+      "repository": "OpenScore/StringQuartets",
+      "revision": "2614b0b2958dd1ce3f52e172a43e5f4d0e29570f",
+      "path": "scores/Schubert,_Franz/String_Quartet_in_D_minor,_D.810,_No.14_(“Death_and_the_Maiden”)/sq7397765.mxl",
+      "git_blob_sha1": "1bd44e2520fe3bd72b2244fca59cba9f4a178a55",
+      "bytes": 380491,
+      "work_id": "Schubert,_Franz/String_Quartet_in_D_minor,_D.810,_No.14_(“Death_and_the_Maiden”)",
+      "selection_rank": "0efe972ea13a5431c2991104278fb543c0c98113768c596df0de8874f61a8d94",
+      "license": "CC0-1.0"
+    },
+    {
+      "group": "part",
+      "id": "sq9529900",
+      "repository": "OpenScore/StringQuartets",
+      "revision": "2614b0b2958dd1ce3f52e172a43e5f4d0e29570f",
+      "path": "scores/Schumann,_Robert/String_Quartet_No.3,_Op.41_No.3/sq9529900.mxl",
+      "git_blob_sha1": "9dbf0287bee28e45b63e2ab00e8b61c554f25370",
+      "bytes": 249438,
+      "work_id": "Schumann,_Robert/String_Quartet_No.3,_Op.41_No.3",
+      "selection_rank": "005c1e904d1370b3180d38ed60b0cc0f11555d403c72ea5c9efea23571ffa77a",
+      "license": "CC0-1.0",
+      "part_index": 0
+    },
+    {
+      "group": "part",
+      "id": "sq26652775",
+      "repository": "OpenScore/StringQuartets",
+      "revision": "2614b0b2958dd1ce3f52e172a43e5f4d0e29570f",
+      "path": "scores/Franck,_César/String_Quartet/sq26652775.mxl",
+      "git_blob_sha1": "bf02b3f72227ff9b0206441df1fb89a7f4c56314",
+      "bytes": 512008,
+      "work_id": "Franck,_César/String_Quartet",
+      "selection_rank": "041645ef80733c5cfd0f6c4f16e673fe55fa2f287e6e94f9272eeada30dffdbc",
+      "license": "CC0-1.0",
+      "part_index": 3
+    },
+    {
+      "group": "part",
+      "id": "sq8913219",
+      "repository": "OpenScore/StringQuartets",
+      "revision": "2614b0b2958dd1ce3f52e172a43e5f4d0e29570f",
+      "path": "scores/Beethoven,_Ludwig_van/String_Quartet_No.4,_Op.18_No.4/sq8913219.mxl",
+      "git_blob_sha1": "66132f16a1407e9d33486b6785d5df8b81af005d",
+      "bytes": 198526,
+      "work_id": "Beethoven,_Ludwig_van/String_Quartet_No.4,_Op.18_No.4",
+      "selection_rank": "04e25bd5ed3ac9e86e5e4aafb99d332fc4bfb06f0fd8e3e808ce065015e1da03",
+      "license": "CC0-1.0",
+      "part_index": 1
+    },
+    {
+      "group": "part",
+      "id": "sq9094235",
+      "repository": "OpenScore/StringQuartets",
+      "revision": "2614b0b2958dd1ce3f52e172a43e5f4d0e29570f",
+      "path": "scores/Bridge,_Frank/String_Quartet_No.2,_H.115/sq9094235.mxl",
+      "git_blob_sha1": "79c9b2a598190661047468c00cc4db8b917c7478",
+      "bytes": 304843,
+      "work_id": "Bridge,_Frank/String_Quartet_No.2,_H.115",
+      "selection_rank": "060b3cd510da127dd1d5b4c4f77ffb1d9b45ffca03a7a4c53380d132d573000e",
+      "license": "CC0-1.0",
+      "part_index": 1
+    },
+    {
+      "group": "part",
+      "id": "sq7577795",
+      "repository": "OpenScore/StringQuartets",
+      "revision": "2614b0b2958dd1ce3f52e172a43e5f4d0e29570f",
+      "path": "scores/Hensel,_Fanny_(Mendelssohn)/String_Quartet_in_E-flat_major,_Op._277/sq7577795.mxl",
+      "git_blob_sha1": "62ecc25dcf7d151f4946f8571c1bd72e58f514e6",
+      "bytes": 191378,
+      "work_id": "Hensel,_Fanny_(Mendelssohn)/String_Quartet_in_E-flat_major,_Op._277",
+      "selection_rank": "0645799044dfa96a3c332c014e20cc1749cc5c38815171204fd14c9a35364cf7",
+      "license": "CC0-1.0",
+      "part_index": 0
+    },
+    {
+      "group": "part",
+      "id": "sq14619670",
+      "repository": "OpenScore/StringQuartets",
+      "revision": "2614b0b2958dd1ce3f52e172a43e5f4d0e29570f",
+      "path": "scores/Lalo,_Edouard/String_Quartet,_Op.19/sq14619670.mxl",
+      "git_blob_sha1": "98d662772caf46fde2629a8ff6555ba7c67c3ec0",
+      "bytes": 371013,
+      "work_id": "Lalo,_Edouard/String_Quartet,_Op.19",
+      "selection_rank": "07e78cfe41542037e717eba62372365381100e8f57536be2de6c20812adaec49",
+      "license": "CC0-1.0",
+      "part_index": 2
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "classification": "partial single-assistant development review; no gate pass",
+  "comparison": {
+    "paper": "A4 portrait",
+    "acorde_staff_space_mm": 1.8,
+    "acorde_measures_per_system_cap": 8,
+    "acorde_strategy": "measured",
+    "verovio_version": "6.4.1",
+    "input": "tests/fixtures/openscore_gossec_quartet_rh189.mxl",
+    "input_sha256": "a0764ad885be2179a43a8b4809c490d18228bf7e2d064bdf4306c0413f358b1e",
+    "font_sha256": "b97cd5005278b24aabb69b8b6ead98860955599558f6e8119483b575a5fdce98",
+    "render_rs_sha256": "0972333245206702aa23c4a45f708736abe9a57bd8c99980b7741b2d0bc6c7b4",
+    "print_mxl_binary_sha256": "0427f288f69f9fa5e70fa485fbc9bb45dd36fc35701c918a77a14cdc887d84d2",
+    "acorde_pdf_sha256": "ce5b0c3dfad3ec8ca2908bbd6786172abf389626aea0bda08c2f3c953bb2d721",
+    "verovio_pdf_sha256": "b076fe747a4e90b0c3302a65348719a98c95e08da1a1ab816e3c2bfbb31bba26",
+    "acorde_pages": 18,
+    "verovio_pages": 16
+  },
+  "review": [
+    {
+      "engine": "acorde",
+      "page": 1,
+      "png_sha256": "d7adbee36dbbd79868cdbe4ade8e83d5920d73e6212e504496feaf44e8d8a51b",
+      "observations": [
+        "The long grace-start slur retains its authored above placement and no longer bows toward the grace stem tip.",
+        "The short grace connector ends near the main notehead.",
+        "Two systems leave a large area unused; Verovio puts three systems on its opening page."
+      ]
+    },
+    {
+      "engine": "acorde",
+      "page": 2,
+      "png_sha256": "ade2c668961eed59037d6878a0efe57ef73574d8d26abada924fac81899130cf",
+      "observations": [
+        "System-start measure numbers are separated from clefs.",
+        "Bowing signs retain their upright orientation."
+      ]
+    },
+    {
+      "engine": "acorde",
+      "page": 8,
+      "png_sha256": "ca3f877711bf9d5632b28da1259621b224e06234190acbad3ab44d5592d0eb9b",
+      "observations": [
+        "The earlier fingerings and hidden-tuplet repair remain visible in the dense quartet passage."
+      ]
+    }
+  ],
+  "open_work": [
+    "all pages and all development inputs at physical size",
+    "source fidelity and non-note mark audit",
+    "page utilization",
+    "default and Letter configurations",
+    "current-candidate native/WASM, cross-platform, performance and memory checks",
+    "disjoint frozen final cohort"
+  ]
+}

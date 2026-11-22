@@ -1,0 +1,310 @@
+[
+  {
+    "score": "piano-wq117n11",
+    "candidate": "before",
+    "input_sha256": "9cd06c88841fd1c3c5d5d454b5acd6a54f94aefd4c36f9f74746fb3dc215f50f",
+    "metrics": {
+      "pages": 1,
+      "marks": {
+        "noteheads": 254,
+        "rests": 14,
+        "slurs": 0,
+        "ties": 2,
+        "lyrics": 0,
+        "dynamics": 6,
+        "hairpins": 0,
+        "articulations": 22
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 2,
+      "text_over_notation": 0,
+      "text_over_text": 0,
+      "edge_candidates": [],
+      "text_text_candidates": [],
+      "lyric_staff_candidates": [],
+      "dynamic_staff_candidates": [],
+      "text_curve_candidates": [],
+      "text_notation_candidates": [],
+      "staff_space_mm": 1.8,
+      "staff_space_samples_mm": [
+        {
+          "page": 1,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 1,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 3,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 5,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 6,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 7,
+          "space_mm": 1.8
+        }
+      ],
+      "min_staff_space_mm": 1.8,
+      "max_staff_space_mm": 1.8,
+      "lyric_font_mm": null,
+      "text_font_mm": 3.24,
+      "min_text_font_mm": 2.7,
+      "systems": null
+    }
+  },
+  {
+    "score": "piano-wq117n11",
+    "candidate": "after",
+    "input_sha256": "9cd06c88841fd1c3c5d5d454b5acd6a54f94aefd4c36f9f74746fb3dc215f50f",
+    "metrics": {
+      "pages": 1,
+      "marks": {
+        "noteheads": 254,
+        "rests": 14,
+        "slurs": 0,
+        "ties": 2,
+        "lyrics": 0,
+        "dynamics": 6,
+        "hairpins": 0,
+        "articulations": 22
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 2,
+      "text_over_notation": 0,
+      "text_over_text": 0,
+      "edge_candidates": [],
+      "text_text_candidates": [],
+      "lyric_staff_candidates": [],
+      "dynamic_staff_candidates": [],
+      "text_curve_candidates": [],
+      "text_notation_candidates": [],
+      "staff_space_mm": 1.8,
+      "staff_space_samples_mm": [
+        {
+          "page": 1,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 1,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 3,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 5,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 6,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 7,
+          "space_mm": 1.8
+        }
+      ],
+      "min_staff_space_mm": 1.8,
+      "max_staff_space_mm": 1.8,
+      "lyric_font_mm": null,
+      "text_font_mm": 3.24,
+      "min_text_font_mm": 2.7,
+      "systems": null
+    }
+  },
+  {
+    "score": "piano-wq117n12",
+    "candidate": "before",
+    "input_sha256": "8268f3fcb357b9e9a41d4b313af73d04252ed19ea510b2f48878bb054b54a112",
+    "metrics": {
+      "pages": 1,
+      "marks": {
+        "noteheads": 214,
+        "rests": 25,
+        "slurs": 0,
+        "ties": 3,
+        "lyrics": 0,
+        "dynamics": 0,
+        "hairpins": 0,
+        "articulations": 30
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 2,
+      "text_over_notation": 0,
+      "text_over_text": 0,
+      "edge_candidates": [],
+      "text_text_candidates": [],
+      "lyric_staff_candidates": [],
+      "dynamic_staff_candidates": [],
+      "text_curve_candidates": [],
+      "text_notation_candidates": [],
+      "staff_space_mm": 1.8,
+      "staff_space_samples_mm": [
+        {
+          "page": 1,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 1,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 3,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 5,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 6,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 7,
+          "space_mm": 1.8
+        }
+      ],
+      "min_staff_space_mm": 1.8,
+      "max_staff_space_mm": 1.8,
+      "lyric_font_mm": null,
+      "text_font_mm": 3.24,
+      "min_text_font_mm": 2.7,
+      "systems": null
+    }
+  },
+  {
+    "score": "piano-wq117n12",
+    "candidate": "after",
+    "input_sha256": "8268f3fcb357b9e9a41d4b313af73d04252ed19ea510b2f48878bb054b54a112",
+    "metrics": {
+      "pages": 1,
+      "marks": {
+        "noteheads": 214,
+        "rests": 25,
+        "slurs": 0,
+        "ties": 3,
+        "lyrics": 0,
+        "dynamics": 0,
+        "hairpins": 0,
+        "articulations": 30
+      },
+      "elements_past_page_edge": 0,
+      "elements_past_margins": 2,
+      "text_over_notation": 0,
+      "text_over_text": 0,
+      "edge_candidates": [],
+      "text_text_candidates": [],
+      "lyric_staff_candidates": [],
+      "dynamic_staff_candidates": [],
+      "text_curve_candidates": [],
+      "text_notation_candidates": [],
+      "staff_space_mm": 1.8,
+      "staff_space_samples_mm": [
+        {
+          "page": 1,
+          "staff_ordinal": 0,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 1,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 2,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 3,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 4,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 5,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 6,
+          "space_mm": 1.8
+        },
+        {
+          "page": 1,
+          "staff_ordinal": 7,
+          "space_mm": 1.8
+        }
+      ],
+      "min_staff_space_mm": 1.8,
+      "max_staff_space_mm": 1.8,
+      "lyric_font_mm": null,
+      "text_font_mm": 3.24,
+      "min_text_font_mm": 2.7,
+      "systems": null
+    }
+  }
+]

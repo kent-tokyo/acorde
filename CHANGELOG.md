@@ -2,6 +2,135 @@
 
 ## [Unreleased]
 
+## 2.0.0 - 2026-11-22
+
+- Use documented size-oriented Cargo settings for CI WASM release builds and
+  browser smoke tests. Default Cargo release builds remain available; their
+  artifacts can exceed the CI WASM size budgets and performance may differ.
+
+- **Migration:** Public score-model structs gain fields and enums gain variants.
+  Update complete Rust struct literals and exhaustive matches before upgrading.
+  See the [v2.0.0 migration notes](docs/migrations.md#v200-score-model-and-measured-print).
+  Existing Score JSON uses defaults for the newly added fields. Measured print
+  remains opt-in and its Verovio parity gates are still open.
+
+- Preserve open tie starts at system breaks and connect a tie to an explicitly
+  tied matching pitch in another voice in measured print, including when the
+  original voice continues with a rest or has no further event.
+
+- Keep measured cross-staff lyric continuations on their written staff across
+  page breaks and reserve their ink between staves. Split a continuation when
+  its notes move to another staff within a system.
+
+- Preserve the explicit MusicXML staff side of each lyric verse in the new
+  serde-defaulted `Lyric::placement_above` field, through Score JSON and lyric
+  editing. Measured print places above-staff lyrics and their continuations on
+  the upper side; support remains partial and other SVG rendering still uses
+  the lower side. Import reports that limitation, and other supported exporters
+  report loss of the side metadata. Adding the public field requires a semver
+  review for Rust struct-literal consumers.
+
+- Reserve measured lyric and annotation spacing for voice displacement so
+  syllables can share their baseline. MusicXML import now diagnoses lyric
+  placement values that the score model cannot preserve.
+
+- Reserve page-start part names inside the configured left print margin in
+  measured engraving. Reserve actual displaced lyric and ordinary beam ink
+  between staves, and size grace-note slur clearance to the smaller glyphs.
+
+- Interpret MusicXML print breaks before their containing measure and handle
+  both empty and paired print elements. Export reports an unrepresentable
+  trailing break; import reports unsupported no-break and page-number settings.
+
+- When page balancing is selected, distribute systems independently between
+  explicit page breaks instead of disabling balancing for the whole score.
+
+- Account for voice separation and authored horizontal note offsets when
+  measuring print columns, so displaced noteheads have room at barlines.
+
+- Draw measure barlines in connected staff and part groups, keeping distinct
+  barline styles and repeat dots on their own visible staves. MusicXML import
+  copies each part-level barline to the correct measure of padded staves.
+
+- Import and export one static MusicXML part symbol, including its staff range,
+  and apply the MusicXML default brace to multistaff parts. Distinguish square
+  group brackets from curved brackets. The new `PartGroupSymbol::Square` variant
+  requires semver review. Later part-symbol changes and multiple nested staff
+  groups remain lossy and are reported by the corresponding import/export reports.
+
+- Preserve MusicXML part-name and abbreviation visibility and the `none`
+  part-group symbol, including its absent default. The new serde-defaulted
+  `Part` and `PartLabel` fields and `PartGroupSymbol` variant require semver
+  review for Rust consumers. Name-visibility changes use the whole-score patch
+  fallback. Measured title-width caching follows the displayed title credit.
+
+- Preserve the first-page MusicXML title and subtitle credit text separately from
+  work and movement metadata, and retain work numbers. Score JSON gains
+  serde-defaulted `ScoreMetadata::print_title` and `print_subtitle` fields;
+  Rust struct-literal consumers need a semver review. Credit styling, positioning,
+  additional credits and later-page titles are not yet preserved.
+
+- Preserve MusicXML text enclosure values in `StyledText::enclosure`; older Score JSON defaults to no enclosure. Adding this public field requires a semver release review for Rust struct-literal consumers.
+
+- Add the optional `Measure::timed_dynamics` score-time representation and
+  `SetTimedDynamics` command. MusicXML directions between note onsets keep
+  their timing through export, playback and measured engraving. Composite
+  MusicXML dynamics retain their ordered marks and text; repeat-specific
+  playback remains unsupported. The new public fields require version review;
+  full print qualification remains in progress.
+- Reserve articulation ink between adjacent staves in measured print so lyrics
+  clear marks attached to notes on the next staff.
+- Reserve top space for every continued volta segment during measured pagination.
+- Keep cutaway staves visible when they contain timed dynamics or visible pedal
+  directions, including over rests.
+- Measured print reserves extra horizontal space when a part name cannot fit
+  at 2.7 mm. The resulting system breaks remain under corpus review.
+- Import text-bearing MusicXML breath and caesura marks as visible articulations;
+  paired tags now follow the same path as self-closing tags.
+- Preserve concurrent numbered MusicXML wedges as typed crescendo/decrescendo
+  spanners, including starts on notes beamed across staves. MusicXML round trips
+  retain their numbers and placements; measured collision reflow follows each
+  rendered wedge's side. This extends the serialized
+  `NotationSpannerKind` enum; release-version review is required.
+- Retain hidden MusicXML articulations as performance data with optional
+  `Note::hidden_articulations` indices and `SetHiddenArticulations` editing.
+  Hidden notation containers suppress their tuplet digits/brackets and articulation
+  ink through export. Measured print reserves final fingering and technique-text bounds.
+- Preserve authored dynamic placement in optional, serde-defaulted
+  `Note::dynamic_above`, `SetDynamicPlacement`, MusicXML import/export and print
+  engraving. Unspecified placement stays unspecified through round trips.
+- Preserve MusicXML harmony root/kind spellings, Roman or Nashville numerals,
+  alterations, local numeral keys and inversions in optional `ChordSymbol::written`
+  JSON. Empty authored root text stays empty. `SetChordSymbol` edits and undo/redo
+  retain this data. The added public struct field requires release-version review.
+- Measured print uses pinned OFL-licensed Bravura Text 1.482 outlines for inline
+  music symbols; ordinary text retains the caller's font. Empty SVG paths are
+  accepted as nonpainting PDF geometry.
+- Retain authored tuplet bracket, number visibility/ratio, and side in the optional
+  serde-defaulted `Note::tuplet_display` field with `SetTupletDisplay` editing and
+  MusicXML round trips. Hidden source notes and rests remain invisible in PDF.
+- Keep authored beams together when they begin on the lower staff and cross upward;
+  synthetic fractional timing rests do not acquire visible tuplet marks on export.
+- Measured print clears tuplets, text, articulations, beams and ties using final
+  geometry, shares compatible filled unison heads, and measures interleaved rhythmic
+  columns per physical staff. Qualification against the retired corpus remains ongoing.
+- Add opt-in measured print engraving with caller-supplied text fonts, physical
+  minimum spacing, per-system collision reflow, outlined SVG text and shared PDF
+  geometry. Existing rendering defaults are unchanged. See the engraving parity
+  protocol for development evidence and still-pending qualification gates.
+- Preserve compound outline counters in PDF fills, additional-verse lyric
+  hyphens/extenders, and the placement of numbered slurs sharing endpoints.
+- Separate repeat dots and barline strokes at print size, with larger repeat
+  dots and measured trailing clearance before backward repeats.
+- Add serde-defaulted `Note::arpeggio_number` and its editing command, preserving
+  MusicXML groups that join simultaneous rolled chords across voices or staves.
+- Extend `MetronomeMark` JSON with optional, serde-defaulted `written` text
+  (`per_minute`, `before`, `after`) to preserve empty, qualified and ranged
+  MusicXML metronome values and the order of surrounding words. Playback tempo
+  remains independent. Adding the public Rust struct field requires callers
+  constructing a literal to specify `written: None`; release versioning must
+  account for this API change.
+
 ## 1.3.15 - 2026-11-20
 
 - Write new standard-bass preset and layer arrangements on separate treble

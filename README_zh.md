@@ -48,14 +48,14 @@ acorde 提供可序列化的乐谱模型、支持撤销和重做的编辑命令�
 
 ```toml
 [dependencies]
-acorde = "=1.3.15"
-acorde-render-svg = "=1.3.15"
+acorde = "=2.0.0"
+acorde-render-svg = "=2.0.0"
 ```
 
 默认启用的输入输出格式为 MusicXML 和 MIDI。其他格式需要显式启用对应功能：
 
 ```toml
-acorde = { version = "=1.3.15", features = ["abc", "mei", "mscz", "gp"] }
+acorde = { version = "=2.0.0", features = ["abc", "mei", "mscz", "gp"] }
 ```
 
 ```rust

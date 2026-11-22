@@ -1,0 +1,68 @@
+{
+  "status": "pass",
+  "tolerance": 0.0001,
+  "maximum_delta": 0.0000047460937366849976,
+  "font_sha256": "b97cd5005278b24aabb69b8b6ead98860955599558f6e8119483b575a5fdce98",
+  "cases": [
+    {
+      "path": "/private/tmp/acorde-print-parity-native-v18/aloha.json",
+      "sha256": "b6543f965c6d5cb161a9169083d4c04587f31b23cee70e3614e0d0762aca32e4",
+      "pages": 3,
+      "elapsed_ms": 314.521209
+    },
+    {
+      "path": "/private/tmp/acorde-print-parity-native-v18/freilachs.json",
+      "sha256": "818822e8c94cde3c06948027a47dce76936badd134153675cebcfeb762fc9591",
+      "pages": 1,
+      "elapsed_ms": 35.39387500000004
+    },
+    {
+      "path": "/private/tmp/acorde-print-parity-native-v18/just-for-today.json",
+      "sha256": "8dd44d63afa99979014b311e510e1a5c6ca270492e7a3facf80c40d189e66665",
+      "pages": 3,
+      "elapsed_ms": 228.98662499999995
+    },
+    {
+      "path": "/private/tmp/acorde-print-parity-native-v18/omr-1003.json",
+      "sha256": "ed8d1bc8cbb8955da3add3f4f58e659a186a0ced10cae63d4f7b3e3507eea600",
+      "pages": 1,
+      "elapsed_ms": 18.44487499999991
+    },
+    {
+      "path": "/private/tmp/acorde-print-parity-native-v18/omr-1016.json",
+      "sha256": "c6c902502b6c47b456d8182ff957ef6f831c7b8a0d3a663ee7fe9e16fe89346c",
+      "pages": 1,
+      "elapsed_ms": 38.92933400000004
+    },
+    {
+      "path": "/private/tmp/acorde-print-parity-native-v18/omr-1033.json",
+      "sha256": "47ece2ccea3e1f6f55720755ed0a1cbc8ece029a80a49999c5e08a9ec6ea0be4",
+      "pages": 1,
+      "elapsed_ms": 24.936916999999994
+    },
+    {
+      "path": "/private/tmp/acorde-print-parity-native-v18/omr-1035.json",
+      "sha256": "661c78a70e72d55cea02500ddee82d0eebcf7b8ece2d7cdfe70edd07a5994c22",
+      "pages": 1,
+      "elapsed_ms": 33.33075000000008
+    },
+    {
+      "path": "/private/tmp/acorde-print-parity-native-v18/omr-1036.json",
+      "sha256": "fe740660a5f3f4c311a0fc84480d0f33b02f089c9b2b6cd5bae1b2aff87596a8",
+      "pages": 2,
+      "elapsed_ms": 34.936874999999986
+    },
+    {
+      "path": "/private/tmp/acorde-print-parity-native-v18/quilter.json",
+      "sha256": "8c419ae42e2408597f9c3d3278df2a2bb2f0120daa646faf1c85c6b61c17dbc1",
+      "pages": 1,
+      "elapsed_ms": 87.43054200000006
+    },
+    {
+      "path": "/private/tmp/acorde-print-parity-native-v18/webern.json",
+      "sha256": "0a562bab5ba826cc40bf12d612455dcfe6f8837a5f1e8ccf77691049fb00aaf7",
+      "pages": 2,
+      "elapsed_ms": 121.64241699999991
+    }
+  ]
+}

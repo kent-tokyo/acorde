@@ -3,6 +3,11 @@
 //! accidentals, and span (hairpin/ottava/pedal/slur) resolution for score renderers (e.g. VexFlow).
 
 mod engine;
+mod spacing;
+pub use spacing::{
+    BreakConstraint, MeasuredSpacing, MeasuredSystem, SpacingError, allocate_measured_widths,
+    break_measured_systems,
+};
 mod print;
 
 pub use acorde_core::NoteAddr;
@@ -13,21 +18,23 @@ pub use print::{
     BreakReason, CropMarkPolicy, FinalPagePolicy, GLYPH_RESOURCE_CONTRACT_VERSION,
     GlyphCollisionClass, GlyphCollisionDirection, GlyphExtents, GlyphFallbackPolicy, GlyphMetrics,
     GlyphPlacement, GlyphPlacementError, GlyphResourceDescriptor, GlyphResourceDescriptorError,
-    GlyphResourcePolicy, KeepTogetherRange, MeasureMark, MeasureSpan, NotationBreakPolicy,
-    PAGE_RENDER_TREE_CONTRACT_VERSION, PRINT_LAYOUT_CONTRACT_VERSION, PRINT_PRESET_SCHEMA_VERSION,
-    PageAddress, PageArtifact, PageArtifactDiagnostic, PageLayout, PageNumbering, PageOrientation,
-    PagePublication, PageRenderAddress, PageRenderNode, PageRenderNodeKind, PageRenderTree,
-    PageSpanSegment, PaperSize, PartGroupMark, PartLabel, PartLayoutPolicy, PickupPolicy,
-    PrintColorPolicy, PrintConfig, PrintLayoutError, PrintLayoutResult, PrintPreset,
-    PrintSystemBreakStrategy, PublicationConfig, PublicationFrame, PublicationFramePlacement,
-    PublicationImagePlacement, PublicationImageResource, PublicationPageTemplate,
-    PublicationSection, PublicationSpacer, PublicationTextAlignment, PublicationTextBlock,
-    PublicationTextRole, SpanSegment, SystemAddress, SystemHeightPolicy, SystemLayout,
-    SystemSpacing, compute_print_layout, compute_print_layout_for_view, distribute_glyph_spacing,
-    glyph_extents, resolve_glyph_collisions, resolve_glyph_collisions_checked,
-    resolve_glyph_collisions_constrained, resolve_glyph_collisions_with_classes,
-    resolve_glyph_horizontal_collisions, resolve_glyph_horizontal_collisions_checked,
-    resolve_glyph_horizontal_collisions_with_classes, validate_glyph_placements,
+    GlyphResourcePolicy, KeepTogetherRange, MeasureMark, MeasureSpan, MeasuredPrintError,
+    NotationBreakPolicy, PAGE_RENDER_TREE_CONTRACT_VERSION, PRINT_LAYOUT_CONTRACT_VERSION,
+    PRINT_PRESET_SCHEMA_VERSION, PageAddress, PageArtifact, PageArtifactDiagnostic, PageLayout,
+    PageNumbering, PageOrientation, PagePublication, PageRenderAddress, PageRenderNode,
+    PageRenderNodeKind, PageRenderTree, PageSpanSegment, PaperSize, PartGroupMark, PartLabel,
+    PartLayoutPolicy, PickupPolicy, PrintColorPolicy, PrintConfig, PrintLayoutError,
+    PrintLayoutResult, PrintMeasurements, PrintPreset, PrintSystemBreakStrategy, PublicationConfig,
+    PublicationFrame, PublicationFramePlacement, PublicationImagePlacement,
+    PublicationImageResource, PublicationPageTemplate, PublicationSection, PublicationSpacer,
+    PublicationTextAlignment, PublicationTextBlock, PublicationTextRole, SpanSegment,
+    SystemAddress, SystemHeightPolicy, SystemLayout, SystemSpacing, break_measured_print_systems,
+    compute_measured_print_layout, compute_print_layout, compute_print_layout_for_view,
+    distribute_glyph_spacing, glyph_extents, paginate_measured_systems, resolve_glyph_collisions,
+    resolve_glyph_collisions_checked, resolve_glyph_collisions_constrained,
+    resolve_glyph_collisions_with_classes, resolve_glyph_horizontal_collisions,
+    resolve_glyph_horizontal_collisions_checked, resolve_glyph_horizontal_collisions_with_classes,
+    validate_glyph_placements,
 };
 
 use acorde_core::{HairpinKind, NotationSpanner, OttavaKind};

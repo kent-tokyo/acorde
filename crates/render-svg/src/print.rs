@@ -119,6 +119,17 @@ pub fn render_print_page_svgs_with_glyphs(
     layout: &PrintLayoutResult,
     glyphs: &SvgGlyphSource,
 ) -> Result<Vec<String>, PrintRenderError> {
+    render_print_page_svgs_with_geometry(score, layout, glyphs, None, None, None)
+}
+
+pub(crate) fn render_print_page_svgs_with_geometry(
+    score: &Score,
+    layout: &PrintLayoutResult,
+    glyphs: &SvgGlyphSource,
+    supplied_geometry: Option<&[render::MeasuredRowGeometry]>,
+    measured_label_width_mm: Option<f32>,
+    system_insets_mm: Option<&[f32]>,
+) -> Result<Vec<String>, PrintRenderError> {
     layout.validate()?;
     // Match the staff-aware layout's extra page reservation for an additional
     // lyric lane. A fixed-height layout may instead fail the legibility preflight.
@@ -262,28 +273,66 @@ pub fn render_print_page_svgs_with_glyphs(
         });
     }
     let mut score_layout = compute_layout(score, &LayoutConfig::default());
+    let mut physical_indices = score_layout.vis_slots.clone();
+    physical_indices.dedup();
     if rows
         .iter()
         .flat_map(|row| row.measure_indices.iter())
         .copied()
         .collect::<Vec<_>>()
-        != score_layout.vis_slots
+        != physical_indices
     {
         return Err(PrintRenderError::InvalidSystemMeasures);
     }
     score_layout.rows = rows;
+    let measured_geometry = if let Some(geometry) = supplied_geometry {
+        if geometry.len() != score_layout.rows.len() {
+            return Err(PrintRenderError::InvalidSystemMeasures);
+        }
+        Some(geometry.to_vec())
+    } else if render::measured_print_active() {
+        Some(
+            score_layout
+                .rows
+                .iter()
+                .map(|row| render::measured_row_geometry(score, row))
+                .collect::<Result<Vec<_>, _>>()?,
+        )
+    } else {
+        None
+    };
     let staff_gap = render::required_hairpin_staff_gap(score, &score_layout, staff_gap);
     let staff_gaps = render::required_lyric_staff_gaps(score, staff_gap);
     let (top_u, system_u, bottom_u) = render::print_row_metrics(score, &score_layout, &staff_gaps)?;
     let required_u = top_u + system_u + bottom_u;
-    let minimum_mm = required_u * MIN_STAFF_SPACE_MM;
-    if min_system_height_mm < minimum_mm {
+    let minimum_mm = required_u
+        * if render::measured_print_active() {
+            PREFERRED_STAFF_SPACE_MM
+        } else {
+            MIN_STAFF_SPACE_MM
+        };
+    if measured_geometry.is_none() && min_system_height_mm < minimum_mm {
         return Err(PrintRenderError::SystemTooShort {
             height_mm: min_system_height_mm,
             minimum_mm,
         });
     }
-    let space_mm = (min_system_height_mm / required_u).min(PREFERRED_STAFF_SPACE_MM);
+    if let Some(geometry) = &measured_geometry {
+        for (system, row) in layout.pages.iter().flat_map(|p| &p.systems).zip(geometry) {
+            let minimum_mm = (row.top_u + row.system_u + row.bottom_u) * PREFERRED_STAFF_SPACE_MM;
+            if system.height_mm + 0.001 < minimum_mm {
+                return Err(PrintRenderError::SystemTooShort {
+                    height_mm: system.height_mm,
+                    minimum_mm,
+                });
+            }
+        }
+    }
+    let space_mm = if measured_geometry.is_some() {
+        PREFERRED_STAFF_SPACE_MM
+    } else {
+        (min_system_height_mm / required_u).min(PREFERRED_STAFF_SPACE_MM)
+    };
     let space_px = space_mm * PX_PER_MM;
     let options = SvgRenderOptions {
         width: first.content_width_mm * PX_PER_MM,
@@ -305,14 +354,49 @@ pub fn render_print_page_svgs_with_glyphs(
         .with_glyph_source(glyphs.clone());
     let row_tops_px = row_tops_mm
         .iter()
-        .map(|top| top * PX_PER_MM + top_u * space_px)
+        .enumerate()
+        .map(|(index, top)| {
+            top * PX_PER_MM
+                + measured_geometry
+                    .as_ref()
+                    .map_or(top_u, |rows| rows[index].top_u)
+                    * space_px
+        })
         .collect::<Vec<_>>();
-    let row_width_factors =
-        print_row_width_factors(score, &score_layout.rows, first.content_width_mm, space_mm);
+    let mut row_width_factors =
+        print_row_width_factors(score, &score_layout.rows, first.content_width_mm, space_mm)?;
+    let mut row_left_offsets_px = vec![0.0; score_layout.rows.len()];
+    if let Some(insets) = system_insets_mm {
+        if insets.len() != score_layout.rows.len() {
+            return Err(RenderError::InvalidOptions {
+                reason: "system inset count must match the number of systems".into(),
+            }
+            .into());
+        }
+        for ((factor, offset), inset) in row_width_factors
+            .iter_mut()
+            .zip(&mut row_left_offsets_px)
+            .zip(insets)
+        {
+            *factor = factor.min((first.content_width_mm - inset) / first.content_width_mm);
+            *offset = inset * PX_PER_MM;
+        }
+    }
+    let row_staff_gaps = measured_geometry
+        .as_ref()
+        .map(|rows| rows.iter().map(|r| r.gaps_u.clone()).collect::<Vec<_>>());
+    let row_lyric_baselines = measured_geometry.as_ref().map(|rows| {
+        rows.iter()
+            .map(|r| r.lyric_baselines_u.clone())
+            .collect::<Vec<_>>()
+    });
     let placement = PrintRowPlacement {
         row_tops_px: &row_tops_px,
         row_width_factors: &row_width_factors,
+        row_left_offsets_px: &row_left_offsets_px,
         canvas_height_px: offset_mm * PX_PER_MM,
+        row_staff_gaps_u: row_staff_gaps.as_deref(),
+        row_lyric_baselines_u: row_lyric_baselines.as_deref(),
     };
     let (full_svg, _) =
         render::build_svg_with_metadata_placement(score, &score_layout, &config, Some(&placement))?;
@@ -336,10 +420,22 @@ pub fn render_print_page_svgs_with_glyphs(
         if page.page_index == 0
             && !page.publication.is_title_page
             && (!page.publication.title.is_empty() || has_movement_title)
-            && page
-                .systems
-                .first()
-                .is_some_and(|system| system.top_mm < if has_movement_title { 16.0 } else { 10.0 })
+            && page.systems.first().is_some_and(|system| {
+                let extra_title =
+                    page.publication.title.lines().count().saturating_sub(1) as f32 * 6.0;
+                let extra_subtitle = if has_movement_title {
+                    page.publication
+                        .movement_title
+                        .lines()
+                        .count()
+                        .saturating_sub(1) as f32
+                        * 5.0
+                } else {
+                    0.0
+                };
+                system.top_mm
+                    < (if has_movement_title { 16.0 } else { 10.0 }) + extra_title + extra_subtitle
+            })
         {
             return Err(PrintRenderError::UnsupportedResource {
                 page_index: 0,
@@ -372,11 +468,28 @@ pub fn render_print_page_svgs_with_glyphs(
         // content hidden outside its viewBox.
         let (page_top, page_bottom) = (offset * PX_PER_MM, (offset + page.height_mm) * PX_PER_MM);
         for (fragment, extent) in &fragments {
-            if extent.is_none_or(|(top, bottom)| bottom >= page_top && top <= page_bottom) {
+            let owned_row = fragment
+                .split('>')
+                .next()
+                .and_then(|tag| tag.split_once(" data-row=\""))
+                .and_then(|(_, tail)| tail.split('"').next())
+                .and_then(|v| v.parse::<usize>().ok());
+            if owned_row.map_or_else(
+                || extent.is_none_or(|(top, bottom)| bottom >= page_top && top <= page_bottom),
+                |row| page.systems.iter().any(|system| system.system_index == row),
+            ) {
                 svg.push_str(fragment);
             }
         }
         svg.push_str("</g>");
+        let measured_staff_offsets = measured_geometry
+            .as_ref()
+            .and_then(|rows| {
+                page.systems
+                    .first()
+                    .and_then(|system| rows.get(system.system_index))
+            })
+            .map(|row| render::print_staff_offsets(score, &row.gaps_u));
         write_publication(
             &mut svg,
             page,
@@ -384,7 +497,9 @@ pub fn render_print_page_svgs_with_glyphs(
             offset * PX_PER_MM,
             &row_tops_px,
             space_px,
-            &staff_offsets,
+            measured_staff_offsets.as_ref().unwrap_or(&staff_offsets),
+            measured_label_width_mm,
+            system_insets_mm,
         );
         svg.push_str("</svg>");
         pages.push(svg);
@@ -401,7 +516,26 @@ fn print_row_width_factors(
     rows: &[RowLayout],
     content_width_mm: f32,
     space_mm: f32,
-) -> Vec<f32> {
+) -> Result<Vec<f32>, RenderError> {
+    #[cfg(feature = "font-metrics")]
+    if render::measured_print_active() {
+        let logical = compute_layout(score, &LayoutConfig::default());
+        let (measures, headers) = render::measured_print_widths(score, &logical, space_mm)?;
+        let mut factors = vec![1.0; rows.len()];
+        if let Some(last) = rows.last()
+            && let Some(&first) = last.measure_indices.first()
+            && let Some(factor) = factors.last_mut()
+        {
+            let natural = headers[first]
+                + last
+                    .measure_indices
+                    .iter()
+                    .map(|&m| measures[m].preferred_mm)
+                    .sum::<f32>();
+            *factor = (natural / content_width_mm).min(1.0);
+        }
+        return Ok(factors);
+    }
     let full_row_columns = rows
         .iter()
         .map(|row| row.measure_indices.len())
@@ -419,7 +553,8 @@ fn print_row_width_factors(
         .map(row_demand)
         .fold(0.0_f32, f32::max);
     let available_spaces = content_width_mm / space_mm;
-    rows.iter()
+    Ok(rows
+        .iter()
         .enumerate()
         .map(|(index, row)| {
             if index + 1 != rows.len()
@@ -439,9 +574,10 @@ fn print_row_width_factors(
             };
             natural.max(relative).clamp(0.08, 1.0)
         })
-        .collect()
+        .collect())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn write_publication(
     svg: &mut String,
     page: &acorde_layout::PageLayout,
@@ -450,6 +586,8 @@ fn write_publication(
     row_tops_px: &[f32],
     space_px: f32,
     staff_offsets: &[(usize, f32, f32)],
+    measured_label_width_mm: Option<f32>,
+    system_insets_mm: Option<&[f32]>,
 ) {
     if page.page_index == 0
         && !page.publication.is_title_page
@@ -457,28 +595,79 @@ fn write_publication(
     {
         let has_movement_title = !page.publication.movement_title.trim().is_empty()
             && page.publication.movement_title != page.publication.title;
+        let title_extra_mm = page.publication.title.lines().count().saturating_sub(1) as f32 * 6.0;
+        let subtitle_extra_mm = if has_movement_title {
+            page.publication
+                .movement_title
+                .lines()
+                .count()
+                .saturating_sub(1) as f32
+                * 5.0
+        } else {
+            0.0
+        };
         // Keep the title inside the top print margin. The former 7.5 mm
         // baseline on a default A4 page placed most of its capitals only
         // 2.5 mm from the paper edge in the pinned Verovio comparison.
-        let title_y = (system.top_mm - if has_movement_title { 6.5 } else { 5.0 }) * scale;
-        let credit_y = (system.top_mm - if has_movement_title { 0.5 } else { 5.0 }) * scale;
+        #[allow(unused_mut)] // Mutated by the optional measured-font path below.
+        let mut title_y = (system.top_mm
+            - if has_movement_title { 6.5 } else { 5.0 }
+            - title_extra_mm
+            - subtitle_extra_mm)
+            * scale;
+        #[allow(unused_mut)]
+        let mut credit_y = (system.top_mm - if has_movement_title { 0.5 } else { 5.0 }) * scale;
+        #[allow(unused_mut)]
+        let mut movement_y = credit_y - subtitle_extra_mm * scale;
+        #[cfg(feature = "font-metrics")]
+        if render::measured_print_active() {
+            let center_text = if has_movement_title {
+                &page.publication.movement_title
+            } else {
+                &page.publication.title
+            };
+            let center_size = if has_movement_title { 4.0 } else { 5.5 };
+            if let (Some(center_width), Some(composer_width)) = (
+                center_text
+                    .lines()
+                    .map(|line| crate::font_metrics::print_text_width(line, center_size))
+                    .collect::<Option<Vec<_>>>()
+                    .map(|widths| widths.into_iter().fold(0.0_f32, f32::max)),
+                crate::font_metrics::print_text_width(&page.publication.composer, 4.0),
+            ) && !page.publication.composer.is_empty()
+                && page.width_mm / 2.0 + center_width / 2.0 + 2.0
+                    > page.content_left_mm + page.content_width_mm - composer_width
+            {
+                credit_y = (system.top_mm - 0.5) * scale;
+                if has_movement_title {
+                    movement_y = (system.top_mm - 5.5 - subtitle_extra_mm) * scale;
+                    title_y = (system.top_mm - 11.5 - subtitle_extra_mm - title_extra_mm) * scale;
+                }
+            }
+        }
         if !page.publication.title.is_empty() {
-            let _ = write!(
-                svg,
-                "<text class=\"acorde-print-title\" x=\"{:.3}\" y=\"{title_y:.3}\" text-anchor=\"middle\" font-family=\"serif\" font-weight=\"bold\" font-size=\"{:.3}\">{}</text>",
-                page.width_mm * scale / 2.0,
-                5.5 * scale,
-                escape_xml(&page.publication.title)
-            );
+            for (line_index, line) in page.publication.title.lines().enumerate() {
+                let y = title_y + line_index as f32 * 6.0 * scale;
+                let _ = write!(
+                    svg,
+                    "<text class=\"acorde-print-title\" x=\"{:.3}\" y=\"{y:.3}\" text-anchor=\"middle\" font-family=\"serif\" font-weight=\"bold\" font-size=\"{:.3}\">{}</text>",
+                    page.width_mm * scale / 2.0,
+                    5.5 * scale,
+                    escape_xml(line)
+                );
+            }
         }
         if has_movement_title {
-            let _ = write!(
-                svg,
-                "<text class=\"acorde-print-movement-title\" x=\"{:.3}\" y=\"{credit_y:.3}\" text-anchor=\"middle\" font-family=\"serif\" font-size=\"{:.3}\">{}</text>",
-                page.width_mm * scale / 2.0,
-                4.0 * scale,
-                escape_xml(&page.publication.movement_title)
-            );
+            for (line_index, line) in page.publication.movement_title.lines().enumerate() {
+                let y = movement_y + line_index as f32 * 5.0 * scale;
+                let _ = write!(
+                    svg,
+                    "<text class=\"acorde-print-movement-title\" x=\"{:.3}\" y=\"{y:.3}\" text-anchor=\"middle\" font-family=\"serif\" font-size=\"{:.3}\">{}</text>",
+                    page.width_mm * scale / 2.0,
+                    4.0 * scale,
+                    escape_xml(line)
+                );
+            }
         }
         if !page.publication.composer.is_empty() {
             let _ = write!(
@@ -506,8 +695,16 @@ fn write_publication(
             else {
                 continue;
             };
-            let text = if page.page_index > 0 && !label.short_name.is_empty() {
+            let first_inset = system_insets_mm
+                .and_then(|insets| insets.get(system.system_index))
+                .copied()
+                .unwrap_or(0.0);
+            let text = if system.system_index > 0 && label.short_name_hidden {
+                ""
+            } else if system.system_index > 0 && !label.short_name.is_empty() {
                 &label.short_name
+            } else if label.name_hidden {
+                ""
             } else {
                 &label.name
             };
@@ -515,7 +712,15 @@ fn write_publication(
                 continue;
             }
             let part_middle = (*first_top + *last_top + *last_height) / 2.0;
-            let lines = part_label_lines(text);
+            let available_mm = measured_label_width_mm
+                .map(|width| (width + first_inset - PART_LABEL_GAP_MM).max(0.0))
+                .unwrap_or(page.content_left_mm - PART_LABEL_GAP_MM - PART_LABEL_PAPER_MM);
+            let measured_lines =
+                render::measured_print_active().then(|| measured_label_lines(text, available_mm));
+            let lines = measured_lines.as_ref().map_or_else(
+                || part_label_lines(text),
+                |lines| lines.iter().map(String::as_str).collect(),
+            );
             if lines.is_empty() {
                 continue;
             }
@@ -528,15 +733,25 @@ fn write_publication(
             let size_mm = ((page.content_left_mm - PART_LABEL_GAP_MM - PART_LABEL_PAPER_MM)
                 / (0.6 * longest.max(1) as f32))
                 .min(3.0);
-            let available_width_px =
-                (page.content_left_mm - PART_LABEL_GAP_MM - PART_LABEL_PAPER_MM) * scale;
+            let size_mm = if measured_lines.is_some() {
+                (available_mm
+                    / lines
+                        .iter()
+                        .map(|line| measured_label_width(line))
+                        .fold(0.01_f32, f32::max))
+                .min(3.0)
+            } else {
+                size_mm
+            };
+            let available_width_px = available_mm * scale;
             let leading = size_mm * 1.15;
             let first_baseline = part_middle * space_px + size_mm * scale * 0.25
                 - (lines.len() - 1) as f32 * leading * scale / 2.0;
             for (index, line) in lines.iter().enumerate() {
                 // Non-ASCII glyphs can be much wider than the Latin average used for
                 // font sizing. Constrain those runs so they cannot cross the paper edge.
-                let width_limit = if !line.is_ascii()
+                let width_limit = if measured_lines.is_none()
+                    && !line.is_ascii()
                     && size_mm * line.chars().count() as f32 * scale > available_width_px
                 {
                     format!(" textLength=\"{available_width_px:.3}\" lengthAdjust=\"spacing\"")
@@ -546,7 +761,7 @@ fn write_publication(
                 let _ = write!(
                     svg,
                     "<text class=\"acorde-print-part-label\" x=\"{:.3}\" y=\"{:.3}\" text-anchor=\"end\" font-family=\"serif\" font-size=\"{:.3}\"{width_limit}>{}</text>",
-                    (page.content_left_mm - PART_LABEL_GAP_MM) * scale,
+                    (page.content_left_mm + first_inset - PART_LABEL_GAP_MM) * scale,
                     row_top - offset_px + first_baseline + index as f32 * leading * scale,
                     size_mm * scale,
                     escape_xml(line)
@@ -566,13 +781,15 @@ fn write_publication(
             "normal"
         };
         let size = block.height_mm * 0.75 * scale;
-        let _ = write!(
-            svg,
-            "<text class=\"acorde-publication\" x=\"{:.3}\" y=\"{:.3}\" text-anchor=\"{anchor}\" font-family=\"serif\" font-weight=\"{weight}\" font-size=\"{size:.3}\">{}</text>",
-            x * scale,
-            (block.y_mm + block.height_mm * 0.8) * scale,
-            escape_xml(&block.text)
-        );
+        for (line_index, line) in block.text.lines().enumerate() {
+            let _ = write!(
+                svg,
+                "<text class=\"acorde-publication\" x=\"{:.3}\" y=\"{:.3}\" text-anchor=\"{anchor}\" font-family=\"serif\" font-weight=\"{weight}\" font-size=\"{size:.3}\">{}</text>",
+                x * scale,
+                (block.y_mm + block.height_mm * (0.8 + line_index as f32)) * scale,
+                escape_xml(line)
+            );
+        }
     }
     if let Some(number) = page.page_number
         && !page
@@ -591,7 +808,7 @@ fn write_publication(
     }
 }
 
-const PART_LABEL_GAP_MM: f32 = 1.5;
+pub(crate) const PART_LABEL_GAP_MM: f32 = 1.5;
 const PART_LABEL_PAPER_MM: f32 = 3.0;
 
 /// Lines of a part label: its own line breaks, else a long two-word name split at the space
@@ -613,6 +830,50 @@ fn part_label_lines(text: &str) -> Vec<&str> {
         .map_or(lines, |index| {
             vec![line[..index].trim_end(), line[index + 1..].trim_start()]
         })
+}
+
+fn measured_label_width(text: &str) -> f32 {
+    #[cfg(feature = "font-metrics")]
+    {
+        let words = text.split_whitespace().collect::<Vec<_>>();
+        let space = crate::font_metrics::print_text_width(" ", 1.0).unwrap_or(0.3);
+        words
+            .iter()
+            .map(|word| {
+                crate::font_metrics::print_text_width(word, 1.0)
+                    .unwrap_or(word.chars().count() as f32 * 0.6)
+            })
+            .sum::<f32>()
+            + space * words.len().saturating_sub(1) as f32
+    }
+    #[cfg(not(feature = "font-metrics"))]
+    {
+        text.chars().count() as f32 * 0.6
+    }
+}
+
+fn measured_label_lines(text: &str, available_mm: f32) -> Vec<String> {
+    let mut lines = Vec::new();
+    for paragraph in text.lines() {
+        let mut line = String::new();
+        for word in paragraph.split_whitespace() {
+            let candidate = if line.is_empty() {
+                word.to_owned()
+            } else {
+                format!("{line} {word}")
+            };
+            if !line.is_empty() && measured_label_width(&candidate) * 2.7 > available_mm {
+                lines.push(std::mem::take(&mut line));
+                line.push_str(word);
+            } else {
+                line = candidate;
+            }
+        }
+        if !line.is_empty() {
+            lines.push(line);
+        }
+    }
+    lines
 }
 
 /// Split rendered SVG markup into its top-level elements. `None` for unbalanced markup.
@@ -658,26 +919,28 @@ fn fragment_y_extent(fragment: &str) -> Option<(f32, f32)> {
         if tag.starts_with('/') {
             continue;
         }
-        let attribute = |name: &str| {
-            tag.split_once(&format!(" {name}=\""))
+        // Prefixes include the exact space and quote previously built by
+        // `format!`; using static strings avoids allocations for every SVG tag.
+        let attribute = |prefix: &str| {
+            tag.split_once(prefix)
                 .and_then(|(_, rest)| rest.split('"').next())
         };
         let number = |name: &str| attribute(name).and_then(|value| value.parse::<f32>().ok());
-        let pad = number("font-size").unwrap_or(0.0);
-        for name in ["y", "y1", "y2"] {
+        let pad = number(" font-size=\"").unwrap_or(0.0);
+        for name in [" y=\"", " y1=\"", " y2=\""] {
             if let Some(y) = number(name) {
                 add(y - pad, y + pad);
             }
         }
-        if let (Some(y), Some(height)) = (number("y"), number("height")) {
+        if let (Some(y), Some(height)) = (number(" y=\""), number(" height=\"")) {
             add(y, y + height);
         }
-        if let Some(cy) = number("cy") {
-            let radius = number("ry").or_else(|| number("r")).unwrap_or(0.0);
+        if let Some(cy) = number(" cy=\"") {
+            let radius = number(" ry=\"").or_else(|| number(" r=\"")).unwrap_or(0.0);
             add(cy - radius, cy + radius);
         }
         // Absolute path commands: `A` carries seven values with y last, the others x,y pairs.
-        for name in ["d", "points"] {
+        for name in [" d=\"", " points=\""] {
             let (mut arity, mut y_slot, mut slot) = (2, 1, 0);
             for token in attribute(name)
                 .into_iter()
@@ -726,6 +989,30 @@ mod tests {
         assert_eq!(fragment_y_extent(fragments[1]), Some((32.0, 48.0)));
         assert_eq!(fragment_y_extent(fragments[2]), Some((5.0, 5.0)));
         assert!(top_level_fragments("<g><g></g>").is_none());
+    }
+
+    #[test]
+    fn page_split_reads_shape_bounds_without_matching_similar_attributes() {
+        assert_eq!(
+            fragment_y_extent(r#"<rect y="4" height="11"/>"#),
+            Some((4.0, 15.0))
+        );
+        assert_eq!(
+            fragment_y_extent(r#"<circle cy="20" r="3"/>"#),
+            Some((17.0, 23.0))
+        );
+        assert_eq!(
+            fragment_y_extent(r#"<ellipse cy="30" ry="5"/>"#),
+            Some((25.0, 35.0))
+        );
+        assert_eq!(
+            fragment_y_extent(r#"<polygon points="0,4 2,11 3,7"/>"#),
+            Some((4.0, 11.0))
+        );
+        assert_eq!(
+            fragment_y_extent(r#"<g data-y="99" data-height="7"/>"#),
+            None
+        );
     }
 
     #[test]

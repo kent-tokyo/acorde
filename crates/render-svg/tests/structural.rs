@@ -1148,10 +1148,12 @@ fn note_annotations_are_rendered_and_xml_escaped() {
         harmony_function: None,
         harmony_type: None,
         chord_ref: None,
+        written: None,
         range_end: None,
         degrees: Vec::new(),
     });
     note.lyric = Some(Lyric {
+        placement_above: None,
         text: "A&B<".into(),
         syllabic: "single".into(),
         extend: false,
@@ -1194,11 +1196,13 @@ fn lyric_hyphen_connects_adjacent_syllables_by_note_address() {
         vec![],
     );
     score.parts[0].staves[0].measures[0].voices[0][0].lyric = Some(Lyric {
+        placement_above: None,
         text: "hel".into(),
         syllabic: "begin".into(),
         extend: false,
     });
     score.parts[0].staves[0].measures[0].voices[0][1].lyric = Some(Lyric {
+        placement_above: None,
         text: "lo".into(),
         syllabic: "end".into(),
         extend: false,
@@ -1224,6 +1228,7 @@ fn lyric_hyphen_connects_across_measure_boundaries_on_same_system() {
     );
     score.parts[0].staves[0].measures.push(Measure::empty(4, 4));
     score.parts[0].staves[0].measures[0].voices[0][0].lyric = Some(Lyric {
+        placement_above: None,
         text: "hel".into(),
         syllabic: "begin".into(),
         extend: false,
@@ -1231,6 +1236,7 @@ fn lyric_hyphen_connects_across_measure_boundaries_on_same_system() {
     score.parts[0].staves[0].measures[1].voices[0] =
         vec![Note::new(Pitch::new(Step::D, 4), Duration::Whole)];
     score.parts[0].staves[0].measures[1].voices[0][0].lyric = Some(Lyric {
+        placement_above: None,
         text: "lo".into(),
         syllabic: "end".into(),
         extend: false,
@@ -1326,6 +1332,7 @@ fn mixed_note_annotations_use_distinct_vertical_lanes() {
     let note = &mut score.parts[0].staves[0].measures[0].voices[0][0];
     note.dynamic = Some(Dynamic::Mf);
     note.lyric = Some(Lyric {
+        placement_above: None,
         text: "la".to_string(),
         syllabic: "single".to_string(),
         extend: false,
@@ -1362,6 +1369,7 @@ fn mixed_annotation_lanes_expand_the_page_margin() {
     let note = &mut score.parts[0].staves[0].measures[0].voices[0][0];
     note.dynamic = Some(Dynamic::F);
     note.lyric = Some(Lyric {
+        placement_above: None,
         text: "la".to_string(),
         syllabic: "single".to_string(),
         extend: false,
@@ -1538,6 +1546,7 @@ fn metadata_exposes_typed_note_semantics_without_svg_parsing() {
     note.instrument_id = Some("P1&\"I1".to_owned());
     note.dynamic = Some(Dynamic::Mf);
     note.lyric = Some(Lyric {
+        placement_above: None,
         text: "la".to_owned(),
         syllabic: "single".to_owned(),
         extend: false,
@@ -1552,6 +1561,7 @@ fn metadata_exposes_typed_note_semantics_without_svg_parsing() {
         harmony_function: None,
         harmony_type: None,
         chord_ref: None,
+        written: None,
         range_end: None,
         degrees: Vec::new(),
     });
@@ -1747,6 +1757,27 @@ fn cutaway_staff_is_omitted_from_empty_systems_but_kept_for_authored_content() {
 }
 
 #[test]
+fn cutaway_staff_keeps_a_timed_dynamic_over_a_rest() {
+    use acorde_core::{Dynamic, Score, ScoreTemplate, StaffPresentation, TimedDynamicDirection};
+    let mut score = Score::template(ScoreTemplate::Piano);
+    score.parts[0].staves[1].presentation = StaffPresentation {
+        cutaway: true,
+        ..StaffPresentation::default()
+    };
+    score.parts[0].staves[1].measures[0]
+        .timed_dynamics
+        .push(TimedDynamicDirection {
+            position_beats: 0.0,
+            dynamic: Dynamic::P,
+            above: Some(false),
+            components: Vec::new(),
+        });
+    let svg = acorde_render_svg::render_svg(&score, &opts()).expect("score renders");
+    assert!(svg.contains("data-acorde-kind=\"staff-group\" data-part=\"0\" data-staff=\"1\""));
+    assert!(svg.contains("acorde-dynamic"));
+}
+
+#[test]
 fn metadata_exposes_measure_local_tablature_changes_without_svg_parsing() {
     use acorde_core::{Duration, Note, Pitch, Score, Step, TablatureConfig};
     use acorde_layout::{LayoutConfig, compute_layout};
@@ -1800,6 +1831,7 @@ fn metadata_exposes_typed_harmony_ranges_for_browser_hosts() {
         harmony_function: None,
         harmony_type: None,
         chord_ref: None,
+        written: None,
         range_end: Some(NoteAddr {
             part: 0,
             staff: 0,
@@ -1832,6 +1864,7 @@ fn metadata_exposes_measure_text_style_and_location() {
     use acorde_layout::{LayoutConfig, compute_layout};
     let mut score = common::satb_major();
     score.parts[0].staves[0].measures[0].texts.push(StyledText {
+        enclosure: None,
         position_beats: None,
         style: TextStyle::Technique,
         text: "con sordino".to_string(),
@@ -1863,6 +1896,7 @@ fn metadata_exposes_score_level_text_for_browser_hosts() {
 
     let mut score = Score::default();
     score.texts.push(StyledText {
+        enclosure: None,
         position_beats: None,
         style: TextStyle::Expression,
         text: "Subtitle".to_string(),
@@ -1897,10 +1931,12 @@ fn measure_text_moves_outside_note_annotation_lane() {
         harmony_function: None,
         harmony_type: None,
         chord_ref: None,
+        written: None,
         range_end: None,
         degrees: Vec::new(),
     });
     score.parts[0].staves[0].measures[0].texts.push(StyledText {
+        enclosure: None,
         position_beats: None,
         style: TextStyle::Expression,
         text: "above".to_string(),
@@ -1934,6 +1970,7 @@ fn measure_text_uses_shared_priority_collision_lanes() {
     let measure = &mut score.parts[0].staves[0].measures[0];
     measure.texts = vec![
         StyledText {
+            enclosure: None,
             position_beats: None,
             style: TextStyle::Generic,
             text: "tempo".to_string(),
@@ -1944,6 +1981,7 @@ fn measure_text_uses_shared_priority_collision_lanes() {
             relative_y: None,
         },
         StyledText {
+            enclosure: None,
             position_beats: None,
             style: TextStyle::RehearsalMark,
             text: "A".to_string(),
@@ -2056,6 +2094,7 @@ fn metadata_preserves_positioned_direction_text_fields() {
     use acorde_layout::{LayoutConfig, compute_layout};
     let mut score = common::satb_major();
     score.parts[0].staves[0].measures[0].texts.push(StyledText {
+        enclosure: None,
         position_beats: None,
         style: TextStyle::Expression,
         text: "dolce".to_string(),
@@ -2091,6 +2130,7 @@ fn content_aware_horizontal_margins_reach_staff_lines_and_labels() {
         barlines_connect: false,
     });
     score.parts[0].staves[0].measures[0].texts.push(StyledText {
+        enclosure: None,
         position_beats: None,
         style: TextStyle::Expression,
         text: "right offset".to_string(),
@@ -2126,6 +2166,7 @@ fn measure_text_rejects_unbounded_or_non_finite_positioning() {
     use acorde_core::{StyledText, TextStyle};
     let mut score = common::satb_major();
     score.parts[0].staves[0].measures[0].texts.push(StyledText {
+        enclosure: None,
         position_beats: None,
         style: TextStyle::Generic,
         text: "x".to_string(),
@@ -2168,6 +2209,7 @@ fn measure_text_extreme_vertical_offsets_expand_content_height() {
     offset.parts[0].staves[0].measures[0]
         .texts
         .push(StyledText {
+            enclosure: None,
             position_beats: None,
             style: TextStyle::Expression,
             text: "above".to_string(),
@@ -2285,6 +2327,7 @@ fn note_attached_annotations_expand_content_height() {
     note.technique_text = Some("pizz.".to_string());
     note.fingering = Some(2);
     note.lyric = Some(Lyric {
+        placement_above: None,
         text: "long".to_string(),
         syllabic: "single".to_string(),
         extend: false,
@@ -2335,6 +2378,7 @@ fn score_level_text_reuses_bounded_positioning_validation() {
     use acorde_core::{StyledText, TextStyle};
     let mut score = common::satb_major();
     score.texts.push(StyledText {
+        enclosure: None,
         position_beats: None,
         style: TextStyle::Expression,
         text: "title".to_string(),
@@ -2357,6 +2401,7 @@ fn multiple_measure_text_entries_are_stacked_deterministically() {
     let texts = &mut score.parts[0].staves[0].measures[0].texts;
     for text in ["first", "second"] {
         texts.push(StyledText {
+            enclosure: None,
             position_beats: None,
             style: TextStyle::Expression,
             text: text.to_string(),
@@ -2386,6 +2431,7 @@ fn negative_measure_text_offsets_expand_left_content_margin() {
     use acorde_core::{StyledText, TextStyle};
     let mut score = common::satb_major();
     score.parts[0].staves[0].measures[0].texts.push(StyledText {
+        enclosure: None,
         position_beats: None,
         style: TextStyle::Generic,
         text: "left".to_string(),
@@ -3179,6 +3225,7 @@ fn wide_simultaneous_voice_annotations_expand_notehead_separation() {
     assert_eq!(baseline.len(), 2);
 
     score.parts[0].staves[0].measures[0].voices[1][0].lyric = Some(Lyric {
+        placement_above: None,
         text: "a deliberately wide simultaneous lyric".into(),
         syllabic: "single".into(),
         extend: false,
@@ -3370,6 +3417,7 @@ fn metadata_exposes_validated_object_style_overrides() {
 
     let mut score = Score::new("object style", 120, 4, 4, 0, 1);
     score.texts.push(StyledText {
+        enclosure: None,
         position_beats: None,
         text: "dolce".into(),
         style: TextStyle::Expression,
@@ -3443,6 +3491,7 @@ fn additional_lyric_verses_render_below_verse_one() {
     let mut score = Score::new("verses", 120, 4, 4, 0, 1);
     let mut note = Note::new(Pitch::new(Step::C, 5), Duration::Whole);
     note.lyric = Some(Lyric {
+        placement_above: None,
         text: "first".into(),
         syllabic: "single".into(),
         extend: false,
@@ -3450,6 +3499,7 @@ fn additional_lyric_verses_render_below_verse_one() {
     note.additional_lyrics = vec![VerseLyric {
         verse: 2,
         lyric: Lyric {
+            placement_above: None,
             text: "second".into(),
             syllabic: "single".into(),
             extend: false,
@@ -3632,6 +3682,7 @@ fn inner_bar_annotations_do_not_widen_page_margins() {
     let plain = staff_line(&acorde_render_svg::render_svg(&score, &options).unwrap());
     // Bar 2 sits inside the first system; its long lyric cannot reach either page edge.
     score.parts[0].staves[0].measures[1].voices[0][0].lyric = Some(Lyric {
+        placement_above: None,
         text: "a-very-long-melisma-syllable-that-would-once-shrink-every-system".into(),
         syllabic: "single".into(),
         extend: false,
@@ -4116,11 +4167,13 @@ fn lyric_extender_runs_under_the_melisma_to_its_last_notehead() {
         .map(|step| Note::new(Pitch::new(step, 4), Duration::Quarter))
         .collect();
     notes[0].lyric = Some(Lyric {
+        placement_above: None,
         text: "Ah".into(),
         syllabic: "single".into(),
         extend: true,
     });
     notes[3].lyric = Some(Lyric {
+        placement_above: None,
         text: "men".into(),
         syllabic: "single".into(),
         extend: false,
@@ -5023,6 +5076,7 @@ fn navigation_labels_are_musical_and_deduplicate_source_text() {
     score.parts[0].staves[0].measures[0]
         .texts
         .push(acorde_core::StyledText {
+            enclosure: None,
             position_beats: None,
             style: acorde_core::TextStyle::Generic,
             text: "Da Capo al Fine".into(),
@@ -6470,6 +6524,7 @@ fn simultaneous_voices_align_with_measure_text() {
     measure.voices[0] = vec![Note::new(Pitch::new(Step::A, 4), Duration::Quarter)];
     measure.voices[1] = vec![Note::new(Pitch::new(Step::C, 4), Duration::Quarter)];
     measure.texts.push(StyledText {
+        enclosure: None,
         position_beats: Some(0.0),
         style: TextStyle::Expression,
         text: "dolce".into(),
@@ -6545,6 +6600,7 @@ fn metronome_beat_units_draw_their_stems_flags_and_dots() {
             beat_unit_dots: 1,
             per_minute: 72,
             parentheses: true,
+            written: None,
         });
         let svg = render_svg(&score, &opts()).expect("metronome renders");
         let group = svg

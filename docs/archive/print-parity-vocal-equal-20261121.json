@@ -1,0 +1,45 @@
+{
+  "normalization": {
+    "classification": "shared equal-staff-size comparison input; authored output remains separate",
+    "source": "/private/tmp/acorde-print-development-prepared/vocal-lc6302395.musicxml",
+    "source_sha256": "bc77093a7c07cde40b940f65ce339c986ac4c338a9a7fe7ea50be0ec06218537",
+    "output": "/private/tmp/vocal-equal-staff.musicxml",
+    "output_sha256": "ccd20d50db27f898ef7d4a27e65937f02a4aa75b6958ec30d468b9827658d10a",
+    "staff_size_changes": [
+      {
+        "part": "P2",
+        "measure": "0",
+        "staff": "1",
+        "authored_percent": 70.0,
+        "comparison_percent": 100
+      }
+    ],
+    "all_other_parsed_content_unchanged": true
+  },
+  "source_diff_sha256": "61191d9e04c4c6398bcb7c539ff3fd5ea7e49720ce2f425ce32a9808b736c7e3",
+  "binary_sha256": "f184fa7ee7175b3586117e5572045e7409555cc25ae0fbf77243346abc1430a5",
+  "pdf_sha256": "b64e987791f33b428304e0cb8f5430950255bfbe9b9cfc0c3a6781591450a82d",
+  "screen_sha256": "7ec8e3625be4a050e6f49126de2f5baacef478db91195f81f9c85eb4ecd6fc8b",
+  "engines": {
+    "acorde": {
+      "pages": 13,
+      "systems": null,
+      "staff_space_mm": 1.8,
+      "min_staff_space_mm": 1.79999,
+      "max_staff_space_mm": 1.80005,
+      "elements_past_page_edge": 0,
+      "text_over_notation": 0,
+      "text_over_text": 0
+    },
+    "verovio": {
+      "pages": 11,
+      "systems": 24,
+      "staff_space_mm": 1.8,
+      "min_staff_space_mm": 1.79999,
+      "max_staff_space_mm": 1.80005,
+      "elements_past_page_edge": 0,
+      "text_over_notation": 13,
+      "text_over_text": 0
+    }
+  }
+}

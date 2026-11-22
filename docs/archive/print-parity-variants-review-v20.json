@@ -1,0 +1,703 @@
+{
+  "classification": "development variants after repeat-mark fix; not a reserved parity pass",
+  "reviewer": "single implementing assistant, unblinded",
+  "pages": 67,
+  "rows": [
+    {
+      "score": "aloha-default",
+      "engine": "acorde",
+      "pdf_sha256": "4f740b8b5050743fe57536d886bd73168e6550f80717e8351a84b6bfda263237",
+      "pages": [
+        {
+          "file": "aloha-default-acorde-1.png",
+          "sha256": "09197694c0d1aab55b5afebeed50e334bd9596b1d70988f6f3d2a3214ca89d77",
+          "review": "inspected; no additional reading obstruction observed"
+        },
+        {
+          "file": "aloha-default-acorde-2.png",
+          "sha256": "504de5145376968331d414dae4749906649a5435e4fca80d3f1a172b0802159a",
+          "review": "inspected; no additional reading obstruction observed"
+        },
+        {
+          "file": "aloha-default-acorde-3.png",
+          "sha256": "c41f31bab3cc36251abb0740edc47b1bf99450e5ef08a7b2e1667672fab53713",
+          "review": "inspected; no additional reading obstruction observed"
+        },
+        {
+          "file": "aloha-default-acorde-4.png",
+          "sha256": "6bbd8363e1e0e0d83ba4400d829cfbc681ac1c3508aa4d1257451c82cbd1b8ed",
+          "review": "inspected; no additional reading obstruction observed"
+        }
+      ],
+      "method": "assistant inspected every full-page raster",
+      "notes": "Lyrics and verse connectors remain separated; second-verse italic styling is still lost. Letter keeps empty staves, using three pages versus two in the reference."
+    },
+    {
+      "score": "aloha-default",
+      "engine": "verovio",
+      "pdf_sha256": "eafa924aeeaac5fb514f7837ed2968c7e6d2ac5c9b5485442e1cf53758d2717b",
+      "pages": [
+        {
+          "file": "aloha-default-verovio-1.png",
+          "sha256": "298d43263c329e054f02c2320c948f7e0eccbd5358ac53da74da5fab74099b36",
+          "review": "inspected; no additional reading obstruction observed"
+        },
+        {
+          "file": "aloha-default-verovio-2.png",
+          "sha256": "29cf9a484b1ae4eed4f33bab908196e14d4e0218304b8cebfaf71e9d32e8fd2c",
+          "review": "inspected; no additional reading obstruction observed"
+        },
+        {
+          "file": "aloha-default-verovio-3.png",
+          "sha256": "efcfa744f60833cf1bf6e9ee1149a416173ed7e01fe716664b177172941fef36",
+          "review": "inspected; no additional reading obstruction observed"
+        }
+      ],
+      "method": "page raster SHA-256 exactly matches previously inspected v18 A4 reference",
+      "notes": "Lyrics and verse connectors remain separated; second-verse italic styling is still lost. Letter keeps empty staves, using three pages versus two in the reference."
+    },
+    {
+      "score": "aloha-letter",
+      "engine": "acorde",
+      "pdf_sha256": "94d7e9b3f0069342923eb728fe0ca7e6e896a2577af2de1d193e85aa182deff4",
+      "pages": [
+        {
+          "file": "aloha-letter-acorde-1.png",
+          "sha256": "6b35e12c7c2672f4627ede0db37290fdf5783fbac4639898fef76c10e5913eee",
+          "review": "inspected; no additional reading obstruction observed"
+        },
+        {
+          "file": "aloha-letter-acorde-2.png",
+          "sha256": "8801cef48af7f462533ca51012da7382fb9e4b4858f9b8c5f06229b02171cfca",
+          "review": "inspected; no additional reading obstruction observed"
+        },
+        {
+          "file": "aloha-letter-acorde-3.png",
+          "sha256": "a73b849a70a4e0fb98911f0d66f5969aac618bf44ee8a78d8f33d56f76d6857a",
+          "review": "inspected; no additional reading obstruction observed"
+        }
+      ],
+      "method": "assistant inspected every full-page raster",
+      "notes": "Lyrics and verse connectors remain separated; second-verse italic styling is still lost. Letter keeps empty staves, using three pages versus two in the reference."
+    },
+    {
+      "score": "aloha-letter",
+      "engine": "verovio",
+      "pdf_sha256": "fde3623a189790124d7a8d6ebb7b311acb6ade368fe6621fe42bb73773b15c96",
+      "pages": [
+        {
+          "file": "aloha-letter-verovio-1.png",
+          "sha256": "a7aadca6d3368fe5763101fe841b2e8043cd80324fd659302f3539fc522bf19b",
+          "review": "inspected; no additional reading obstruction observed"
+        },
+        {
+          "file": "aloha-letter-verovio-2.png",
+          "sha256": "8b2d7f968cd0d41b0148dbe4e2962447f058aa2581a095ba508d9804fb63bf52",
+          "review": "inspected; no additional reading obstruction observed"
+        }
+      ],
+      "method": "assistant inspected every full-page raster",
+      "notes": "Lyrics and verse connectors remain separated; second-verse italic styling is still lost. Letter keeps empty staves, using three pages versus two in the reference."
+    },
+    {
+      "score": "just-for-today-default",
+      "engine": "acorde",
+      "pdf_sha256": "5d27701efccb98f43fb0a2c5b8bd385f3d1c58c65a0a923532c7d5d44564a42d",
+      "pages": [
+        {
+          "file": "just-for-today-default-acorde-1.png",
+          "sha256": "20be72c417ee8cf8d11617ed744ee2cdb3a4b281dc19dcf151bd73a4bb54f50c",
+          "review": "inspected; no additional reading obstruction observed"
+        },
+        {
+          "file": "just-for-today-default-acorde-2.png",
+          "sha256": "3c2ae32640c5660251402fda0828b47e412f2e215db449d567d6566d3ab7e4c9",
+          "review": "inspected; no additional reading obstruction observed"
+        },
+        {
+          "file": "just-for-today-default-acorde-3.png",
+          "sha256": "a905e1fde7b901329c0ce2bc06f34aaef46890977141a76696f64b3d7aa811f3",
+          "review": "inspected; no additional reading obstruction observed"
+        },
+        {
+          "file": "just-for-today-default-acorde-4.png",
+          "sha256": "fcf50b6ac54d6732b6dc3fa4f045baf24f39feead0c05b1a213ee2ced84aa236",
+          "review": "inspected; no additional reading obstruction observed"
+        }
+      ],
+      "method": "assistant inspected every full-page raster",
+      "notes": "All lyric verses, hairpins and voice-specific slurs remain readable; default four-measure cap adds a page."
+    },
+    {
+      "score": "just-for-today-default",
+      "engine": "verovio",
+      "pdf_sha256": "3681a2d001d1043a8deb15b3854673798d9c998e870d84351491df128b3bde82",
+      "pages": [
+        {
+          "file": "just-for-today-default-verovio-1.png",
+          "sha256": "48b4a110eeb5d927f22b972da4ec0b8c897b2f7d3f853197880fb424bdfc7085",
+          "review": "inspected; no additional reading obstruction observed"
+        },
+        {
+          "file": "just-for-today-default-verovio-2.png",
+          "sha256": "054ff18eab9751b44384b5605d7a930ff3a4a2217d80ebab79f5e606ac37dd6c",
+          "review": "inspected; no additional reading obstruction observed"
+        },
+        {
+          "file": "just-for-today-default-verovio-3.png",
+          "sha256": "88ef274ed6db5fa7a96caa7dda3cba7a0aa9cc09d64ba2adcaa57f49d549814d",
+          "review": "inspected; no additional reading obstruction observed"
+        }
+      ],
+      "method": "page raster SHA-256 exactly matches previously inspected v18 A4 reference",
+      "notes": "All lyric verses, hairpins and voice-specific slurs remain readable; default four-measure cap adds a page."
+    },
+    {
+      "score": "just-for-today-letter",
+      "engine": "acorde",
+      "pdf_sha256": "37e0409ffb03d93dc7c0e2f444040154dd92fa44b08dcda1f0e34268aa098024",
+      "pages": [
+        {
+          "file": "just-for-today-letter-acorde-1.png",
+          "sha256": "af1154d05e45429af4ea43396b7282a50c04dd0aa5a8444cf760eecaadb5f04d",
+          "review": "inspected; no additional reading obstruction observed"
+        },
+        {
+          "file": "just-for-today-letter-acorde-2.png",
+          "sha256": "a30dfcc84b14c3fd3ae84fd264696fec0f6219aeed94d044ab717049b999029d",
+          "review": "inspected; no additional reading obstruction observed"
+        },
+        {
+          "file": "just-for-today-letter-acorde-3.png",
+          "sha256": "1c3fc597359243e7149711c2ff19eb61a100798d66e48c6f2305656644a481fc",
+          "review": "inspected; no additional reading obstruction observed"
+        }
+      ],
+      "method": "assistant inspected every full-page raster",
+      "notes": "All lyric verses, hairpins and voice-specific slurs remain readable; default four-measure cap adds a page."
+    },
+    {
+      "score": "just-for-today-letter",
+      "engine": "verovio",
+      "pdf_sha256": "179ce804a345e003b2a5283e403cdc88458be26c0d60b067631c91cde360cae1",
+      "pages": [
+        {
+          "file": "just-for-today-letter-verovio-1.png",
+          "sha256": "9da952b3e5c0e74a5a111c1d8d8f9c655bea3d412d32b8efea2d93a5ed47d5fa",
+          "review": "inspected; no additional reading obstruction observed"
+        },
+        {
+          "file": "just-for-today-letter-verovio-2.png",
+          "sha256": "2917ac43f408333a628313463ef132dbda9a50e88cac90d8cb06eb38fa0da272",
+          "review": "inspected; no additional reading obstruction observed"
+        },
+        {
+          "file": "just-for-today-letter-verovio-3.png",
+          "sha256": "9e18cf9afcdbf7eec9a2a0142930ff19d5a00f3466cb996ad00d9226822c99ee",
+          "review": "inspected; no additional reading obstruction observed"
+        }
+      ],
+      "method": "assistant inspected every full-page raster",
+      "notes": "All lyric verses, hairpins and voice-specific slurs remain readable; default four-measure cap adds a page."
+    },
+    {
+      "score": "quilter-default",
+      "engine": "acorde",
+      "pdf_sha256": "eeaf92b0b506298fd37d3f7af019cb7c1d9373c5759d58910e5acff4f17800e5",
+      "pages": [
+        {
+          "file": "quilter-default-acorde-1.png",
+          "sha256": "334f7893c3ae69664662c564d1c072e59c6ea32098b5583728c5541023369836",
+          "review": "inspected; no additional reading obstruction observed"
+        }
+      ],
+      "method": "assistant inspected every full-page raster",
+      "notes": "Cross-staff arpeggios and lower directions remain distinct; source wedges missing stops are unchanged."
+    },
+    {
+      "score": "quilter-default",
+      "engine": "verovio",
+      "pdf_sha256": "661e0ccb7161ad9868728c29f0dacd5fcf50fc8d6ad4d27cae357f777ffe672a",
+      "pages": [
+        {
+          "file": "quilter-default-verovio-1.png",
+          "sha256": "2aeaed9eed95c1933052c477888696008be8c11a806dfd80ff2693811541123f",
+          "review": "inspected; no additional reading obstruction observed"
+        }
+      ],
+      "method": "page raster SHA-256 exactly matches previously inspected v18 A4 reference",
+      "notes": "Cross-staff arpeggios and lower directions remain distinct; source wedges missing stops are unchanged."
+    },
+    {
+      "score": "quilter-letter",
+      "engine": "acorde",
+      "pdf_sha256": "534a0bc1305ec9b1b4ac3995618da8afe9fc0c7f9e4ceec0e30ada1d87f23317",
+      "pages": [
+        {
+          "file": "quilter-letter-acorde-1.png",
+          "sha256": "fd7aa8273bca6277d35783412817ef9628c26e6bcb04439960eb7b67e9879ec3",
+          "review": "inspected; no additional reading obstruction observed"
+        }
+      ],
+      "method": "assistant inspected every full-page raster",
+      "notes": "Cross-staff arpeggios and lower directions remain distinct; source wedges missing stops are unchanged."
+    },
+    {
+      "score": "quilter-letter",
+      "engine": "verovio",
+      "pdf_sha256": "e5f9994365b584bc4ac6357348aa11878a519ceab682d234a6cb3a9a745b23d5",
+      "pages": [
+        {
+          "file": "quilter-letter-verovio-1.png",
+          "sha256": "bed3ae172cad341abde818115290c6c1c83c12554338f9022ca78aa5bbd3f409",
+          "review": "inspected; no additional reading obstruction observed"
+        }
+      ],
+      "method": "assistant inspected every full-page raster",
+      "notes": "Cross-staff arpeggios and lower directions remain distinct; source wedges missing stops are unchanged."
+    },
+    {
+      "score": "webern-default",
+      "engine": "acorde",
+      "pdf_sha256": "80a6f37b47ea960b0b6c73937a9e64118b2114840fa6da949383d0344fd6558b",
+      "pages": [
+        {
+          "file": "webern-default-acorde-1.png",
+          "sha256": "6e8a13a166e80c321048eea52d9e7ac705f87196ad31718699aa3603eee46c12",
+          "review": "inspected; no additional reading obstruction observed"
+        },
+        {
+          "file": "webern-default-acorde-2.png",
+          "sha256": "beb7a35f6dcbae9d15de124b66c8596ab71f8b92821ddd834f0d268301368a5e",
+          "review": "inspected; no additional reading obstruction observed"
+        },
+        {
+          "file": "webern-default-acorde-3.png",
+          "sha256": "64074a3169cee6b9ec5fc52e54957cfc48155da1fce385f6a95197704207849f",
+          "review": "inspected; no additional reading obstruction observed"
+        }
+      ],
+      "method": "assistant inspected every full-page raster",
+      "notes": "Tuplets, lyrics, pedal and directions remain readable; duplicate source wedges remain separately documented."
+    },
+    {
+      "score": "webern-default",
+      "engine": "verovio",
+      "pdf_sha256": "fcb12c3c21cefbbdfde6cd56bf7c41e5df98fcf2f38461be30f47c7188b2a74d",
+      "pages": [
+        {
+          "file": "webern-default-verovio-1.png",
+          "sha256": "90d9e426cb70bc54565f4f281e1fd2ebe3c7150f4b590567af4bebc2670eb1a8",
+          "review": "inspected; no additional reading obstruction observed"
+        },
+        {
+          "file": "webern-default-verovio-2.png",
+          "sha256": "c590409b197c0d4dbbbabb813a720e13039218c5109c91008cb287c9852b5e30",
+          "review": "inspected; no additional reading obstruction observed"
+        }
+      ],
+      "method": "page raster SHA-256 exactly matches previously inspected v18 A4 reference",
+      "notes": "Tuplets, lyrics, pedal and directions remain readable; duplicate source wedges remain separately documented."
+    },
+    {
+      "score": "webern-letter",
+      "engine": "acorde",
+      "pdf_sha256": "0758d2a22dadb42c8d2eb0aac65e53f86b4bfc877b5cc87c5b861ac5ab94e177",
+      "pages": [
+        {
+          "file": "webern-letter-acorde-1.png",
+          "sha256": "df270ee661965d13ba9bb025bf40f342e7e5e7509067e44741403ad9d25c8af4",
+          "review": "inspected; no additional reading obstruction observed"
+        },
+        {
+          "file": "webern-letter-acorde-2.png",
+          "sha256": "08ab3971482d9730eefaa01132a997d97d542ee77c506a36ffdb3c0a98fe98ce",
+          "review": "inspected; no additional reading obstruction observed"
+        }
+      ],
+      "method": "assistant inspected every full-page raster",
+      "notes": "Tuplets, lyrics, pedal and directions remain readable; duplicate source wedges remain separately documented."
+    },
+    {
+      "score": "webern-letter",
+      "engine": "verovio",
+      "pdf_sha256": "a7fab8985156c79a080257950592c7d3939d345238dbf7432ca270b27e27161c",
+      "pages": [
+        {
+          "file": "webern-letter-verovio-1.png",
+          "sha256": "9540c5d1126d5326c428a5720504f43f3dd2940eabb3eb0d8f44c28bbf3aa573",
+          "review": "inspected; no additional reading obstruction observed"
+        },
+        {
+          "file": "webern-letter-verovio-2.png",
+          "sha256": "27025dd9ce566618c158b6826a985c9b53b7093cc2246b7c1d9b1935077316e6",
+          "review": "inspected; no additional reading obstruction observed"
+        }
+      ],
+      "method": "assistant inspected every full-page raster",
+      "notes": "Tuplets, lyrics, pedal and directions remain readable; duplicate source wedges remain separately documented."
+    },
+    {
+      "score": "omr-1003-default",
+      "engine": "acorde",
+      "pdf_sha256": "07903604f41729a19bbabb5ce2bc58840213212e4a49dbb7bcbb854b011f7fcc",
+      "pages": [
+        {
+          "file": "omr-1003-default-acorde-1.png",
+          "sha256": "aebb2b696424e066e13a630097d9efab35ef592e2c080efb622c1827e050dbc8",
+          "review": "inspected; no additional reading obstruction observed"
+        }
+      ],
+      "method": "assistant inspected every full-page raster",
+      "notes": "Lyrics, tuplets and independent staff slurs remain readable."
+    },
+    {
+      "score": "omr-1003-default",
+      "engine": "verovio",
+      "pdf_sha256": "a6bf36b98c271f436a1dc5ea993b4914b839230dd1272be26e878ad57731286d",
+      "pages": [
+        {
+          "file": "omr-1003-default-verovio-1.png",
+          "sha256": "afcc0997c2103cd940f0ad0714e01c68d17249efd5ac2a2547dc4d2f0526f966",
+          "review": "inspected; no additional reading obstruction observed"
+        }
+      ],
+      "method": "page raster SHA-256 exactly matches previously inspected v18 A4 reference",
+      "notes": "Lyrics, tuplets and independent staff slurs remain readable."
+    },
+    {
+      "score": "omr-1003-letter",
+      "engine": "acorde",
+      "pdf_sha256": "f6dc38890f6791a31944ee49d04b72d21ea94aa8b9d0c78de5760026df33fa93",
+      "pages": [
+        {
+          "file": "omr-1003-letter-acorde-1.png",
+          "sha256": "95af1157b39c4c8add06f529ebe109bf86bedef60fc44e1f0bf64d4461de6bf7",
+          "review": "inspected; no additional reading obstruction observed"
+        }
+      ],
+      "method": "assistant inspected every full-page raster",
+      "notes": "Lyrics, tuplets and independent staff slurs remain readable."
+    },
+    {
+      "score": "omr-1003-letter",
+      "engine": "verovio",
+      "pdf_sha256": "3dcc07e2eb33bcfdedc904d4099253c8c941ed9e76087500dd1cc8a1563311e8",
+      "pages": [
+        {
+          "file": "omr-1003-letter-verovio-1.png",
+          "sha256": "f64e7f62af4b887ee21974de185373a98d90028fc5fb1ebf126d17fdc5a05865",
+          "review": "inspected; no additional reading obstruction observed"
+        }
+      ],
+      "method": "assistant inspected every full-page raster",
+      "notes": "Lyrics, tuplets and independent staff slurs remain readable."
+    },
+    {
+      "score": "omr-1016-default",
+      "engine": "acorde",
+      "pdf_sha256": "651eaf9ad201da3b5b4f96d2c094cd60c2f038231539b8454e7a830ed5daf62e",
+      "pages": [
+        {
+          "file": "omr-1016-default-acorde-1.png",
+          "sha256": "f675eb2ec41a06dde9aa53087f0c0014722d5358490b4092e52aa50205e59954",
+          "review": "inspected; no additional reading obstruction observed"
+        }
+      ],
+      "method": "assistant inspected every full-page raster",
+      "notes": "Dynamic changes and final ledger-line notes remain readable."
+    },
+    {
+      "score": "omr-1016-default",
+      "engine": "verovio",
+      "pdf_sha256": "739e975b0271c9563890e01e46780c7d0c198ae6138f07a7106792e652d3ae8c",
+      "pages": [
+        {
+          "file": "omr-1016-default-verovio-1.png",
+          "sha256": "8d98bdba2fdec3f54b42f4f63acf988db815c9b68eae6ab479c42f13e90b5048",
+          "review": "inspected; no additional reading obstruction observed"
+        }
+      ],
+      "method": "page raster SHA-256 exactly matches previously inspected v18 A4 reference",
+      "notes": "Dynamic changes and final ledger-line notes remain readable."
+    },
+    {
+      "score": "omr-1016-letter",
+      "engine": "acorde",
+      "pdf_sha256": "7adda19abdc4d5e46b1136deb19c646e93b05d055128da5537ed783fee9f8758",
+      "pages": [
+        {
+          "file": "omr-1016-letter-acorde-1.png",
+          "sha256": "b777412e60820871aecd369fb1333da3e2edd05c219c1231beaf6d4a490662e9",
+          "review": "inspected; no additional reading obstruction observed"
+        }
+      ],
+      "method": "assistant inspected every full-page raster",
+      "notes": "Dynamic changes and final ledger-line notes remain readable."
+    },
+    {
+      "score": "omr-1016-letter",
+      "engine": "verovio",
+      "pdf_sha256": "8fdeb08bd3f41e893432e91a56b11e169b0f047c29d1a8e90bff4f4b271085fb",
+      "pages": [
+        {
+          "file": "omr-1016-letter-verovio-1.png",
+          "sha256": "a048e71b82922c363e0ffe51a6731704bda6c3026512d36cad1618c2e07ed7d9",
+          "review": "inspected; no additional reading obstruction observed"
+        }
+      ],
+      "method": "assistant inspected every full-page raster",
+      "notes": "Dynamic changes and final ledger-line notes remain readable."
+    },
+    {
+      "score": "omr-1033-default",
+      "engine": "acorde",
+      "pdf_sha256": "8bca7e6711bf6a815793a10ddb8025d30104d1a5f6a1be50ce85d2f66c3959b5",
+      "pages": [
+        {
+          "file": "omr-1033-default-acorde-1.png",
+          "sha256": "f347d5824b6673a84061b7e5ac5ee8d7c8dccb533610cc6d7c68f34ee54ef332",
+          "review": "inspected; no remaining repeat-mark obstruction observed"
+        }
+      ],
+      "method": "assistant inspected all revised page rasters",
+      "notes": "repeat dots/strokes now separated and readable; notation and endings remain clear"
+    },
+    {
+      "score": "omr-1033-default",
+      "engine": "verovio",
+      "pdf_sha256": "d40c844143cae8f7e083faf47ff7f8ed0aaf9b341168db1eb4fbb7cdf17a9cf6",
+      "pages": [
+        {
+          "file": "omr-1033-default-verovio-1.png",
+          "sha256": "515a6a0125d8a3440215c38350016cc84f90f33f48a704b67e67cc17b34c78e5",
+          "review": "inspected; no remaining repeat-mark obstruction observed"
+        }
+      ],
+      "method": "reference from the identical frozen inputs and options",
+      "notes": "repeat dots/strokes now separated and readable; notation and endings remain clear"
+    },
+    {
+      "score": "omr-1033-letter",
+      "engine": "acorde",
+      "pdf_sha256": "2d7ae341828636aaf9679c89da91db69e6e0f37a8142ef0ab6c950ddd71b9df0",
+      "pages": [
+        {
+          "file": "omr-1033-letter-acorde-1.png",
+          "sha256": "68ace9bcbf49829c4b8f5437aae288c6f7baa4a2de59e2d2842b7c1cf51476ae",
+          "review": "inspected; no remaining repeat-mark obstruction observed"
+        }
+      ],
+      "method": "assistant inspected all revised page rasters",
+      "notes": "repeat dots/strokes now separated and readable; notation and endings remain clear"
+    },
+    {
+      "score": "omr-1033-letter",
+      "engine": "verovio",
+      "pdf_sha256": "fb8bfa567cb6d5ea3c0ed8a92376e56f2672d305c9e935a6783f397595676d96",
+      "pages": [
+        {
+          "file": "omr-1033-letter-verovio-1.png",
+          "sha256": "2fef54fa65b05edcbffd30dbb7e21b794601ba1a342a1219dbfb864a7b8723b3",
+          "review": "inspected; no remaining repeat-mark obstruction observed"
+        }
+      ],
+      "method": "reference from the identical frozen inputs and options",
+      "notes": "repeat dots/strokes now separated and readable; notation and endings remain clear"
+    },
+    {
+      "score": "omr-1035-default",
+      "engine": "acorde",
+      "pdf_sha256": "ef745e251615606cba7137397a87a0d4997cc6800f799f5edabb2e8d138fe22c",
+      "pages": [
+        {
+          "file": "omr-1035-default-acorde-1.png",
+          "sha256": "981947c0b1c9d595053374c5ba0ae5f061e1d1e69f8d09d62e48acc3dc13f923",
+          "review": "inspected; no additional reading obstruction observed"
+        }
+      ],
+      "method": "assistant inspected every full-page raster",
+      "notes": "Multi-line instrument label remains readable at its separately disclosed smaller size."
+    },
+    {
+      "score": "omr-1035-default",
+      "engine": "verovio",
+      "pdf_sha256": "0852355f769c34f9f10c626e5d26934120a130bbef1fc89070f7788931f29e9f",
+      "pages": [
+        {
+          "file": "omr-1035-default-verovio-1.png",
+          "sha256": "dd0fe52b7c73d47ca8601eda828708623d1ae8a16883868c0f4366346683aa12",
+          "review": "inspected; no additional reading obstruction observed"
+        }
+      ],
+      "method": "page raster SHA-256 exactly matches previously inspected v18 A4 reference",
+      "notes": "Multi-line instrument label remains readable at its separately disclosed smaller size."
+    },
+    {
+      "score": "omr-1035-letter",
+      "engine": "acorde",
+      "pdf_sha256": "6df11748b90d82eb6f6c093395fce17a66d32711d7524447c32b08be4dd9e8ad",
+      "pages": [
+        {
+          "file": "omr-1035-letter-acorde-1.png",
+          "sha256": "7d90a45b10babd611c25d36db74ee1317060d45fac67982e56cb1cd0c11c07b1",
+          "review": "inspected; no additional reading obstruction observed"
+        }
+      ],
+      "method": "assistant inspected every full-page raster",
+      "notes": "Multi-line instrument label remains readable at its separately disclosed smaller size."
+    },
+    {
+      "score": "omr-1035-letter",
+      "engine": "verovio",
+      "pdf_sha256": "4d0eca4ae3c567df4e4cef2e9c0a23fc097f1a00a87ed9066e0cd1ddd41b9261",
+      "pages": [
+        {
+          "file": "omr-1035-letter-verovio-1.png",
+          "sha256": "eed592eecade8a814ab1621bf9ea3c3a76eab12e49610508d8a04a1ea8e83326",
+          "review": "inspected; no additional reading obstruction observed"
+        }
+      ],
+      "method": "assistant inspected every full-page raster",
+      "notes": "Multi-line instrument label remains readable at its separately disclosed smaller size."
+    },
+    {
+      "score": "omr-1036-default",
+      "engine": "acorde",
+      "pdf_sha256": "724ed3a2616d868ab6b594117bfe478206eefbe8eaec9dae093e4c42bfaf646d",
+      "pages": [
+        {
+          "file": "omr-1036-default-acorde-1.png",
+          "sha256": "471f110e48906ee403fb5a5573a94c6106a204f49d27d779586338be388f1693",
+          "review": "inspected; no additional reading obstruction observed"
+        },
+        {
+          "file": "omr-1036-default-acorde-2.png",
+          "sha256": "e8ff6e22577cf6d0588baca3da6680aa57f925d9f877788a718b80e9cbd73819",
+          "review": "inspected; no additional reading obstruction observed"
+        },
+        {
+          "file": "omr-1036-default-acorde-3.png",
+          "sha256": "dfd01f1b2eedc0a86520b31ab065106bd5e3b5018e21c6e9651796577bb9168f",
+          "review": "inspected; no additional reading obstruction observed"
+        }
+      ],
+      "method": "assistant inspected every full-page raster",
+      "notes": "All five staves are preserved; the four-measure cap yields a short third page. Letter final page contains one complete five-staff system."
+    },
+    {
+      "score": "omr-1036-default",
+      "engine": "verovio",
+      "pdf_sha256": "e817c32ddc96898cc7140a9491a879775ac5570bd8e220e10c57eb02f6b2aebc",
+      "pages": [
+        {
+          "file": "omr-1036-default-verovio-1.png",
+          "sha256": "2c29e6f1826a72cd14afd4def039dd847f554dcaeaf2ccdfc913554b00d92979",
+          "review": "inspected; no additional reading obstruction observed"
+        },
+        {
+          "file": "omr-1036-default-verovio-2.png",
+          "sha256": "3e763702867e9649f36432862cf3c5a39dea1b6e2a0fac8c2e3c882430844a07",
+          "review": "inspected; no additional reading obstruction observed"
+        }
+      ],
+      "method": "page raster SHA-256 exactly matches previously inspected v18 A4 reference",
+      "notes": "All five staves are preserved; the four-measure cap yields a short third page. Letter final page contains one complete five-staff system."
+    },
+    {
+      "score": "omr-1036-letter",
+      "engine": "acorde",
+      "pdf_sha256": "e735957bb9a4c11eb11f845474e052daedcb907a8ad94ed9d216d6dacc5d0f0a",
+      "pages": [
+        {
+          "file": "omr-1036-letter-acorde-1.png",
+          "sha256": "9087d1807f69ea4c111f813e05bbe3c74319cf2fb80c9a6f83d866805a0563ff",
+          "review": "inspected; no additional reading obstruction observed"
+        },
+        {
+          "file": "omr-1036-letter-acorde-2.png",
+          "sha256": "7bdbe3bbc78647723fad52e49749b6843d1e036006730ccb5136ce635b32e1d1",
+          "review": "inspected; no additional reading obstruction observed"
+        }
+      ],
+      "method": "assistant inspected every full-page raster",
+      "notes": "All five staves are preserved; the four-measure cap yields a short third page. Letter final page contains one complete five-staff system."
+    },
+    {
+      "score": "omr-1036-letter",
+      "engine": "verovio",
+      "pdf_sha256": "ebbaeb4f62837fbc30bcf37663e085a26bd172083a5af32b72d7ca2ae50a9485",
+      "pages": [
+        {
+          "file": "omr-1036-letter-verovio-1.png",
+          "sha256": "733bcea35f281fcdd386bd767f0cc210d9f5e382161d198bf4749100af58c49b",
+          "review": "inspected; no additional reading obstruction observed"
+        },
+        {
+          "file": "omr-1036-letter-verovio-2.png",
+          "sha256": "fcfc0ae12a1c9bb27b9473343672c7c12f52c4fcffb4aaa33eb20984542debdf",
+          "review": "inspected; no additional reading obstruction observed"
+        }
+      ],
+      "method": "assistant inspected every full-page raster",
+      "notes": "All five staves are preserved; the four-measure cap yields a short third page. Letter final page contains one complete five-staff system."
+    },
+    {
+      "score": "freilachs-default",
+      "engine": "acorde",
+      "pdf_sha256": "f3f4bb109c43355a282d3e91bdfe19cdd755cb3d249213e80ab2584cb7699edf",
+      "pages": [
+        {
+          "file": "freilachs-default-acorde-1.png",
+          "sha256": "d6fe19db613fe914197ce97158e1691d656addf6f30bbd45b71e91edcc8f130d",
+          "review": "inspected; no remaining repeat-mark obstruction observed"
+        }
+      ],
+      "method": "assistant inspected all revised page rasters",
+      "notes": "repeat dots/strokes now separated and readable; notation and endings remain clear"
+    },
+    {
+      "score": "freilachs-default",
+      "engine": "verovio",
+      "pdf_sha256": "5ebf5e97b6998ae27ad662c143c87eabfd2165258b2f4462bda8ba1d4f139b99",
+      "pages": [
+        {
+          "file": "freilachs-default-verovio-1.png",
+          "sha256": "2ffc5176d1e35a9d2d3130433c2bc0cc11e4e2f37a5c5bbae7e1ac04c0f9e7e1",
+          "review": "inspected; no remaining repeat-mark obstruction observed"
+        }
+      ],
+      "method": "reference from the identical frozen inputs and options",
+      "notes": "repeat dots/strokes now separated and readable; notation and endings remain clear"
+    },
+    {
+      "score": "freilachs-letter",
+      "engine": "acorde",
+      "pdf_sha256": "fdbebacdf280bfa7a5e8f37c5224b7080ee4ec4aa94271c86c2e7f003f9521fd",
+      "pages": [
+        {
+          "file": "freilachs-letter-acorde-1.png",
+          "sha256": "aecb2218214ad76c5ecc3006db830c7ea8856db6c750d494d103c0b976f610eb",
+          "review": "inspected; no remaining repeat-mark obstruction observed"
+        }
+      ],
+      "method": "assistant inspected all revised page rasters",
+      "notes": "repeat dots/strokes now separated and readable; notation and endings remain clear"
+    },
+    {
+      "score": "freilachs-letter",
+      "engine": "verovio",
+      "pdf_sha256": "24218b9640b0423212f0974b820c747a97340ae1e89c6e2a37f8e3bb68b6dbd6",
+      "pages": [
+        {
+          "file": "freilachs-letter-verovio-1.png",
+          "sha256": "b3e806ebd62937dd36c3ba6528730fd026ca65e11227d5f2b964cf4039f3b10b",
+          "review": "inspected; no remaining repeat-mark obstruction observed"
+        }
+      ],
+      "method": "reference from the identical frozen inputs and options",
+      "notes": "repeat dots/strokes now separated and readable; notation and endings remain clear"
+    }
+  ],
+  "candidate_source_commit": "a1051f2f59ccd1ab46d9eebab51ece99448322ee"
+}

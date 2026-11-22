@@ -38,6 +38,8 @@ pub enum PdfError {
     SvgXml(#[from] roxmltree::Error),
     #[error("SVG path is invalid: {0}")]
     SvgPath(#[from] SvgPathError),
+    #[error("text outline tessellation failed: {0:?}")]
+    OutlineTessellation(lyon_tessellation::TessellationError),
     #[error("PDF page size must contain two positive finite point values")]
     InvalidPageSize,
     #[error("score SVG rendering failed: {0}")]
@@ -288,6 +290,9 @@ fn normalize_svg_rotated_ellipses(svg: &str) -> Result<String, PdfError> {
     if document.descendants().any(|node| {
         node.is_text()
             && node
+                .ancestors()
+                .any(|parent| matches!(parent.tag_name().name(), "text" | "tspan"))
+            && node
                 .text()
                 .is_some_and(|text| text.chars().any(|c| ('\u{E000}'..='\u{F8FF}').contains(&c)))
     }) {
@@ -314,6 +319,17 @@ fn serialize_node(
     output: &mut String,
     flatten_paths: bool,
 ) -> Result<(), PdfError> {
+    // Harumi 1.23.8 ignores SVG visibility on groups. Hidden source notes/rests
+    // must not become printed ink when their editing geometry reaches this adapter.
+    if node.attribute("visibility") == Some("hidden")
+        && node.attribute("class").is_some_and(|classes| {
+            classes
+                .split_whitespace()
+                .any(|class| class == "acorde-hidden")
+        })
+    {
+        return Ok(());
+    }
     match node.node_type() {
         NodeType::Root => serialize_children(node, output, flatten_paths),
         NodeType::Text => {
@@ -321,6 +337,13 @@ fn serialize_node(
             Ok(())
         }
         NodeType::Element => match node.tag_name().name() {
+            "path"
+                if node.ancestors().any(|ancestor| {
+                    ancestor.attribute("data-acorde-outlined-text") == Some("true")
+                }) && svg_fill_is_visible(node) =>
+            {
+                serialize_outlined_text_path(node, output)
+            }
             "path" if flatten_paths => serialize_path(node, output),
             "ellipse" if flatten_paths || node.attribute("transform").is_some() => {
                 serialize_ellipse(node, output)
@@ -329,6 +352,81 @@ fn serialize_node(
         },
         _ => Ok(()),
     }
+}
+
+/// Harumi 1.23.8 fills SVG subpaths independently. Tessellate the compound
+/// nonzero fill so counters remain transparent, including notation behind them.
+/// Keep strokes on the original contours, never on triangle edges.
+fn serialize_outlined_text_path(node: Node<'_, '_>, output: &mut String) -> Result<(), PdfError> {
+    use lyon_tessellation::path::{
+        Path,
+        math::{Point, point},
+    };
+    use lyon_tessellation::{
+        BuffersBuilder, FillOptions, FillTessellator, FillVertex, VertexBuffers,
+    };
+    let raw = node.attribute("d").ok_or(SvgPathError::MissingMove)?;
+    let subpaths = flatten_path(raw)?;
+    let count = subpaths.iter().map(|path| path.points.len()).sum::<usize>();
+    if count >= MAX_PATH_POINTS {
+        return Err(SvgPathError::TooManyPoints {
+            maximum: MAX_PATH_POINTS,
+        }
+        .into());
+    }
+    let mut builder = Path::builder();
+    for path in &subpaths {
+        let Some((first, rest)) = path.points.split_first() else {
+            continue;
+        };
+        builder.begin(point(first[0], first[1]));
+        for p in rest {
+            builder.line_to(point(p[0], p[1]));
+        }
+        builder.end(true);
+    }
+    let mut mesh: VertexBuffers<Point, u32> = VertexBuffers::new();
+    FillTessellator::new()
+        .tessellate_path(
+            &builder.build(),
+            &FillOptions::non_zero(),
+            &mut BuffersBuilder::new(&mut mesh, |vertex: FillVertex<'_>| vertex.position()),
+        )
+        .map_err(PdfError::OutlineTessellation)?;
+    output.push_str("<g");
+    serialize_attributes(node, &["d", "stroke", "style"], output);
+    output.push_str(" stroke=\"none\"");
+    if let Some(style) = node.attribute("style") {
+        output.push_str(" style=\"");
+        output.push_str(&escape_xml(style));
+        output.push_str(";stroke:none\"");
+    }
+    output.push('>');
+    for triangle in mesh.indices.as_chunks::<3>().0 {
+        output.push_str("<polygon points=\"");
+        for index in triangle {
+            let p = mesh.vertices[*index as usize];
+            output.push_str(&format_number(p.x));
+            output.push(',');
+            output.push_str(&format_number(p.y));
+            output.push(' ');
+        }
+        output.push_str("\"/>");
+    }
+    output.push_str("</g>");
+    let stroke = inherited_paint(node, "stroke");
+    if stroke.is_some_and(|stroke| stroke != "none" && stroke != "transparent") {
+        output.push_str("<path");
+        serialize_attributes(node, &["fill", "style"], output);
+        output.push_str(" fill=\"none\"");
+        if let Some(style) = node.attribute("style") {
+            output.push_str(" style=\"");
+            output.push_str(&escape_xml(style));
+            output.push_str(";fill:none\"");
+        }
+        output.push_str("/>");
+    }
+    Ok(())
 }
 
 fn serialize_element(
@@ -382,18 +480,22 @@ fn serialize_path(node: Node<'_, '_>, output: &mut String) -> Result<(), PdfErro
     Ok(())
 }
 
-fn svg_fill_is_visible(node: Node<'_, '_>) -> bool {
-    let value = node
-        .attribute("fill")
-        .or_else(|| {
-            node.attribute("style").and_then(|style| {
-                style.split(';').find_map(|property| {
-                    let (name, value) = property.split_once(':')?;
-                    (name.trim() == "fill").then_some(value.trim())
+fn inherited_paint<'a, 'input>(node: Node<'a, 'input>, name: &str) -> Option<&'a str> {
+    node.ancestors().find_map(|ancestor| {
+        ancestor
+            .attribute("style")
+            .and_then(|style| {
+                style.split(';').rev().find_map(|property| {
+                    let (key, value) = property.split_once(':')?;
+                    (key.trim() == name).then_some(value.trim())
                 })
             })
-        })
-        .unwrap_or("black");
+            .or_else(|| ancestor.attribute(name))
+    })
+}
+
+fn svg_fill_is_visible(node: Node<'_, '_>) -> bool {
+    let value = inherited_paint(node, "fill").unwrap_or("black");
     value != "none" && value != "transparent"
 }
 
@@ -469,6 +571,11 @@ enum PathToken {
 }
 
 fn flatten_path(raw: &str) -> Result<Vec<Subpath>, SvgPathError> {
+    // Empty path data is legal SVG and paints nothing (for example an outlined
+    // whitespace-only text run). It is not a malformed initial line command.
+    if raw.trim().is_empty() {
+        return Ok(Vec::new());
+    }
     let tokens = tokenize_path(raw)?;
     let mut index = 0;
     let mut command = None;
@@ -956,6 +1063,19 @@ mod tests {
     }
 
     #[test]
+    fn outlined_music_metadata_is_allowed_and_hidden_editing_geometry_is_removed() {
+        let svg = "<svg xmlns=\"http://www.w3.org/2000/svg\"><g data-acorde-outlined-text=\"true\"><title>\u{e047}</title><path d=\"M 0 0 L 2 0 L 2 2 Z\"/></g><g class=\"acorde-rest acorde-hidden\" visibility=\"hidden\"><path id=\"hidden-rest\" d=\"M 5 5 L 8 5 L 8 8 Z\"/></g></svg>";
+        let normalized = super::normalize_svg_rotated_ellipses(svg).unwrap();
+        assert!(!normalized.contains("hidden-rest"));
+        assert!(!normalized.contains("acorde-hidden"));
+        assert!(normalized.contains("<polygon"));
+        assert!(matches!(
+            super::normalize_svg_rotated_ellipses("<svg><text>\u{e047}</text></svg>"),
+            Err(PdfError::MusicFontText)
+        ));
+    }
+
+    #[test]
     fn adjacent_triplets_remain_separate_in_pdf_source() {
         let mut score = Score::new("", 120, 4, 4, 0, 1);
         let mut notes = Vec::new();
@@ -1007,6 +1127,74 @@ mod tests {
     }
 
     #[test]
+    fn outlined_counters_remain_transparent_without_bridges_or_background_paint() {
+        let source = r#"<svg width="30" height="12"><g data-acorde-outlined-text="true"><path d="M0 0 L10 0 L10 10 L0 10 Z M3 3 L3 7 L7 7 L7 3 Z M20 0 L22 0 L22 2 L20 2 Z" fill="black"/></g></svg>"#;
+        let normalized = super::normalize_svg_rotated_ellipses(source).unwrap();
+        let doc = roxmltree::Document::parse(&normalized).unwrap();
+        let mut area = 0.0_f32;
+        let mut triangles = 0;
+        for polygon in doc.descendants().filter(|n| n.has_tag_name("polygon")) {
+            let p: Vec<[f32; 2]> = polygon
+                .attribute("points")
+                .unwrap()
+                .split_whitespace()
+                .map(|point| {
+                    let (x, y) = point.split_once(',').unwrap();
+                    [x.parse().unwrap(), y.parse().unwrap()]
+                })
+                .collect();
+            assert_eq!(p.len(), 3);
+            let cross = |a: [f32; 2], b: [f32; 2], c: [f32; 2]| {
+                (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+            };
+            area += cross(p[0], p[1], p[2]).abs() / 2.0;
+            for probe in [[5.0, 5.0], [15.0, 1.0]] {
+                let signs = [
+                    cross(p[0], p[1], probe),
+                    cross(p[1], p[2], probe),
+                    cross(p[2], p[0], probe),
+                ];
+                assert!(
+                    signs.iter().any(|v| *v < 0.0) && signs.iter().any(|v| *v > 0.0),
+                    "counter and inter-letter space must not be painted"
+                );
+            }
+            triangles += 1;
+        }
+        assert!(triangles > 2);
+        assert!((area - 88.0).abs() < 0.001);
+        assert!(!normalized.contains("white"));
+        let pdf = super::export_svg_pdf(source, &PdfRenderOptions::new(&[])).unwrap();
+        let document = harumi::lopdf::Document::load_mem(&pdf).unwrap();
+        let page = *document.get_pages().values().next().unwrap();
+        let bytes = document.get_page_content(page);
+        let content = harumi::lopdf::content::Content::decode(&bytes).unwrap();
+        assert_eq!(
+            content
+                .operations
+                .iter()
+                .filter(|op| op.operator == "f")
+                .count(),
+            triangles
+        );
+        assert!(
+            !content
+                .operations
+                .iter()
+                .any(|op| matches!(op.operator.as_str(), "S" | "s" | "B" | "b"))
+        );
+    }
+
+    #[test]
+    fn outlined_bold_strokes_keep_contours_and_inline_fill() {
+        let source = r#"<svg width="10" height="10"><g data-acorde-outlined-text="true"><path d="M0 0 L10 0 L10 10 Z" style="fill:red;stroke:black;stroke-width:0.2"/></g></svg>"#;
+        let normalized = super::normalize_svg_rotated_ellipses(source).unwrap();
+        assert!(normalized.contains("fill:red;stroke:black;stroke-width:0.2;stroke:none"));
+        assert!(normalized.contains("fill:red;stroke:black;stroke-width:0.2;fill:none"));
+        super::export_svg_pdf(source, &PdfRenderOptions::new(&[])).unwrap();
+    }
+
+    #[test]
     fn rejects_malformed_curve_data() {
         let source = r#"<svg width="10" height="10"><path d="M 0 0 C 1"/></svg>"#;
         assert!(matches!(
@@ -1014,6 +1202,18 @@ mod tests {
             Err(PdfError::SvgPath(SvgPathError::IncompleteArguments {
                 command: 'C'
             }))
+        ));
+    }
+
+    #[test]
+    fn empty_outline_paths_are_valid_nonpainting_geometry() {
+        let source = r#"<svg width="10" height="10"><g data-acorde-outlined-text="true"><title> </title><path d=""/></g><path d="  "/><path d="M 0 0 L 1 1" stroke="black" fill="none"/></svg>"#;
+        let normalized = normalize_svg_for_harumi(source).expect("empty SVG paths are valid");
+        assert!(normalized.contains("polyline"));
+        assert!(!normalized.contains("<polygon"));
+        assert!(matches!(
+            super::flatten_path("L 1 2"),
+            Err(SvgPathError::MissingMove)
         ));
     }
 

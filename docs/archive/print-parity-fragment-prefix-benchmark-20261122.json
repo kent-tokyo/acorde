@@ -1,0 +1,49 @@
+{
+  "classification": "development only; two alternating runs per version, not a final performance gate",
+  "architecture": "arm64",
+  "system": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "input_sha256": "9c1a19ede6f1eba3bb12760aa4f5f3639d677c84f4eeb52e7a745ed5b79bf3ad",
+  "font_sha256": "b97cd5005278b24aabb69b8b6ead98860955599558f6e8119483b575a5fdce98",
+  "baseline_commit": "e18d6949",
+  "baseline_binary_sha256": "283618452f6a94c9e03938f0bda7ddd2b5d761fd146ffe93eead027e28a56886",
+  "candidate_binary_sha256": "389c04c2afe42559a2b74a5fc0245cd0405089f953b250dd73959f8d7e2895f5",
+  "candidate_source_diff_sha256": "b8842f5d1dae135af608e3d0782aa1e5d163af40d5b42431c9e65aacbd07f03d",
+  "results": [
+    {
+      "order": 1,
+      "kind": "cache-bounded",
+      "exit": 0,
+      "seconds": 8.802,
+      "pages": "wrote 35 physical pages",
+      "rss": "323256320  maximum resident set size",
+      "pdf_sha256": "4082a4b30dd0468759f7ecd3f539195b0c72cedae14781e4e72897ba7f5ee6d6"
+    },
+    {
+      "order": 2,
+      "kind": "extent-candidate",
+      "exit": 0,
+      "seconds": 7.566,
+      "pages": "wrote 35 physical pages",
+      "rss": "316375040  maximum resident set size",
+      "pdf_sha256": "4082a4b30dd0468759f7ecd3f539195b0c72cedae14781e4e72897ba7f5ee6d6"
+    },
+    {
+      "order": 3,
+      "kind": "extent-candidate",
+      "exit": 0,
+      "seconds": 8.158,
+      "pages": "wrote 35 physical pages",
+      "rss": "315850752  maximum resident set size",
+      "pdf_sha256": "4082a4b30dd0468759f7ecd3f539195b0c72cedae14781e4e72897ba7f5ee6d6"
+    },
+    {
+      "order": 4,
+      "kind": "cache-bounded",
+      "exit": 0,
+      "seconds": 7.846,
+      "pages": "wrote 35 physical pages",
+      "rss": "323829760  maximum resident set size",
+      "pdf_sha256": "4082a4b30dd0468759f7ecd3f539195b0c72cedae14781e4e72897ba7f5ee6d6"
+    }
+  ]
+}

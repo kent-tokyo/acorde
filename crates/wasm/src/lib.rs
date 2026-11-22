@@ -756,6 +756,24 @@ pub fn render_print_page_svgs(score_json: &str, layout_json: &str) -> Result<Str
         .map_err(|error| js_err(format!("print page SVG serialization failed: {error}")))
 }
 
+/// Measure supplied font bytes, choose physical systems and return their outlined SVG pages.
+/// The JSON contains `layout`, `pages`, `staff_space_mm` and `measurements`.
+/// Available with the opt-in `measured-print` feature; requires print scale 1.0.
+#[cfg(feature = "measured-print")]
+#[wasm_bindgen]
+pub fn engrave_print_pages(
+    score_json: &str,
+    config_json: &str,
+    font_bytes: &[u8],
+) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let config: acorde_layout::PrintConfig =
+        parse_json(config_json, "print config", MAX_OPTIONS_JSON_BYTES)?;
+    let result = acorde_render_svg::engrave_print_pages(&score, &config, font_bytes).map_err(js_err)?;
+    serde_json::to_string(&result)
+        .map_err(|error| js_err(format!("measured print serialization failed: {error}")))
+}
+
 /// Export page-scoped semantic render trees using the same print configuration.
 ///
 /// The result carries canonical score addresses for notes/rests plus page-owned
@@ -3821,6 +3839,7 @@ mod tests {
                 harmony_function: None,
                 harmony_type: None,
                 chord_ref: None,
+                written: None,
                 range_end: None,
                 degrees: Vec::new(),
             }),
@@ -3995,6 +4014,7 @@ mod tests {
         let score_text = acorde_core::Command::SetScoreText(acorde_core::SetScoreTextCmd {
             text_index: 0,
             text: Some(acorde_core::StyledText {
+            enclosure: None,
                 position_beats: None,
                 style: acorde_core::TextStyle::Expression,
                 text: "dolce".into(),
@@ -4115,6 +4135,7 @@ mod tests {
             measure_index: 0,
             text_index: 0,
             text: Some(acorde_core::StyledText {
+            enclosure: None,
                 position_beats: None,
                 style: acorde_core::TextStyle::RehearsalMark,
                 text: "A".to_owned(),
@@ -4146,6 +4167,7 @@ mod tests {
         let command = acorde_core::Command::SetScoreText(acorde_core::SetScoreTextCmd {
             text_index: 0,
             text: Some(acorde_core::StyledText {
+            enclosure: None,
                 position_beats: None,
                 style: acorde_core::TextStyle::Expression,
                 text: "Prelude".to_owned(),
@@ -4192,6 +4214,7 @@ mod tests {
                 harmony_function: None,
                 harmony_type: None,
                 chord_ref: None,
+                written: None,
                 range_end: None,
                 degrees: Vec::new(),
             });
@@ -4236,6 +4259,7 @@ mod tests {
         after.metadata.title = "After".to_string();
         after.settings.tempo_bpm = 96;
         after.texts.push(acorde_core::StyledText {
+            enclosure: None,
             position_beats: None,
             style: acorde_core::TextStyle::Expression,
             text: "Prelude".to_owned(),
@@ -5049,6 +5073,26 @@ mod wasm_tests {
 
     wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 
+    #[cfg(feature = "measured-print")]
+    #[wasm_bindgen_test]
+    fn measured_print_browser_uses_supplied_font_and_preserves_verses() {
+        let score = acorde_io::parse_mxl(include_bytes!("../../../tests/fixtures/openscore_lieder_aloha_oe.mxl")).unwrap();
+        let config = acorde_layout::PrintConfig { measures_per_system: 8, ..Default::default() };
+        let font = include_bytes!("../../render-svg/tests/fixtures/Tuffy.ttf");
+        let output = engrave_print_pages(&serde_json::to_string(&score).unwrap(),
+            &serde_json::to_string(&config).unwrap(), font).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&output).unwrap();
+        assert_eq!(value["staff_space_mm"], 1.8);
+        // The native measured-print regression pins the same four-page input and settings.
+        assert_eq!(value["pages"].as_array().unwrap().len(), 4);
+        let pages = value["pages"].as_array().unwrap().iter().map(|p| p.as_str().unwrap()).collect::<String>();
+        assert!(pages.contains("data-acorde-outlined-text"));
+        assert!(pages.contains("acorde-lyric-extender\" data-verse=\"2\""));
+        assert!(!pages.contains("<text "));
+        assert!(engrave_print_pages(&serde_json::to_string(&score).unwrap(),
+            &serde_json::to_string(&config).unwrap(), &[]).is_err());
+    }
+
     #[wasm_bindgen_test]
     fn browser_chord_plan_proposals_replay_and_render() {
         let mut score = Score::new("chord proposals browser", 120, 4, 4, 0, 1);
@@ -5745,6 +5789,7 @@ mod wasm_tests {
         score.parts[0].staves[0].measures[0]
             .texts
             .push(acorde_core::StyledText {
+            enclosure: None,
                 position_beats: None,
                 style: acorde_core::TextStyle::Expression,
                 text: "bad\u{1}".to_string(),
