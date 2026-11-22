@@ -1735,6 +1735,15 @@ fn fixture_manifest_sha256_matches_checked_in_files() {
             "openscore_gossec_quartet_rh189.mxl" => {
                 include_bytes!("../../../tests/fixtures/openscore_gossec_quartet_rh189.mxl")
             }
+            "issue_476_harmony.musicxml" => {
+                include_bytes!("../../../tests/fixtures/issue_476_harmony.musicxml")
+            }
+            "issue_476_musescore475.mscz" => {
+                include_bytes!("../../../tests/fixtures/issue_476_musescore475.mscz")
+            }
+            "issue_476_musescore475_lesson.musicxml" => {
+                include_bytes!("../../../tests/fixtures/issue_476_musescore475_lesson.musicxml")
+            }
             other => panic!("manifest fixture has no embedded test mapping: {other}"),
         };
         let actual = Sha256::digest(bytes)

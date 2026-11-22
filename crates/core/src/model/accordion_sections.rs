@@ -363,3 +363,21 @@ pub fn arrange_with_sections(
     }
     result
 }
+
+/// Arrange sections using separate chord and bass staves for standard-bass buttons.
+/// Existing sectioned arrangements remain unchanged; free-bass patterns retain
+/// their original playable staff. Source-note addresses continue to point to
+/// the melody and generated-note addresses point to the resulting staves.
+pub fn arrange_with_sections_readable_standard_bass(
+    score: &Score,
+    options: SectionedAccordionOptions,
+) -> SectionedAccordionResult {
+    let mut result = arrange_with_sections(score, options);
+    if result.resolved_options.bass_mode == AccordionBassMode::StandardBass
+        && result.resolved_patterns.iter().any(Option::is_some)
+        && let Some(output) = result.score.as_mut()
+    {
+        super::arrange_presets::split_standard_bass_score(output, &mut result.generated_notes);
+    }
+    result
+}
