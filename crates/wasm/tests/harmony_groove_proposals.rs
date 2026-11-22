@@ -65,7 +65,7 @@ wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test::wasm_bindgen_test)]
 #[cfg_attr(not(target_arch = "wasm32"), test)]
 fn groove_profiles_diagnostics_and_replay_match_native() {
-    let source = fixture::source();
+    let source = fixture::grace_source();
     let request = fixture::request();
     let source_json = serde_json::to_string(&source).unwrap();
     let native = acorde_core::suggest_harmony_groove_arrangements(&source, &request).unwrap();

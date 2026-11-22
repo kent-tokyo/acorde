@@ -3,6 +3,68 @@ mod fixture;
 use acorde_core::*;
 
 #[test]
+fn grace_melody_is_preserved_across_repeats_and_source_bound_replay() {
+    let source = fixture::grace_source();
+    let result = suggest_harmony_groove_arrangements(&source, &fixture::request()).unwrap();
+    assert!(result.complete);
+    let original = fixture::sound(&source)
+        .into_iter()
+        .filter(|e| e.0 == 0)
+        .collect::<Vec<_>>();
+    assert_eq!(original.iter().filter(|e| e.1 == 77).count(), 2);
+    for candidate in result.candidates {
+        assert_eq!(
+            candidate.arrangement.context.nodes[0].melody_ceiling_midi,
+            Some(74)
+        );
+        assert_eq!(
+            serde_json::to_value(&source.parts).unwrap(),
+            serde_json::to_value(&candidate.arrangement.score.parts[..source.parts.len()]).unwrap()
+        );
+        let played = fixture::sound(&candidate.arrangement.score)
+            .into_iter()
+            .filter(|e| e.0 == 0)
+            .collect::<Vec<_>>();
+        assert_eq!(played, original);
+        let replay = replay_harmony_groove_arrangement(&source, &candidate.resolved).unwrap();
+        assert_eq!(
+            fixture::sound(&replay.arrangement.score),
+            fixture::sound(&candidate.arrangement.score)
+        );
+        let mut changed = source.clone();
+        changed.parts[0].staves[0].measures[0].voices[0][0].pitches[0] =
+            Pitch::from_midi(76, false);
+        assert!(matches!(
+            replay_harmony_groove_arrangement(&changed, &candidate.resolved),
+            Err(HarmonyGrooveError::ReplaySource)
+        ));
+    }
+}
+
+#[test]
+fn unsupported_grace_has_its_written_address() {
+    let mut source = fixture::source();
+    let notes = &mut source.parts[0].staves[0].measures[1].voices[0];
+    let mut grace = Note::new(Pitch::from_midi(77, false), Duration::Eighth);
+    grace.is_grace = true;
+    notes.push(grace);
+    let err = arrange_harmony_voicings(&source, &fixture::request().base).unwrap_err();
+    assert!(matches!(
+        err,
+        HarmonyArrangementError::UnsupportedContext {
+            feature: HarmonyContextFeature::Grace,
+            address: NoteAddr {
+                part: 0,
+                staff: 0,
+                measure: 1,
+                voice: 0,
+                note: 1
+            }
+        }
+    ));
+}
+
+#[test]
 fn three_profiles_have_audible_differences_and_source_bound_replay() {
     let source = fixture::source();
     let request = fixture::request();
