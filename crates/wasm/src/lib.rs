@@ -1915,6 +1915,25 @@ pub fn arrange_with_response_fills(
         .map_err(|error| js_err(format!("response fill serialization failed: {error}")))
 }
 
+/// Arrange sections with standard-bass chord and bass notes on separate staves.
+#[wasm_bindgen]
+pub fn arrange_with_sections_readable_standard_bass(score_json: &str, options_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let options = parse_json(options_json, "sectioned arrangement options", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::arrange_with_sections_readable_standard_bass(&score, options))
+        .map_err(|error| js_err(format!("sectioned arrangement serialization failed: {error}")))
+}
+
+/// Add selected responses with standard-bass chord and bass notes on separate staves.
+#[wasm_bindgen]
+pub fn arrange_with_response_fills_readable_standard_bass(score_json: &str, accompaniment_json: &str, response_json: &str) -> Result<String, JsValue> {
+    let score = score_from_json(score_json)?;
+    let accompaniment = parse_json(accompaniment_json, "sectioned arrangement options", MAX_OPTIONS_JSON_BYTES)?;
+    let response = parse_json(response_json, "response fill options", MAX_OPTIONS_JSON_BYTES)?;
+    serde_json::to_string(&acorde_core::arrange_with_response_fills_readable_standard_bass(&score, accompaniment, response))
+        .map_err(|error| js_err(format!("response fill serialization failed: {error}")))
+}
+
 /// Append a chordal accompaniment part to any supported multi-part score.
 #[wasm_bindgen]
 pub fn arrange_chordal_pad(score_json: &str, options_json: &str) -> Result<String, JsValue> {

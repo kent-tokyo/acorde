@@ -306,3 +306,27 @@ pub fn arrange_with_response_fills(
     }
     result
 }
+
+/// Add selected responses with separate chord and bass staves for standard bass.
+pub fn arrange_with_response_fills_readable_standard_bass(
+    score: &Score,
+    accompaniment: SectionedAccordionOptions,
+    options: AccordionResponseOptions,
+) -> ResponseFilledAccordionResult {
+    let mut result = arrange_with_response_fills(score, accompaniment, options);
+    if result.arrangement.resolved_options.bass_mode
+        == super::arrange::AccordionBassMode::StandardBass
+        && result
+            .arrangement
+            .resolved_patterns
+            .iter()
+            .any(Option::is_some)
+        && let Some(output) = result.arrangement.score.as_mut()
+    {
+        super::arrange_presets::split_standard_bass_score(
+            output,
+            &mut result.arrangement.generated_notes,
+        );
+    }
+    result
+}

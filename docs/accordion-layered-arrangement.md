@@ -61,6 +61,14 @@ with held chords, a more active middle, a swing section and a silent ending in
 one canonical score. The caller selects the ranges; the API does not infer
 phrase boundaries or form.
 
+For a standard-bass score with separate chord-button and bass staves, use
+`arrange_with_sections_readable_standard_bass` with the same arguments. The
+corresponding response API is
+`arrange_with_response_fills_readable_standard_bass`. Both are available in
+Rust and full/viewer WASM. The original APIs retain their two-staff output;
+free-bass arpeggios retain their original staff. The new APIs update generated
+note addresses while preserving melody and response addresses and playback.
+
 `SectionedAccordionOptions` supplies positioned `chords`, `bass_mode`, a
 `default_pattern` and optional `sections`. Every section has inclusive,
 zero-based `first_measure` and `last_measure` indices and a `pattern`.

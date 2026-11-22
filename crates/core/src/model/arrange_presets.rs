@@ -458,11 +458,14 @@ fn split_standard_bass_staves(result: &mut LayeredAccordionResult) {
     {
         return;
     }
-    let Some(part) = result
-        .score
-        .as_mut()
-        .and_then(|score| score.parts.first_mut())
-    else {
+    if let Some(score) = result.score.as_mut() {
+        split_standard_bass_score(score, &mut result.generated_notes);
+    }
+}
+
+/// Split the generated button realization while preserving source addresses.
+pub(super) fn split_standard_bass_score(score: &mut Score, generated_notes: &mut Vec<NoteAddr>) {
+    let Some(part) = score.parts.first_mut() else {
         return;
     };
     let Some(bass) = part.staves.get_mut(1) else {
@@ -472,7 +475,7 @@ fn split_standard_bass_staves(result: &mut LayeredAccordionResult) {
     chords.measures.reserve(bass.measures.len());
     // Both voices keep one slot for every original event. Generated notes on
     // the melody staff retain their original addresses and order.
-    let mut addresses = Vec::with_capacity(result.generated_notes.len());
+    let mut addresses = Vec::with_capacity(generated_notes.len());
     for (measure, bass_bar) in bass.measures.iter_mut().enumerate() {
         let notes = std::mem::take(&mut bass_bar.voices[0]);
         let mut chord_bar = bass_bar.clone();
@@ -518,13 +521,8 @@ fn split_standard_bass_staves(result: &mut LayeredAccordionResult) {
         chords.measures.push(chord_bar);
     }
     part.staves.insert(1, chords);
-    addresses.extend(
-        result
-            .generated_notes
-            .drain(..)
-            .filter(|addr| addr.staff == 0),
-    );
-    result.generated_notes = addresses;
+    addresses.extend(generated_notes.drain(..).filter(|addr| addr.staff == 0));
+    *generated_notes = addresses;
 }
 
 fn run(

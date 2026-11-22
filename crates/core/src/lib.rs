@@ -10,12 +10,13 @@ pub use model::accordion_dynamics::{
 };
 pub use model::accordion_response::{
     AccordionResponseFill, AccordionResponseOptions, ResponseFilledAccordionResult,
-    arrange_with_response_fills,
+    arrange_with_response_fills, arrange_with_response_fills_readable_standard_bass,
 };
 pub use model::accordion_sections::{
     AccordionAccompanimentSection, AccordionMelodicSchedule, AccordionMelodicSection,
     MelodicSectionedAccordionResult, SectionedAccordionOptions, SectionedAccordionResult,
     arrange_sections_with_melodic_voices, arrange_with_sections,
+    arrange_with_sections_readable_standard_bass,
 };
 pub use model::accordion_voicing::{
     AccordionVoicing, AccordionVoicingOptions, VoiceLedAccordionResult,
