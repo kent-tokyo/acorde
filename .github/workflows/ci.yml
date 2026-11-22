@@ -133,6 +133,9 @@ jobs:
   wasm:
     name: WASM build
     runs-on: ubuntu-latest
+    env:
+      CARGO_PROFILE_RELEASE_OPT_LEVEL: s
+      CARGO_PROFILE_RELEASE_LTO: thin
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
@@ -188,9 +191,8 @@ jobs:
             --features measured-print
           size=$(stat -c%s target/wasm-profiles/measured-print/acorde_wasm_bg.wasm)
           echo "Measured print WASM bytes: $size"
-          # Includes caller-font shaping and outline geometry. Candidate v47
-          # measured 11,241,046 bytes on macOS; qualify this separate opt-in
-          # profile on Linux with less than 2% cross-toolchain headroom.
+          # Includes caller-font shaping and outline geometry. The release
+          # build uses the size-oriented Cargo settings documented in README.
           test "$size" -le 11450000
 
       - name: Check WASM artifact budget
@@ -393,6 +395,9 @@ jobs:
     name: Browser smoke (${{ matrix.browser }})
     # Playwright 1.55.0 does not install browsers on ubuntu-26.04.
     runs-on: ubuntu-24.04
+    env:
+      CARGO_PROFILE_RELEASE_OPT_LEVEL: s
+      CARGO_PROFILE_RELEASE_LTO: thin
     strategy:
       fail-fast: false
       matrix:
@@ -425,6 +430,9 @@ jobs:
   browser-hidpi:
     name: Browser smoke (Chromium HiDPI)
     runs-on: ubuntu-24.04
+    env:
+      CARGO_PROFILE_RELEASE_OPT_LEVEL: s
+      CARGO_PROFILE_RELEASE_LTO: thin
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable

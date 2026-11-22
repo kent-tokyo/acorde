@@ -4,6 +4,10 @@
 
 ## 2.0.0 - 2026-11-22
 
+- Use documented size-oriented Cargo settings for CI WASM release builds and
+  browser smoke tests. Default Cargo release builds remain available; their
+  artifacts can exceed the CI WASM size budgets and performance may differ.
+
 - **Migration:** Public score-model structs gain fields and enums gain variants.
   Update complete Rust struct literals and exhaustive matches before upgrading.
   See the [v2.0.0 migration notes](docs/migrations.md#v200-score-model-and-measured-print).
