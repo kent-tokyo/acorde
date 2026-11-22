@@ -59,4 +59,13 @@ fn lesson_response_and_standard_bass_export_preserve_playback() {
         a
     };
     assert_eq!(events(&arranged), events(&parsed));
+    #[cfg(feature = "musicxml")]
+    {
+        // MuseScore 4.7.5 re-exported this exact response arrangement.
+        let external = acorde_io::parse_musicxml(include_str!(
+            "../../../tests/fixtures/issue_476_musescore475_lesson.musicxml"
+        ))
+        .unwrap();
+        assert_eq!(events(&arranged), events(&external));
+    }
 }

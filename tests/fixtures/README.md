@@ -176,3 +176,7 @@ The verification used `mscore -F -o output.png input.mscz` and
 `C`, `G7`, `B♭m/D` and `F♯7/C♯`; the re-export retained the four structured
 roots, kinds, basses, and four quarter-note pitches. This is a fixed-fixture
 check, not a claim of complete MuseScore interchange support.
+
+`issue_476_musescore475_lesson.musicxml` is the MuseScore 4.7.5 re-export of
+the response arrangement defined in `issue_476_lesson_probe.rs`; its playback
+events are compared with the Acorde-generated score.

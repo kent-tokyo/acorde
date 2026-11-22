@@ -523,6 +523,14 @@
       "sha256": "a888c665966cfc68943717e5ebdf814e50118542ef135b1b0bae45ea25526470",
       "round_trip": "semantic",
       "expected_losses": []
+    },
+    {
+      "path": "issue_476_musescore475_lesson.musicxml",
+      "format": "musicxml",
+      "license": "self-authored",
+      "sha256": "d99abb48d09f940e11c9197f5ecffa3045a8f0a6203cfdb92a8dae70561c75bf",
+      "round_trip": "semantic",
+      "expected_losses": []
     }
   ]
 }
