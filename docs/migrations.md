@@ -40,6 +40,8 @@ Arrangement replay contracts that derive their engine marker from the crate
 version may reject previously saved configurations. Regenerate those configs
 from their source and options and review the output; do not edit their version
 markers by hand. The minimum supported Rust version remains 1.89.
+The transcription workspace is an experimental repository example; it does
+not add an audio-transcription API to the published crates.
 
 ## v1.3.15: standard-bass accompaniment staves
 

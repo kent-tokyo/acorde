@@ -14,6 +14,13 @@
 
 ## 2.0.0 - 2026-11-22
 
+- Add an experimental local transcription workspace for reviewing piano and
+  accordion note candidates and exporting MIDI and MusicXML. Setup and known
+  limits are documented in [the example](examples/transcription/README.md).
+- Add an optional Transkun piano model and evaluation tools. The reported
+  evaluations cover limited samples; acoustic accordion accuracy and participant
+  correction time remain unmeasured.
+
 - Use documented size-oriented Cargo settings for CI WASM release builds and
   browser smoke tests. Default Cargo release builds remain available; their
   artifacts can exceed the CI WASM size budgets and performance may differ.
