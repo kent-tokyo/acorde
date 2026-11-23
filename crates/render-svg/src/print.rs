@@ -131,20 +131,6 @@ pub(crate) fn render_print_page_svgs_with_geometry(
     system_insets_mm: Option<&[f32]>,
 ) -> Result<Vec<String>, PrintRenderError> {
     layout.validate()?;
-    // Match the staff-aware layout's extra page reservation for an additional
-    // lyric lane. A fixed-height layout may instead fail the legibility preflight.
-    let has_multiple_lyric_verses = score
-        .parts
-        .iter()
-        .flat_map(|part| &part.staves)
-        .any(|staff| {
-            staff
-                .measures
-                .iter()
-                .flat_map(|measure| &measure.voices)
-                .flatten()
-                .any(|note| !note.additional_lyrics.is_empty())
-        });
     let grand_staff_has_below_text = score.parts.len() == 1
         && score.parts[0].staves.len() == 2
         && score.parts[0].staves[0].measures.iter().any(|measure| {
@@ -154,9 +140,7 @@ pub(crate) fn render_print_page_svgs_with_geometry(
                     .is_some_and(|placement| placement.eq_ignore_ascii_case("below"))
             })
         });
-    let staff_gap = if has_multiple_lyric_verses {
-        MULTIVERSE_PRINT_STAFF_GAP
-    } else if grand_staff_has_below_text {
+    let staff_gap = if grand_staff_has_below_text {
         GRAND_STAFF_PRINT_GAP
     } else {
         PRINT_STAFF_GAP
@@ -302,104 +286,148 @@ pub(crate) fn render_print_page_svgs_with_geometry(
         None
     };
     let staff_gap = render::required_hairpin_staff_gap(score, &score_layout, staff_gap);
-    let staff_gaps = render::required_lyric_staff_gaps(score, staff_gap);
-    let (top_u, system_u, bottom_u) = render::print_row_metrics(score, &score_layout, &staff_gaps)?;
-    let required_u = top_u + system_u + bottom_u;
-    let minimum_mm = required_u
-        * if render::measured_print_active() {
-            PREFERRED_STAFF_SPACE_MM
-        } else {
-            MIN_STAFF_SPACE_MM
-        };
-    if measured_geometry.is_none() && min_system_height_mm < minimum_mm {
-        return Err(PrintRenderError::SystemTooShort {
-            height_mm: min_system_height_mm,
-            minimum_mm,
-        });
-    }
-    if let Some(geometry) = &measured_geometry {
-        for (system, row) in layout.pages.iter().flat_map(|p| &p.systems).zip(geometry) {
-            let minimum_mm = (row.top_u + row.system_u + row.bottom_u) * PREFERRED_STAFF_SPACE_MM;
-            if system.height_mm + 0.001 < minimum_mm {
-                return Err(PrintRenderError::SystemTooShort {
-                    height_mm: system.height_mm,
-                    minimum_mm,
-                });
-            }
+    let mut staff_gaps = render::required_lyric_staff_gaps(score, staff_gap);
+    for (gap, staff) in staff_gaps
+        .iter_mut()
+        .zip(score.parts.iter().flat_map(|part| &part.staves))
+    {
+        if staff
+            .measures
+            .iter()
+            .flat_map(|measure| &measure.voices)
+            .flatten()
+            .any(|note| !note.additional_lyrics.is_empty())
+        {
+            *gap = gap.max(MULTIVERSE_PRINT_STAFF_GAP);
         }
     }
-    let space_mm = if measured_geometry.is_some() {
-        PREFERRED_STAFF_SPACE_MM
-    } else {
-        (min_system_height_mm / required_u).min(PREFERRED_STAFF_SPACE_MM)
-    };
-    let space_px = space_mm * PX_PER_MM;
-    let options = SvgRenderOptions {
-        width: first.content_width_mm * PX_PER_MM,
-        staff_size: space_px,
-        measures_per_system: score_layout
-            .rows
+    let mut pass = 0;
+    let (full_svg, staff_offsets, row_tops_px, space_px) = loop {
+        let (top_u, system_u, bottom_u) =
+            render::print_row_metrics(score, &score_layout, &staff_gaps)?;
+        let required_u = top_u + system_u + bottom_u;
+        let minimum_mm = required_u
+            * if render::measured_print_active() {
+                PREFERRED_STAFF_SPACE_MM
+            } else {
+                MIN_STAFF_SPACE_MM
+            };
+        if measured_geometry.is_none() && min_system_height_mm < minimum_mm {
+            return Err(PrintRenderError::SystemTooShort {
+                height_mm: min_system_height_mm,
+                minimum_mm,
+            });
+        }
+        if let Some(geometry) = &measured_geometry {
+            for (system, row) in layout.pages.iter().flat_map(|p| &p.systems).zip(geometry) {
+                let minimum_mm =
+                    (row.top_u + row.system_u + row.bottom_u) * PREFERRED_STAFF_SPACE_MM;
+                if system.height_mm + 0.001 < minimum_mm {
+                    return Err(PrintRenderError::SystemTooShort {
+                        height_mm: system.height_mm,
+                        minimum_mm,
+                    });
+                }
+            }
+        }
+        let space_mm = if measured_geometry.is_some() {
+            PREFERRED_STAFF_SPACE_MM
+        } else {
+            (min_system_height_mm / required_u).min(PREFERRED_STAFF_SPACE_MM)
+        };
+        let space_px = space_mm * PX_PER_MM;
+        let options = SvgRenderOptions {
+            width: first.content_width_mm * PX_PER_MM,
+            staff_size: space_px,
+            measures_per_system: score_layout
+                .rows
+                .iter()
+                .map(|row| row.measure_indices.len())
+                .max()
+                .unwrap_or(1)
+                .max(1),
+            interactive: false,
+        };
+        let staff_offsets = render::print_staff_offsets(score, &staff_gaps);
+        let config = SvgRenderConfig::new(options)
+            .with_staff_gap(staff_gap)
+            .with_staff_gaps(staff_gaps.clone())
+            .with_measure_text_scale(3.0)
+            .with_glyph_source(glyphs.clone());
+        let row_tops_px = row_tops_mm
             .iter()
-            .map(|row| row.measure_indices.len())
-            .max()
-            .unwrap_or(1)
-            .max(1),
-        interactive: false,
-    };
-    let staff_offsets = render::print_staff_offsets(score, &staff_gaps);
-    let config = SvgRenderConfig::new(options)
-        .with_staff_gap(staff_gap)
-        .with_staff_gaps(staff_gaps)
-        .with_measure_text_scale(3.0)
-        .with_glyph_source(glyphs.clone());
-    let row_tops_px = row_tops_mm
-        .iter()
-        .enumerate()
-        .map(|(index, top)| {
-            top * PX_PER_MM
-                + measured_geometry
-                    .as_ref()
-                    .map_or(top_u, |rows| rows[index].top_u)
-                    * space_px
-        })
-        .collect::<Vec<_>>();
-    let mut row_width_factors =
-        print_row_width_factors(score, &score_layout.rows, first.content_width_mm, space_mm)?;
-    let mut row_left_offsets_px = vec![0.0; score_layout.rows.len()];
-    if let Some(insets) = system_insets_mm {
-        if insets.len() != score_layout.rows.len() {
+            .enumerate()
+            .map(|(index, top)| {
+                top * PX_PER_MM
+                    + measured_geometry
+                        .as_ref()
+                        .map_or(top_u, |rows| rows[index].top_u)
+                        * space_px
+            })
+            .collect::<Vec<_>>();
+        let mut row_width_factors =
+            print_row_width_factors(score, &score_layout.rows, first.content_width_mm, space_mm)?;
+        let mut row_left_offsets_px = vec![0.0; score_layout.rows.len()];
+        if let Some(insets) = system_insets_mm {
+            if insets.len() != score_layout.rows.len() {
+                return Err(RenderError::InvalidOptions {
+                    reason: "system inset count must match the number of systems".into(),
+                }
+                .into());
+            }
+            for ((factor, offset), inset) in row_width_factors
+                .iter_mut()
+                .zip(&mut row_left_offsets_px)
+                .zip(insets)
+            {
+                *factor = factor.min((first.content_width_mm - inset) / first.content_width_mm);
+                *offset = inset * PX_PER_MM;
+            }
+        }
+        let row_staff_gaps = measured_geometry
+            .as_ref()
+            .map(|rows| rows.iter().map(|r| r.gaps_u.clone()).collect::<Vec<_>>());
+        let row_lyric_baselines = measured_geometry.as_ref().map(|rows| {
+            rows.iter()
+                .map(|r| r.lyric_baselines_u.clone())
+                .collect::<Vec<_>>()
+        });
+        let placement = PrintRowPlacement {
+            row_tops_px: &row_tops_px,
+            row_width_factors: &row_width_factors,
+            row_left_offsets_px: &row_left_offsets_px,
+            canvas_height_px: offset_mm * PX_PER_MM,
+            row_staff_gaps_u: row_staff_gaps.as_deref(),
+            row_lyric_baselines_u: row_lyric_baselines.as_deref(),
+        };
+        let mut needed = staff_gaps.clone();
+        let (full_svg, _) = render::build_svg_with_metadata_placement(
+            score,
+            &score_layout,
+            &config,
+            Some(&placement),
+            if measured_geometry.is_none() {
+                Some(&mut needed)
+            } else {
+                None
+            },
+        )?;
+        if needed
+            .iter()
+            .zip(&staff_gaps)
+            .all(|(need, gap)| need - gap <= 0.01)
+        {
+            break (full_svg, staff_offsets, row_tops_px, space_px);
+        }
+        if pass >= 3 {
             return Err(RenderError::InvalidOptions {
-                reason: "system inset count must match the number of systems".into(),
+                reason: "resolved lyrics do not fit between adjacent staves".into(),
             }
             .into());
         }
-        for ((factor, offset), inset) in row_width_factors
-            .iter_mut()
-            .zip(&mut row_left_offsets_px)
-            .zip(insets)
-        {
-            *factor = factor.min((first.content_width_mm - inset) / first.content_width_mm);
-            *offset = inset * PX_PER_MM;
-        }
-    }
-    let row_staff_gaps = measured_geometry
-        .as_ref()
-        .map(|rows| rows.iter().map(|r| r.gaps_u.clone()).collect::<Vec<_>>());
-    let row_lyric_baselines = measured_geometry.as_ref().map(|rows| {
-        rows.iter()
-            .map(|r| r.lyric_baselines_u.clone())
-            .collect::<Vec<_>>()
-    });
-    let placement = PrintRowPlacement {
-        row_tops_px: &row_tops_px,
-        row_width_factors: &row_width_factors,
-        row_left_offsets_px: &row_left_offsets_px,
-        canvas_height_px: offset_mm * PX_PER_MM,
-        row_staff_gaps_u: row_staff_gaps.as_deref(),
-        row_lyric_baselines_u: row_lyric_baselines.as_deref(),
+        staff_gaps = needed;
+        pass += 1;
     };
-    let (full_svg, _) =
-        render::build_svg_with_metadata_placement(score, &score_layout, &config, Some(&placement))?;
     const BODY_PREFIX: &str = "<g class=\"acorde-score\">";
     let body = full_svg
         .split_once(BODY_PREFIX)
@@ -609,14 +637,16 @@ fn write_publication(
         // Keep the title inside the top print margin. The former 7.5 mm
         // baseline on a default A4 page placed most of its capitals only
         // 2.5 mm from the paper edge in the pinned Verovio comparison.
+        let second_line = has_movement_title
+            || (!page.publication.title.is_empty() && !page.publication.composer.is_empty());
         #[allow(unused_mut)] // Mutated by the optional measured-font path below.
         let mut title_y = (system.top_mm
-            - if has_movement_title { 6.5 } else { 5.0 }
+            - if second_line { 6.5 } else { 5.0 }
             - title_extra_mm
             - subtitle_extra_mm)
             * scale;
         #[allow(unused_mut)]
-        let mut credit_y = (system.top_mm - if has_movement_title { 0.5 } else { 5.0 }) * scale;
+        let mut credit_y = (system.top_mm - if second_line { 0.5 } else { 5.0 }) * scale;
         #[allow(unused_mut)]
         let mut movement_y = credit_y - subtitle_extra_mm * scale;
         #[cfg(feature = "font-metrics")]

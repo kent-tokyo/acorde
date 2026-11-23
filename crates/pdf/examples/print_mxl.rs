@@ -1,4 +1,4 @@
-//! `cargo run -p acorde-pdf --example print_mxl -- score.mxl font.ttf output.pdf [measures-per-system] [density|measured] [config.json]`
+//! `cargo run -p acorde-pdf --example print_mxl -- score.mxl font.ttf output.pdf [measures-per-system] [density|measured] [config.json | part-index turn-bpm minimum-ms]`
 //! Plain `.musicxml` input is also accepted for same-input engraving comparisons.
 //! An explicit configuration replaces the example's configuration, including paper size.
 
@@ -10,9 +10,9 @@ use acorde_render_svg::render_print_page_svgs;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = std::env::args().collect::<Vec<_>>();
-    if !(4..=7).contains(&args.len()) {
+    if !matches!(args.len(), 4..=7 | 9) {
         return Err(
-            "usage: print_mxl INPUT.{mxl,musicxml} FONT.ttf OUTPUT.pdf [measures-per-system] [density|measured] [config.json]"
+            "usage: print_mxl INPUT.{mxl,musicxml} FONT.ttf OUTPUT.pdf [measures-per-system] [density|measured] [config.json | part-index turn-bpm minimum-ms]"
                 .into(),
         );
     }
@@ -36,9 +36,34 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         config.system_break_strategy = PrintSystemBreakStrategy::NotationDensity;
     }
-    if let Some(path) = args.get(6) {
-        config = serde_json::from_slice(&std::fs::read(path)?)?;
+    if args.len() == 7 {
+        config = serde_json::from_slice(&std::fs::read(&args[6])?)?;
     }
+    let part_turns = if args.len() == 9 {
+        if args.get(5).is_some_and(|value| value == "measured") {
+            return Err("page-turn planning is not available with measured print".into());
+        }
+        let index = args[6].parse()?;
+        config.part_layout = acorde_layout::PartLayoutPolicy::ExtractedPart { part_index: index };
+        let turns = acorde_layout::plan_part_page_turns(
+            &import.score,
+            &config,
+            args[7].parse()?,
+            args[8].parse()?,
+        )?;
+        for turn in &turns.turns {
+            eprintln!(
+                "{} -> {}, {} ms available, sufficient: {}",
+                turn.from_measure + 1,
+                turn.to_measure + 1,
+                turn.silence_ms,
+                turn.sufficient
+            );
+        }
+        Some((import.score.extract_part_checked(index)?, turns.layout))
+    } else {
+        None
+    };
     let font = std::fs::read(&args[2])?;
     let (layout, pages) = if args.get(5).is_some_and(|value| value == "measured") {
         #[cfg(feature = "measured-print")]
@@ -53,6 +78,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         {
             return Err("enable the measured-print feature".into());
         }
+    } else if let Some((score, layout)) = part_turns {
+        let pages = render_print_page_svgs(&score, &layout)?;
+        (layout, pages)
     } else {
         let layout = compute_print_layout(&import.score, &config)?;
         let pages = render_print_page_svgs(&import.score, &layout)?;

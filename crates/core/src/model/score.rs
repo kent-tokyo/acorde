@@ -2722,7 +2722,7 @@ impl TieSourceLocation {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Note {
     pub id: String,
     pub is_rest: bool,

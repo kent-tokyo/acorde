@@ -317,6 +317,7 @@ pub(crate) fn resolve_lane_offsets(
     points: &HashMap<NoteKey, NotePoint>,
     beam_tips: &HashMap<NoteKey, f32>,
     staff_bottoms: &HashMap<(usize, usize, usize), f32>,
+    measure_lefts: &HashMap<(usize, usize), f32>,
     row_edges: &[(f32, f32)],
     space: f32,
     resolved_annotation_obstacles: &[GlyphPlacement],
@@ -347,6 +348,18 @@ pub(crate) fn resolve_lane_offsets(
         ) else {
             continue;
         };
+        let x2 = if matches!(span, SpanMark::Hairpin { .. }) && row1 == row2 {
+            crate::render::hairpin_note_end_x(
+                points,
+                measure_lefts,
+                end,
+                (x1, x2, row2),
+                row_edges.get(row2).map_or(x2, |edge| edge.1),
+                space,
+            )
+        } else {
+            x2
+        };
         let slur_side = matches!(span, SpanMark::Slur { .. })
             .then(|| slur_above(score, layout, points, start, end, up1, up2, span_index));
         let mut add_segment = |row: usize, left: f32, right: f32, anchor_y: f32, stem_up: bool| {
@@ -371,15 +384,20 @@ pub(crate) fn resolve_lane_offsets(
             };
             keys.push((span_index, row));
             original_y.push(baseline);
+            let half_height = if matches!(span, SpanMark::Hairpin { .. }) {
+                0.49 * space
+            } else {
+                0.4 * space
+            };
             owner.push(
                 GlyphPlacement {
                     resource_key: format!("span:{span_index}:{row}"),
                     metrics: GlyphMetrics {
                         advance_mm: 0.0,
                         left_mm: left.min(right),
-                        top_mm: -0.4 * space,
+                        top_mm: -half_height,
                         width_mm: (right - left).abs().max(0.1 * space),
-                        height_mm: 0.8 * space,
+                        height_mm: 2. * half_height,
                     },
                     x_mm: 0.0,
                     y_mm: baseline,

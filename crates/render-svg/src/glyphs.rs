@@ -1011,6 +1011,31 @@ fn dynamic_letter(letter: char) -> Option<(Strokes, f32)> {
     })
 }
 
+/// Bounding box of the same vector strokes used by dynamic_mark, including
+/// half of the stroke width. The control-point hull also bounds the curves.
+pub(crate) fn dynamic_extents(text: &str) -> Option<(f32, f32, f32, f32)> {
+    let mut advance = 0.0;
+    let (mut left, mut top, mut right, mut bottom) = (
+        f32::INFINITY,
+        f32::INFINITY,
+        f32::NEG_INFINITY,
+        f32::NEG_INFINITY,
+    );
+    for ch in text.chars() {
+        let (strokes, width) = dynamic_letter(ch)?;
+        for (_, points) in strokes {
+            for (x, y) in points {
+                left = left.min(advance + x - 0.1);
+                right = right.max(advance + x + 0.1);
+                top = top.min(y - 0.1);
+                bottom = bottom.max(y + 0.1);
+            }
+        }
+        advance += width;
+    }
+    (advance > 0.).then_some((left - advance / 2., top, right - left, bottom - top))
+}
+
 /// A dynamic mark (`p`, `mf`, `sfz`, …) drawn as bold slanted letter strokes centred on `cx`
 /// with its baseline at `baseline`, or `None` when it has a letter outside p, m, f, n, r, s, z.
 pub(crate) fn dynamic_mark(

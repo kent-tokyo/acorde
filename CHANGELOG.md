@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+- Add opt-in performer editions and rhythm engraving, with score replay and
+  melody-preservation checks for solo, duet, and chamber arrangements.
+- Plan extracted-part page turns using written silence and repeat visits; report
+  turns that do not meet the requested duration. `PrintLayoutError` gains the
+  `InvalidPageTurnTiming` variant.
+- Keep print lyrics, chords, dynamics, and titles clear of nearby notation in
+  the included regression fixtures. The performer listening comparison remains
+  unverified.
+- Apply size optimization to the `acorde-wasm` package in the default release
+  profile; hosted builds still enforce the separate WASM size budgets.
+
 ## 2.0.1 - 2026-11-23
 
 - **Rust compatibility:** `HarmonyGrooveStandardBassError` adds enum variants;
