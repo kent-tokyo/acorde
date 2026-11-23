@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 2.0.1 - 2026-11-23
+
 - Add opt-in performer editions and rhythm engraving, with score replay and
   melody-preservation checks for solo, duet, and chamber arrangements.
 - Plan extracted-part page turns using written silence and repeat visits; report
@@ -12,8 +14,6 @@
   unverified.
 - Apply size optimization to the `acorde-wasm` package in the default release
   profile; hosted builds still enforce the separate WASM size budgets.
-
-## 2.0.1 - 2026-11-23
 
 - **Rust compatibility:** `HarmonyGrooveStandardBassError` adds enum variants;
   exhaustive matches must be updated. See the [migration notes](docs/migrations.md#v201-standard-bass-screening-errors).

@@ -13,6 +13,9 @@ struct literals must still update for added variants and fields.
 Rust consumers using exhaustive matches must add arms for these variants.
 This is a source compatibility change in a patch release.
 
+`PrintLayoutError` also gains `InvalidPageTurnTiming`. Exhaustive Rust matches
+on that enum must handle the new variant.
+
 Arrangement replay configs include an engine version. Preset and layer configs
 created by 1.3.15 or 2.0.0 are rejected by 2.0.1; regenerate them from the original score
 and saved choices, and review the result. Do not edit version markers by hand.
