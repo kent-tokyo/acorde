@@ -49,14 +49,14 @@ rendering SVG.
 
 ```toml
 [dependencies]
-acorde = "=2.0.0"
-acorde-render-svg = "=2.0.0"
+acorde = "=2.0.1"
+acorde-render-svg = "=2.0.1"
 ```
 
 Default I/O features are MusicXML and MIDI. Enable optional formats explicitly:
 
 ```toml
-acorde = { version = "=2.0.0", features = ["abc", "mei", "mscz", "gp"] }
+acorde = { version = "=2.0.1", features = ["abc", "mei", "mscz", "gp"] }
 ```
 
 ```rust

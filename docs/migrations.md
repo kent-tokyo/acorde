@@ -6,6 +6,17 @@ This page lists changes that can require consumer action. Release history is in
 otherwise, so stored score JSON remains readable. Rust consumers that use exhaustive `match` or
 struct literals must still update for added variants and fields.
 
+## v2.0.1: standard-bass screening errors
+
+`HarmonyGrooveStandardBassError` gains `InvalidStaffSelection`,
+`UnsupportedPartControls`, `UnsupportedScoreEffect`, and `InvalidScore`.
+Rust consumers using exhaustive matches must add arms for these variants.
+This is a source compatibility change in a patch release.
+
+Arrangement replay configs include an engine version. Preset and layer configs
+created by 2.0.0 are rejected by 2.0.1; regenerate them from the original score
+and saved choices, and review the result. Do not edit version markers by hand.
+
 ## v2.0.0: score model and measured print
 
 This major release adds public fields to score-model types including `Note`,

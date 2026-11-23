@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## 2.0.1 - 2026-11-23
+
+- **Rust compatibility:** `HarmonyGrooveStandardBassError` adds enum variants;
+  exhaustive matches must be updated. See the [migration notes](docs/migrations.md#v201-standard-bass-screening-errors).
+- Versioned preset and layer replay configs from 2.0.0 require regeneration.
+- Support melody grace notes in harmony/groove proposals and response fills across measure boundaries (#472, #473).
+- Improve standard-bass notation and MuseScore chord symbol round trips (#477).
+- Screen standard-bass arrangements, preserve legacy accompaniment, and retain response spacing (#478).
+- Organize the documentation and index the detailed engraving evidence separately.
+
 ## 2.0.0 - 2026-11-22
 
 - Use documented size-oriented Cargo settings for CI WASM release builds and
