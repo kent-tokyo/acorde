@@ -43,12 +43,13 @@ New v1.3.6 preset configs use engine `1.3.6+arrangement-presets.2`. The engine
 marker changes with the workspace release; select the saved chords and preset
 again to create a v1.3.6 config before replaying a v1.3.5 result.
 
-New v1.3.15 preset configs use `1.3.15+arrangement-presets.3` and write
+New v2.0.1 preset configs use `2.0.1+arrangement-presets.3` and write
 standard-bass chords and bass on separate staves. The replay API also accepts
 `1.3.14+arrangement-presets.2` and keeps that config's two-staff layout.
 Reselect the saved chords and preset to adopt the new layout; update generated
-note addresses in the host. Earlier versioned configs require their own
-compatible engine or regeneration from the original source and selection.
+note addresses in the host. Configs from 1.3.15 and 2.0.0 require their own
+compatible engine or regeneration from the original source and selection; see
+the [migration notes](migrations.md#v201-standard-bass-screening-errors).
 Generated score and note IDs can differ between runs; note addresses, pitches,
 durations and musical timing are reproducible for a given accepted config.
 
@@ -236,11 +237,12 @@ combinations that do not have a built-in preset ID. The direct call accepts
 source and generated note addresses, and a versioned `resolved_config`.
 Save that config as JSON and pass it with the same source after re-parsing to
 `arrange_from_resolved_layers`. Its `v2:` fingerprint, contract version, and
-engine marker are validated before generation. New v1.3.15 configs use
-`1.3.15+arrangement-layers.2`. The replay API accepts
+engine marker are validated before generation. New v2.0.1 configs use
+`2.0.1+arrangement-layers.2`. The replay API accepts
 `1.3.14+arrangement-layers.1` and reproduces its two-staff layout. Reselect
 the saved free-layer options with the original source to adopt the new
-three-staff layout. See the [migration notes](migrations.md#v1315-standard-bass-accompaniment-staves).
+three-staff layout. Configs from 1.3.15 and 2.0.0 require regeneration; see
+the [migration notes](migrations.md#v201-standard-bass-screening-errors).
 Built-in preset configs continue to use `arrange_from_resolved_preset`; changing
 their options still returns `invalid-configuration`.
 

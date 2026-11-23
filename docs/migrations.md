@@ -14,7 +14,7 @@ Rust consumers using exhaustive matches must add arms for these variants.
 This is a source compatibility change in a patch release.
 
 Arrangement replay configs include an engine version. Preset and layer configs
-created by 2.0.0 are rejected by 2.0.1; regenerate them from the original score
+created by 1.3.15 or 2.0.0 are rejected by 2.0.1; regenerate them from the original score
 and saved choices, and review the result. Do not edit version markers by hand.
 
 ## v2.0.0: score model and measured print
@@ -40,6 +40,8 @@ Arrangement replay contracts that derive their engine marker from the crate
 version may reject previously saved configurations. Regenerate those configs
 from their source and options and review the output; do not edit their version
 markers by hand. The minimum supported Rust version remains 1.89.
+The transcription workspace is an experimental repository example; it does
+not add an audio-transcription API to the published crates.
 
 ## v1.3.15: standard-bass accompaniment staves
 

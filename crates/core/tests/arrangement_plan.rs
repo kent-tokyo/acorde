@@ -294,6 +294,18 @@ fn replay_is_versioned_source_checked_and_uuid_independent() {
     let score = melody(8);
     let arranged = arrange_accordion_plan(&score, options());
     let config = arranged.resolved_config.unwrap();
+    assert_eq!(
+        config.engine_version,
+        format!("{}+arrangement-plan.1", env!("CARGO_PKG_VERSION"))
+    );
+    let mut previous = config.clone();
+    for version in ["1.3.15", "2.0.0"] {
+        previous.engine_version = format!("{version}+arrangement-plan.1");
+        assert_eq!(
+            arrange_from_resolved_plan(&score, previous.clone()).diagnostics[0].code,
+            "unsupported-version"
+        );
+    }
     let saved = serde_json::to_string(&config).unwrap();
     let mut reparsed = score.clone();
     reparsed.id = uuid::Uuid::new_v4().to_string();

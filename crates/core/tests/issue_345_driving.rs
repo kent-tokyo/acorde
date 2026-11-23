@@ -199,13 +199,39 @@ fn presets_layers_and_seeded_shuffle_replay_the_same_music() {
         ),
     ] {
         let a = arrange_accordion_preset(&score, selection.clone(), id);
-        let replay = arrange_from_resolved_preset(&score, a.resolved_config.unwrap());
+        let config = a.resolved_config.unwrap();
+        assert_eq!(
+            config.engine_version,
+            format!("{}+arrangement-presets.3", env!("CARGO_PKG_VERSION"))
+        );
+        let mut previous = config.clone();
+        for version in ["1.3.15", "2.0.0"] {
+            previous.engine_version = format!("{version}+arrangement-presets.3");
+            assert_eq!(
+                arrange_from_resolved_preset(&score, previous.clone()).diagnostics[0].code,
+                "unsupported-version"
+            );
+        }
+        let replay = arrange_from_resolved_preset(&score, config);
         assert_eq!(events(&a.score.unwrap()), events(&replay.score.unwrap()));
         let mut opts = options(&selection, pattern);
         opts.melodic_voice = AccordionMelodicVoice::OctaveBelow;
         let layer = arrange_accordion_layers(&score, opts);
         assert!(layer.diagnostics.is_empty(), "{:?}", layer.diagnostics);
-        let replay = arrange_from_resolved_layers(&score, layer.resolved_config.unwrap());
+        let config = layer.resolved_config.unwrap();
+        assert_eq!(
+            config.engine_version,
+            format!("{}+arrangement-layers.2", env!("CARGO_PKG_VERSION"))
+        );
+        let mut previous = config.clone();
+        for version in ["1.3.15", "2.0.0"] {
+            previous.engine_version = format!("{version}+arrangement-layers.2");
+            assert_eq!(
+                arrange_from_resolved_layers(&score, previous.clone()).diagnostics[0].code,
+                "unsupported-version"
+            );
+        }
+        let replay = arrange_from_resolved_layers(&score, config);
         assert_eq!(
             events(&layer.score.unwrap()),
             events(&replay.score.unwrap())
