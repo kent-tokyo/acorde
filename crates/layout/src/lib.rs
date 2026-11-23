@@ -3,12 +3,14 @@
 //! accidentals, and span (hairpin/ottava/pedal/slur) resolution for score renderers (e.g. VexFlow).
 
 mod engine;
+mod page_turns;
 mod spacing;
 pub use spacing::{
     BreakConstraint, MeasuredSpacing, MeasuredSystem, SpacingError, allocate_measured_widths,
     break_measured_systems,
 };
 mod print;
+pub use page_turns::{PartPageTurn, PartPageTurnPlan, plan_part_page_turns};
 
 pub use acorde_core::NoteAddr;
 pub use engine::{

@@ -629,7 +629,7 @@ pub(crate) fn build_svg_with_metadata_config(
     layout: &LayoutResult,
     config: &SvgRenderConfig,
 ) -> Result<(String, RenderMetadata), RenderError> {
-    build_svg_with_metadata_placement(score, layout, config, None)
+    build_svg_with_metadata_placement(score, layout, config, None, None)
 }
 
 pub(crate) fn build_svg_with_metadata_placement(
@@ -637,6 +637,7 @@ pub(crate) fn build_svg_with_metadata_placement(
     layout: &LayoutResult,
     config: &SvgRenderConfig,
     print_placement: Option<&PrintRowPlacement<'_>>,
+    mut lyric_space_after: Option<&mut [f32]>,
 ) -> Result<(String, RenderMetadata), RenderError> {
     let options: &SvgRenderOptions = config;
     // Spans authored only as typed spanners are drawn from their endpoint notes' flags.
@@ -1381,7 +1382,7 @@ pub(crate) fn build_svg_with_metadata_placement(
                         &cross_frames,
                         space,
                         if print_placement.is_some() {
-                            print_lyric_font_size_u()
+                            print_lyric_font_size_u().max(12.0 / space)
                         } else {
                             LYRIC_FONT_SIZE_U
                         },
@@ -1398,6 +1399,11 @@ pub(crate) fn build_svg_with_metadata_placement(
                         upper_lyric_baselines.get(&(pi, si, row_idx)).copied(),
                         &lyric_baselines,
                         &upper_lyric_baselines,
+                        if print_placement.is_some() {
+                            1.35
+                        } else {
+                            annotation_font_size_u()
+                        },
                         options.interactive,
                         &mandatory,
                         &courtesy,
@@ -1408,6 +1414,22 @@ pub(crate) fn build_svg_with_metadata_placement(
                         shared_alignment,
                         &ottava_shifts,
                     )?;
+                    if let Some(gap) = lyric_space_after
+                        .as_deref_mut()
+                        .and_then(|g| g.get_mut(si_idx))
+                        && let Some(text) = deferred_texts.last()
+                    {
+                        // Collision resolution can move a syllable below its nominal verse line.
+                        for lyric in text
+                            .semantic_placements
+                            .iter()
+                            .filter(|p| p.resource_key.starts_with("lyric:"))
+                        {
+                            let bottom =
+                                lyric.y_mm + lyric.metrics.top_mm + lyric.metrics.height_mm;
+                            *gap = gap.max((bottom - bottom_y) / space + 0.5);
+                        }
+                    }
                     deferred_texts
                         .last_mut()
                         .expect("each measure queues its text")
@@ -3251,7 +3273,13 @@ fn note_vertical_margins(note: &Note, clef_bottom: i32, voice_stem_up: bool) -> 
 fn note_placement_offsets_u(note: &Note) -> (f32, f32) {
     (
         ((note.offset_x.unwrap_or(0.0) + note.relative_x.unwrap_or(0.0)) as f32) / 10.0,
-        ((note.offset_y.unwrap_or(0.0) + note.relative_y.unwrap_or(0.0)) as f32) / 10.0,
+        ((note.offset_y.unwrap_or(0.0)
+            + if note.is_rest {
+                -note.relative_y.unwrap_or(0.0)
+            } else {
+                note.relative_y.unwrap_or(0.0)
+            }) as f32)
+            / 10.0,
     )
 }
 
@@ -4710,6 +4738,7 @@ fn render_measure(
     lyric_above_baseline_y: Option<f32>,
     lyric_baselines: &HashMap<(usize, usize, usize), f32>,
     upper_lyric_baselines: &HashMap<(usize, usize, usize), f32>,
+    chord_size_u: f32,
     interactive: bool,
     mandatory: &HashMap<AccKey, i8>,
     courtesy: &HashMap<AccKey, i8>,
@@ -5017,6 +5046,8 @@ fn render_measure(
         space,
         lyric_font_size_u,
         lyric_char_width_u,
+        chord_size_u,
+        beam_tip_points,
         annotations::Kinds::ALL,
         annotations::StaffBand {
             top_y: bottom_y
@@ -8421,7 +8452,7 @@ fn measure_text_class(style: acorde_core::TextStyle) -> &'static str {
 /// A hairpin lasts to the end of its end note. When it starts and ends at one onset (a wedge
 /// under a single held note, or into a note another voice holds), draw it to the next onset on
 /// that staff row or to the end of the end note's measure instead of as a zero-length tick.
-fn hairpin_note_end_x(
+pub(crate) fn hairpin_note_end_x(
     points: &HashMap<NoteKey, NotePoint>,
     measure_lefts: &HashMap<(usize, usize), f32>,
     end: &acorde_core::NoteAddr,
@@ -8470,6 +8501,7 @@ fn render_all_spans(
         points,
         beam_tip_points,
         staff_bottoms,
+        measure_lefts,
         row_edges,
         space,
         resolved_annotation_obstacles,
@@ -12252,7 +12284,7 @@ pub(crate) fn write_annotation_text(
     space: f32,
     italic: bool,
 ) {
-    write_annotation_text_with_lyric_size(
+    write_annotation_text_sized(
         body,
         class,
         value,
@@ -12260,12 +12292,16 @@ pub(crate) fn write_annotation_text(
         y,
         space,
         italic,
-        LYRIC_FONT_SIZE_U,
+        if class.starts_with("acorde-lyric") {
+            LYRIC_FONT_SIZE_U
+        } else {
+            annotation_font_size_u()
+        },
     );
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn write_annotation_text_with_lyric_size(
+pub(crate) fn write_annotation_text_sized(
     body: &mut String,
     class: &str,
     value: &str,
@@ -12273,14 +12309,9 @@ pub(crate) fn write_annotation_text_with_lyric_size(
     y: f32,
     space: f32,
     italic: bool,
-    lyric_font_size_u: f32,
+    font_size: f32,
 ) {
     let style = if italic { " font-style=\"italic\"" } else { "" };
-    let font_size = if class.starts_with("acorde-lyric") {
-        lyric_font_size_u
-    } else {
-        annotation_font_size_u()
-    };
     let _ = write!(
         body,
         r#"<text class="{}" x="{}" y="{}" text-anchor="middle" font-family="serif" font-size="{}"{}>{}</text>"#,
@@ -13037,9 +13068,14 @@ mod tests {
             row_lyric_baselines_u: None,
         };
         let config = crate::SvgRenderConfig::new(crate::SvgRenderOptions::default());
-        let (svg, _) =
-            super::build_svg_with_metadata_placement(&score, &layout, &config, Some(&placement))
-                .unwrap();
+        let (svg, _) = super::build_svg_with_metadata_placement(
+            &score,
+            &layout,
+            &config,
+            Some(&placement),
+            None,
+        )
+        .unwrap();
         let doc = roxmltree::Document::parse(&svg).unwrap();
         let staff_lines = doc
             .descendants()

@@ -9,9 +9,7 @@ use acorde_layout::{GlyphCollisionClass, GlyphCollisionDirection, GlyphMetrics, 
 use crate::RenderError;
 use crate::SVG_ANNOTATION_COLLISION_GAP_PX;
 use crate::collision::CollisionOwner;
-use crate::render::{
-    NoteKey, NotePoint, render_articulation, write_annotation_text_with_lyric_size,
-};
+use crate::render::{NoteKey, NotePoint, render_articulation, write_annotation_text_sized};
 
 #[derive(Clone, Copy)]
 pub(crate) struct Kinds {
@@ -80,6 +78,8 @@ pub(crate) fn render_measure_semantic_annotations(
     space: f32,
     lyric_font_size_u: f32,
     lyric_char_width_u: f32,
+    chord_size_u: f32,
+    stem_tips: &HashMap<NoteKey, f32>,
     kinds: Kinds,
     band: StaffBand,
     cross_bands: &HashMap<usize, StaffBand>,
@@ -123,6 +123,30 @@ pub(crate) fn render_measure_semantic_annotations(
             } else {
                 (anchor_y - 0.5 * space, anchor_y + stem_reach)
             };
+            // The actual stem tip includes the far chord member and any beam slope.
+            // The anchor is the lowest head for an up-stem and highest for a down-stem.
+            let mut top = note_top;
+            let mut bottom = note_bottom;
+            if let Some(tip) = stem_tips.get(&(part, staff, measure_idx, voice_idx, note_idx)) {
+                top = top.min(*tip);
+                bottom = bottom.max(*tip);
+            } else if note.pitches.len() > 1 && note.tab_positions.is_empty() {
+                let mut positions = note
+                    .pitches
+                    .iter()
+                    .map(|p| crate::geometry::staff_position(&p.step, p.octave, 0));
+                if let Some(first) = positions.next() {
+                    let (low, high) =
+                        positions.fold((first, first), |(l, h), p| (l.min(p), h.max(p)));
+                    let extent = (high - low) as f32 * 0.5 * space;
+                    if stem_up {
+                        top = top.min(anchor_y - extent - 0.5 * space);
+                    } else {
+                        bottom = bottom.max(anchor_y + extent + 0.5 * space);
+                    }
+                }
+            }
+            let (note_top, note_bottom) = (top, bottom);
             if kinds.dynamics_and_chords {
                 for (class, text, above, priority) in [
                     (
@@ -158,7 +182,17 @@ pub(crate) fn render_measure_semantic_annotations(
                         x,
                         italic: true,
                     });
+                    let size = if class == "acorde-chord-symbol" {
+                        chord_size_u
+                    } else {
+                        crate::render::annotation_font_size_u()
+                    };
                     let width = crate::render::annotation_text_width_u(&text) * space + 0.6 * space;
+                    let (left, top, width, height) = (class == "acorde-dynamic")
+                        .then(|| crate::glyphs::dynamic_extents(&text))
+                        .flatten()
+                        .map(|(l, t, w, h)| (l * space, t * space, w * space, h * space))
+                        .unwrap_or((-width / 2.0, -size * space, width, 1.25 * size * space));
                     owner.push(
                         GlyphPlacement {
                             resource_key: format!(
@@ -166,10 +200,10 @@ pub(crate) fn render_measure_semantic_annotations(
                             ),
                             metrics: GlyphMetrics {
                                 advance_mm: 0.0,
-                                left_mm: -width / 2.0,
-                                top_mm: -crate::render::annotation_font_size_u() * space,
+                                left_mm: left,
+                                top_mm: top,
                                 width_mm: width,
-                                height_mm: 1.25 * crate::render::annotation_font_size_u() * space,
+                                height_mm: height,
                             },
                             x_mm: x,
                             y_mm: y,
@@ -448,7 +482,7 @@ pub(crate) fn render_measure_semantic_annotations(
                     .flatten();
                 match drawn {
                     Some(svg) => body.push_str(&svg),
-                    None => write_annotation_text_with_lyric_size(
+                    None => write_annotation_text_sized(
                         body,
                         class,
                         &text,
@@ -456,7 +490,13 @@ pub(crate) fn render_measure_semantic_annotations(
                         placement.y_mm,
                         space,
                         italic,
-                        lyric_font_size_u,
+                        if class.starts_with("acorde-lyric") {
+                            lyric_font_size_u
+                        } else if class == "acorde-chord-symbol" {
+                            chord_size_u
+                        } else {
+                            crate::render::ANNOTATION_FONT_SIZE_U
+                        },
                     ),
                 }
                 if crate::render::measured_print_active() {

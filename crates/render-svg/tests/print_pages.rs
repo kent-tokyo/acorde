@@ -65,6 +65,53 @@ fn system_barlines(svg: &str, system_index: usize) -> Vec<f32> {
 }
 
 #[test]
+fn chord_lyric_and_dynamic_clear_their_neighboring_ink() {
+    let score = acorde_io::parse_musicxml(include_str!(
+        "../../../tests/fixtures/arrangement/editions/annotation-clearance.musicxml"
+    ))
+    .unwrap();
+    let layout = compute_print_layout(&score, &PrintConfig::default()).unwrap();
+    let pages = render_print_page_svgs(&score, &layout).unwrap();
+    let svg = &pages[0];
+    let element = |class: &str| {
+        svg.split_once(&format!("class=\"acorde-{class}\""))
+            .unwrap()
+            .1
+            .split('>')
+            .next()
+            .unwrap()
+    };
+    let mut stems = svg.split("class=\"acorde-stem\"").skip(1);
+    let upper = svg_attribute_f32(stems.next().unwrap(), "y2");
+    let lower = svg_attribute_f32(stems.next().unwrap(), "y2");
+    let chord = element("chord-symbol");
+    let lyric = element("lyric");
+    assert!(svg_attribute_f32(chord, "y") + 0.25 * svg_attribute_f32(chord, "font-size") < upper);
+    assert!(svg_attribute_f32(lyric, "y") - svg_attribute_f32(lyric, "font-size") > lower);
+
+    let path_y_bounds = |path: &str| {
+        let data = path
+            .split_once("d=\"")
+            .unwrap()
+            .1
+            .split('"')
+            .next()
+            .unwrap();
+        data.split_whitespace()
+            .filter_map(|pair| pair.split_once(','))
+            .map(|(_, y)| y.parse::<f32>().unwrap())
+            .fold((f32::INFINITY, f32::NEG_INFINITY), |(low, high), y| {
+                (low.min(y), high.max(y))
+            })
+    };
+    let forte = element("dynamic-letter");
+    let wedge = element("hairpin");
+    let forte_bottom = path_y_bounds(forte).1 + 0.5 * svg_attribute_f32(forte, "stroke-width");
+    let wedge_top = path_y_bounds(wedge).0 - 0.5 * svg_attribute_f32(wedge, "stroke-width");
+    assert!(forte_bottom < wedge_top);
+}
+
+#[test]
 fn print_page_keeps_verovio_reference_beam_stems_and_slur_side() {
     let score =
         acorde_io::parse_musicxml(include_str!("fixtures/verovio_partial_stem_slur.musicxml"))
@@ -939,6 +986,79 @@ fn cut_time_change_inside_system_reserves_a_meter_column() {
 }
 
 #[test]
+fn part_page_turn_keeps_the_tie_and_first_ending_on_both_pages() {
+    use acorde_core::{Barline, Duration, Note, Pitch, VoltaBracket};
+    use acorde_layout::{PrintPreset, plan_part_page_turns};
+    let mut score = Score::new("Part with first and second endings", 96, 4, 4, 0, 4);
+    let bars = &mut score.parts[0].staves[0].measures;
+    for bar in bars.iter_mut() {
+        bar.voices[0] = vec![Note::new(Pitch::from_midi(62, false), Duration::Whole)];
+    }
+    bars[0].barline_left = Barline::RepeatStart;
+    bars[1].volta = Some(VoltaBracket {
+        number: 1,
+        kind: "begin".into(),
+        numbers: vec![],
+    });
+    bars[1].voices[0][0].tie_start = true;
+    bars[1].page_break = true;
+    bars[2].voices[0][0].tie_end = true;
+    bars[2].volta = Some(VoltaBracket {
+        number: 1,
+        kind: "end".into(),
+        numbers: vec![],
+    });
+    bars[2].barline_right = Barline::RepeatEnd;
+    bars[3].volta = Some(VoltaBracket {
+        number: 2,
+        kind: "begin_end".into(),
+        numbers: vec![],
+    });
+    let config = PrintPreset::A4Part { part_index: 0 }.config();
+    let plan = plan_part_page_turns(&score, &config, 96, 1200).unwrap();
+    let pages = render_print_page_svgs(&score, &plan.layout).unwrap();
+    assert_eq!(pages.len(), 2);
+    for (from, to) in [(1, 2), (2, 0)] {
+        assert!(
+            plan.turns
+                .iter()
+                .any(|t| t.from_measure == from && t.to_measure == to && !t.sufficient)
+        );
+    }
+    for page in &pages {
+        assert_eq!(page.matches("class=\"acorde-tie\"").count(), 1);
+        assert!(page.contains("class=\"acorde-volta\""));
+        assert!(page.contains("class=\"acorde-repeat-dots\""));
+    }
+    assert!(pages[0].contains(">1.</text>"));
+    assert!(pages[1].contains(">2.</text>"));
+    assert!(!pages[1].contains(">1.</text>"));
+}
+
+#[test]
+fn long_composer_credit_clears_the_work_title_without_a_movement_title() {
+    let score = acorde_io::parse_mxl(include_bytes!(
+        "../../../tests/fixtures/openscore_lieder_aloha_oe.mxl"
+    ))
+    .unwrap();
+    let layout = compute_print_layout(&score, &PrintConfig::default()).unwrap();
+    let pages = render_print_page_svgs(&score, &layout).unwrap();
+    let opening = &pages[0];
+    let title = opening
+        .split_once("class=\"acorde-print-title\"")
+        .unwrap()
+        .1;
+    let composer = opening
+        .split_once("class=\"acorde-print-composer\"")
+        .unwrap()
+        .1;
+    assert!(
+        svg_attribute_f32(title, "y")
+            < svg_attribute_f32(composer, "y") - svg_attribute_f32(composer, "font-size")
+    );
+}
+
+#[test]
 fn print_page_retains_quilter_publication_credits() {
     let fixture = concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -1375,6 +1495,26 @@ fn five_staff_lyrics_keep_conservative_density_with_eight_measure_cap() {
     let pages = render_print_page_svgs(&score, &layout).unwrap();
     assert!(pages.iter().any(|page| page.contains("solo</text>")));
     assert!(pages.len() <= 3);
+    for page in &pages {
+        let staff_lines: Vec<_> = page
+            .split("class=\"acorde-staff-line\"")
+            .skip(1)
+            .map(|line| svg_attribute_f32(line, "y1"))
+            .collect();
+        for class in ["acorde-lyric", "acorde-lyric-verse"] {
+            for element in page.split(&format!("class=\"{class}\"")).skip(1) {
+                let y = svg_attribute_f32(element, "y");
+                let size = svg_attribute_f32(element, "font-size");
+                assert!(size >= 12.0, "five-staff lyrics below 3 mm: {size}");
+                assert!(
+                    staff_lines
+                        .iter()
+                        .all(|line| *line < y - size || *line > y + size * 0.25),
+                    "lyric at {y} crosses a staff line"
+                );
+            }
+        }
+    }
     assert_eq!(
         pages
             .iter()
