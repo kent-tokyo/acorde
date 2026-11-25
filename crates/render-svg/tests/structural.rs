@@ -6882,7 +6882,7 @@ fn abc_first_note_clears_the_previous_barline() {
     assert_eq!(measures.len(), 6);
     for measure in measures.iter().filter(|node| {
         let index: usize = node.attribute("data-measure").unwrap().parse().unwrap();
-        index % 4 != 0
+        !index.is_multiple_of(4)
     }) {
         let head = measure
             .descendants()
