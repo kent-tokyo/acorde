@@ -1391,11 +1391,7 @@ pub(crate) fn build_svg_with_metadata_placement(
                         } else {
                             LYRIC_CHAR_WIDTH_U
                         },
-                        print_placement
-                            .and_then(|p| p.row_lyric_baselines_u)
-                            .and_then(|rows| rows.get(row_idx))
-                            .and_then(|staffs| staffs.get(si_idx))
-                            .map(|offset| bottom_y + offset * space),
+                        lyric_baselines.get(&(pi, si, row_idx)).copied(),
                         upper_lyric_baselines.get(&(pi, si, row_idx)).copied(),
                         &lyric_baselines,
                         &upper_lyric_baselines,
@@ -4559,7 +4555,7 @@ fn opening_accidental_lead(
                     .fold(0.0_f32, f32::max)
             })
         })
-        .fold(MEASURE_PAD_U, f32::max)
+        .fold(glyphs::NOTEHEAD_RX_U + 0.9, f32::max)
 }
 
 /// Coordinate a simple grand-staff bar when opening accidentals require different leads.
