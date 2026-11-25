@@ -1,3 +1,5 @@
+mod voice_grouping;
+
 use crate::{Diagnostic, DiagnosticSeverity, Error, MAX_ABC_LINE_BYTES, MAX_INPUT_BYTES};
 /// Parse ABC notation (.abc) into a Score.
 ///
@@ -10,6 +12,7 @@ use crate::{Diagnostic, DiagnosticSeverity, Error, MAX_ABC_LINE_BYTES, MAX_INPUT
 ///   - Rests: z (normal rest), Z (whole-measure rest)
 ///   - Bar lines: |, ||, |:, :|, ::
 ///   - Chords: [CEG] simultaneous notes
+///   - Voice grouping: %%score / %%staves (braces, brackets, voices and barlines)
 ///   - Comments: % to end of line
 ///
 /// Reference: <https://abcnotation.com/wiki/abc:standard:v2.1>
@@ -168,6 +171,12 @@ pub fn loss_diagnostics(text: &str) -> Vec<Diagnostic> {
 }
 
 pub fn parse_abc(text: &str) -> Result<Score, Error> {
+    parse_abc_with_grouping_diagnostics(text).map(|(score, _)| score)
+}
+
+pub(super) fn parse_abc_with_grouping_diagnostics(
+    text: &str,
+) -> Result<(Score, Vec<Diagnostic>), Error> {
     if text.len() > MAX_INPUT_BYTES {
         return Err(Error::TooLarge(text.len()));
     }
@@ -199,6 +208,8 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
     let mut pending_slur_start = false;
     let mut grace_group_active = false;
     let mut voice_ids: Vec<String> = Vec::new();
+    let mut grouping = None;
+    let mut grouping_diagnostics = Vec::new();
     let mut part_states = vec![AbcPartParseState::new(score.settings.key_signature.clone())];
 
     for (line_idx, raw_line) in text.lines().enumerate() {
@@ -206,6 +217,40 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
             return Err(Error::Abc(format!("input exceeds {MAX_LINES} lines")));
         }
 
+        if raw_line.len() > MAX_ABC_LINE_BYTES {
+            return Err(Error::Abc(format!(
+                "line exceeds {MAX_ABC_LINE_BYTES} bytes"
+            )));
+        }
+        let trimmed = raw_line.trim();
+        match voice_grouping::parse(trimmed) {
+            Ok(Some(directive)) if in_header && grouping.is_none() => {
+                grouping = Some((directive, line_idx + 1, trimmed.to_string()));
+                continue;
+            }
+            Ok(Some(_)) => {
+                let mut diagnostic = Diagnostic::warning(
+                    "abc.unsupported-voice-grouping",
+                    "repeated or body voice grouping cannot be represented for the whole score",
+                );
+                diagnostic.source_location = Some(format!("/line/{}/directive", line_idx + 1));
+                diagnostic.preserved_value = Some(trimmed.to_string());
+                if grouping_diagnostics.len() < MAX_DIAGNOSTICS {
+                    grouping_diagnostics.push(diagnostic);
+                }
+                continue;
+            }
+            Err(reason) => {
+                let mut diagnostic = Diagnostic::warning("abc.invalid-voice-grouping", reason);
+                diagnostic.source_location = Some(format!("/line/{}/directive", line_idx + 1));
+                diagnostic.preserved_value = Some(trimmed.to_string());
+                if grouping_diagnostics.len() < MAX_DIAGNOSTICS {
+                    grouping_diagnostics.push(diagnostic);
+                }
+                continue;
+            }
+            Ok(None) => {}
+        }
         let line = if let Some(p) = raw_line.find('%') {
             &raw_line[..p]
         } else {
@@ -387,7 +432,25 @@ pub fn parse_abc(text: &str) -> Result<Score, Error> {
         }
     }
 
-    Ok(score)
+    if let Some((directive, line, source)) = grouping {
+        let result = directive
+            .flatten()
+            .and_then(|group| voice_grouping::apply(&mut score, &voice_ids, &group));
+        let reasons = match result {
+            Ok(reasons) => reasons,
+            Err(reason) => vec![reason.to_string()],
+        };
+        for reason in reasons
+            .into_iter()
+            .take(MAX_DIAGNOSTICS.saturating_sub(grouping_diagnostics.len()))
+        {
+            let mut diagnostic = Diagnostic::warning("abc.voice-grouping-loss", reason);
+            diagnostic.source_location = Some(format!("/line/{line}/directive"));
+            diagnostic.preserved_value = Some(source.clone());
+            grouping_diagnostics.push(diagnostic);
+        }
+    }
+    Ok((score, grouping_diagnostics))
 }
 
 /// ABC marks the start of an ending with `[1`, `[2`, etc. Its end is implicit
