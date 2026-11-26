@@ -17,7 +17,7 @@ categories = ["parser-implementations", "multimedia::encoding"]
 default = ["musicxml", "midi"]
 musicxml = ["dep:quick-xml", "dep:zip", "dep:flate2"]
 midi = ["dep:midly"]
-abc = []
+abc = ["dep:serde_json"]
 # Humdrum **kern import (subset).
 humdrum = []
 # Plaine & Easie (RISM incipit) import (subset).
@@ -31,6 +31,7 @@ gp = ["dep:quick-xml", "dep:zip", "dep:flate2"]
 acorde-core = { path = "../core", version = "2.0.1" }
 serde = { version = "1", features = ["derive"] }
 thiserror = "2"
+serde_json = { version = "1", optional = true }
 
 quick-xml = { version = "0.41", optional = true }
 zip       = { version = "9.1.0", optional = true, default-features = false, features = ["deflate-flate2"] }

@@ -180,12 +180,17 @@ pub use abc::{parse_abc, serialize_abc};
 
 #[cfg(feature = "abc")]
 pub fn parse_abc_with_report(text: &str) -> Result<ImportReport, Error> {
-    let score = parse_abc(text)?;
+    let (score, mut diagnostics) = abc::parse_abc_with_grouping_diagnostics(text)?;
+    diagnostics.extend(
+        abc::loss_diagnostics(text)
+            .into_iter()
+            .take(1024_usize.saturating_sub(diagnostics.len())),
+    );
     Ok(ImportReport {
         schema_version: REPORT_SCHEMA_VERSION,
         format: "abc".to_string(),
         score,
-        diagnostics: abc::loss_diagnostics(text),
+        diagnostics,
     })
 }
 

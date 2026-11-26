@@ -6925,3 +6925,21 @@ fn abc_long_lyrics_keep_one_baseline_with_nearby_dynamics() {
         "{positions:?}"
     );
 }
+
+#[test]
+fn abc_voice_groups_render_brace_bracket_and_shared_staff() {
+    let piano = acorde_io::parse_abc(
+        "X:1\nM:4/4\nL:1/1\n%%score {RH LH}\nK:C\nV:RH\n[CEG]|\nV:LH clef=bass\nC,|\n",
+    )
+    .unwrap();
+    let svg = render_svg(&piano, &opts()).unwrap();
+    assert_eq!(svg.matches("acorde-staff-brace").count(), 1);
+    let choir = acorde_io::parse_abc(
+        "X:1\nM:4/4\nL:1/1\n%%score [(S A) T B]\nK:C\nV:S\nC|\nV:A\nD|\nV:T\nE|\nV:B\nF|\n",
+    )
+    .unwrap();
+    let svg = render_svg(&choir, &opts()).unwrap();
+    assert_eq!(svg.matches("acorde-part-bracket").count(), 1);
+    assert_eq!(choir.parts[0].staves[0].measures[0].voices[1].len(), 1);
+    assert_well_formed_xml(&svg);
+}
