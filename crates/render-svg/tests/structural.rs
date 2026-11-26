@@ -6840,3 +6840,88 @@ fn issue_296_slur_stays_above_an_upper_voice_with_or_without_stems_and_beams() {
         }
     }
 }
+
+#[test]
+fn abc_lyrics_share_the_same_baseline_across_measures() {
+    let score = acorde_io::parse_abc(
+        "X:1\nM:4/4\nL:1/4\nK:C\nC C C D | E2 D2 |]\nw: Au clair de la lu-ne,\n",
+    )
+    .unwrap();
+    let svg = render_svg(&score, &SvgRenderOptions::default()).unwrap();
+    let document = roxmltree::Document::parse(&svg).unwrap();
+    let positions: Vec<f32> = document
+        .descendants()
+        .filter(|node| node.attribute("class") == Some("acorde-lyric"))
+        .map(|node| node.attribute("y").unwrap().parse().unwrap())
+        .collect();
+    assert_eq!(positions.len(), 6);
+    assert!(
+        positions.iter().all(|y| (*y - positions[0]).abs() < 0.02),
+        "{positions:?}"
+    );
+}
+
+#[test]
+fn abc_first_note_clears_the_previous_barline() {
+    let score = acorde_io::parse_abc(
+        "X:1\nM:3/4\nL:1/4\nK:F\n|: F A c | f2 e |[1 d c B | A3 :|[2 d e f | f3 |]\n",
+    )
+    .unwrap();
+    let options = SvgRenderOptions {
+        width: 700.0,
+        staff_size: 9.0,
+        measures_per_system: 4,
+        interactive: true,
+    };
+    let svg = render_svg(&score, &options).unwrap();
+    let document = roxmltree::Document::parse(&svg).unwrap();
+    let measures: Vec<_> = document
+        .descendants()
+        .filter(|n| n.attribute("data-acorde-kind") == Some("measure"))
+        .collect();
+    assert_eq!(measures.len(), 6);
+    for measure in measures.iter().filter(|node| {
+        let index: usize = node.attribute("data-measure").unwrap().parse().unwrap();
+        !index.is_multiple_of(4)
+    }) {
+        let head = measure
+            .descendants()
+            .find(|n| n.attribute("class") == Some("acorde-notehead"))
+            .unwrap();
+        let x: f32 = head.attribute("cx").unwrap().parse().unwrap();
+        let rx: f32 = head.attribute("rx").unwrap().parse().unwrap();
+        let hit = measure
+            .descendants()
+            .find(|n| n.attribute("data-acorde-kind") == Some("measure-hit-region"))
+            .unwrap();
+        let left: f32 = hit.attribute("x").unwrap().parse().unwrap();
+        assert!(
+            (x - rx - left) / options.staff_size >= 0.88,
+            "gap={}",
+            (x - rx - left) / options.staff_size
+        );
+    }
+}
+
+#[test]
+fn abc_long_lyrics_keep_one_baseline_with_nearby_dynamics() {
+    let score = acorde_io::parse_abc("X:1\nM:4/4\nL:1/4\nK:C\n!p!C D E F | G A B c |]\nw: alpha beta gamma delta epsilon zeta eta theta\n").unwrap();
+    let options = SvgRenderOptions {
+        width: 500.0,
+        staff_size: 9.0,
+        measures_per_system: 4,
+        interactive: true,
+    };
+    let svg = render_svg(&score, &options).unwrap();
+    let document = roxmltree::Document::parse(&svg).unwrap();
+    let positions: Vec<f32> = document
+        .descendants()
+        .filter(|node| node.attribute("class") == Some("acorde-lyric"))
+        .map(|node| node.attribute("y").unwrap().parse().unwrap())
+        .collect();
+    assert_eq!(positions.len(), 8);
+    assert!(
+        positions.iter().all(|y| (*y - positions[0]).abs() < 0.02),
+        "{positions:?}"
+    );
+}

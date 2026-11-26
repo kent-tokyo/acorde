@@ -1374,6 +1374,7 @@ pub(crate) fn build_svg_with_metadata_placement(
                         si,
                         measure_idx,
                         row_idx,
+                        col > 0,
                         clef,
                         mx,
                         bottom_y,
@@ -1391,11 +1392,7 @@ pub(crate) fn build_svg_with_metadata_placement(
                         } else {
                             LYRIC_CHAR_WIDTH_U
                         },
-                        print_placement
-                            .and_then(|p| p.row_lyric_baselines_u)
-                            .and_then(|rows| rows.get(row_idx))
-                            .and_then(|staffs| staffs.get(si_idx))
-                            .map(|offset| bottom_y + offset * space),
+                        lyric_baselines.get(&(pi, si, row_idx)).copied(),
                         upper_lyric_baselines.get(&(pi, si, row_idx)).copied(),
                         &lyric_baselines,
                         &upper_lyric_baselines,
@@ -4725,6 +4722,7 @@ fn render_measure(
     staff: usize,
     measure_idx: usize,
     row_idx: usize,
+    follows_barline: bool,
     clef: &Clef,
     x: f32,
     bottom_y: f32,
@@ -4848,7 +4846,12 @@ fn render_measure(
         })
         .map(|lyric| lyric.text.chars().count() as f32 * LYRIC_CHAR_WIDTH_U / 2.0 + 0.3)
         .fold(0.0_f32, f32::max);
-    let lead_u = lead_u.max(lyric_lead_u)
+    let barline_lead_u = if follows_barline || repeat_lead_u > 0.0 {
+        glyphs::NOTEHEAD_RX_U + 0.9
+    } else {
+        MEASURE_PAD_U
+    };
+    let lead_u = lead_u.max(barline_lead_u).max(lyric_lead_u)
         + clef_lead_u
         + repeat_lead_u
         + arpeggio_lead_u
