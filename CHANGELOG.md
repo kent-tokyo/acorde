@@ -7,6 +7,13 @@
   `analyze-local-keys --method path`. On a new frozen 16-work When in Rome
   holdout it does not reach music21 (2,548 versus 2,576 exact labels); the
   window method stays the default (#501).
+- Space measured print systems from the ink skylines of neighboring systems
+  instead of each system's tallest ink. Systems stay at least 7 staff spaces
+  apart, and a system that ends a page keeps its full reservation. On 18
+  OpenScore scores at four measures per system, pages fall from 248 to 234
+  (Verovio: 156), with no new text collisions (#498).
+- In measured print, place a hairpin 1.5 staff spaces from noteheads whose
+  stems point away from it, instead of 4 (#498).
 
 ## 2.0.1 - 2026-11-23
 

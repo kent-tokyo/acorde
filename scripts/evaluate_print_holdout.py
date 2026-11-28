@@ -59,7 +59,7 @@ def main():
                 raise ValueError(f"prepared input changed: {source}")
             row.update(source=str(source), shared_input_sha256=sha(source),
                        measures_per_system=8, acorde_print_strategy="measured", verovio_version="6.4.1")
-            row["source_marks"] = c.expected_marks(source)
+            row["source_marks"] = c.expected_marks(c.source_root(source))
             try:
                 report = json.loads(c.run(audit_cli, "report", source).stdout)
                 expected, actual = xml_events(c.source_root(source)), score_events(report["score"])
