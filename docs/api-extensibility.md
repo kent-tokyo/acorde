@@ -25,9 +25,8 @@ regenerate. The command is in the script's docstring.
 
 ## Summary at 2.0.1
 
-The `experimental-candidate` tier marks the `acorde-core` arrangement modules proposed for a separate
-stability tier in #497. If that tier is adopted, those types follow its rules instead of this
-page's, and the stable surface to review shrinks to the `stable` rows.
+The `experimental-candidate` tier marks the `acorde-core` arrangement modules that move to the
+experimental tier below. Only the `stable` rows need the review before 3.0.
 
 | Tier | Kind | Decision | Count |
 | --- | --- | --- | ---: |
@@ -50,10 +49,27 @@ These structs need the most care. They have the most public fields, and consumer
 | `acorde_core::model::fragment::ScoreFragmentMeasureAttributes` | 27 | `Default` or constructor |
 | `acorde_layout::print::PublicationConfig` | 17 | `Default` or constructor |
 
+## Experimental arrangement tier (#497)
+
+Decided 2026-11-28: the arrangement modules go behind a cargo feature, `unstable-arrangement`, on
+`acorde-core` and on the crates that re-export them (`acorde-wasm`, `acorde-cli`, `acorde`). They
+are not split into a separate crate. The modules are the ones matched by
+`ARRANGEMENT_MODULE_PREFIXES` in the inventory script, the rows tagged `experimental-candidate`.
+
+- Moving existing items behind a feature breaks code that uses them today, so the move happens in
+  3.0 with a `docs/migrations.md` entry. Until then, the modules stay in the stable surface.
+- From 3.0, items behind `unstable-arrangement` carry no SemVer promise. Minor releases may change
+  them, and the changelog notes each change.
+- The CI SemVer job then checks the stable surface only. It runs without `--all-features` and
+  enables every feature except `unstable-arrangement`.
+- Experimental rows do not need the review below. They may still use `#[non_exhaustive]` where it
+  helps.
+
 ## Before 3.0
 
 - Review the 297 stable `non-exhaustive+constructor` rows. Mark the ones only the library returns,
   and add constructors or `Default` for the rest.
-- Settle #497 so the experimental rows are either moved out of the stable surface or reviewed here.
+- Gate the experimental modules and their re-exports behind `unstable-arrangement`, and switch the
+  SemVer job to the stable feature set.
 - Apply the attribute in one change, with a `docs/migrations.md` entry: struct literals become
   constructor or `Default` calls, and `match` on non-closed enums needs a wildcard arm.
