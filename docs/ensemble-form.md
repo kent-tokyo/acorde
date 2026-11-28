@@ -42,7 +42,7 @@ The original 16-bar development fixture in
 `tests/fixtures/arrangement/form_development_v2.rs` demonstrates a quiet opening,
 offbeat contrast, arpeggiated return, metered closing phrase and quiet release.
 It is shared by native, I/O and browser contract tests. See
-[outcomes 0–6](arrangement-development-v2.md) for the full goal and evidence gaps.
+[outcomes 0–6](development/arrangement-development-v2.md) for the full goal and evidence gaps.
 Contract 1 applies the same treatment to every playback visit of a written
 bar. The separate visit-specific API below can change a later visit.
 

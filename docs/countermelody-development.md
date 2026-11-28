@@ -36,6 +36,6 @@ all five distinct transformations each. The two other works have no accepted
 countermelody base and are not counted as coverage. This proves structural
 diversity and export fidelity, not counterpoint quality or instrument
 playability. Phrase-join voice leading, independent inner voices and listener
-review remain in [the development plan](arrangement-development-v2.md).
+review remain in [the development plan](development/arrangement-development-v2.md).
 For written section activity and dynamics alongside harmony and bass, use
 [ensemble form development](ensemble-form-development.md).

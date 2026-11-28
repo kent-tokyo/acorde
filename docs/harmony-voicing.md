@@ -12,7 +12,7 @@ spelled accompaniment notes with source-bound replay. The development branch
 also provides [anticipated comping](harmony-comping.md) and
 [three-profile selection](harmony-groove-proposals.md). Listening acceptance and
 the completed validation gates remain required by stage 3 of the
-[implementation plan](arrangement-harmony-groove-plan.md).
+[implementation plan](development/arrangement-harmony-groove-plan.md).
 
 The root policies are `include`, `automatic` and `omit`. Automatic omission
 requires a supplied root bass below the effective accompaniment floor, sustained for

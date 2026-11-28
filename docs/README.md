@@ -40,9 +40,10 @@ reproducible checks and their boundaries. Keep the changelog for releases, migra
 consumer actions, and evidence files for measurements. A local check does not establish browser,
 audio, publication, or external-format compatibility on its own.
 
-The [arrangement development](arrangement-development-v2.md),
-[harmony/groove plan](arrangement-harmony-groove-plan.md), and
-[arrangement and engraving plan](arrangement-and-engraving-next.md) (Japanese, based on `main`
-as of 2026-11-20) are dated development records. [Scripts](../scripts/README.md) lists the
+The [arrangement development](development/arrangement-development-v2.md),
+[harmony/groove plan](development/arrangement-harmony-groove-plan.md), and
+[arrangement and engraving plan](development/arrangement-and-engraving-next.md) (Japanese, based on `main`
+as of 2026-11-20) are dated development records, listed with their dates in
+[development records](development/README.md). [Scripts](../scripts/README.md) lists the
 CI, build, and evidence scripts by purpose.
 Use the linked API contracts above for current behavior and the roadmap for remaining work.

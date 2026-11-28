@@ -32,7 +32,7 @@ The development corpus contains twelve independently authored 16–32-bar
 sources. Mechanical tests require five distinct forms for every source and
 preserve source playback, validity and replay. MusicXML/MSCZ tests cover the
 16-bar fixture. Instrument-specific playback and blinded listening review
-remain required by [the development plan](arrangement-development-v2.md).
+remain required by [the development plan](development/arrangement-development-v2.md).
 
 To regenerate the pinned development listening pack, run:
 

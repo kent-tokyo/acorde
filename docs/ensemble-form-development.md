@@ -47,6 +47,6 @@ enter on the same pitch. A contrasting F-major return needs two semitones;
 a one-semitone bound rejects it at measure 8. This is a concrete register
 constraint, not a listener judgment. Independent inner voices, repeated-visit
 joins and performer review remain in
-[the development plan](arrangement-development-v2.md).
+[the development plan](development/arrangement-development-v2.md).
 For automatic comparison of form profiles and rhythmic treatments, use
 [developed form proposals](developed-form-proposals.md).
