@@ -115,3 +115,30 @@ documents a corrected whole-measure-rest fermata hold in default playback.
 ## Explicit shared-unison playback and rest pedal controls
 
 [Full record](archive/playback-corpus-and-controls.md#explicit-shared-unison-playback-and-rest-pedal-controls).
+
+## Roadmap measurement notes (moved 2026-11-28)
+
+These paragraphs were moved verbatim from the [roadmap](../ROADMAP.md) so that it can list
+only current status, next steps, and completion conditions. They are dated observations.
+
+The [eight-score 1.9.0 observation in PR #401](https://github.com/kent-tokyo/acorde/pull/401)
+uses the same scores, soundfont, sample rate and channel count. Its timing
+reference comes from Acorde. The independent written-onset audit in
+[PR #407](https://github.com/kent-tokyo/acorde/pull/407) covers four source
+scores: Acorde matched 1,536/1,536 pitch/beat attacks and alphaTab 1.9.0
+matched 1,093/1,536; the 443 differences are split-bar timing in one score.
+The audit also corrects a whole-measure-rest fermata hold. The
+[written note-span follow-up](archive/playback-alpha19-source-onsets.md)
+checks source-derived note ends for the same scores. After excluding ambiguous
+same-pitch overlaps and expressive markings, Acorde matches 838/838 written
+ends, and alphaTab matches 597/623 onset-matched written ends; all 26
+differences are in the split-bar score. Expand the source
+oracle beyond these simple forms. The
+[local-pedal follow-up](archive/playback-alpha19-local-pedal.md) narrows
+pedal release caveats to written active intervals and propagates chord-wide
+articulations: Acorde matches 824/824 strict written ends and alphaTab
+586/612 under the revised eligibility rule. These totals cannot be compared
+as a trend with the preceding rule. A
+[lined-pedal repair](archive/playback-lined-pedal-controls.md) keeps
+MusicXML offsets, barline releases and the Webern fixture's `resume` in
+offline playback and MusicXML roundtrips.

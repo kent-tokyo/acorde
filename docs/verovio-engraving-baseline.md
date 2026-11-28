@@ -167,3 +167,27 @@ fixtures, with four defects fixed and the open observations listed.
 ### Inter-staff wedge and high lower-staff notes
 
 [Full record](archive/verovio-baseline-beams-and-wedges.md#inter-staff-wedge-and-high-lower-staff-notes).
+
+## Roadmap measurement notes (moved 2026-11-28)
+
+These paragraphs were moved verbatim from the [roadmap](../ROADMAP.md) so that it can list
+only current status, next steps, and completion conditions. They are dated observations.
+
+The [ten-score 6.3.0 corpus](archive/print-corpus-verovio.md) and
+[6.4.1 rerun](archive/print-corpus-verovio-6-4-1.md) measure the same
+licensed inputs on A4. In the 6.4.1 screening, Acorde uses 18 pages and 57
+systems versus Verovio's 16 pages and 40 systems; Acorde's smallest measured
+staff space was 1.29 mm versus Verovio's 1.8 mm. A
+[staff-size follow-up](archive/print-staff-size-verovio-6-4-1.md) improves
+seven scores without changing the 18 pages or 57 systems; Acorde's smallest
+measured staff space was 1.50 mm. An
+[opt-in eight-measure density run](archive/print-density-ensemble-verovio-6-4-1.md)
+uses 18 pages and 54 systems, with a smallest staff space of 1.65 mm; OMR 1036
+reaches Verovio's two pages, four systems and 1.8 mm staff space. The public
+four-measure default is unchanged. A
+[direction-text follow-up](archive/print-direction-text-verovio-6-4-1.md)
+preserves two real-score `other-dynamics` prose directions in SVG and PDF,
+and corrects the comparison's empty-hairpin count. A
+[lyric legibility follow-up](archive/print-lyric-legibility-verovio-6-4-1.md)
+raises measured lyrics on four scores to 3.08–3.42 mm without adding pages,
+but Verovio still measures 4.05 mm and two Acorde staff spaces shrink slightly.
