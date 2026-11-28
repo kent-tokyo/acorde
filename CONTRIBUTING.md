@@ -55,6 +55,9 @@ policy; see [the extensibility plan](docs/api-extensibility.md#experimental-arra
 Before a release, `python3 -B scripts/check_release_consistency.py` must report that the
 workspace version, internal dependency versions, `docs/scorecard.json`, the newest `CHANGELOG.md`
 release heading, and the `ROADMAP.md` baseline agree. CI and the publish workflow run it.
+After tagging, record the release print benchmark against Verovio with
+`scripts/bench_release_print.py` on the same host as earlier runs (see
+[performance checks](docs/performance.md#release-print-comparison-with-verovio)).
 
 ## Small, reviewable changes
 
