@@ -55,10 +55,10 @@ enforce those research procedures; the manifest and per-score reports must
 document them.
 
 The local-key scorer below has common annotated measure positions; source-beat
-transitions remain unsupported. Cadence still needs a pinned music21 recipe,
-source-position mapping, and a label-level adapter. The voice-leading quartet
-comparator now fixes the same four source notes for both tools, but it has no
-independently labeled precision/recall adapter. The harmony adapter below
+transitions remain unsupported. Cadence now has a pinned music21 recipe and a label-level adapter (below). The voice-leading quartet
+comparator now fixes the same four source notes for both tools, and consecutive
+fifths and octaves have a label-level adapter against an independent list
+(below). The harmony adapter below
 covers only BCMH's source-annotated onsets in a previously used development
 corpus. New untouched holdouts must fix eligibility without using either
 system's analysis prediction.
@@ -190,6 +190,14 @@ music21's 1,934 on 2,903 paired-available positions, and wins two of twelve
 works versus music21's seven. Source-beat-level local keys remain a separate
 capability gap. Retain this failure when assessing music analysis overall.
 
+A second attempt (#501) added an opt-in key-path method,
+`analyze-local-keys --method path`, tuned on 48 inspected development works.
+A new [16-work holdout](archive/analysis-wir-local-key-holdout-2-v1.md),
+frozen before its annotations were fetched, also fails: 2,548 versus
+music21's 2,576 exact labels on 3,495 paired positions. Acorde leads on the
+Beethoven quartets but trails on Bach, Mozart and the songs. The window
+method stays the default.
+
 ## Mozart cadence inputs awaiting a scoring contract
 
 The [Batik cadence selection](archive/analysis-mozart-cadence-selection-v1.json)
@@ -222,6 +230,13 @@ and score false positives over the same eligible positions. Pin the music21
 cadence recipe, its version, and the candidate binary before touching the
 reserved labels. Parser acceptance alone does not validate note alignment.
 
+A [paired cadence comparison](archive/analysis-mozart-cadence-comparison-v1.md)
+(#502) now pins a music21 10.5.2 recipe that mirrors Acorde's dominant-tonic
+rule. Both tools feed this evaluator. On the 18 reserved movements, scored
+once after the protocol was frozen, Acorde has precision 0.508, recall 0.070
+and F1 0.122. The music21 recipe has 0.629, 0.102 and 0.176. Both detect
+authentic cadences only.
+
 ## Voice-leading quartet development comparison
 
 `acorde analyze-voice-leading` and the opt-in Rust/WASM API emit the four
@@ -233,7 +248,15 @@ selected MusicXML fixtures, all five flags agree for six quartets, including a
 cross-bar nonadjacent pair, an antiparallel fifth, and parallel octaves.
 
 This checks rule semantics on chosen cases. It does not estimate correctness,
-precision, recall, or coverage on unseen music. For a scored task, freeze
+precision, recall, or coverage on unseen music.
+
+A [labeled comparison](archive/analysis-voice-leading-comparison-v1.md) (#502)
+scores Acorde's parallel-fifth and parallel-octave flags and music21's
+`figuredBass.checker` against Luke Dahn's published list for 41 Bach
+chorales. On the 20 held-out chorales, run once after the protocol was frozen,
+both tools cover 9 of 24 labels (recall 0.375, F1 0.340). Most misses come
+from measure numbering that differs between Dahn's edition and the corpus
+files, not from the detectors. For a scored task, freeze
 independently annotated works and eligible note quartets before running either
 analyzer, retain every zero-prediction case, and report per-rule and per-work
 false positives and missed labels. Keep written-pitch, ties, chords, malformed

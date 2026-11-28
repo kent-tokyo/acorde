@@ -1,0 +1,166 @@
+{
+  "schema_version": 1,
+  "source": "https://github.com/MarkGotham/When-in-Rome",
+  "commit": "1c61fe41b8c2910296d7d2bcbf6476c7c1f2fe35",
+  "seed": "acorde-wir-local-key-holdout-v2-20261128",
+  "split": "local-key label holdout v2",
+  "selected_on": "2026-11-28",
+  "tree_listing_sha256": "ed5c63c29c8fce85af79914a71cd77da8e90317495fe81637c58572b7a18b26f",
+  "selection": "Ascending SHA-256(seed, group, work) among complete score.mxl/analysis.txt pairs, four per group: Beethoven string quartet movements from distinct quartets, Bach keyboard works, Mozart piano sonata movements from distinct sonatas, and OpenScore Lieder songs by distinct composers from distinct collections. Every work of the earlier When in Rome selections is excluded, and for quartets, sonatas and songs every parent collection too. Selection reads only the pinned Git tree listing.",
+  "musical_input": "score.mxl with MusicXML harmony elements removed; no analysis_on_score.mxl or analysis_automatic.rntxt",
+  "gold": "analysis.txt, unopened until the candidate, music21 baseline and scorer are frozen",
+  "candidate": "estimate_local_key_path_with_aarden_essen_profile (analyze-local-keys --method path)",
+  "stop_rule": "Score once. Do not tune against these labels. If they inform any algorithm change, reclassify all sixteen works as development and freeze a new disjoint holdout.",
+  "prior_selection_sha256": {
+    "analysis-wir-harmony-holdout-selection-v1.json": "1532d3e006eaee6179b9a968210a787fcf7ba173d58ef428bffa70ecca7135dd",
+    "analysis-wir-harmony-holdout-2-selection-v1.json": "0f4db2819434e685feb4946ce00ece39e0480bdc47f2eedfeb3d283aad5eec57",
+    "analysis-wir-harmony-holdout-3-selection-v1.json": "632530392285406739393f9ee4c4e3cf8b9e0815491d937961f9c9864dec82bd",
+    "analysis-wir-local-key-holdout-selection-v1.json": "34600765003781aa38da20eb93454535e0429181f0f88419237dcd958c96b002"
+  },
+  "works": [
+    {
+      "group": "quartet",
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op131/5",
+      "selection_rank": "0c648e6d52545843c0bb03829e7053119eb1af8b0e80147fb258ae424710f056",
+      "score_path": "Corpus/Quartets/Beethoven,_Ludwig_van/Op131/5/score.mxl",
+      "score_git_blob": "169f53fc354689910cdbd983864059bfaf90ab69",
+      "gold_path": "Corpus/Quartets/Beethoven,_Ludwig_van/Op131/5/analysis.txt",
+      "gold_git_blob": "0ac36cedf7389af41cef7b766f427ba69398e337"
+    },
+    {
+      "group": "quartet",
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op095/2",
+      "selection_rank": "0e9b3cbfadce42a44bf80425d7576ffe7f6089e9358668c98da54ed26327374d",
+      "score_path": "Corpus/Quartets/Beethoven,_Ludwig_van/Op095/2/score.mxl",
+      "score_git_blob": "3beff1df68f87e0262c7ed6383166d6d68c61c54",
+      "gold_path": "Corpus/Quartets/Beethoven,_Ludwig_van/Op095/2/analysis.txt",
+      "gold_git_blob": "8fd99c0e1b1ac28d2b0b2c81b653e35466cad0ab"
+    },
+    {
+      "group": "quartet",
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op132/4",
+      "selection_rank": "10c8b74fa39c95eb5acff5e260f9a73a91f634077688976dc735d9445abf6161",
+      "score_path": "Corpus/Quartets/Beethoven,_Ludwig_van/Op132/4/score.mxl",
+      "score_git_blob": "6d8ec65cc42635f19ce65233c38e72d75ce8c562",
+      "gold_path": "Corpus/Quartets/Beethoven,_Ludwig_van/Op132/4/analysis.txt",
+      "gold_git_blob": "41992879944061a17543fd9c0ce65dbc64826319"
+    },
+    {
+      "group": "quartet",
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op074/2",
+      "selection_rank": "1d8ddb6199a8c38e11c9bf0e0190fbf9a83513d242eb5e49d0e3c7b8b42efeb1",
+      "score_path": "Corpus/Quartets/Beethoven,_Ludwig_van/Op074/2/score.mxl",
+      "score_git_blob": "a78c603b2ee58ee3613193bd7914d170e045fbc3",
+      "gold_path": "Corpus/Quartets/Beethoven,_Ludwig_van/Op074/2/analysis.txt",
+      "gold_git_blob": "b52a5af266ddf29e267feac5d77405808f76072e"
+    },
+    {
+      "group": "keyboard",
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/15",
+      "selection_rank": "5e7df1217663ccde5334ff5eefa003e0e2b1583406c7cb5a4a5f393107ac1fb2",
+      "score_path": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/15/score.mxl",
+      "score_git_blob": "fd9d023ab3017fe1d428cf2fe51e87fb7d8832a3",
+      "gold_path": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/15/analysis.txt",
+      "gold_git_blob": "4fbfc7ed39f4b3185bd2f838ab4f1091e9826f1e"
+    },
+    {
+      "group": "keyboard",
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/17",
+      "selection_rank": "745be569f4f4eba32090cd7c06c7afc027a6fcd4826759aab4e02b0fcb8ea129",
+      "score_path": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/17/score.mxl",
+      "score_git_blob": "7e1a631ef1bbee902e69cfddde13fa29b5bd1303",
+      "gold_path": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/17/analysis.txt",
+      "gold_git_blob": "897a43b7cee36f5bc89006073e9c330c3940ef99"
+    },
+    {
+      "group": "keyboard",
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/24",
+      "selection_rank": "7e0df5997067576aaf0ebbe7c13bf54a31cb8d13dbd3f58c8096bbdd8b74d759",
+      "score_path": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/24/score.mxl",
+      "score_git_blob": "42916baff3160d9b78f04c05b9d3491c67352820",
+      "gold_path": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/24/analysis.txt",
+      "gold_git_blob": "bb7895d9dab745d9f0bda22bdfba276f00e8e0df"
+    },
+    {
+      "group": "keyboard",
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/20",
+      "selection_rank": "81b4f47cd0eeb0b92d949ab002e579d44be0c3090fa7335853aa2e6e115bb5ab",
+      "score_path": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/20/score.mxl",
+      "score_git_blob": "252560525cdeae97a0c66b5ea1a544214c73ff07",
+      "gold_path": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/20/analysis.txt",
+      "gold_git_blob": "682c7c21bd4fe7dc971a1f7587145ed4c604fb99"
+    },
+    {
+      "group": "sonata",
+      "work": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K281/1",
+      "selection_rank": "13f0a610da6960a8463dc46dcc4d86a48a4ffd40da4a4c681b688540e21626b0",
+      "score_path": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K281/1/score.mxl",
+      "score_git_blob": "d2fb45df9e335654419e362f103fef9d336d4137",
+      "gold_path": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K281/1/analysis.txt",
+      "gold_git_blob": "bc26b2efd97f528849072c538a63e632d8833f5e"
+    },
+    {
+      "group": "sonata",
+      "work": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K332/2",
+      "selection_rank": "1bfa7e9e40f10a5d4309142dfdc8b1cfcbbe91dd849e1e2600d70071a1b001d3",
+      "score_path": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K332/2/score.mxl",
+      "score_git_blob": "de0a9302942d4c5e0e089bf988f9d082c5d4bd0a",
+      "gold_path": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K332/2/analysis.txt",
+      "gold_git_blob": "c2abbfa2df330f6bbc5ea2563d376f692bdee991"
+    },
+    {
+      "group": "sonata",
+      "work": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K284/3",
+      "selection_rank": "22f8faf7c9294e9e78e2d3843845a2d19b9c24e3972b2dad52841332c5f99a8d",
+      "score_path": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K284/3/score.mxl",
+      "score_git_blob": "928a041b84acf4970d0800d5cc7a9a8384b0a870",
+      "gold_path": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K284/3/analysis.txt",
+      "gold_git_blob": "17a1a19de7d1dede6293734eb4c8237332dd0578"
+    },
+    {
+      "group": "sonata",
+      "work": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K283/2",
+      "selection_rank": "2cecf13b91b3552af5ad804ee8fa79772cb55d74eae046230fe03cea914d4cd3",
+      "score_path": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K283/2/score.mxl",
+      "score_git_blob": "89a241cbc9bf85a943a47173cb53e292e3c1dd1d",
+      "gold_path": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K283/2/analysis.txt",
+      "gold_git_blob": "9a90fbe720d4e754744f7253184220a3afb5ec92"
+    },
+    {
+      "group": "song",
+      "work": "Corpus/OpenScore-LiederCorpus/Schubert,_Franz/Winterreise,_D.911/14_Der_greise_Kopf",
+      "selection_rank": "00027e63519f989f67e5a9f542ab0014acb9d18607a2e89bf367b6a20b37bb2c",
+      "score_path": "Corpus/OpenScore-LiederCorpus/Schubert,_Franz/Winterreise,_D.911/14_Der_greise_Kopf/score.mxl",
+      "score_git_blob": "040a9f3cf1a54fea73aa8deb67f92bd5d6f43ece",
+      "gold_path": "Corpus/OpenScore-LiederCorpus/Schubert,_Franz/Winterreise,_D.911/14_Der_greise_Kopf/analysis.txt",
+      "gold_git_blob": "5c5aeab091222774e10d5b6465690526220598f2"
+    },
+    {
+      "group": "song",
+      "work": "Corpus/OpenScore-LiederCorpus/Mayer,_Emilie/3_Lieder,_Op.7/1_Du_bist_wie_eine_Blume",
+      "selection_rank": "0cdc9712434f0948aee596255eac69f7c735ccac7cae246db2063daf319f2c63",
+      "score_path": "Corpus/OpenScore-LiederCorpus/Mayer,_Emilie/3_Lieder,_Op.7/1_Du_bist_wie_eine_Blume/score.mxl",
+      "score_git_blob": "654746440a2a65c58889410082c3f9220526766b",
+      "gold_path": "Corpus/OpenScore-LiederCorpus/Mayer,_Emilie/3_Lieder,_Op.7/1_Du_bist_wie_eine_Blume/analysis.txt",
+      "gold_git_blob": "0d09b2a7cfe506d76f94cdd35a089878aff121c1"
+    },
+    {
+      "group": "song",
+      "work": "Corpus/OpenScore-LiederCorpus/Wolf,_Hugo/Eichendorff-Lieder/15_Unfall",
+      "selection_rank": "10b71729d2dba52ff25549dc2d68fb2b17f7e6bc596e46978586e7b3e3143909",
+      "score_path": "Corpus/OpenScore-LiederCorpus/Wolf,_Hugo/Eichendorff-Lieder/15_Unfall/score.mxl",
+      "score_git_blob": "3b3e80ae116b35de41cd0d801f4b145840c10bed",
+      "gold_path": "Corpus/OpenScore-LiederCorpus/Wolf,_Hugo/Eichendorff-Lieder/15_Unfall/analysis.txt",
+      "gold_git_blob": "213d69cd470516df5b691c136e78ad918ec7a108"
+    },
+    {
+      "group": "song",
+      "work": "Corpus/OpenScore-LiederCorpus/Coleridge-Taylor,_Samuel/_/Oh,_the_Summer",
+      "selection_rank": "1cfae3dc38a9b136dd72ec5815f5bb66000c6ac93956d05bad2dcd0608cc32f0",
+      "score_path": "Corpus/OpenScore-LiederCorpus/Coleridge-Taylor,_Samuel/_/Oh,_the_Summer/score.mxl",
+      "score_git_blob": "de72255e2a69dd42dc5201f855849341294b921c",
+      "gold_path": "Corpus/OpenScore-LiederCorpus/Coleridge-Taylor,_Samuel/_/Oh,_the_Summer/analysis.txt",
+      "gold_git_blob": "c09ff7a89e8488f4e9ac3945c0ddbb9ba45c8d0b"
+    }
+  ]
+}

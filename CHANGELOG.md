@@ -17,6 +17,21 @@
   and tonic degrees, and a report of what was met. A `ternary` form writes A-B-A′ over 24 bars:
   a contrasting B section and an A′ that restates A's first phrase and ornaments its
   consequent. See [melody composition](docs/melody-composition.md).
+- Score Acorde's parallel fifth/octave flags and music21's figured-bass
+  checker against Luke Dahn's list of consecutives in 41 Bach chorales. On the
+  20 held-out chorales, run once, both cover 9 of 24 labels; most misses are
+  measure-numbering offsets between the list and the corpus files (#502).
+
+- Compare Acorde's cadence candidates with a pinned music21 10.5.2 recipe at
+  the same Mozart onsets, through the common label evaluator. On the 18
+  reserved movements, scored once, Acorde has F1 0.122 and the music21 recipe
+  0.176; both find authentic cadences only (#502).
+
+- Add an opt-in key-path local-key estimator,
+  `estimate_local_key_path_with_aarden_essen_profile` and
+  `analyze-local-keys --method path`. On a new frozen 16-work When in Rome
+  holdout it does not reach music21 (2,548 versus 2,576 exact labels); the
+  window method stays the default (#501).
 - Space measured print systems from the ink skylines of neighboring systems
   instead of each system's tallest ink. Systems stay at least 7 staff spaces
   apart, and a system that ends a page keeps its full reservation. On 18

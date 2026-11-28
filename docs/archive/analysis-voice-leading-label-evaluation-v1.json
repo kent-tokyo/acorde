@@ -1,0 +1,2709 @@
+{
+  "schema_version": 1,
+  "system_profiles": {
+    "acorde": {
+      "version": "1d4d17373f4c5dbb200f19d711e97dbdc70f0c51cf3a10b6492357b36b47b1cd",
+      "command": "acorde analyze-voice-leading INPUT",
+      "options": {}
+    },
+    "music21": {
+      "version": "10.5.2",
+      "command": "music21-figuredBass-checker-v1",
+      "options": {}
+    }
+  },
+  "provenance": {
+    "tasks": [
+      "consecutive_fifth",
+      "consecutive_octave"
+    ],
+    "reports_sha256": {
+      "development": "36ad0f5f77feaee4d84fea727ed6fa06dcde533ccfffa6f99bce58c45b5c069e",
+      "holdout": "363b32060160304a02ccef4222ad003b5ca02bd2ff59b1c28accd95baf8ec75d"
+    },
+    "position_encoding": "part = upper voice, voice = lower voice (S=0 A=1 T=2 B=3), measure = label's first listed measure number, beat 0",
+    "precision_note": "Gold lists are not exhaustive; extras are unlisted detections, so precision is a lower bound."
+  },
+  "cases": [
+    {
+      "id": "bwv33.6",
+      "input_sha256": "b1a1a662561edcdd36ab6da4be1512878f06b5bd1173e9d6c6c8df549b418a89",
+      "input_verified": false,
+      "split": "development",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 2,
+          "predicted": 2,
+          "correct": 1,
+          "precision": 0.5,
+          "recall": 0.5,
+          "f1": 0.5,
+          "wrong_label": 0,
+          "missing": 1,
+          "extra": 1,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 2,
+              "predicted": 2,
+              "correct": 1,
+              "precision": 0.5,
+              "recall": 0.5,
+              "f1": 0.5,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 1
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 2,
+          "predicted": 2,
+          "correct": 1,
+          "precision": 0.5,
+          "recall": 0.5,
+          "f1": 0.5,
+          "wrong_label": 0,
+          "missing": 1,
+          "extra": 1,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 2,
+              "predicted": 2,
+              "correct": 1,
+              "precision": 0.5,
+              "recall": 0.5,
+              "f1": 0.5,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv40.8",
+      "input_sha256": "89b527da3439fcfaf49e22ebba367bdcedbd1c624bf49759f2b30f7db789be4c",
+      "input_verified": false,
+      "split": "development",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 4,
+          "predicted": 4,
+          "correct": 4,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 4,
+              "predicted": 4,
+              "correct": 4,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 4,
+          "predicted": 4,
+          "correct": 4,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 4,
+              "predicted": 4,
+              "correct": 4,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv60.5",
+      "input_sha256": "a86b7efe510c2672d83a25743e7eb52762a9f3d8608afb64dce41225d30057e3",
+      "input_verified": false,
+      "split": "development",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_octave": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_octave": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv78.7",
+      "input_sha256": "e798016f58f415e496df9eaa9456538bb7801c28e7b396ea1844adf14c9cef03",
+      "input_verified": false,
+      "split": "development",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv99.6",
+      "input_sha256": "06bd2ebacfbb9c827fee83f9902b0f3730b417c3996407191e7b46da1a51c224",
+      "input_verified": false,
+      "split": "development",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 2,
+          "predicted": 2,
+          "correct": 2,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 2,
+              "predicted": 2,
+              "correct": 2,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 2,
+          "predicted": 2,
+          "correct": 2,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 2,
+              "predicted": 2,
+              "correct": 2,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv108.6",
+      "input_sha256": "88f77ee050bb90af656c887a53254e55143abcbbcf4bf440f8d44ab4fd415038",
+      "input_verified": false,
+      "split": "development",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv111.6",
+      "input_sha256": "5522178df57d3ae266c39bad744cff2b7a92e3e8c467ed6ffcf0c589f0e6ae3f",
+      "input_verified": false,
+      "split": "development",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv157.5",
+      "input_sha256": "3bef117523a1283e77b2fc777519b526e306c7c2e5f38873291501c2cb1618c4",
+      "input_verified": false,
+      "split": "development",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv174.5",
+      "input_sha256": "90ac5ec3887e35563f538443bf01d5cb769e7933a2a1b21851eea0154816dae2",
+      "input_verified": false,
+      "split": "development",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "wrong_label": 0,
+          "missing": 1,
+          "extra": 1,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 1
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "wrong_label": 0,
+          "missing": 1,
+          "extra": 1,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv245.40",
+      "input_sha256": "62b797510370c79d3e9d82175a260a6748c00785fd67408c10eb97f8a7bb9944",
+      "input_verified": false,
+      "split": "development",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 2,
+          "predicted": 1,
+          "correct": 1,
+          "precision": 1.0,
+          "recall": 0.5,
+          "f1": 0.6666666666666666,
+          "wrong_label": 0,
+          "missing": 1,
+          "extra": 0,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            },
+            "consecutive_octave": {
+              "gold": 1,
+              "predicted": 0,
+              "correct": 0,
+              "precision": null,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 2,
+          "predicted": 2,
+          "correct": 2,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            },
+            "consecutive_octave": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv263",
+      "input_sha256": "eb184d4d80c531ff392758643b9e3603a60e0cfa8421a43093f019e105420e8f",
+      "input_verified": false,
+      "split": "development",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv266",
+      "input_sha256": "c2dc3a3fb188f7c1d1ba939e78f2cd15dd0091426da27205ed637fd9a88581d4",
+      "input_verified": false,
+      "split": "development",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv278",
+      "input_sha256": "22c5e3bef3a3ba518ea9b3196ecc70359e8e2b7679a7bc9fc3c045a105e2275f",
+      "input_verified": false,
+      "split": "development",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_octave": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_octave": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv301",
+      "input_sha256": "2634ae537b21f2a902e33f138b7a9849f6e905d9a722e5bdba287da4166da70e",
+      "input_verified": false,
+      "split": "development",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 2,
+          "correct": 1,
+          "precision": 0.5,
+          "recall": 1.0,
+          "f1": 0.6666666666666666,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 1,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 2,
+              "correct": 1,
+              "precision": 0.5,
+              "recall": 1.0,
+              "f1": 0.6666666666666666,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 1
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 2,
+          "correct": 1,
+          "precision": 0.5,
+          "recall": 1.0,
+          "f1": 0.6666666666666666,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 1,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 2,
+              "correct": 1,
+              "precision": 0.5,
+              "recall": 1.0,
+              "f1": 0.6666666666666666,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv308",
+      "input_sha256": "43c6aaace26a9750b7d818cbd898ecca08479cd4deaeee82eee108c19ccdc025",
+      "input_verified": false,
+      "split": "development",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "wrong_label": 0,
+          "missing": 1,
+          "extra": 1,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 1
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "wrong_label": 0,
+          "missing": 1,
+          "extra": 1,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv323",
+      "input_sha256": "b34107b2a7fedd49f3388a920517684e00049913e709727a61c0fbf6835bf656",
+      "input_verified": false,
+      "split": "development",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 0,
+          "correct": 0,
+          "precision": null,
+          "recall": 0.0,
+          "f1": 0.0,
+          "wrong_label": 0,
+          "missing": 1,
+          "extra": 0,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 0,
+              "correct": 0,
+              "precision": null,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 0,
+          "correct": 0,
+          "precision": null,
+          "recall": 0.0,
+          "f1": 0.0,
+          "wrong_label": 0,
+          "missing": 1,
+          "extra": 0,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 0,
+              "correct": 0,
+              "precision": null,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv326",
+      "input_sha256": "cb68db185c953b7d7090664be37e1d106e015e4cdd87a3622bbb888d021d8e06",
+      "input_verified": false,
+      "split": "development",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_octave": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_octave": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv347",
+      "input_sha256": "a017649b259ceda9c0ee8a74909893a69d01163c5f60ae5e631dc3d2ac58bcb5",
+      "input_verified": false,
+      "split": "development",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "wrong_label": 0,
+          "missing": 1,
+          "extra": 1,
+          "tasks": {
+            "consecutive_octave": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 1
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "wrong_label": 0,
+          "missing": 1,
+          "extra": 1,
+          "tasks": {
+            "consecutive_octave": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv361",
+      "input_sha256": "0b02c32831b100781b84328b2431794a3fdaaa5beae7b908e532519ad031ee33",
+      "input_verified": false,
+      "split": "development",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv385",
+      "input_sha256": "2fb5b486d54dd7fcadf3f7499ac07c030e7063f5006a0caa446977a52e97e075",
+      "input_verified": false,
+      "split": "development",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv393",
+      "input_sha256": "8ba2a509a2b46fd3e10cee792744c546f8054e9353adb454f7258c0d9bed29a3",
+      "input_verified": false,
+      "split": "development",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "wrong_label": 0,
+          "missing": 1,
+          "extra": 1,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 1
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "wrong_label": 0,
+          "missing": 1,
+          "extra": 1,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv7.7",
+      "input_sha256": "48b55e50482f4adbf7c1ac252bedc7821af60efe5520691af346882ec9c7c7f1",
+      "input_verified": false,
+      "split": "holdout",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv26.6",
+      "input_sha256": "b73dae968f9dba2146007d97767394bcbc011c74444a7f7729186f0497d62410",
+      "input_verified": false,
+      "split": "holdout",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv48.7",
+      "input_sha256": "6120f797cf12953bfa76572e893a3bebdd272f66f799b24aad5e24dccc748341",
+      "input_verified": false,
+      "split": "holdout",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "wrong_label": 0,
+          "missing": 1,
+          "extra": 1,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 1
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "wrong_label": 0,
+          "missing": 1,
+          "extra": 1,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv86.6",
+      "input_sha256": "5b9a0acc0010297e9f49f8c43d098361deb28f67dfc13f9f6b682cff9ec1003e",
+      "input_verified": false,
+      "split": "holdout",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "wrong_label": 0,
+          "missing": 1,
+          "extra": 1,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 1
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "wrong_label": 0,
+          "missing": 1,
+          "extra": 1,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv92.9",
+      "input_sha256": "884c1290bf0a254834f511ccd600fdd7d5e40f550b56be9924032432f6b2e042",
+      "input_verified": false,
+      "split": "holdout",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv115.6",
+      "input_sha256": "a2b0861ea963ec7aa5fef77b4dcc57de3118b96984949e781b2d60e31d4a465a",
+      "input_verified": false,
+      "split": "holdout",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "wrong_label": 0,
+          "missing": 1,
+          "extra": 1,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 1
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "wrong_label": 0,
+          "missing": 1,
+          "extra": 1,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv146.8",
+      "input_sha256": "173ab7ed20af602599351af16284327bc0eb5f9800c73b8bde6ef078984e4160",
+      "input_verified": false,
+      "split": "holdout",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv183.5",
+      "input_sha256": "a8e488a911a297ee1e300df0307202c7bd092fd6dbc848f898d6815dfa81620f",
+      "input_verified": false,
+      "split": "holdout",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 3,
+          "correct": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "wrong_label": 0,
+          "missing": 1,
+          "extra": 3,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 3,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 3
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 3,
+          "correct": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "wrong_label": 0,
+          "missing": 1,
+          "extra": 3,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 3,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 3
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv190.7",
+      "input_sha256": "c7bc767d237c31c34cc972bc69c0498bf9cdbb73693f95eb10802674f68f02e7",
+      "input_verified": false,
+      "split": "holdout",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 1,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv244.40",
+      "input_sha256": "efa561d1690914088fc796df10fbf70457e327f7ffc1e049ecaefe7dd89082e9",
+      "input_verified": false,
+      "split": "holdout",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 2,
+          "correct": 1,
+          "precision": 0.5,
+          "recall": 1.0,
+          "f1": 0.6666666666666666,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 1,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 2,
+              "correct": 1,
+              "precision": 0.5,
+              "recall": 1.0,
+              "f1": 0.6666666666666666,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 1
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 2,
+          "correct": 1,
+          "precision": 0.5,
+          "recall": 1.0,
+          "f1": 0.6666666666666666,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 1,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 2,
+              "correct": 1,
+              "precision": 0.5,
+              "recall": 1.0,
+              "f1": 0.6666666666666666,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv244.44",
+      "input_sha256": "f0d4c90ccb2da56d23cc718394560fd101ce2beeec6f5316b8d1aacb627ec219",
+      "input_verified": false,
+      "split": "holdout",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 2,
+          "predicted": 2,
+          "correct": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "wrong_label": 0,
+          "missing": 2,
+          "extra": 2,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 1
+            },
+            "consecutive_octave": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 1
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 2,
+          "predicted": 2,
+          "correct": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "wrong_label": 0,
+          "missing": 2,
+          "extra": 2,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 1
+            },
+            "consecutive_octave": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv244.54",
+      "input_sha256": "a6ab971253b460c77528ff96e3be9b5171dc92653d4dd124e50e3c5929932a8e",
+      "input_verified": false,
+      "split": "holdout",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 2,
+          "predicted": 2,
+          "correct": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "wrong_label": 0,
+          "missing": 2,
+          "extra": 2,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 1
+            },
+            "consecutive_octave": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 1
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 2,
+          "predicted": 2,
+          "correct": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "wrong_label": 0,
+          "missing": 2,
+          "extra": 2,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 1
+            },
+            "consecutive_octave": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv244.62",
+      "input_sha256": "40dea26e17b710119c5010d4323f58a2b924e045553af0d33239daa07886a6cc",
+      "input_verified": false,
+      "split": "holdout",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 2,
+          "predicted": 2,
+          "correct": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "wrong_label": 0,
+          "missing": 2,
+          "extra": 2,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 1
+            },
+            "consecutive_octave": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 1
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 2,
+          "predicted": 2,
+          "correct": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "wrong_label": 0,
+          "missing": 2,
+          "extra": 2,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 1
+            },
+            "consecutive_octave": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv248.33",
+      "input_sha256": "840aaeff30653c2cc3f4d3121b8d0545fc858c02a08c0762775d0874fc118b27",
+      "input_verified": false,
+      "split": "holdout",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 2,
+          "correct": 1,
+          "precision": 0.5,
+          "recall": 1.0,
+          "f1": 0.6666666666666666,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 1,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 2,
+              "correct": 1,
+              "precision": 0.5,
+              "recall": 1.0,
+              "f1": 0.6666666666666666,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 1
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 2,
+          "correct": 1,
+          "precision": 0.5,
+          "recall": 1.0,
+          "f1": 0.6666666666666666,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 1,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 2,
+              "correct": 1,
+              "precision": 0.5,
+              "recall": 1.0,
+              "f1": 0.6666666666666666,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv251",
+      "input_sha256": "cdfca01d9375a9f633984d1782af5c0cd3836ce79445683d0072d7cfb571333b",
+      "input_verified": false,
+      "split": "holdout",
+      "systems": {
+        "acorde": {
+          "status": "error",
+          "error": "expected 4 parts, found 6",
+          "gold": 1
+        },
+        "music21": {
+          "status": "error",
+          "error": "expected 4 parts, found 6",
+          "gold": 1
+        }
+      }
+    },
+    {
+      "id": "bwv306",
+      "input_sha256": "655665743c897dcb9d0b35e43f218493210d6a4f4c8fec5be80629b826c239cc",
+      "input_verified": false,
+      "split": "holdout",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 0,
+          "correct": 0,
+          "precision": null,
+          "recall": 0.0,
+          "f1": 0.0,
+          "wrong_label": 0,
+          "missing": 1,
+          "extra": 0,
+          "tasks": {
+            "consecutive_octave": {
+              "gold": 1,
+              "predicted": 0,
+              "correct": 0,
+              "precision": null,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 0,
+          "correct": 0,
+          "precision": null,
+          "recall": 0.0,
+          "f1": 0.0,
+          "wrong_label": 0,
+          "missing": 1,
+          "extra": 0,
+          "tasks": {
+            "consecutive_octave": {
+              "gold": 1,
+              "predicted": 0,
+              "correct": 0,
+              "precision": null,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv329",
+      "input_sha256": "f47b895044432e9e35e1d891902dae5eccea66b5a26c0e145ca1727079c487c5",
+      "input_verified": false,
+      "split": "holdout",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 2,
+          "predicted": 2,
+          "correct": 2,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            },
+            "consecutive_octave": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 2,
+          "predicted": 2,
+          "correct": 2,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "wrong_label": 0,
+          "missing": 0,
+          "extra": 0,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            },
+            "consecutive_octave": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 1,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv333",
+      "input_sha256": "217a6bd0e91fd658aace257942ab5a400bac4f76a49fa382ceebf32be3dda791",
+      "input_verified": false,
+      "split": "holdout",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 2,
+          "predicted": 2,
+          "correct": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "wrong_label": 0,
+          "missing": 2,
+          "extra": 2,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 1
+            },
+            "consecutive_octave": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 1
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 2,
+          "predicted": 2,
+          "correct": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "wrong_label": 0,
+          "missing": 2,
+          "extra": 2,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 1
+            },
+            "consecutive_octave": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv340",
+      "input_sha256": "d7cb1adac8090125e110a727d5df12442b26cc3d7a70fb16896c052220085958",
+      "input_verified": false,
+      "split": "holdout",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "wrong_label": 0,
+          "missing": 1,
+          "extra": 1,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 1
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 1,
+          "correct": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "wrong_label": 0,
+          "missing": 1,
+          "extra": 1,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 1,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bwv436",
+      "input_sha256": "9174761e4e8469d0bfc2fa590d0e692e1b086224289427237be483145f373449",
+      "input_verified": false,
+      "split": "holdout",
+      "systems": {
+        "acorde": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 3,
+          "correct": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "wrong_label": 0,
+          "missing": 1,
+          "extra": 3,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 2,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 2
+            },
+            "consecutive_octave": {
+              "gold": 0,
+              "predicted": 1,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": null,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 1
+            }
+          }
+        },
+        "music21": {
+          "status": "ok",
+          "gold": 1,
+          "predicted": 3,
+          "correct": 0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "wrong_label": 0,
+          "missing": 1,
+          "extra": 3,
+          "tasks": {
+            "consecutive_fifth": {
+              "gold": 1,
+              "predicted": 2,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 1,
+              "extra": 2
+            },
+            "consecutive_octave": {
+              "gold": 0,
+              "predicted": 1,
+              "correct": 0,
+              "precision": 0.0,
+              "recall": null,
+              "f1": 0.0,
+              "wrong_label": 0,
+              "missing": 0,
+              "extra": 1
+            }
+          }
+        }
+      }
+    }
+  ],
+  "totals": {
+    "acorde": {
+      "calibration": {
+        "cases": 0,
+        "analyzed": 0,
+        "failed": 0,
+        "gold": 0,
+        "predicted": 0,
+        "correct": 0,
+        "wrong_label": 0,
+        "missing": 0,
+        "extra": 0,
+        "precision": null,
+        "recall": null,
+        "f1": null,
+        "tasks": {}
+      },
+      "development": {
+        "cases": 21,
+        "analyzed": 21,
+        "failed": 0,
+        "gold": 27,
+        "predicted": 26,
+        "correct": 20,
+        "wrong_label": 0,
+        "missing": 7,
+        "extra": 6,
+        "precision": 0.7692307692307693,
+        "recall": 0.7407407407407407,
+        "f1": 0.7547169811320755,
+        "tasks": {
+          "consecutive_fifth": {
+            "gold": 22,
+            "predicted": 22,
+            "correct": 17,
+            "wrong_label": 0,
+            "missing": 5,
+            "extra": 5,
+            "precision": 0.7727272727272727,
+            "recall": 0.7727272727272727,
+            "f1": 0.7727272727272727
+          },
+          "consecutive_octave": {
+            "gold": 5,
+            "predicted": 4,
+            "correct": 3,
+            "wrong_label": 0,
+            "missing": 2,
+            "extra": 1,
+            "precision": 0.75,
+            "recall": 0.6,
+            "f1": 0.6666666666666666
+          }
+        }
+      },
+      "holdout": {
+        "cases": 20,
+        "analyzed": 19,
+        "failed": 1,
+        "gold": 24,
+        "predicted": 29,
+        "correct": 9,
+        "wrong_label": 0,
+        "missing": 15,
+        "extra": 20,
+        "precision": 0.3103448275862069,
+        "recall": 0.375,
+        "f1": 0.33962264150943394,
+        "tasks": {
+          "consecutive_fifth": {
+            "gold": 18,
+            "predicted": 23,
+            "correct": 8,
+            "wrong_label": 0,
+            "missing": 10,
+            "extra": 15,
+            "precision": 0.34782608695652173,
+            "recall": 0.4444444444444444,
+            "f1": 0.3902439024390244
+          },
+          "consecutive_octave": {
+            "gold": 6,
+            "predicted": 6,
+            "correct": 1,
+            "wrong_label": 0,
+            "missing": 5,
+            "extra": 5,
+            "precision": 0.16666666666666666,
+            "recall": 0.16666666666666666,
+            "f1": 0.16666666666666666
+          }
+        }
+      }
+    },
+    "music21": {
+      "calibration": {
+        "cases": 0,
+        "analyzed": 0,
+        "failed": 0,
+        "gold": 0,
+        "predicted": 0,
+        "correct": 0,
+        "wrong_label": 0,
+        "missing": 0,
+        "extra": 0,
+        "precision": null,
+        "recall": null,
+        "f1": null,
+        "tasks": {}
+      },
+      "development": {
+        "cases": 21,
+        "analyzed": 21,
+        "failed": 0,
+        "gold": 27,
+        "predicted": 27,
+        "correct": 21,
+        "wrong_label": 0,
+        "missing": 6,
+        "extra": 6,
+        "precision": 0.7777777777777778,
+        "recall": 0.7777777777777778,
+        "f1": 0.7777777777777778,
+        "tasks": {
+          "consecutive_fifth": {
+            "gold": 22,
+            "predicted": 22,
+            "correct": 17,
+            "wrong_label": 0,
+            "missing": 5,
+            "extra": 5,
+            "precision": 0.7727272727272727,
+            "recall": 0.7727272727272727,
+            "f1": 0.7727272727272727
+          },
+          "consecutive_octave": {
+            "gold": 5,
+            "predicted": 5,
+            "correct": 4,
+            "wrong_label": 0,
+            "missing": 1,
+            "extra": 1,
+            "precision": 0.8,
+            "recall": 0.8,
+            "f1": 0.8
+          }
+        }
+      },
+      "holdout": {
+        "cases": 20,
+        "analyzed": 19,
+        "failed": 1,
+        "gold": 24,
+        "predicted": 29,
+        "correct": 9,
+        "wrong_label": 0,
+        "missing": 15,
+        "extra": 20,
+        "precision": 0.3103448275862069,
+        "recall": 0.375,
+        "f1": 0.33962264150943394,
+        "tasks": {
+          "consecutive_fifth": {
+            "gold": 18,
+            "predicted": 23,
+            "correct": 8,
+            "wrong_label": 0,
+            "missing": 10,
+            "extra": 15,
+            "precision": 0.34782608695652173,
+            "recall": 0.4444444444444444,
+            "f1": 0.3902439024390244
+          },
+          "consecutive_octave": {
+            "gold": 6,
+            "predicted": 6,
+            "correct": 1,
+            "wrong_label": 0,
+            "missing": 5,
+            "extra": 5,
+            "precision": 0.16666666666666666,
+            "recall": 0.16666666666666666,
+            "f1": 0.16666666666666666
+          }
+        }
+      }
+    }
+  }
+}
