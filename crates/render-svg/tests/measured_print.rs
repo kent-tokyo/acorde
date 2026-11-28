@@ -63,7 +63,9 @@ fn explicit_lyric_sides_are_drawn_outside_their_staff() {
     };
     assert!(bounds("Above").1 < ys[0]);
     assert!(bounds("Below").0 > *ys.last().unwrap());
-    assert!(bounds("Above").0 >= 16.0 * 4.0 - 0.1);
+    // Exterior text may use up to 6 mm of the 16 mm top margin; staff lines may not.
+    assert!(bounds("Above").0 >= 10.0 * 4.0 - 0.1);
+    assert!(ys[0] >= 16.0 * 4.0 - 0.1);
     let highest_head = doc
         .descendants()
         .filter(|n| n.attribute("class") == Some("acorde-notehead"))
@@ -1249,7 +1251,7 @@ fn repeated_rehearsal_directions_are_all_printed() {
 }
 
 #[test]
-fn continued_volta_stays_within_top_margin_on_each_page() {
+fn continued_volta_stays_within_exterior_ink_limit_on_each_page() {
     use acorde_core::VoltaBracket;
     let mut score = Score::new("Volta", 120, 4, 4, 0, 8);
     let measures = &mut score.parts[0].staves[0].measures;
@@ -1296,8 +1298,9 @@ fn continued_volta_stays_within_top_margin_on_each_page() {
             .map(|pair| pair[1])
             .fold(f32::INFINITY, f32::min);
         let page_top = index as f32 * 297.0 * 4.0;
+        // 16 mm margin less the 6 mm allowed for ink outside the staves.
         assert!(
-            top - page_top >= 16.0 * 4.0,
+            top - page_top >= 10.0 * 4.0,
             "page {}, bracket top {}",
             index + 1,
             (top - page_top) / 4.0

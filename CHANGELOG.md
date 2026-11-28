@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+- In measured print, let ink outside the outer staves extend up to 6 mm into
+  the top and bottom margins; staff lines stay inside them. On 18 retired
+  development inputs at eight measures per system, pages fall from 183 to 171
+  (Verovio: 156, ratio 1.096), with no new collision candidates (#498).
+
 - Add `assess_arrangement` behind the new `unstable-arrangement` feature of `acorde-core`.
   It counts melody masking, semitone clashes, parallel fifths and octaves, out-of-range
   notes and bass leaps in a finished arrangement, with a frozen baseline for the
@@ -17,6 +22,7 @@
   and tonic degrees, and a report of what was met. A `ternary` form writes A-B-A′ over 24 bars:
   a contrasting B section and an A′ that restates A's first phrase and ornaments its
   consequent. See [melody composition](docs/melody-composition.md).
+
 - Score Acorde's parallel fifth/octave flags and music21's figured-bass
   checker against Luke Dahn's list of consecutives in 41 Bach chorales. On the
   20 held-out chorales, run once, both cover 9 of 24 labels; most misses are

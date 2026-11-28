@@ -68,6 +68,16 @@ pub fn engrave_print_pages(
         }
     };
     let font = TextFont::for_print(font_bytes)?;
+    // Staff lines stay inside the configured margins. Ink outside the outer
+    // staves (dynamics, ledger notes, slurs, text) may use part of the margin,
+    // as it does in conventional engraving; systems are paginated against the
+    // narrower ink limits and then checked against the staff limits below.
+    let staff_top_mm = config.margin_top_mm + config.safe_top_mm;
+    let mut ink_config = config.clone();
+    let top_allowance = EXTERIOR_INK_MARGIN_MM.min(config.margin_top_mm);
+    let bottom_allowance = EXTERIOR_INK_MARGIN_MM.min(config.margin_bottom_mm);
+    ink_config.margin_top_mm -= top_allowance;
+    ink_config.margin_bottom_mm -= bottom_allowance;
     // The first system uses full names. Later page-start systems use short
     // names when present, falling back to the full name otherwise.
     let mut first_width = 0.0_f32;
@@ -200,7 +210,37 @@ pub fn engrave_print_pages(
         let mut skyline_measured = false;
         for _ in 0..32 {
             let (layout, applied_u) =
-                paginate_with_savings(score, config, &rows, &geometry, &savings_u)?;
+                paginate_with_savings(score, &ink_config, &rows, &geometry, &savings_u)?;
+            // Keep the first and last staff lines of every page inside the margins.
+            // Reservations only grow here, so this converges with the other passes.
+            let mut staff_moved = false;
+            for page in &layout.pages {
+                let staff_bottom_mm =
+                    page.height_mm - config.margin_bottom_mm - config.safe_bottom_mm;
+                if let Some(first) = page.systems.first() {
+                    let g = geometry
+                        .get_mut(first.system_index)
+                        .ok_or(MeasuredEngravingError::InvalidGeneratedGeometry)?;
+                    let staff_top = first.top_mm + g.top_u * 1.8;
+                    if staff_top < staff_top_mm - 0.01 {
+                        g.top_u += (staff_top_mm - staff_top) / 1.8 + 0.01;
+                        staff_moved = true;
+                    }
+                }
+                if let Some(last) = page.systems.last() {
+                    let g = geometry
+                        .get_mut(last.system_index)
+                        .ok_or(MeasuredEngravingError::InvalidGeneratedGeometry)?;
+                    let staff_bottom = last.top_mm + (g.top_u + g.system_u) * 1.8;
+                    if staff_bottom > staff_bottom_mm + 0.01 {
+                        g.bottom_u += (staff_bottom - staff_bottom_mm) / 1.8 + 0.01;
+                        staff_moved = true;
+                    }
+                }
+            }
+            if staff_moved {
+                continue;
+            }
             let render_geometry = geometry
                 .iter()
                 .zip(&applied_u)
@@ -346,6 +386,11 @@ pub fn engrave_print_pages(
 
     Err(MeasuredEngravingError::CollisionReflowLimit)
 }
+
+/// Exterior ink may extend this far into the top and bottom page margins. With
+/// the default 16 mm margins it stays at least 10 mm from the page edge, above
+/// the page number's baseline 6 mm from the bottom edge.
+const EXTERIOR_INK_MARGIN_MM: f32 = 6.0;
 
 /// Paginates measured rows with each row's height reduced by its saving. A row
 /// that ends a page has no following system to share room with. It keeps its
