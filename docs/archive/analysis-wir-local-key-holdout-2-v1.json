@@ -1,0 +1,613 @@
+{
+  "schema_version": 1,
+  "classification": "frozen local-key label holdout v2",
+  "protocol_sha256": "90350c2a3cab099acbf377d04fa472deb6cd458b912e85ab993c155e50a46b0c",
+  "selection_sha256": "982a0ef1ea65bf2366c18873016dd74ada21cf2fb120841aaa2071954851b78e",
+  "inputs_sha256": "ce3ec5d3af9557c9a242eab866b1cad8be8030e344ec29fffc6efcfd3d8c850a",
+  "preflight_sha256": "47d0ed3c9ca7a09591e8f0d7c0ab81a7eec98e8a4c26bb8eb85f8c32ffc2b9ec",
+  "acorde_binary_sha256": "97d0ca993d6fae49c3e9f4d23fe5d442da50ce65c3cb704f3d680d8009bf1e5e",
+  "scorer_source_sha256": "7b3e8b8a6927f234d7979993dd8423b775a3c06668f84b49df87825c81166a46",
+  "music21_version": "10.5.2",
+  "music21_window_measures": 2,
+  "acorde_method": "path",
+  "summary": {
+    "positions": 3500,
+    "acorde_available": 3500,
+    "music21_available": 3495,
+    "paired_available": 3495,
+    "acorde_exact": 2553,
+    "music21_exact": 2576,
+    "acorde_exact_paired": 2548,
+    "music21_exact_paired": 2576,
+    "acorde_pc_mode": 2553,
+    "music21_pc_mode": 2611,
+    "source_labels": 3570,
+    "excluded_labels": 70,
+    "works": 16,
+    "failures": 0,
+    "acorde_work_wins": 6,
+    "music21_work_wins": 8,
+    "work_ties": 2
+  },
+  "excluded_fraction": 0.019608,
+  "groups": {
+    "keyboard": {
+      "positions": 345,
+      "acorde_exact": 171,
+      "music21_exact": 210
+    },
+    "quartet": {
+      "positions": 1589,
+      "acorde_exact": 1169,
+      "music21_exact": 1119
+    },
+    "sonata": {
+      "positions": 1232,
+      "acorde_exact": 1016,
+      "music21_exact": 1037
+    },
+    "song": {
+      "positions": 334,
+      "acorde_exact": 197,
+      "music21_exact": 210
+    }
+  },
+  "gate_passed": false,
+  "rows_file": "analysis-wir-local-key-holdout-2-v1-rows.jsonl",
+  "rows_sha256": "a060843ae0f842804a87843815c2b21ef7b09e5214c22a5a8ad8d4438617cabf",
+  "works": [
+    {
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op131/5",
+      "group": "quartet",
+      "input_sha256": "cb1b28691be5d463ce76fa6a52de6b871277d0c75ea9aad12c2d911cece03b34",
+      "gold_git_blob": "0ac36cedf7389af41cef7b766f427ba69398e337",
+      "gold_sha256": "715eca01ea02b859e9922d378bfa83a7a8ff3003e02ca33af9b1594479292f96",
+      "music21_measures": 500,
+      "music21_estimates": 495,
+      "acorde_estimates": 500,
+      "source_labels": 737,
+      "excluded_labels": 0,
+      "exclusions": [],
+      "counts": {
+        "positions": 737,
+        "acorde_available": 737,
+        "music21_available": 732,
+        "paired_available": 732,
+        "acorde_exact": 649,
+        "music21_exact": 621,
+        "acorde_exact_paired": 644,
+        "music21_exact_paired": 621,
+        "acorde_pc_mode": 649,
+        "music21_pc_mode": 621
+      }
+    },
+    {
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op095/2",
+      "group": "quartet",
+      "input_sha256": "1ca93f7a53f61c26c824218ac24d49947395ce4ec821c84c20867f19c9e74e8d",
+      "gold_git_blob": "8fd99c0e1b1ac28d2b0b2c81b653e35466cad0ab",
+      "gold_sha256": "723458ded07ccea2faba79932358c1132eb463033a4e140cc5913c96325cfb1c",
+      "music21_measures": 192,
+      "music21_estimates": 192,
+      "acorde_estimates": 192,
+      "source_labels": 390,
+      "excluded_labels": 0,
+      "exclusions": [],
+      "counts": {
+        "positions": 390,
+        "acorde_available": 390,
+        "music21_available": 390,
+        "paired_available": 390,
+        "acorde_exact": 197,
+        "music21_exact": 223,
+        "acorde_exact_paired": 197,
+        "music21_exact_paired": 223,
+        "acorde_pc_mode": 197,
+        "music21_pc_mode": 223
+      }
+    },
+    {
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op132/4",
+      "group": "quartet",
+      "input_sha256": "b9f19a0fbdace880afbf3e1488cee413d354c4f6607f1db6023ca34189abdd01",
+      "gold_git_blob": "41992879944061a17543fd9c0ce65dbc64826319",
+      "gold_sha256": "a42ac544a639b29e0d9466880225a6b57fa23e42f38e58d22b4fd998834cc016",
+      "music21_measures": 46,
+      "music21_estimates": 46,
+      "acorde_estimates": 46,
+      "source_labels": 125,
+      "excluded_labels": 0,
+      "exclusions": [],
+      "counts": {
+        "positions": 125,
+        "acorde_available": 125,
+        "music21_available": 125,
+        "paired_available": 125,
+        "acorde_exact": 88,
+        "music21_exact": 93,
+        "acorde_exact_paired": 88,
+        "music21_exact_paired": 93,
+        "acorde_pc_mode": 88,
+        "music21_pc_mode": 93
+      }
+    },
+    {
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op074/2",
+      "group": "quartet",
+      "input_sha256": "87a2b6235a814d6daf2f1a630d6685c8008bf3de76e99b8650dd65951cc26b57",
+      "gold_git_blob": "b52a5af266ddf29e267feac5d77405808f76072e",
+      "gold_sha256": "803a49236805648b270345371e6ac36ec3b8debd2ffc23adeb481e3e51aff456",
+      "music21_measures": 169,
+      "music21_estimates": 169,
+      "acorde_estimates": 169,
+      "source_labels": 337,
+      "excluded_labels": 0,
+      "exclusions": [],
+      "counts": {
+        "positions": 337,
+        "acorde_available": 337,
+        "music21_available": 337,
+        "paired_available": 337,
+        "acorde_exact": 235,
+        "music21_exact": 182,
+        "acorde_exact_paired": 235,
+        "music21_exact_paired": 182,
+        "acorde_pc_mode": 235,
+        "music21_pc_mode": 216
+      }
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/15",
+      "group": "keyboard",
+      "input_sha256": "528ec9142b332ab231630ed0a293ba80b3b02f35b1517bb78daabbd880a0ae69",
+      "gold_git_blob": "4fbfc7ed39f4b3185bd2f838ab4f1091e9826f1e",
+      "gold_sha256": "7573780602ae5cdb088a2683e3318af42ac5afdea587717cab5060e7ec8ae8b8",
+      "music21_measures": 19,
+      "music21_estimates": 19,
+      "acorde_estimates": 19,
+      "source_labels": 78,
+      "excluded_labels": 0,
+      "exclusions": [],
+      "counts": {
+        "positions": 78,
+        "acorde_available": 78,
+        "music21_available": 78,
+        "paired_available": 78,
+        "acorde_exact": 34,
+        "music21_exact": 62,
+        "acorde_exact_paired": 34,
+        "music21_exact_paired": 62,
+        "acorde_pc_mode": 34,
+        "music21_pc_mode": 62
+      }
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/17",
+      "group": "keyboard",
+      "input_sha256": "b6f2da42a3c58519b20ad1a60c553a16e2e87b56f4852edd65d6794f944004e4",
+      "gold_git_blob": "897a43b7cee36f5bc89006073e9c330c3940ef99",
+      "gold_sha256": "5f85d505bcc08bab97f9286380b3d0cc78e885dd2887010a9a1a52d4418c6f3c",
+      "music21_measures": 44,
+      "music21_estimates": 44,
+      "acorde_estimates": 44,
+      "source_labels": 67,
+      "excluded_labels": 0,
+      "exclusions": [],
+      "counts": {
+        "positions": 67,
+        "acorde_available": 67,
+        "music21_available": 67,
+        "paired_available": 67,
+        "acorde_exact": 57,
+        "music21_exact": 57,
+        "acorde_exact_paired": 57,
+        "music21_exact_paired": 57,
+        "acorde_pc_mode": 57,
+        "music21_pc_mode": 57
+      }
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/24",
+      "group": "keyboard",
+      "input_sha256": "8fb64fe411963a27de13caaef4b62af3c27dbba756394ed96edd1e9d6154219d",
+      "gold_git_blob": "bb7895d9dab745d9f0bda22bdfba276f00e8e0df",
+      "gold_sha256": "0015316a4e7301e0caea52680937e1b615700d588554fda0526c04c092ef04e7",
+      "music21_measures": 47,
+      "music21_estimates": 47,
+      "acorde_estimates": 47,
+      "source_labels": 152,
+      "excluded_labels": 0,
+      "exclusions": [],
+      "counts": {
+        "positions": 152,
+        "acorde_available": 152,
+        "music21_available": 152,
+        "paired_available": 152,
+        "acorde_exact": 61,
+        "music21_exact": 61,
+        "acorde_exact_paired": 61,
+        "music21_exact_paired": 61,
+        "acorde_pc_mode": 61,
+        "music21_pc_mode": 61
+      }
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/20",
+      "group": "keyboard",
+      "input_sha256": "1a871d8cf5ef2ed50953fb4ea0e7acbf80ff29962f1ffeb445cf12288475de03",
+      "gold_git_blob": "682c7c21bd4fe7dc971a1f7587145ed4c604fb99",
+      "gold_sha256": "b1c4d9fbbfb30cb3b357396b6c3570f8007b74c841e5595082007498d54829f0",
+      "music21_measures": 28,
+      "music21_estimates": 28,
+      "acorde_estimates": 28,
+      "source_labels": 48,
+      "excluded_labels": 0,
+      "exclusions": [],
+      "counts": {
+        "positions": 48,
+        "acorde_available": 48,
+        "music21_available": 48,
+        "paired_available": 48,
+        "acorde_exact": 19,
+        "music21_exact": 30,
+        "acorde_exact_paired": 19,
+        "music21_exact_paired": 30,
+        "acorde_pc_mode": 19,
+        "music21_pc_mode": 30
+      }
+    },
+    {
+      "work": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K281/1",
+      "group": "sonata",
+      "input_sha256": "59ad5e1ea3b5229c4a2906dc622ecff417ff5bdd64f78431f8138925b629e70a",
+      "gold_git_blob": "bc26b2efd97f528849072c538a63e632d8833f5e",
+      "gold_sha256": "e56af795acb6213c43696ccb3e0034f3ddb6fb4f04eeea9af039d6d57dfb4077",
+      "music21_measures": 109,
+      "music21_estimates": 109,
+      "acorde_estimates": 109,
+      "source_labels": 212,
+      "excluded_labels": 0,
+      "exclusions": [],
+      "counts": {
+        "positions": 212,
+        "acorde_available": 212,
+        "music21_available": 212,
+        "paired_available": 212,
+        "acorde_exact": 172,
+        "music21_exact": 183,
+        "acorde_exact_paired": 172,
+        "music21_exact_paired": 183,
+        "acorde_pc_mode": 172,
+        "music21_pc_mode": 183
+      }
+    },
+    {
+      "work": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K332/2",
+      "group": "sonata",
+      "input_sha256": "dc667beb0b700bb3414dbd5ae1ebb16bb0e57b4cdeb663bf1a2ee5fa3dfa1f5b",
+      "gold_git_blob": "c2abbfa2df330f6bbc5ea2563d376f692bdee991",
+      "gold_sha256": "2eff0cb4b362f3ac54a27e38ff8bd01a06329391e998986b4f5aceadd7f0c765",
+      "music21_measures": 40,
+      "music21_estimates": 40,
+      "acorde_estimates": 40,
+      "source_labels": 165,
+      "excluded_labels": 0,
+      "exclusions": [],
+      "counts": {
+        "positions": 165,
+        "acorde_available": 165,
+        "music21_available": 165,
+        "paired_available": 165,
+        "acorde_exact": 142,
+        "music21_exact": 143,
+        "acorde_exact_paired": 142,
+        "music21_exact_paired": 143,
+        "acorde_pc_mode": 142,
+        "music21_pc_mode": 143
+      }
+    },
+    {
+      "work": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K284/3",
+      "group": "sonata",
+      "input_sha256": "0d9bccb701d6295aefb2dfceb7734b39f7a380c1a99b838314d1f56e414a47ab",
+      "gold_git_blob": "17a1a19de7d1dede6293734eb4c8237332dd0578",
+      "gold_sha256": "d534ab757d125548cdc6566fd74694e33dff358c1c28b7073969f221e46e1276",
+      "music21_measures": 287,
+      "music21_estimates": 287,
+      "acorde_estimates": 287,
+      "source_labels": 753,
+      "excluded_labels": 62,
+      "exclusions": [
+        {
+          "measure": 8,
+          "labels": 3,
+          "reason": "missing_or_ambiguous_source_measure"
+        },
+        {
+          "measure": 17,
+          "labels": 3,
+          "reason": "missing_or_ambiguous_source_measure"
+        },
+        {
+          "measure": 25,
+          "labels": 3,
+          "reason": "missing_or_ambiguous_source_measure"
+        },
+        {
+          "measure": 34,
+          "labels": 3,
+          "reason": "missing_or_ambiguous_source_measure"
+        },
+        {
+          "measure": 42,
+          "labels": 2,
+          "reason": "missing_or_ambiguous_source_measure"
+        },
+        {
+          "measure": 51,
+          "labels": 1,
+          "reason": "missing_or_ambiguous_source_measure"
+        },
+        {
+          "measure": 59,
+          "labels": 2,
+          "reason": "missing_or_ambiguous_source_measure"
+        },
+        {
+          "measure": 68,
+          "labels": 2,
+          "reason": "missing_or_ambiguous_source_measure"
+        },
+        {
+          "measure": 76,
+          "labels": 2,
+          "reason": "missing_or_ambiguous_source_measure"
+        },
+        {
+          "measure": 85,
+          "labels": 2,
+          "reason": "missing_or_ambiguous_source_measure"
+        },
+        {
+          "measure": 93,
+          "labels": 2,
+          "reason": "missing_or_ambiguous_source_measure"
+        },
+        {
+          "measure": 102,
+          "labels": 1,
+          "reason": "missing_or_ambiguous_source_measure"
+        },
+        {
+          "measure": 110,
+          "labels": 3,
+          "reason": "missing_or_ambiguous_source_measure"
+        },
+        {
+          "measure": 119,
+          "labels": 3,
+          "reason": "missing_or_ambiguous_source_measure"
+        },
+        {
+          "measure": 127,
+          "labels": 2,
+          "reason": "missing_or_ambiguous_source_measure"
+        },
+        {
+          "measure": 136,
+          "labels": 2,
+          "reason": "missing_or_ambiguous_source_measure"
+        },
+        {
+          "measure": 144,
+          "labels": 2,
+          "reason": "missing_or_ambiguous_source_measure"
+        },
+        {
+          "measure": 153,
+          "labels": 2,
+          "reason": "missing_or_ambiguous_source_measure"
+        },
+        {
+          "measure": 161,
+          "labels": 3,
+          "reason": "missing_or_ambiguous_source_measure"
+        },
+        {
+          "measure": 170,
+          "labels": 3,
+          "reason": "missing_or_ambiguous_source_measure"
+        },
+        {
+          "measure": 178,
+          "labels": 2,
+          "reason": "missing_or_ambiguous_source_measure"
+        },
+        {
+          "measure": 187,
+          "labels": 2,
+          "reason": "missing_or_ambiguous_source_measure"
+        },
+        {
+          "measure": 195,
+          "labels": 3,
+          "reason": "missing_or_ambiguous_source_measure"
+        },
+        {
+          "measure": 203,
+          "labels": 3,
+          "reason": "missing_or_ambiguous_source_measure"
+        },
+        {
+          "measure": 212,
+          "labels": 3,
+          "reason": "missing_or_ambiguous_source_measure"
+        },
+        {
+          "measure": 221,
+          "labels": 3,
+          "reason": "missing_or_ambiguous_source_measure"
+        }
+      ],
+      "counts": {
+        "positions": 691,
+        "acorde_available": 691,
+        "music21_available": 691,
+        "paired_available": 691,
+        "acorde_exact": 594,
+        "music21_exact": 574,
+        "acorde_exact_paired": 594,
+        "music21_exact_paired": 574,
+        "acorde_pc_mode": 594,
+        "music21_pc_mode": 574
+      }
+    },
+    {
+      "work": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K283/2",
+      "group": "sonata",
+      "input_sha256": "451e25459879e43a9a85847601cb34e9f5a3b408e5856a302fc5827124c96956",
+      "gold_git_blob": "9a90fbe720d4e754744f7253184220a3afb5ec92",
+      "gold_sha256": "83ca28b2a903e4315645b7497cbc8fba5ec94b7b0c0bee4ee0ff412f7bebc73f",
+      "music21_measures": 41,
+      "music21_estimates": 41,
+      "acorde_estimates": 41,
+      "source_labels": 171,
+      "excluded_labels": 7,
+      "exclusions": [
+        {
+          "measure": 14,
+          "labels": 4,
+          "reason": "ambiguous_gold_position"
+        },
+        {
+          "measure": 37,
+          "labels": 2,
+          "reason": "ambiguous_gold_position"
+        },
+        {
+          "measure": 37,
+          "labels": 1,
+          "reason": "missing_or_ambiguous_source_measure"
+        }
+      ],
+      "counts": {
+        "positions": 164,
+        "acorde_available": 164,
+        "music21_available": 164,
+        "paired_available": 164,
+        "acorde_exact": 108,
+        "music21_exact": 137,
+        "acorde_exact_paired": 108,
+        "music21_exact_paired": 137,
+        "acorde_pc_mode": 108,
+        "music21_pc_mode": 137
+      }
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Schubert,_Franz/Winterreise,_D.911/14_Der_greise_Kopf",
+      "group": "song",
+      "input_sha256": "f27d79de57fd9b10b04636eadfd30baf0cc7ba423a3f6a2178d2476ee72cb2f1",
+      "gold_git_blob": "5c5aeab091222774e10d5b6465690526220598f2",
+      "gold_sha256": "bd627f246fe36abf3a8f4e01b719bb1e8e8607257d77c240669a9dda50961b86",
+      "music21_measures": 45,
+      "music21_estimates": 45,
+      "acorde_estimates": 45,
+      "source_labels": 59,
+      "excluded_labels": 0,
+      "exclusions": [],
+      "counts": {
+        "positions": 59,
+        "acorde_available": 59,
+        "music21_available": 59,
+        "paired_available": 59,
+        "acorde_exact": 28,
+        "music21_exact": 27,
+        "acorde_exact_paired": 28,
+        "music21_exact_paired": 27,
+        "acorde_pc_mode": 28,
+        "music21_pc_mode": 27
+      }
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Mayer,_Emilie/3_Lieder,_Op.7/1_Du_bist_wie_eine_Blume",
+      "group": "song",
+      "input_sha256": "c5d02fe0ac1b196bcba6cbafb35ebba0d45c12f7bc8804e23effa845851878d3",
+      "gold_git_blob": "0d09b2a7cfe506d76f94cdd35a089878aff121c1",
+      "gold_sha256": "af53147b33b55cf780edebf935d65cdc5b042469c6dee10b52ce597b45b7c89a",
+      "music21_measures": 32,
+      "music21_estimates": 32,
+      "acorde_estimates": 32,
+      "source_labels": 56,
+      "excluded_labels": 0,
+      "exclusions": [],
+      "counts": {
+        "positions": 56,
+        "acorde_available": 56,
+        "music21_available": 56,
+        "paired_available": 56,
+        "acorde_exact": 47,
+        "music21_exact": 46,
+        "acorde_exact_paired": 47,
+        "music21_exact_paired": 46,
+        "acorde_pc_mode": 47,
+        "music21_pc_mode": 46
+      }
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Wolf,_Hugo/Eichendorff-Lieder/15_Unfall",
+      "group": "song",
+      "input_sha256": "cf67fa83b31cbc34e6e039006d8e4e80f6e8d33d756b86176ec6ff2a98193ff1",
+      "gold_git_blob": "213d69cd470516df5b691c136e78ad918ec7a108",
+      "gold_sha256": "8b22123c393bf9d6edd5460c22e1547144b51161e30665314962d0050276f754",
+      "music21_measures": 31,
+      "music21_estimates": 31,
+      "acorde_estimates": 31,
+      "source_labels": 66,
+      "excluded_labels": 1,
+      "exclusions": [
+        {
+          "measure": 0,
+          "labels": 1,
+          "reason": "missing_or_ambiguous_source_measure"
+        }
+      ],
+      "counts": {
+        "positions": 65,
+        "acorde_available": 65,
+        "music21_available": 65,
+        "paired_available": 65,
+        "acorde_exact": 40,
+        "music21_exact": 23,
+        "acorde_exact_paired": 40,
+        "music21_exact_paired": 23,
+        "acorde_pc_mode": 40,
+        "music21_pc_mode": 23
+      }
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Coleridge-Taylor,_Samuel/_/Oh,_the_Summer",
+      "group": "song",
+      "input_sha256": "9783dca22e5e92698042ca516d0f9f63952a85e4d63a5af90607c46dbc8069d2",
+      "gold_git_blob": "c09ff7a89e8488f4e9ac3945c0ddbb9ba45c8d0b",
+      "gold_sha256": "9860f9e7105c93b123b1299dd9f7aa5eef1762f483b6f763b81f38d765461f26",
+      "music21_measures": 125,
+      "music21_estimates": 125,
+      "acorde_estimates": 125,
+      "source_labels": 154,
+      "excluded_labels": 0,
+      "exclusions": [],
+      "counts": {
+        "positions": 154,
+        "acorde_available": 154,
+        "music21_available": 154,
+        "paired_available": 154,
+        "acorde_exact": 82,
+        "music21_exact": 114,
+        "acorde_exact_paired": 82,
+        "music21_exact_paired": 114,
+        "acorde_pc_mode": 82,
+        "music21_pc_mode": 115
+      }
+    }
+  ]
+}

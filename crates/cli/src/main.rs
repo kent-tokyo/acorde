@@ -342,9 +342,12 @@ enum Commands {
     AnalyzeLocalKeys {
         /// Input score file
         input: PathBuf,
-        /// Number of measures on each side of the estimated measure
+        /// Number of measures on each side of the estimated measure (window method only)
         #[arg(long, default_value_t = 4)]
         radius: usize,
+        /// `window` scores each measure alone; `path` picks the best key path across measures
+        #[arg(long, value_enum, default_value_t = LocalKeyMethod::Window)]
+        method: LocalKeyMethod,
     },
     /// Run a local analysis benchmark manifest and print its JSON report
     Benchmark {
@@ -734,7 +737,11 @@ fn run(cli: &Cli) -> Result<(), String> {
         } => cmd_analyze_vertical(input, *infer_key, *arpeggiated_bars),
         Commands::AnalyzeCadences { input, infer_key } => cmd_analyze_cadences(input, *infer_key),
         Commands::AnalyzeVoiceLeading { input } => cmd_analyze_voice_leading(input),
-        Commands::AnalyzeLocalKeys { input, radius } => cmd_analyze_local_keys(input, *radius),
+        Commands::AnalyzeLocalKeys {
+            input,
+            radius,
+            method,
+        } => cmd_analyze_local_keys(input, *radius, *method),
         Commands::Benchmark {
             manifest,
             fail_on_mismatch,
@@ -1277,12 +1284,34 @@ fn cmd_analyze_voice_leading(input: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn cmd_analyze_local_keys(input: &Path, radius: usize) -> Result<(), String> {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+enum LocalKeyMethod {
+    Window,
+    Path,
+}
+
+fn cmd_analyze_local_keys(
+    input: &Path,
+    radius: usize,
+    method: LocalKeyMethod,
+) -> Result<(), String> {
     let score = parse_score(input)?;
-    let local_keys = acorde_analysis::estimate_local_keys_with_aarden_essen_profile(&score, radius);
+    let (local_keys, radius, method_name) = match method {
+        LocalKeyMethod::Window => (
+            acorde_analysis::estimate_local_keys_with_aarden_essen_profile(&score, radius),
+            radius,
+            "window",
+        ),
+        LocalKeyMethod::Path => (
+            acorde_analysis::estimate_local_key_path_with_aarden_essen_profile(&score),
+            acorde_analysis::LOCAL_KEY_PATH_RADIUS_MEASURES,
+            "path",
+        ),
+    };
     let report = serde_json::json!({
         "schema_version": 1,
         "score_fingerprint": acorde_analysis::score_fingerprint(&score),
+        "method": method_name,
         "radius_measures": radius,
         "unit": "physical-measure",
         "local_keys": local_keys,

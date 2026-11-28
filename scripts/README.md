@@ -89,7 +89,7 @@ fetch → freeze → prepare → preflight → score, and must not read labels b
 | Earlier key sets | `compare_bcmh_keys.py`, `compare_beethoven_keys.py`, `compare_mozart_keys.py`, `adapt_beethoven_key_report.py` |
 | Harmony (BCMH) | `compare_bcmh_harmony_music21.py`, `compare_bcmh_vertical_harmony.py`, `adapt_bcmh_harmony_report.py` |
 | Harmony (When in Rome) | `fetch_wir_harmony_holdout.py`, `freeze_wir_harmony_holdout.py`, `prepare_wir_harmony_inputs.py`, `compare_wir_harmony_music21.py`, `adapt_wir_harmony_report.py` |
-| Local key | `freeze_wir_local_key_holdout.py`, `freeze_wir_local_key_protocol.py`, `preflight_wir_local_key_holdout.py`, `score_wir_local_key_holdout.py`, `compare_wir_local_keys_music21.py`, `diagnose_wir_local_keys.py` |
+| Local key | `freeze_wir_local_key_holdout.py`, `freeze_wir_local_key_protocol.py`, `preflight_wir_local_key_holdout.py`, `score_wir_local_key_holdout.py`, `compare_wir_local_keys_music21.py`, `diagnose_wir_local_keys.py`, `diagnose_wir_local_key_path.py`, `freeze_wir_local_key_holdout_v2.py`, `freeze_wir_local_key_protocol_v2.py`, `score_wir_local_key_holdout_v2.py`, `adapt_wir_local_key_report.py` |
 | Cadence (Mozart, development only) | `fetch_mozart_cadence_development.py`, `freeze_mozart_cadence.py`, `prepare_mozart_cadence_inputs.py`, `preflight_mozart_cadence_inputs.py`, `project_mozart_cadence_development.py`, `mozart_cadence_positions.py`, `score_mozart_cadence_acorde_development.py`, `diagnose_mozart_cadence_sonorities.py`, `diagnose_mozart_cadence_transition_rules.py` |
 
 ## Interchange evidence

@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+- Add an opt-in key-path local-key estimator,
+  `estimate_local_key_path_with_aarden_essen_profile` and
+  `analyze-local-keys --method path`. On a new frozen 16-work When in Rome
+  holdout it does not reach music21 (2,548 versus 2,576 exact labels); the
+  window method stays the default (#501).
 - Space measured print systems from the ink skylines of neighboring systems
   instead of each system's tallest ink. Systems stay at least 7 staff spaces
   apart, and a system that ends a page keeps its full reservation. On 18

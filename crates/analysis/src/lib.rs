@@ -3874,6 +3874,219 @@ pub fn estimate_local_keys_with_aarden_essen_profile(
     estimates
 }
 
+/// Radius, in measures, of the pitch-class window scored for each measure of a key path.
+pub const LOCAL_KEY_PATH_RADIUS_MEASURES: usize = 1;
+/// Path cost of changing key between adjacent measures, in correlation units.
+pub const LOCAL_KEY_PATH_CHANGE_COST: f64 = 1.5;
+/// Extra path cost for each fifth between adjacent keys' tonics (minor counts three fifths sharp).
+pub const LOCAL_KEY_PATH_FIFTH_COST: f64 = 0.1;
+
+/// Estimate one key per physical measure as the best-scoring path through all measures.
+///
+/// Each measure scores every major and minor key (`-7..=7` fifths) by the
+/// Pearson correlation of a duration-weighted pitch-class window of
+/// [`LOCAL_KEY_PATH_RADIUS_MEASURES`] measures on each side with the
+/// Aarden-Essen profile. A Viterbi pass then picks the key sequence with the
+/// highest total score, charging [`LOCAL_KEY_PATH_CHANGE_COST`] plus
+/// [`LOCAL_KEY_PATH_FIFTH_COST`] per fifth of tonic distance at every key
+/// change. A key therefore changes only when the music supports the new key
+/// for long enough to pay for the change. A tiny penalty for distance from
+/// the first staff's written key signature breaks enharmonic ties. Measures
+/// with no pitched notes and uniform windows score every key equally and
+/// inherit the surrounding path, so every measure of a score with pitched
+/// notes receives an estimate; a score with no pitched notes yields none.
+/// The constants were chosen on inspected When in Rome development works.
+/// The result cannot resolve a modulation within a measure, and the reported
+/// correlation is that measure's window score for the chosen key, not a
+/// confidence probability.
+pub fn estimate_local_key_path_with_aarden_essen_profile(score: &Score) -> Vec<LocalKeyEstimate> {
+    let histograms = local_key_measure_histograms(score);
+    let measure_count = histograms.len();
+    if histograms
+        .iter()
+        .all(|histogram| histogram.iter().all(|weight| *weight == 0.0))
+    {
+        return Vec::new();
+    }
+    let reference = local_key_reference_fifths(score, measure_count);
+    let candidates: Vec<(i8, &str)> = (-7_i8..=7)
+        .flat_map(|fifths| [(fifths, "major"), (fifths, "minor")])
+        .collect();
+    let radius = LOCAL_KEY_PATH_RADIUS_MEASURES;
+    let mut windows = Vec::with_capacity(measure_count);
+    let mut emissions = Vec::with_capacity(measure_count);
+    for (measure, written_fifths) in reference.iter().copied().enumerate() {
+        let start = measure.saturating_sub(radius);
+        let end = measure
+            .saturating_add(radius)
+            .saturating_add(1)
+            .min(measure_count);
+        let mut observed = [0.0_f64; 12];
+        for histogram in &histograms[start..end] {
+            for (class, weight) in histogram.iter().enumerate() {
+                observed[class] += weight;
+            }
+        }
+        let correlations: Vec<Option<f64>> = candidates
+            .iter()
+            .map(|(fifths, mode)| aarden_essen_correlation(&observed, *fifths, mode))
+            .collect();
+        let scores = candidates
+            .iter()
+            .zip(&correlations)
+            .map(|((fifths, _), correlation)| {
+                let spelling = f64::from((i16::from(*fifths) - i16::from(written_fifths)).abs());
+                correlation.unwrap_or(-1.0) - 0.001 * spelling
+            })
+            .collect::<Vec<_>>();
+        windows.push((start, end, correlations));
+        emissions.push(scores);
+    }
+    let transition = |from: usize, to: usize| {
+        if from == to {
+            return 0.0;
+        }
+        let tonic =
+            |(fifths, mode): (i8, &str)| i16::from(fifths) + if mode == "minor" { 3 } else { 0 };
+        LOCAL_KEY_PATH_CHANGE_COST
+            + LOCAL_KEY_PATH_FIFTH_COST
+                * f64::from((tonic(candidates[from]) - tonic(candidates[to])).abs())
+    };
+    let mut totals = emissions[0].clone();
+    let mut back = Vec::with_capacity(measure_count.saturating_sub(1));
+    for scores in &emissions[1..] {
+        let mut next = Vec::with_capacity(candidates.len());
+        let mut pointers = Vec::with_capacity(candidates.len());
+        for (to, score) in scores.iter().enumerate() {
+            let mut best = 0;
+            let mut best_total = totals[0] - transition(0, to);
+            for (from, total) in totals.iter().enumerate().skip(1) {
+                let candidate = total - transition(from, to);
+                if candidate > best_total {
+                    best = from;
+                    best_total = candidate;
+                }
+            }
+            next.push(best_total + score);
+            pointers.push(best);
+        }
+        totals = next;
+        back.push(pointers);
+    }
+    let mut state = 0;
+    for (index, total) in totals.iter().enumerate() {
+        if *total > totals[state] {
+            state = index;
+        }
+    }
+    let mut path = vec![state; measure_count];
+    for measure in (1..measure_count).rev() {
+        state = back[measure - 1][state];
+        path[measure - 1] = state;
+    }
+    path.into_iter()
+        .zip(windows)
+        .enumerate()
+        .map(|(measure, (state, (start, end, correlations)))| {
+            let (fifths, mode) = candidates[state];
+            LocalKeyEstimate {
+                measure,
+                window_start: start,
+                window_end_exclusive: end,
+                key: KeySignature {
+                    fifths,
+                    mode: mode.to_string(),
+                },
+                profile_correlation: correlations[state].unwrap_or(0.0),
+                rule_id: "aarden-essen-local-key-path".to_string(),
+            }
+        })
+        .collect()
+}
+
+fn local_key_measure_histograms(score: &Score) -> Vec<[f64; 12]> {
+    let measure_count = score
+        .parts
+        .iter()
+        .flat_map(|part| &part.staves)
+        .map(|staff| staff.measures.len())
+        .max()
+        .unwrap_or(0);
+    let mut histograms = vec![[0.0_f64; 12]; measure_count];
+    for part in &score.parts {
+        for staff in &part.staves {
+            for (index, measure) in staff.measures.iter().enumerate() {
+                for voice in &measure.voices {
+                    for note in voice {
+                        if note.is_rest || note.is_unpitched {
+                            continue;
+                        }
+                        let beats = note.beats();
+                        if !beats.is_finite() || beats <= 0.0 {
+                            continue;
+                        }
+                        for pitch in &note.pitches {
+                            if pitch.microtone_cents == 0 {
+                                histograms[index][pitch.to_midi().rem_euclid(12) as usize] += beats;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    histograms
+}
+
+fn local_key_reference_fifths(score: &Score, measure_count: usize) -> Vec<i8> {
+    let written = score
+        .parts
+        .first()
+        .and_then(|part| part.staves.first())
+        .map(|staff| staff.measures.as_slice())
+        .unwrap_or(&[]);
+    let mut reference = 0_i8;
+    (0..measure_count)
+        .map(|measure| {
+            if let Some(key) = written.get(measure).and_then(|m| m.key_sig.as_ref()) {
+                reference = key.fifths;
+            }
+            reference
+        })
+        .collect()
+}
+
+fn aarden_essen_correlation(observed: &[f64; 12], fifths: i8, mode: &str) -> Option<f64> {
+    let observed_mean = observed.iter().sum::<f64>() / 12.0;
+    let observed_variance = observed
+        .iter()
+        .map(|weight| (weight - observed_mean).powi(2))
+        .sum::<f64>();
+    if observed_variance <= 0.0 {
+        return None;
+    }
+    let weights = if mode == "minor" {
+        &AARDEN_ESSEN_MINOR
+    } else {
+        &AARDEN_ESSEN_MAJOR
+    };
+    let tonic =
+        (i32::from(fifths) * 7 + if mode == "minor" { 9 } else { 0 }).rem_euclid(12) as usize;
+    let profile_mean = weights.iter().sum::<f64>() / 12.0;
+    let profile_variance = weights
+        .iter()
+        .map(|weight| (weight - profile_mean).powi(2))
+        .sum::<f64>();
+    let covariance = observed
+        .iter()
+        .enumerate()
+        .map(|(class, weight)| {
+            (weight - observed_mean) * (weights[(class + 12 - tonic) % 12] - profile_mean)
+        })
+        .sum::<f64>();
+    Some(covariance / (observed_variance * profile_variance).sqrt())
+}
+
 /// Analyze adjacent pitched notes in every voice without inferring missing events.
 pub fn analyze_intervals(score: &Score) -> Vec<IntervalObservation> {
     analyze_intervals_in_region(score, None)
@@ -4166,6 +4379,57 @@ mod tests {
         assert_eq!((keys[1].window_start, keys[1].window_end_exclusive), (0, 3));
         assert_eq!((keys[2].window_start, keys[2].window_end_exclusive), (1, 3));
         assert!(keys.iter().all(|key| key.profile_correlation.is_finite()));
+    }
+
+    #[test]
+    fn local_key_path_changes_key_once_and_fills_silent_measures() {
+        assert!(estimate_local_key_path_with_aarden_essen_profile(&Score::default()).is_empty());
+        let mut score = Score::new("key path", 120, 4, 4, 0, 16);
+        let chord = |steps: &[(Step, i8)]| {
+            let pitch = |(step, alter): &(Step, i8)| {
+                let mut pitch = Pitch::new(step.clone(), 4);
+                pitch.alter = *alter;
+                pitch
+            };
+            let mut note = Note::new(pitch(&steps[0]), Duration::Whole);
+            note.pitches = steps.iter().map(pitch).collect();
+            vec![note]
+        };
+        let c_major = [
+            chord(&[(Step::C, 0), (Step::E, 0), (Step::G, 0)]),
+            chord(&[(Step::G, 0), (Step::B, 0), (Step::D, 0), (Step::F, 0)]),
+        ];
+        let g_major = [
+            chord(&[(Step::G, 0), (Step::B, 0), (Step::D, 0)]),
+            chord(&[(Step::D, 0), (Step::F, 1), (Step::A, 0)]),
+        ];
+        let measures = &mut score.parts[0].staves[0].measures;
+        for (index, measure) in measures.iter_mut().enumerate() {
+            measure.voices[0] = match index {
+                8 => Vec::new(),
+                0..=7 => c_major[index % 2].clone(),
+                _ => g_major[index % 2].clone(),
+            };
+        }
+        // A single stray G-major measure is not worth two key changes.
+        measures[3].voices[0] = g_major[1].clone();
+        let keys = estimate_local_key_path_with_aarden_essen_profile(&score);
+        assert_eq!(keys.len(), 16);
+        let fifths: Vec<i8> = keys.iter().map(|key| key.key.fifths).collect();
+        let modes: Vec<&str> = keys.iter().map(|key| key.key.mode.as_str()).collect();
+        assert!(
+            modes.iter().all(|mode| *mode == "major"),
+            "{fifths:?} {modes:?}"
+        );
+        let changes = fifths.windows(2).filter(|pair| pair[0] != pair[1]).count();
+        assert_eq!(changes, 1, "{fifths:?}");
+        assert_eq!((fifths[0], fifths[15]), (0, 1));
+        assert_eq!(fifths[3], 0);
+        assert!(
+            keys.iter()
+                .all(|key| key.rule_id == "aarden-essen-local-key-path")
+        );
+        assert_eq!((keys[0].window_start, keys[0].window_end_exclusive), (0, 2));
     }
 
     #[test]

@@ -114,6 +114,15 @@ found 2,157/3,405 for music21 at its best window on the inspected works; a
 separate [fixed 12-work holdout](../../docs/archive/analysis-wir-local-key-holdout-v1.md)
 failed the local-key gate at 1,921 versus 1,934 exact labels.
 
+`estimate_local_key_path_with_aarden_essen_profile(score)` (CLI:
+`analyze-local-keys --method path`) scores each measure's one-measure-radius
+window against all 30 keys and picks the best key path across the piece,
+charging for every key change. Every measure of a score with pitched notes
+gets an estimate. It cannot resolve a change within a measure. Its constants
+were chosen on 48 inspected development works, where it matched 6,468 of
+8,668 positions. On a second [fixed 16-work holdout](../../docs/archive/analysis-wir-local-key-holdout-2-v1.md)
+it still trails music21, 2,548 versus 2,576 exact labels.
+
 `analyze_batch` preserves input order for finite collections, while `analyze_stream` returns a
 lazy iterator for host-side streaming. Both use the same deterministic result contract.
 
