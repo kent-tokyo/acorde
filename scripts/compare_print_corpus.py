@@ -15,6 +15,12 @@ Each SOURCE is a licensed fixture. MuseScore sources are first converted by
 `print_mxl` (A4, notation-density breaks, at most MEASURES per system, default
 4) and Verovio uses A4 with 14 mm side and 16 mm top/bottom margins.
 
+Break policy (PRINT_BREAKS, recorded per row as `break_policy`): Acorde keeps
+the source's `<print new-system/new-page>` breaks, while Verovio's default
+layout ignores them, so raw page counts compare different layouts. The default
+`stripped` removes those print breaks from the shared input before either
+engine reads it. `source` keeps them, as earlier runs did.
+
 Every measurement is taken the same way for both renderers: each page SVG is
 inlined into one HTML page and measured in headless Chrome with
 getBoundingClientRect, converted to millimetres from the A4 page width.
@@ -60,6 +66,9 @@ VEROVIO = ["verovio", "--page-width", "2100", "--page-height", "2970",
            "--page-margin-top", "160", "--page-margin-bottom", "160",
            "--page-margin-left", "140", "--page-margin-right", "140"]
 VEROVIO_NPM_PREFIX = os.environ.get("VEROVIO_NPM_PREFIX")
+BREAK_POLICY = os.environ.get("PRINT_BREAKS", "stripped")
+if BREAK_POLICY not in ("stripped", "source"):
+    raise ValueError("PRINT_BREAKS must be stripped or source")
 
 SELECTORS = {
     "acorde": {
@@ -243,12 +252,23 @@ def expected_marks(root):
             counts["ties"] += sum(1 for t in n.findall("tied") if t.get("type") == "start")
             counts["articulations"] += sum(len(a) for a in n.findall("articulations"))
     for d in root.iter("dynamics"):
-        # <other-dynamics> carries arbitrary text; compare it as a direction,
-        # not as a standard dynamic glyph.
-        counts["dynamics"] += sum(mark.tag != "other-dynamics" for mark in d)
+        # Both renderers draw one <dynamics> element as one dynamic, even when
+        # it lists several marks such as <p/> and <pp/>. <other-dynamics>
+        # carries arbitrary text; compare it as a direction, not as a glyph.
+        counts["dynamics"] += any(mark.tag != "other-dynamics" for mark in d)
     for w in root.iter("wedge"):
         counts["hairpins"] += w.get("type") in ("crescendo", "diminuendo")
     return dict(counts)
+
+
+def strip_print_breaks(root):
+    """Remove encoded system and page breaks; return how many were removed."""
+    removed = 0
+    for element in root.iter("print"):
+        for attribute in ("new-system", "new-page"):
+            if element.attrib.pop(attribute, None) == "yes":
+                removed += 1
+    return removed
 
 
 def wedge_endpoints(root):
@@ -354,6 +374,12 @@ def main():
         shared = src if src.suffix in (".mxl", ".musicxml") else work / f"{name}.musicxml"
         if shared != src:
             run(ACORDE, "convert", src, shared)
+        removed_breaks = 0
+        if BREAK_POLICY == "stripped":
+            root = source_root(shared)
+            removed_breaks = strip_print_breaks(root)
+            shared = work / f"{name}-shared.musicxml"
+            ET.ElementTree(root).write(shared, encoding="UTF-8", xml_declaration=True)
         report = json.loads(run(ACORDE, "report", shared).stdout)
         codes = collections.Counter(d["code"] for d in report["diagnostics"])
         pdf = work / f"{name}-acorde.pdf"
@@ -386,6 +412,7 @@ def main():
         rows.append({
             "score": name, "source": source, "measures_per_system": int(measures),
             "acorde_print_strategy": PRINT_STRATEGY,
+            "break_policy": BREAK_POLICY, "removed_print_breaks": removed_breaks,
             "verovio_version": "6.4.1" if VEROVIO_NPM_PREFIX else "6.3.0",
             "source_sha256": hashlib.sha256(src.read_bytes()).hexdigest(),
             "shared_input_sha256": hashlib.sha256(shared.read_bytes()).hexdigest(),
