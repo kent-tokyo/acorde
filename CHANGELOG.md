@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+- Record the v3 final print holdout as a fail (#499). Acorde could not render
+  one of 24 inputs (`DirectionTooWide`) and drew one hairpin fewer than the
+  source on two others; one input failed in MuseScore conversion. The cohort
+  now counts as development data.
+
 - In measured print, let ink outside the outer staves extend up to 6 mm into
   the top and bottom margins; staff lines stay inside them. On 18 retired
   development inputs at eight measures per system, pages fall from 183 to 171
