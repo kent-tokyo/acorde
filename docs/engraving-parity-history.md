@@ -1598,3 +1598,46 @@ hold a third system at the present staff size and spacing. A local trial reducin
 the initial gap for scores with at least three staves from 6 to 4.5 staff spaces
 still produced 13 pages; the trial was reverted. The remaining page-use gap
 requires source-aware ink and inter-staff geometry review.
+
+## Exterior ink in the top and bottom margins (#498)
+
+Measured print kept all ink inside the 16 mm top and bottom margins. The first
+system on a page therefore reserved its tallest ink below the top margin, and
+the last system reserved its lowest ink above the bottom margin. Verovio keeps
+its staves inside the same margins but lets ink outside the staves extend into
+them. In a run allowing up to 16 measures per system, Verovio's first staff line
+sat a median 4.5 staff spaces below the top margin on the Wolf quartet, against
+7.1 for Acorde.
+
+Measured print now keeps staff lines inside the configured margins and lets ink
+outside the outer staves use up to 6 mm of the top and bottom margins
+(`EXTERIOR_INK_MARGIN_MM`). Ink stays at least 10 mm from the page edge with
+the default margins, above the page number. Text and glyph sizes, the staff
+space and the inter-staff gaps are unchanged.
+
+The [measurement](archive/print-page-use-498-v1.json) used 18 of the 24 retired
+inputs: the 6 chamber, 6 vocal and 6 piano scores. It used A4, a 1.8 mm staff
+space, at most eight measures per system, encoded print breaks stripped for both
+engines, and Verovio 6.4.1.
+
+| Candidate | Acorde pages | Verovio pages | Ratio |
+| --- | ---: | ---: | ---: |
+| main at 446f6d83 | 183 | 156 | 1.173 |
+| Exterior ink in margins | 171 | 156 | 1.096 |
+
+The Brahms song (`lc6302395`) fell from 13 to 12 pages and the Wolf quartet
+(`sq8812200`) from 35 to 31. No input gained a page. Missing-mark shortfalls,
+text/notation, text/text, text/curve, lyric and dynamic screens stayed at zero
+for every input.
+
+The margin screen counts 932 elements past the nominal margins after the
+change, against 183 before. Before, all 183 were page numbers, which sit in the
+bottom margin by design. After, 171 are page numbers. The other 761 are ink
+outside the staves: noteheads and ledger lines above the staff, slurs, stems,
+measure numbers, articulations, rehearsal marks and first-page titles. All of
+them lie between 10.45 mm and 284.69 mm from the top edge, within the 6 mm
+allowance. No staff line is in a margin.
+
+The six extracted-part inputs still need a MuseScore-prepared input and were
+not rerun. This is development evidence on retired inputs; the v3 holdout has
+not been opened.

@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+- In measured print, let ink outside the outer staves extend up to 6 mm into
+  the top and bottom margins; staff lines stay inside them. On 18 retired
+  development inputs at eight measures per system, pages fall from 183 to 171
+  (Verovio: 156, ratio 1.096), with no new collision candidates (#498).
+
 - Score Acorde's parallel fifth/octave flags and music21's figured-bass
   checker against Luke Dahn's list of consecutives in 41 Bach chorales. On the
   20 held-out chorales, run once, both cover 9 of 24 labels; most misses are
