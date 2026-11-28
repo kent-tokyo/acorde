@@ -4,9 +4,13 @@ pub mod accordion_sections;
 pub mod accordion_voicing;
 pub mod arrange;
 pub mod arrange_presets;
+#[cfg(feature = "unstable-arrangement")]
+pub mod arrangement_assessment;
 pub mod arrangement_plan;
 pub mod arrangement_plan_shuffle;
 pub mod arrangement_proposals;
+#[cfg(feature = "unstable-arrangement")]
+pub mod arrangement_suggestions;
 pub mod authored_chords;
 pub mod bass_line;
 pub mod change_hint;
@@ -43,6 +47,8 @@ pub mod instrument_plan;
 pub mod integrated_arrangement_proposals;
 pub mod interval;
 pub mod melodic_insert;
+#[cfg(feature = "unstable-arrangement")]
+pub mod melody_composition;
 pub mod musical_diff;
 pub mod notation;
 pub mod omr;
@@ -52,6 +58,8 @@ pub mod phrase_melody;
 pub mod pitch;
 pub mod playback;
 pub mod profiled_chord_plan;
+#[cfg(feature = "unstable-arrangement")]
+pub mod reharmonization;
 pub mod repeat;
 pub mod rhythm_engraving;
 pub mod rhythm_section;

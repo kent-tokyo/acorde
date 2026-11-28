@@ -42,6 +42,14 @@ pub use model::arrange_presets::{
     arrange_accordion_preset, arrange_from_resolved_layers, arrange_from_resolved_preset,
     shuffle_accordion_layers, shuffle_accordion_preset,
 };
+#[cfg(feature = "unstable-arrangement")]
+pub use model::arrangement_assessment::{
+    ARRANGEMENT_ASSESSMENT_CONTRACT_VERSION, ARRANGEMENT_ASSESSMENT_MAX_EVENTS,
+    ARRANGEMENT_ASSESSMENT_MAX_FINDINGS, ARRANGEMENT_ASSESSMENT_MAX_LEAP_LIMIT,
+    ARRANGEMENT_ASSESSMENT_TICKS_PER_BEAT, ArrangementAssessment, ArrangementAssessmentError,
+    ArrangementAssessmentRequest, ArrangementFinding, ArrangementFindingKind, ArrangementPartRange,
+    assess_arrangement,
+};
 pub use model::arrangement_plan::{
     ACCORDION_PLAN_CONTRACT_VERSION, ACCORDION_PLAN_ENGINE_VERSION, ACCORDION_PLAN_MAX_CHORDS,
     ACCORDION_PLAN_MAX_MEASURES, ACCORDION_PLAN_MAX_SECTIONS, ACCORDION_PLAN_MAX_SOURCE_NOTES,
@@ -61,6 +69,13 @@ pub use model::arrangement_proposals::{
     ArrangementProposalRequest, ArrangementProposalResult, ArrangementRegionRequest,
     ArrangementRegionResult, ResolvedArrangementProposal, regenerate_arrangement_region,
     replay_arrangement_proposal, suggest_arrangement_proposals,
+};
+#[cfg(feature = "unstable-arrangement")]
+pub use model::arrangement_suggestions::{
+    ARRANGEMENT_SUGGESTIONS_CONTRACT_VERSION, ArrangementAssessmentLimits,
+    ArrangementAssessmentOptions, ArrangementCandidate, ArrangementEngineRequest,
+    ArrangementRequest, ArrangementSuggestionError, ArrangementSuggestions, ResolvedArrangement,
+    SetAsideArrangement, replay_arrangement, suggest_arrangements,
 };
 pub use model::authored_chords::{
     AuthoredChordAnnotation, AuthoredChordDiagnostic, AuthoredChordOptions, AuthoredChordResult,
@@ -254,6 +269,13 @@ pub use model::melodic_insert::{
     MelodicInsertionSelection, MelodicInsertionSource, MelodicLocalKey, MelodicSourceMapping,
     insert_melodic_notes, insert_melodic_notes_with_context,
 };
+#[cfg(feature = "unstable-arrangement")]
+pub use model::melody_composition::{
+    MELODY_COMPOSITION_CONTRACT_VERSION, MELODY_COMPOSITION_MAX_CHORDS,
+    MELODY_COMPOSITION_MAX_MEASURES, MelodyChord, MelodyCompositionError, MelodyCompositionReport,
+    MelodyCompositionRequest, MelodyCompositionResult, MelodyForm, MelodyMotif, MelodySection,
+    PhraseEnding, PhraseEndingTarget, compose_melody,
+};
 pub use model::musical_diff::{
     MusicalChange, MusicalChangeKind, MusicalComparisonDiagnostic, MusicalComparisonOptions,
     MusicalComparisonResult, NoteCorrespondence, StructurePolicy, VoiceAddr, VoiceCorrespondence,
@@ -305,6 +327,13 @@ pub use model::playback::{
     compute_playback_position, evaluate_playback_timing_corpus, playback_fermata_pauses,
     project_tablature_performance, tablature_round_trip_report, to_playback_events,
     to_playback_events_bounded,
+};
+#[cfg(feature = "unstable-arrangement")]
+pub use model::reharmonization::{
+    REHARMONIZATION_CONTRACT_VERSION, REHARMONIZATION_MAX_CANDIDATES, REHARMONIZATION_MAX_ENTRIES,
+    ReharmonizationAvoidNote, ReharmonizationCandidate, ReharmonizationChord, ReharmonizationError,
+    ReharmonizationMelodyFit, ReharmonizationRequest, ReharmonizationResult,
+    ReharmonizationTechnique, apply_reharmonizations, suggest_reharmonizations,
 };
 pub use model::repeat::measure_sequence;
 pub use model::scale::{Scale, ScaleKind};
