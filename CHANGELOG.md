@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+- Add `assess_arrangement` behind the new `unstable-arrangement` feature of `acorde-core`.
+  It counts melody masking, semitone clashes, parallel fifths and octaves, out-of-range
+  notes and bass leaps in a finished arrangement, with a frozen baseline for the
+  arrangement corpus v1. See [arrangement assessment](docs/arrangement-assessment.md).
+- Add `suggest_arrangements` and `replay_arrangement` behind the same feature: one request
+  and result shape for the six arrangement proposal engines, with optional assessment
+  limits that set candidates aside. See [arrangement suggestions](docs/arrangement-suggestions.md).
+- Add `suggest_reharmonizations` and `apply_reharmonizations` behind the same feature: find
+  secondary-dominant, tritone-substitution and two-five candidates inside an editable range,
+  with locks and melody-fit ranking. See [reharmonization](docs/reharmonization.md).
+- Add `compose_melody` behind the same feature: an eight-bar period or sentence from a key,
+  chords and an optional motif, with strong beats on chord tones, phrase endings on dominant
+  and tonic degrees, and a report of what was met. A `ternary` form writes A-B-A′ over 24 bars:
+  a contrasting B section and an A′ that restates A's first phrase and ornaments its
+  consequent. See [melody composition](docs/melody-composition.md).
 - Score Acorde's parallel fifth/octave flags and music21's figured-bass
   checker against Luke Dahn's list of consecutives in 41 Bach chorales. On the
   20 held-out chorales, run once, both cover 9 of 24 labels; most misses are
