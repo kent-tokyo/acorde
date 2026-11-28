@@ -236,13 +236,8 @@ fn serialize_musicxml_inner(
             }
         };
 
-        let mut skip_until = 0usize;
         let mut serial_time = score.settings.time_signature.clone();
         for (i, measure) in staff.measures.iter().enumerate() {
-            if i > 0 && i < skip_until {
-                continue;
-            }
-
             if let Some(time) = &measure.time_sig {
                 serial_time = time.clone();
             }
@@ -509,7 +504,6 @@ fn serialize_musicxml_inner(
                         count
                     ));
                     xml.push_str("        </measure-style>\n");
-                    skip_until = i + count as usize;
                 }
                 if let Some(marker) = &repeat_marker {
                     xml.push_str(marker);
@@ -545,7 +539,6 @@ fn serialize_musicxml_inner(
                     xml.push_str(marker);
                 }
                 xml.push_str("      </attributes>\n");
-                skip_until = i + count as usize;
             } else if let Some(marker) = &repeat_marker {
                 xml.push_str("      <attributes>\n");
                 xml.push_str(marker);
