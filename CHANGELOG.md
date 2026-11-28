@@ -12,6 +12,9 @@
 - Add `suggest_reharmonizations` and `apply_reharmonizations` behind the same feature: find
   secondary-dominant, tritone-substitution and two-five candidates inside an editable range,
   with locks and melody-fit ranking. See [reharmonization](docs/reharmonization.md).
+- Add `compose_melody` behind the same feature: an eight-bar period or sentence from a key,
+  chords and an optional motif, with strong beats on chord tones, phrase endings on dominant
+  and tonic degrees, and a report of what was met. See [melody composition](docs/melody-composition.md).
 - Space measured print systems from the ink skylines of neighboring systems
   instead of each system's tallest ink. Systems stay at least 7 staff spaces
   apart, and a system that ends a page keeps its full reservation. On 18

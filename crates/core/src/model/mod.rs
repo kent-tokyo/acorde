@@ -47,6 +47,8 @@ pub mod instrument_plan;
 pub mod integrated_arrangement_proposals;
 pub mod interval;
 pub mod melodic_insert;
+#[cfg(feature = "unstable-arrangement")]
+pub mod melody_composition;
 pub mod musical_diff;
 pub mod notation;
 pub mod omr;

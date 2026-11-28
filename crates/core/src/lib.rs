@@ -269,6 +269,13 @@ pub use model::melodic_insert::{
     MelodicInsertionSelection, MelodicInsertionSource, MelodicLocalKey, MelodicSourceMapping,
     insert_melodic_notes, insert_melodic_notes_with_context,
 };
+#[cfg(feature = "unstable-arrangement")]
+pub use model::melody_composition::{
+    MELODY_COMPOSITION_CONTRACT_VERSION, MELODY_COMPOSITION_MAX_CHORDS,
+    MELODY_COMPOSITION_MAX_MEASURES, MelodyChord, MelodyCompositionError, MelodyCompositionReport,
+    MelodyCompositionRequest, MelodyCompositionResult, MelodyForm, MelodyMotif, PhraseEnding,
+    PhraseEndingTarget, compose_melody,
+};
 pub use model::musical_diff::{
     MusicalChange, MusicalChangeKind, MusicalComparisonDiagnostic, MusicalComparisonOptions,
     MusicalComparisonResult, NoteCorrespondence, StructurePolicy, VoiceAddr, VoiceCorrespondence,
