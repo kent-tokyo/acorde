@@ -37,5 +37,5 @@
   "evaluator": "scripts/evaluate_print_holdout.py",
   "gate": "ROADMAP.md print gate: no confirmed clipping or unexplained missing marks, no systematic Verovio preference, and measured staff/text sizes and collisions reported per score.",
   "run_rule": "Freeze the candidate binaries, font, source and shared-input hashes (scripts/prepare_print_holdout.py) first. Run once, after #498 is closed. Outputs are not inspected while algorithms change. Report pass or fail; on fail the cohort retires to development.",
-  "status": "selected and source hashes verified; candidate not frozen; not run"
+  "status": "run once on 2026-11-28 (freeze docs/archive/print-parity-freeze-v3.json); FAILED: one Acorde render error and two unexplained missing hairpins; cohort retired to development"
 }

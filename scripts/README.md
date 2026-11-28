@@ -53,9 +53,11 @@ See [engraving parity](../docs/engraving-parity.md) and the
 | `export_verovio_pages.mjs` | Render every page with a pinned Verovio package. |
 | `compare_print_corpus.py` | Measure Acorde print pages against Verovio on the same MusicXML. |
 | `bench_print_parity.mjs` | Time both engines in isolated processes on the same input. |
+| `freeze_print_holdout.py` | One-off script that wrote the v3 print-holdout freeze; its paths are pinned to that run. |
 | `fetch_print_holdout.py` | Fetch and verify pinned print-holdout sources. |
 | `prepare_print_holdout.py` | Prepare shared MusicXML for the holdout after a candidate freeze. |
 | `evaluate_print_holdout.py` | Evaluate every prepared holdout input, keeping both engines' failures. |
+| `compact_print_holdout_evaluation.py` | Write a compact archive copy of a holdout evaluation. |
 | `normalize_print_staff_size.py` | Make an equal-staff-size input for a separate comparison. |
 | `check_print_variants.py` | Screen default/A4 and matched-size/Letter print configurations. |
 | `audit_print_margins.py` | Classify A4 margin crossings in measured development SVGs. |

@@ -1641,3 +1641,42 @@ allowance. No staff line is in a margin.
 The six extracted-part inputs still need a MuseScore-prepared input and were
 not rerun. This is development evidence on retired inputs; the v3 holdout has
 not been opened.
+
+## Final holdout v3 result (#499): fail
+
+The v3 cohort was run once on 2026-11-28, after #498 closed, from commit
+aac0e629 (origin/main). The [candidate freeze](archive/print-parity-freeze-v3.json)
+was written before any source was fetched. It holds the selection hash (matching
+the protocol), 416 source-file hashes, the release `print_mxl`, `measured_print`
+and CLI binaries, the Tuffy font, Verovio 6.4.1 and MuseScore 4.7.5
+([`freeze_print_holdout.py`](../scripts/freeze_print_holdout.py)). All 24 fetched
+sources matched their pinned blob hashes. [Preparation](archive/print-parity-holdout-v3-preparation.json)
+and the [evaluation](archive/print-parity-holdout-v3-evaluation.json) each ran once
+without changes to the scripts or their invocations. The evaluation file in the
+repository is a compact copy
+([`compact_print_holdout_evaluation.py`](../scripts/compact_print_holdout_evaluation.py)):
+candidate lists are reduced to counts, and the full file's sha256 is recorded.
+
+Result against the print gate: **fail**.
+
+- `vocal-lc6794671`: Acorde produced no output. `print_mxl` stopped with
+  `DirectionTooWide` (a direction wider than the available system width), after
+  135 import diagnostics. Verovio rendered it on 9 pages
+  ([row](archive/print-parity-holdout-v3-vocal-lc6794671.json)).
+- `vocal-lc6570310` and `vocal-lc6425416`: Acorde drew one hairpin fewer than the
+  source in each. These are unexplained missing marks until reviewed.
+- `piano-op08n08`: MuseScore aborted during conversion ("mutex lock failed",
+  exit -6) and wrote no MusicXML, so neither engine was evaluated. This is a
+  preparation failure, not an Acorde result.
+
+On the 22 inputs that both engines rendered, Acorde had no element past the page edge, no pitched-event
+import differences, staff space 1.7993–1.8007 mm, one text/notation candidate
+(`piano-op37a05`) and two text/curve candidates. Elements in the margins ranged
+from 11 to 59 on piano and vocal inputs and from 72 to 1,509 on chamber and part
+inputs; these include the 6 mm exterior-ink allowance and page numbers. Acorde used
+605 pages to Verovio's 399 on those 22 rows. Encoded breaks are kept, so page
+counts are reported but are not a gate criterion. The blind visual review was not
+run, because the gate had already failed.
+
+Following the run rule, the v3 cohort now retires to development. A later final
+claim needs a new untouched cohort and a new freeze.
