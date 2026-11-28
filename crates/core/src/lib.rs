@@ -70,6 +70,13 @@ pub use model::arrangement_proposals::{
     ArrangementRegionResult, ResolvedArrangementProposal, regenerate_arrangement_region,
     replay_arrangement_proposal, suggest_arrangement_proposals,
 };
+#[cfg(feature = "unstable-arrangement")]
+pub use model::arrangement_suggestions::{
+    ARRANGEMENT_SUGGESTIONS_CONTRACT_VERSION, ArrangementAssessmentLimits,
+    ArrangementAssessmentOptions, ArrangementCandidate, ArrangementEngineRequest,
+    ArrangementRequest, ArrangementSuggestionError, ArrangementSuggestions, ResolvedArrangement,
+    SetAsideArrangement, replay_arrangement, suggest_arrangements,
+};
 pub use model::authored_chords::{
     AuthoredChordAnnotation, AuthoredChordDiagnostic, AuthoredChordOptions, AuthoredChordResult,
     annotate_from_authored_chords,

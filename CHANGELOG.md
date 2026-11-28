@@ -6,6 +6,9 @@
   It counts melody masking, semitone clashes, parallel fifths and octaves, out-of-range
   notes and bass leaps in a finished arrangement, with a frozen baseline for the
   arrangement corpus v1. See [arrangement assessment](docs/arrangement-assessment.md).
+- Add `suggest_arrangements` and `replay_arrangement` behind the same feature: one request
+  and result shape for the six arrangement proposal engines, with optional assessment
+  limits that set candidates aside. See [arrangement suggestions](docs/arrangement-suggestions.md).
 
 ## 2.0.1 - 2026-11-23
 

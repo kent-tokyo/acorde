@@ -9,6 +9,8 @@ pub mod arrangement_assessment;
 pub mod arrangement_plan;
 pub mod arrangement_plan_shuffle;
 pub mod arrangement_proposals;
+#[cfg(feature = "unstable-arrangement")]
+pub mod arrangement_suggestions;
 pub mod authored_chords;
 pub mod bass_line;
 pub mod change_hint;
