@@ -50,9 +50,15 @@ breaking change, either make the change compatible (for example, add a construct
 new required field) or hold it for the next major release. Prefer `#[non_exhaustive]` on new public
 error enums and on enums or structs that are expected to grow.
 
+Arrangement modules move behind the `unstable-arrangement` feature in 3.0 and are then outside this
+policy; see [the extensibility plan](docs/api-extensibility.md#experimental-arrangement-tier-497).
+
 Before a release, `python3 -B scripts/check_release_consistency.py` must report that the
 workspace version, internal dependency versions, `docs/scorecard.json`, the newest `CHANGELOG.md`
 release heading, and the `ROADMAP.md` baseline agree. CI and the publish workflow run it.
+After tagging, record the release print benchmark against Verovio with
+`scripts/bench_release_print.py` on the same host as earlier runs (see
+[performance checks](docs/performance.md#release-print-comparison-with-verovio)).
 
 ## Small, reviewable changes
 
