@@ -1,7 +1,7 @@
 # Melody composition
 
-`compose_melody(&MelodyCompositionRequest)` writes an eight-bar (or longer) melody from a
-key, a chord progression, a phrase form and an optional one-bar motif. It is behind the
+`compose_melody(&MelodyCompositionRequest)` writes an eight-bar period or sentence, or a
+24-bar A-B-A′ form, from a key, a chord progression and an optional one-bar motif. It is behind the
 `unstable-arrangement` feature of `acorde-core` and carries no SemVer promise
 ([#497](https://github.com/kent-tokyo/acorde/issues/497)).
 
@@ -14,10 +14,11 @@ that counts what the composition rules achieved.
 | --- | --- |
 | `key` | `fifths` -7..=7 and `mode` `major` or `minor` |
 | `time_numerator`, `time_denominator` | 2/4, 3/4, 4/4 or 6/8 |
-| `measures` | A positive multiple of 8, at most 128 |
-| `form` | `period` or `sentence` |
+| `measures` | A positive multiple of 8 (24 for `ternary`), at most 128 |
+| `form` | `period`, `sentence` or `ternary` |
 | `chords` | `{measure, offset_eighths, chord}` in time order; the first starts at 0/0 |
 | `motif` | Optional `{rhythm_eighths, steps}` filling one bar; derived from `seed` when absent |
+| `contrast_motif` | Optional B motif for `ternary`; derived when absent |
 | `low_midi`, `high_midi` | Range of at least an octave |
 | `max_leap_semitones` | 2..=12 |
 | `seed` | The same request and seed always give the same melody |
@@ -35,6 +36,25 @@ of the motif twice, the second time a step lower) and a cadence bar (C):
 | `period` | M I M C · M I F C | Degree 2, 5 or 7 | Degree 1 |
 | `sentence` | M I M I · F F C C | Degree 2, 5 or 7 | Degree 1 |
 
+## Ternary form (A-B-A′)
+
+`ternary` writes 24 bars. The caller supplies chords for all of them, usually with B in a
+contrasting key area that ends on the home dominant.
+
+| Section | Bars | Material | Phrase endings |
+| --- | --- | --- | --- |
+| A | 1-8 | Period on the motif | Degree 2/5/7, then 1 |
+| B | 9-16 | Period on the contrast motif; enters by a leap of about a fourth | Degree 2/5/7 twice |
+| A′ | 17-24 | Bars 1-4 restated note for note; bars 21-23 ornamented with upper neighbors | Degree 2/5/7, then 1 |
+
+The derived contrast motif takes a different rhythm template from the main motif and its
+contour reversed and inverted. B's last note is chosen within the leap limit as close as
+possible to A's first note, so A′ can restate it exactly.
+
+If the chord at a phrase ending has no target degree (an A minor chord where a half cadence
+is wanted, for example), the ending falls back to a chord tone and the report marks it
+unsatisfied.
+
 ## Rules
 
 - Notes on strong beats (beats 1 and 3 of 4/4, the dotted-quarter beats of 6/8, beat 1
@@ -49,7 +69,9 @@ of the motif twice, the second time a step lower) and a cadence bar (C):
 
 `report` gives the note count, strong-beat notes and how many are chord tones, the lowest
 and highest pitch, the largest leap and each phrase ending with its degree, target and
-whether it was met.
+whether it was met. `sections` lists A (and B, A′) with their register. `restated_notes`
+and `restated_matching_notes` count the A′ notes that repeat A and how many match in
+pitch and rhythm.
 
 ## Checks
 
@@ -60,3 +82,9 @@ minor) with a held pad and a root bass and runs [arrangement assessment](arrange
 no melody masking and no out-of-range notes. Weak-beat passing tones still form semitone
 clashes with the held pad (32,400 ticks across the 64 arrangements, about one beat per
 arrangement); the composer does not see the accompaniment voicing.
+
+For `ternary`, the unit tests cover 4 meters × 16 seeds: all six phrase endings met, every
+restated note matching, a B rhythm different from A's, a leap up into B when the range
+allows and more notes in the ornamented A′ consequent than in A's. The arrangement test runs
+32 ternary melodies in C major and A minor: no masking, and 56,400 clash ticks in total
+(about two beats per 24 bars).

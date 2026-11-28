@@ -14,7 +14,9 @@
   with locks and melody-fit ranking. See [reharmonization](docs/reharmonization.md).
 - Add `compose_melody` behind the same feature: an eight-bar period or sentence from a key,
   chords and an optional motif, with strong beats on chord tones, phrase endings on dominant
-  and tonic degrees, and a report of what was met. See [melody composition](docs/melody-composition.md).
+  and tonic degrees, and a report of what was met. A `ternary` form writes A-B-A′ over 24 bars:
+  a contrasting B section and an A′ that restates A's first phrase and ornaments its
+  consequent. See [melody composition](docs/melody-composition.md).
 - Space measured print systems from the ink skylines of neighboring systems
   instead of each system's tallest ink. Systems stay at least 7 staff spaces
   apart, and a system that ends a page keeps its full reservation. On 18

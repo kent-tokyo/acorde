@@ -77,6 +77,7 @@ fn request(
         form,
         chords,
         motif: None,
+        contrast_motif: None,
         low_midi: 62,
         high_midi: 81,
         max_leap_semitones: 7,
@@ -180,4 +181,109 @@ fn composed_melodies_arrange_without_masking_or_range_errors() {
     }
     assert_eq!(runs, 64);
     println!("{runs} arrangements: {clash_ticks} clash ticks, {parallels} outer parallels");
+}
+
+/// A-B-A′ in C major and A minor: B moves to the relative key area and ends on
+/// the home dominant.
+type Progression = [(&'static str, &'static str); 8];
+
+fn ternary(minor: bool, numerator: u8, denominator: u8) -> MelodyCompositionRequest {
+    let (a, b): (Progression, Progression) = if minor {
+        (
+            [
+                ("A", "minor"),
+                ("D", "minor"),
+                ("E", "dominant"),
+                ("E", "dominant"),
+                ("A", "minor"),
+                ("D", "minor"),
+                ("E", "dominant"),
+                ("A", "minor"),
+            ],
+            [
+                ("C", "major"),
+                ("F", "major"),
+                ("G", "dominant"),
+                ("G", "dominant"),
+                ("F", "major"),
+                ("D", "minor"),
+                ("B", "half-diminished"),
+                ("E", "dominant"),
+            ],
+        )
+    } else {
+        (
+            [
+                ("C", "major"),
+                ("F", "major"),
+                ("G", "major"),
+                ("G", "major"),
+                ("C", "major"),
+                ("F", "major"),
+                ("G", "dominant"),
+                ("C", "major"),
+            ],
+            [
+                ("A", "minor"),
+                ("D", "minor"),
+                ("E", "dominant"),
+                ("E", "dominant"),
+                ("F", "major"),
+                ("D", "minor"),
+                ("D", "dominant"),
+                ("G", "dominant"),
+            ],
+        )
+    };
+    let mut req = request(minor, numerator, denominator, MelodyForm::Ternary);
+    req.measures = 24;
+    req.chords = a
+        .iter()
+        .chain(&b)
+        .chain(&a)
+        .enumerate()
+        .map(|(measure, (root, kind))| MelodyChord {
+            measure,
+            offset_eighths: 0,
+            chord: chord(root, kind),
+        })
+        .collect();
+    req
+}
+
+#[test]
+fn ternary_melodies_arrange_and_keep_their_form() {
+    let mut runs = 0;
+    let mut clash_ticks = 0;
+    for minor in [false, true] {
+        for (n, d) in [(4, 4), (3, 4), (2, 4), (6, 8)] {
+            for seed in 0..4 {
+                let mut req = ternary(minor, n, d);
+                req.seed = seed;
+                let label = format!("minor={minor} {n}/{d} seed {seed}");
+                let composed = compose_melody(&req).unwrap();
+                let report = &composed.report;
+                assert!(
+                    report.phrase_endings.iter().all(|e| e.satisfied),
+                    "{label}: {:?}",
+                    report.phrase_endings
+                );
+                assert_eq!(report.phrase_endings.len(), 6, "{label}");
+                assert_eq!(
+                    report.restated_matching_notes, report.restated_notes,
+                    "{label}"
+                );
+                let score = arrange(&composed.score, &req);
+                assert!(validate(&score).is_valid(), "{label}");
+                let mut assessment = ArrangementAssessmentRequest::new(0);
+                assessment.bass_part = Some(2);
+                let result = assess_arrangement(&score, &assessment).unwrap();
+                assert_eq!(result.melody_masked_ticks, 0, "{label}");
+                clash_ticks += result.melody_semitone_clash_ticks;
+                runs += 1;
+            }
+        }
+    }
+    assert_eq!(runs, 32);
+    println!("{runs} ternary arrangements: {clash_ticks} clash ticks");
 }

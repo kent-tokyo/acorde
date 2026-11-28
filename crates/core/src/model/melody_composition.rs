@@ -37,6 +37,21 @@ pub enum MelodyForm {
     /// Eight-bar sentence: a two-bar idea, its repetition, a fragmented
     /// continuation and a cadence on the tonic.
     Sentence,
+    /// 24-bar ternary form A-B-A′. A is a period. B takes a contrasting motif,
+    /// enters by a leap up and ends both phrases on dominant tones. A′ restates A's
+    /// first phrase note for note and ornaments its consequent before the
+    /// final tonic.
+    Ternary,
+}
+
+impl MelodyForm {
+    /// Measures in one statement of the form.
+    pub fn unit_measures(self) -> u16 {
+        match self {
+            Self::Period | Self::Sentence => 8,
+            Self::Ternary => 24,
+        }
+    }
 }
 
 /// One measure of motif: a rhythm in eighth notes and a contour in scale steps.
@@ -65,7 +80,8 @@ pub struct MelodyCompositionRequest {
     /// Supported meters: 2/4, 3/4, 4/4 and 6/8.
     pub time_numerator: u8,
     pub time_denominator: u8,
-    /// A multiple of eight, up to [`MELODY_COMPOSITION_MAX_MEASURES`].
+    /// A multiple of [`MelodyForm::unit_measures`], up to
+    /// [`MELODY_COMPOSITION_MAX_MEASURES`].
     pub measures: u16,
     pub form: MelodyForm,
     /// Chords in time order. The first must start at measure 0, offset 0.
@@ -73,6 +89,10 @@ pub struct MelodyCompositionRequest {
     /// One measure of motif. `None` derives one from the seed.
     #[serde(default)]
     pub motif: Option<MelodyMotif>,
+    /// The B section's motif in the ternary form. `None` derives one from the
+    /// main motif and the seed. Ignored by other forms.
+    #[serde(default)]
+    pub contrast_motif: Option<MelodyMotif>,
     pub low_midi: u8,
     pub high_midi: u8,
     /// Largest move between adjacent notes, 2 to 12 semitones.
@@ -108,6 +128,19 @@ pub struct PhraseEnding {
     pub satisfied: bool,
 }
 
+/// One section of the form and the register it used.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MelodySection {
+    /// `A`, `B` or `A′`.
+    pub label: String,
+    pub start_measure: usize,
+    pub end_measure_exclusive: usize,
+    pub lowest_midi: u8,
+    pub highest_midi: u8,
+    /// Sum of pitches divided by the note count, rounded down.
+    pub mean_midi: u8,
+}
+
 /// What the composition rules achieved.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MelodyCompositionReport {
@@ -118,6 +151,12 @@ pub struct MelodyCompositionReport {
     pub highest_midi: u8,
     pub max_leap_semitones: u8,
     pub phrase_endings: Vec<PhraseEnding>,
+    /// Sections in time order.
+    pub sections: Vec<MelodySection>,
+    /// Notes in restated bars (A′ bars that repeat A in the ternary form).
+    pub restated_notes: usize,
+    /// How many of those have the same pitch and rhythm as the bar they restate.
+    pub restated_matching_notes: usize,
 }
 
 /// The composed melody.
@@ -128,6 +167,8 @@ pub struct MelodyCompositionResult {
     pub score: Score,
     /// The motif used, including one derived from the seed.
     pub motif: MelodyMotif,
+    /// The B motif used by the ternary form.
+    pub contrast_motif: Option<MelodyMotif>,
     pub report: MelodyCompositionReport,
 }
 
@@ -138,7 +179,9 @@ pub struct MelodyCompositionResult {
 pub enum MelodyCompositionError {
     #[error("meter {numerator}/{denominator} is not supported")]
     UnsupportedMeter { numerator: u8, denominator: u8 },
-    #[error("measures must be a positive multiple of 8 up to {max}")]
+    #[error(
+        "measures must be a positive multiple of the form length (8, or 24 for ternary) up to {max}"
+    )]
     InvalidMeasureCount { max: u16 },
     #[error("key must have -7..=7 fifths and a major or minor mode")]
     InvalidKey,
@@ -372,60 +415,181 @@ fn derive_motif(meter: &Meter, seed: u64) -> MelodyMotif {
     }
 }
 
-/// The eight bars of one form unit and the target of each phrase ending.
-fn form_bars(
-    form: MelodyForm,
-    motif: &MelodyMotif,
-    meter: &Meter,
-) -> (Vec<Bar>, [PhraseEndingTarget; 2]) {
+/// How the first note of a bar is placed.
+#[derive(Clone, Copy)]
+enum Anchor {
+    /// Step from the previous note.
+    Step,
+    /// Repeat the first pitch of the bar this many measures earlier.
+    Restate(usize),
+    /// Leap up about a fourth from the previous note.
+    Lift,
+}
+
+#[derive(Clone)]
+struct PlannedBar {
+    bar: Bar,
+    ending: Option<PhraseEndingTarget>,
+    anchor: Anchor,
+    /// Restated bars are compared with the bar `Restate` names.
+    restates: Option<usize>,
+}
+
+fn plain(bar: Bar) -> PlannedBar {
+    PlannedBar {
+        bar,
+        ending: None,
+        anchor: Anchor::Step,
+        restates: None,
+    }
+}
+
+fn ending_bar(meter: &Meter, last_step: i8, target: PhraseEndingTarget) -> PlannedBar {
+    let mut steps = vec![1; meter.ending.len()];
+    steps[0] = -1;
+    if let Some(last) = steps.last_mut() {
+        *last = last_step;
+    }
+    PlannedBar {
+        bar: Bar {
+            rhythm: meter.ending.to_vec(),
+            steps,
+        },
+        ending: Some(target),
+        anchor: Anchor::Step,
+        restates: None,
+    }
+}
+
+fn inverted(bar: &Bar) -> Bar {
+    Bar {
+        rhythm: bar.rhythm.clone(),
+        steps: bar.steps.iter().map(|s| -s).collect(),
+    }
+}
+
+/// Basic idea, its inversion and a fragment of a motif.
+fn variants(motif: &MelodyMotif, meter: &Meter) -> (Bar, Bar, Bar) {
     let basic = Bar {
         rhythm: motif.rhythm_eighths.clone(),
         steps: motif.steps.clone(),
     };
-    let inverted = Bar {
-        rhythm: basic.rhythm.clone(),
-        steps: basic.steps.iter().map(|s| -s).collect(),
-    };
-    // Fragment: the first half of the motif's notes, repeated a step lower.
+    let inverse = inverted(&basic);
     let half = fragment(&basic, meter.eighths);
-    let ending = |last_step: i8| Bar {
-        rhythm: meter.ending.to_vec(),
-        steps: {
-            let mut steps = vec![1; meter.ending.len()];
-            steps[0] = -1;
-            if let Some(last) = steps.last_mut() {
-                *last = last_step;
-            }
-            steps
-        },
-    };
+    (basic, inverse, half)
+}
+
+fn period(motif: &MelodyMotif, meter: &Meter, targets: [PhraseEndingTarget; 2]) -> Vec<PlannedBar> {
+    let (basic, inverse, half) = variants(motif, meter);
+    vec![
+        plain(basic.clone()),
+        plain(inverse.clone()),
+        plain(basic.clone()),
+        ending_bar(meter, 1, targets[0]),
+        plain(basic),
+        plain(inverse),
+        plain(half),
+        ending_bar(meter, -1, targets[1]),
+    ]
+}
+
+/// The bars of one statement of the form.
+fn form_bars(
+    form: MelodyForm,
+    motif: &MelodyMotif,
+    contrast: Option<&MelodyMotif>,
+    meter: &Meter,
+) -> Vec<PlannedBar> {
+    use PhraseEndingTarget::{Dominant, Tonic};
     match form {
-        MelodyForm::Period => (
+        MelodyForm::Period => period(motif, meter, [Dominant, Tonic]),
+        MelodyForm::Sentence => {
+            let (basic, inverse, half) = variants(motif, meter);
             vec![
-                basic.clone(),
-                inverted.clone(),
-                basic.clone(),
-                ending(1),
-                basic.clone(),
-                inverted,
-                half,
-                ending(-1),
-            ],
-            [PhraseEndingTarget::Dominant, PhraseEndingTarget::Tonic],
-        ),
-        MelodyForm::Sentence => (
-            vec![
-                basic.clone(),
-                inverted.clone(),
-                basic,
-                inverted,
-                half.clone(),
-                half,
-                ending(-1),
-                ending(-1),
-            ],
-            [PhraseEndingTarget::Dominant, PhraseEndingTarget::Tonic],
-        ),
+                plain(basic.clone()),
+                plain(inverse.clone()),
+                plain(basic),
+                PlannedBar {
+                    ending: Some(Dominant),
+                    ..plain(inverse)
+                },
+                plain(half.clone()),
+                plain(half),
+                plain(ending_bar(meter, -1, Tonic).bar),
+                ending_bar(meter, -1, Tonic),
+            ]
+        }
+        MelodyForm::Ternary => {
+            let a = period(motif, meter, [Dominant, Tonic]);
+            let mut b = period(contrast.unwrap_or(motif), meter, [Dominant, Dominant]);
+            b[0].anchor = Anchor::Lift;
+            let mut a_prime = a.clone();
+            for (index, bar) in a_prime.iter_mut().enumerate().take(4) {
+                bar.restates = Some(16);
+                if index == 0 {
+                    bar.anchor = Anchor::Restate(16);
+                }
+            }
+            for bar in &mut a_prime[4..7] {
+                bar.bar = ornament(&bar.bar);
+            }
+            a.into_iter().chain(b).chain(a_prime).collect()
+        }
+    }
+}
+
+/// Split one note into two with an upper neighbor on the second half: the first
+/// splittable note after the downbeat, else the downbeat itself.
+fn ornament(bar: &Bar) -> Bar {
+    let split = |length: u8| match length {
+        2 => Some([1, 1]),
+        3 => Some([2, 1]),
+        4 => Some([2, 2]),
+        6 => Some([3, 3]),
+        _ => None,
+    };
+    let Some(target) = (1..bar.rhythm.len())
+        .chain(0..1)
+        .find(|&i| split(bar.rhythm[i]).is_some())
+    else {
+        return bar.clone();
+    };
+    let mut rhythm = Vec::with_capacity(bar.rhythm.len() + 1);
+    let mut steps = Vec::with_capacity(bar.steps.len() + 1);
+    for (index, (&length, &step)) in bar.rhythm.iter().zip(&bar.steps).enumerate() {
+        match (index == target, split(length)) {
+            (true, Some(halves)) => {
+                rhythm.extend(halves);
+                steps.extend([step, 1]);
+            }
+            _ => {
+                rhythm.push(length);
+                // Return from the neighbor.
+                steps.push(if index == target + 1 { step - 1 } else { step });
+            }
+        }
+    }
+    Bar { rhythm, steps }
+}
+
+/// A B motif: another rhythm and the main contour reversed and inverted,
+/// entered by a leap.
+fn derive_contrast(motif: &MelodyMotif, meter: &Meter, seed: u64) -> MelodyMotif {
+    let others: Vec<&[u8]> = meter
+        .templates
+        .iter()
+        .copied()
+        .filter(|t| *t != motif.rhythm_eighths.as_slice())
+        .collect();
+    let rhythm = others[(splitmix64(seed ^ 0xb5ec_7105) % others.len() as u64) as usize].to_vec();
+    let contour: Vec<i8> = motif.steps.iter().rev().map(|s| -s).collect();
+    let mut steps: Vec<i8> = (0..rhythm.len())
+        .map(|i| contour[i % contour.len()].clamp(-2, 2))
+        .collect();
+    steps[0] = 2;
+    MelodyMotif {
+        rhythm_eighths: rhythm,
+        steps,
     }
 }
 
@@ -478,7 +642,9 @@ fn validate(
         },
     )?;
     if request.measures == 0
-        || !request.measures.is_multiple_of(8)
+        || !request
+            .measures
+            .is_multiple_of(request.form.unit_measures())
         || request.measures > MELODY_COMPOSITION_MAX_MEASURES
     {
         return Err(MelodyCompositionError::InvalidMeasureCount {
@@ -517,7 +683,7 @@ fn validate(
         );
         previous = Some(position);
     }
-    if let Some(motif) = &request.motif {
+    for motif in request.motif.iter().chain(&request.contrast_motif) {
         let total: u32 = motif.rhythm_eighths.iter().map(|&e| u32::from(e)).sum();
         if total != u32::from(meter.eighths)
             || motif.rhythm_eighths.len() != motif.steps.len()
@@ -539,7 +705,13 @@ pub fn compose_melody(
         .motif
         .clone()
         .unwrap_or_else(|| derive_motif(&meter, request.seed));
-    let (unit, targets) = form_bars(request.form, &motif, &meter);
+    let contrast_motif = (request.form == MelodyForm::Ternary).then(|| {
+        request
+            .contrast_motif
+            .clone()
+            .unwrap_or_else(|| derive_contrast(&motif, &meter, request.seed))
+    });
+    let unit = form_bars(request.form, &motif, contrast_motif.as_ref(), &meter);
     let low = i16::from(request.low_midi);
     let high = i16::from(request.high_midi);
     let max_leap = i16::from(request.max_leap_semitones);
@@ -571,21 +743,30 @@ pub fn compose_melody(
         highest_midi: 0,
         max_leap_semitones: 0,
         phrase_endings: Vec::new(),
+        sections: Vec::new(),
+        restated_notes: 0,
+        restated_matching_notes: 0,
     };
+    let mut first_pitches: Vec<i16> = Vec::with_capacity(usize::from(request.measures));
+    let mut bar_pitches: Vec<Vec<(i16, u8)>> = Vec::with_capacity(usize::from(request.measures));
 
     for measure in 0..usize::from(request.measures) {
-        let bar = &unit[measure % 8];
-        let phrase_end = measure % 4 == 3;
-        let target = targets[(measure % 8) / 4];
+        let planned = &unit[measure % unit.len()];
+        let bar = &planned.bar;
+        let phrase_end = planned.ending.is_some();
+        let target = planned.ending.unwrap_or(PhraseEndingTarget::Tonic);
         let mut offset = 0u8;
+        let mut placed = Vec::with_capacity(bar.rhythm.len());
         let mut voice = Vec::with_capacity(bar.rhythm.len());
         for (index, (&length, &step)) in bar.rhythm.iter().zip(&bar.steps).enumerate() {
             let chord = &chord_classes[chord_at(measure, offset)];
             let scale = key.adjusted(chord);
             let last = index + 1 == bar.rhythm.len();
-            let mut pitch = match previous {
-                None => nearest(center, &[key.tonic], center),
-                Some(prev) => step_from(prev, step, &scale),
+            let mut pitch = match (previous, index, planned.anchor) {
+                (None, _, _) => nearest(center, &[key.tonic], center),
+                (Some(_), 0, Anchor::Restate(back)) => first_pitches[measure - back],
+                (Some(prev), 0, Anchor::Lift) => prev + 5,
+                (Some(prev), _, _) => step_from(prev, step, &scale),
             };
             let strong = meter.strong.contains(&offset);
             if phrase_end && last {
@@ -596,11 +777,29 @@ pub fn compose_melody(
                 let wanted: Vec<i16> = degrees
                     .iter()
                     .map(|&d| scale[d])
-                    .filter(|pc| chord.contains(pc))
+                    .filter(|pc| chord.contains(pc) && key.degree(*pc) != 0)
                     .collect();
                 let classes = if wanted.is_empty() { chord } else { &wanted };
-                pitch = nearest(pitch, classes, previous.unwrap_or(pitch));
-                pitch = constrain(pitch, previous, low, high, max_leap, classes);
+                // Before a restatement, end near the pitch it will repeat.
+                let next = &unit[(measure + 1) % unit.len()];
+                let restated = match next.anchor {
+                    Anchor::Restate(back) if measure + 1 >= back => {
+                        Some(first_pitches[measure + 1 - back])
+                    }
+                    _ => None,
+                };
+                let steered = restated.and_then(|goal| {
+                    (low..=high)
+                        .filter(|c| classes.contains(&c.rem_euclid(12)))
+                        .filter(|c| previous.is_none_or(|p| (c - p).abs() <= max_leap))
+                        .min_by_key(|c| ((c - goal).abs(), *c))
+                });
+                if let Some(steered) = steered {
+                    pitch = steered;
+                } else {
+                    pitch = nearest(pitch, classes, previous.unwrap_or(pitch));
+                    pitch = constrain(pitch, previous, low, high, max_leap, classes);
+                }
             } else if strong {
                 pitch = nearest(pitch, chord, previous.unwrap_or(pitch));
                 pitch = constrain(pitch, previous, low, high, max_leap, chord);
@@ -654,16 +853,49 @@ pub fn compose_melody(
             let mut note = Note::new(Pitch::from_midi(pitch as u8, key.flats), value);
             note.dot_count = dots;
             voice.push(note);
+            placed.push((pitch, length));
             previous = Some(pitch);
             offset += length;
         }
         score.parts[0].staves[0].measures[measure].voices[0] = voice;
+        if let Some(back) = planned.restates {
+            report.restated_notes += placed.len();
+            report.restated_matching_notes += placed
+                .iter()
+                .zip(&bar_pitches[measure - back])
+                .filter(|(a, b)| a == b)
+                .count();
+        }
+        first_pitches.push(placed[0].0);
+        bar_pitches.push(placed);
+    }
+
+    let labels: &[&str] = match request.form {
+        MelodyForm::Ternary => &["A", "B", "A′"],
+        _ => &["A"],
+    };
+    let section_length = unit.len() / labels.len();
+    for start in (0..usize::from(request.measures)).step_by(section_length) {
+        let pitches: Vec<i16> = bar_pitches[start..start + section_length]
+            .iter()
+            .flatten()
+            .map(|(pitch, _)| *pitch)
+            .collect();
+        report.sections.push(MelodySection {
+            label: labels[(start / section_length) % labels.len()].to_string(),
+            start_measure: start,
+            end_measure_exclusive: start + section_length,
+            lowest_midi: pitches.iter().copied().min().unwrap_or(0) as u8,
+            highest_midi: pitches.iter().copied().max().unwrap_or(0) as u8,
+            mean_midi: (pitches.iter().sum::<i16>() / pitches.len().max(1) as i16) as u8,
+        });
     }
 
     Ok(MelodyCompositionResult {
         contract_version: MELODY_COMPOSITION_CONTRACT_VERSION,
         score,
         motif,
+        contrast_motif,
         report,
     })
 }
@@ -708,6 +940,7 @@ mod tests {
                 })
                 .collect(),
             motif: None,
+            contrast_motif: None,
             low_midi: 60,
             high_midi: 79,
             max_leap_semitones: 7,
@@ -869,6 +1102,101 @@ mod tests {
         assert!(matches!(
             compose_melody(&req),
             Err(MelodyCompositionError::InvalidMotif)
+        ));
+    }
+
+    /// A: I IV V V | I IV V7 I; B: vi ii V V | iii vi V7/V V; A′ = A.
+    fn ternary(numerator: u8, denominator: u8) -> MelodyCompositionRequest {
+        let a = [
+            ("C", "major"),
+            ("F", "major"),
+            ("G", "major"),
+            ("G", "major"),
+            ("C", "major"),
+            ("F", "major"),
+            ("G", "dominant"),
+            ("C", "major"),
+        ];
+        let b = [
+            ("A", "minor"),
+            ("D", "minor"),
+            ("G", "major"),
+            ("G", "major"),
+            ("E", "minor"),
+            ("A", "minor"),
+            ("D", "dominant"),
+            ("G", "major"),
+        ];
+        let mut req = request(numerator, denominator, MelodyForm::Ternary);
+        req.measures = 24;
+        req.chords = a
+            .iter()
+            .chain(&b)
+            .chain(&a)
+            .enumerate()
+            .map(|(measure, (root, kind))| MelodyChord {
+                measure,
+                offset_eighths: 0,
+                chord: chord(root, kind),
+            })
+            .collect();
+        req
+    }
+
+    #[test]
+    fn ternary_form_restates_a_and_contrasts_b() {
+        for (n, d) in [(4, 4), (3, 4), (2, 4), (6, 8)] {
+            for seed in 0..16 {
+                let mut req = ternary(n, d);
+                req.seed = seed;
+                let result = compose_melody(&req).unwrap();
+                let label = format!("{n}/{d} seed {seed}");
+                assert!(validate_score(&result.score).is_valid(), "{label}");
+                let r = &result.report;
+                assert_eq!(r.strong_beat_chord_tones, r.strong_beat_notes, "{label}");
+                assert!(r.lowest_midi >= 60 && r.highest_midi <= 79, "{label}");
+                assert!(r.max_leap_semitones <= 7, "{label}");
+                let targets: Vec<_> = r.phrase_endings.iter().map(|e| e.target).collect();
+                use PhraseEndingTarget::{Dominant, Tonic};
+                assert_eq!(
+                    targets,
+                    [Dominant, Tonic, Dominant, Dominant, Dominant, Tonic],
+                    "{label}"
+                );
+                assert!(
+                    r.phrase_endings.iter().all(|e| e.satisfied),
+                    "{label}: {:?}",
+                    r.phrase_endings
+                );
+                // A′ opens with A's first phrase, note for note.
+                assert!(r.restated_notes > 0, "{label}");
+                assert_eq!(r.restated_matching_notes, r.restated_notes, "{label}");
+                // B uses another rhythm and enters by a leap up when the range allows.
+                let contrast = result.contrast_motif.as_ref().unwrap();
+                assert_ne!(
+                    contrast.rhythm_eighths, result.motif.rhythm_eighths,
+                    "{label}"
+                );
+                let labels: Vec<_> = r.sections.iter().map(|s| s.label.as_str()).collect();
+                assert_eq!(labels, ["A", "B", "A′"], "{label}");
+                let bars = &result.score.parts[0].staves[0].measures;
+                let a_end = bars[7].voices[0].last().unwrap().pitches[0].to_midi();
+                let b_start = bars[8].voices[0][0].pitches[0].to_midi();
+                if a_end + 7 <= 79 {
+                    assert!(b_start > a_end, "{label}: {a_end} -> {b_start}");
+                }
+                // The A′ consequent is ornamented, so it has more notes than A's.
+                let count = |range: std::ops::Range<usize>| -> usize {
+                    range.map(|m| bars[m].voices[0].len()).sum()
+                };
+                assert!(count(20..23) > count(4..7), "{label}");
+            }
+        }
+        let mut req = ternary(4, 4);
+        req.measures = 16;
+        assert!(matches!(
+            compose_melody(&req),
+            Err(MelodyCompositionError::InvalidMeasureCount { .. })
         ));
     }
 }
