@@ -1296,6 +1296,20 @@ unbounded reflow. These repairs remain under qualification. The reflow bound is 
 silently excluded from the visual gate. Crowded directions may move outside the
 grand staff while retaining their source part and temporal ownership.
 
+## Final holdout v3 selection (#499)
+
+A [third 24-input selection](../benchmarks/print/parity-holdout-selection-v3.json) is
+disjoint from v1 and v2. Its piano inputs come from three DCMLab corpora that neither
+earlier cohort used (Grieg, Tchaikovsky, Dvořák). Vocal, chamber and part inputs come
+from the same pinned OpenScore revisions, excluding every v1 and v2 work and the
+matching imported fixtures. [`select_final_v3.py`](../benchmarks/print/select_final_v3.py)
+reproduces it from blob-less clones; it reads tree listings and selected blob sizes only.
+[All 24 source hashes](archive/print-parity-holdout-source-hashes-v3.json) are verified.
+The [protocol](../benchmarks/print/parity-holdout-protocol-v3.json) fixes Verovio 6.4.1,
+A4 margins, a 1.8 mm staff space and eight measures per system. Score contents and
+renderings are unopened. The cohort runs once, after the candidate freeze and after
+#498 closes; selection is not an evaluation result.
+
 ## Retired-cohort development rerun (candidate v41)
 
 The [v41 rerun](archive/print-parity-development-v41.json) produced all 24 Acorde

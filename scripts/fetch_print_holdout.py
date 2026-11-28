@@ -13,7 +13,8 @@ REPOSITORIES = {
     "OpenScore/Lieder", "OpenScore/StringQuartets", "DCMLab/cpe_bach_keyboard",
     "DCMLab/chopin_mazurkas", "DCMLab/schumann_kinderszenen",
     "DCMLab/mozart_piano_sonatas", "DCMLab/beethoven_piano_sonatas",
-    "DCMLab/debussy_other_piano_pieces",
+    "DCMLab/debussy_other_piano_pieces", "DCMLab/grieg_lyric_pieces",
+    "DCMLab/tchaikovsky_seasons", "DCMLab/dvorak_silhouettes",
 }
 
 

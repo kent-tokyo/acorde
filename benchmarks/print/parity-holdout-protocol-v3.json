@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "classification": "final v3 print holdout protocol; fixed before any v3 render (#499)",
+  "fixed_on": "2026-11-28",
+  "selection": "benchmarks/print/parity-holdout-selection-v3.json",
+  "selection_sha256": "657e1334b8f1ab888fd97336bd3474f5e44e7fe8547b79eca60715cb9e54b218",
+  "source_hash_receipt": "docs/archive/print-parity-holdout-source-hashes-v3.json",
+  "source_hash_receipt_sha256": "f8c52246ddb340f7f7da8582fd7bb94d845a9b8142578089f09cc003bde5f506",
+  "verovio": {
+    "package": "verovio",
+    "version": "6.4.1",
+    "page_width": 2100,
+    "page_height": 2970,
+    "page_margin_top": 160,
+    "page_margin_bottom": 160,
+    "page_margin_left": 140,
+    "page_margin_right": 140,
+    "layout": "default automatic breaks",
+    "script": "scripts/export_verovio_pages.mjs"
+  },
+  "acorde": {
+    "strategy": "measured",
+    "paper": "A4",
+    "margin_top_mm": 16.0,
+    "margin_bottom_mm": 16.0,
+    "margin_left_mm": 14.0,
+    "margin_right_mm": 14.0,
+    "staff_space_mm": 1.8,
+    "measures_per_system": 8,
+    "font": "crates/pdf/tests/fixtures/Tuffy.ttf",
+    "examples": [
+      "print_mxl",
+      "measured_print"
+    ]
+  },
+  "shared_input": "MuseScore sources converted once to MusicXML with scripts/prepare_print_holdout.py; both engines read the same file. Encoded system and page breaks are kept, as in the existing evaluator, so page counts are reported but are not a gate criterion.",
+  "evaluator": "scripts/evaluate_print_holdout.py",
+  "gate": "ROADMAP.md print gate: no confirmed clipping or unexplained missing marks, no systematic Verovio preference, and measured staff/text sizes and collisions reported per score.",
+  "run_rule": "Freeze the candidate binaries, font, source and shared-input hashes (scripts/prepare_print_holdout.py) first. Run once, after #498 is closed. Outputs are not inspected while algorithms change. Report pass or fail; on fail the cohort retires to development.",
+  "status": "selected and source hashes verified; candidate not frozen; not run"
+}
