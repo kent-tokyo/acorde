@@ -23,6 +23,7 @@ cargo test --workspace --all-features --locked
 cargo clippy --workspace --all-features --locked --all-targets -- -D warnings
 python3 -B scripts/check_release_consistency.py
 git diff --check
+python3 -B scripts/check_doc_links.py   # when Markdown files change
 ```
 
 Run the focused feature, fuzz, WASM, browser, or package checks when the edited surface needs
