@@ -5,7 +5,7 @@ use acorde_core::{
 };
 use serde_json::json;
 
-use crate::development_v2::Case;
+use super::development_v2::Case;
 
 pub fn request(case: &Case) -> Result<ArrangementProposalRequest, serde_json::Error> {
     let mut ensemble_template: EnsembleRoleOptions = serde_json::from_value(json!({
