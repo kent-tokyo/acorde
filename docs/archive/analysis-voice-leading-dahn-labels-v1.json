@@ -1017,7 +1017,8 @@
           ]
         }
       ],
-      "split": "holdout"
+      "split": "development",
+      "exposed_before_freeze": "m. 8 notes and both tools' output inspected while checking the label parser"
     },
     {
       "bwv": "326",

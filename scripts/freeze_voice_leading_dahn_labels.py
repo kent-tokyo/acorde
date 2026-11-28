@@ -25,6 +25,9 @@ from music21 import corpus
 
 SOURCE = "https://www.bach-chorales.com/ConsecutivesInChorales.htm"
 SEED = "acorde-voice-leading-dahn-split-20261128"
+# Chorales whose notes or tool output were looked at before the protocol froze.
+# They move to development whatever the seeded split says.
+EXPOSED = {"323": "m. 8 notes and both tools' output inspected while checking the label parser"}
 VOICES = {"S": 0, "A": 1, "T": 2, "B": 3}
 CORPUS_ALIASES = {"248.33": "bwv248.33-3"}
 
@@ -93,7 +96,9 @@ def main():
     ranked = sorted(chorales.values(), key=lambda c: sha256(f"{SEED}\n{c['bwv']}".encode()))
     half = len(ranked) // 2
     for index, chorale in enumerate(ranked):
-        chorale["split"] = "development" if index < half else "holdout"
+        chorale["split"] = "development" if index < half or chorale["bwv"] in EXPOSED else "holdout"
+        if chorale["bwv"] in EXPOSED:
+            chorale["exposed_before_freeze"] = EXPOSED[chorale["bwv"]]
     result = {"schema_version": 1,
               "classification": "independent consecutive fifth/octave labels; split frozen before either tool ran",
               "source": SOURCE, "source_author": "Luke Dahn", "source_copyright": "2018",
