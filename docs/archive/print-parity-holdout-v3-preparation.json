@@ -1,0 +1,1006 @@
+{
+  "classification": "reserved source preparation; no quality pass",
+  "freeze_sha256": "759d144750e7f4a5af16c63d016b7da73fc9415f090d4f0fcb407791bf238384",
+  "musescore_binary_sha256": "b4d80e4645ee118635b7b61aff6cbaffde7604defdde83407fe96cb81ac09183",
+  "opened_at_utc": "2026-11-28T14:54:03.931839+00:00",
+  "rows": [
+    {
+      "score": "piano-op38n08",
+      "group": "piano",
+      "id": "op38n08",
+      "source_sha256": "ba954d497ed7bc3d4d2446b6fea227993bbdd72944e82a4f12758a6b6ce3cfed",
+      "source": "/private/tmp/acorde-print-v3-run/sources/piano/op38n08.mscx",
+      "exports": [
+        {
+          "command": [
+            "arch",
+            "-arm64",
+            "/Applications/MuseScore 4.app/Contents/MacOS/mscore",
+            "-o",
+            "/private/tmp/acorde-print-v3-run/prep/piano-op38n08.musicxml",
+            "/private/tmp/acorde-print-v3-run/sources/piano/op38n08.mscx"
+          ],
+          "exit_code": -6,
+          "known_teardown_crash": true,
+          "log": "piano-op38n08-musicxml.log",
+          "log_sha256": "db99be7627a9ac3b77933b51c42bca85ac96072e98b0655dabc08d63d6e4a195",
+          "output_sha256": "1700a859083f88e4c912271d5d167e140afc46878990f7350156568c9acbd200",
+          "fidelity": "not established by successful output parsing"
+        }
+      ],
+      "mscx_midi_pitch_inventory": {
+        "61": 52,
+        "65": 92,
+        "67": 46,
+        "69": 28,
+        "70": 46,
+        "72": 34,
+        "73": 12,
+        "63": 55,
+        "58": 75,
+        "57": 18,
+        "75": 21,
+        "68": 45,
+        "77": 23,
+        "66": 36,
+        "60": 39,
+        "78": 9,
+        "80": 7,
+        "74": 28,
+        "71": 23,
+        "82": 9,
+        "83": 3,
+        "85": 1,
+        "62": 44,
+        "64": 2,
+        "79": 4,
+        "52": 4,
+        "53": 43,
+        "55": 32,
+        "46": 17,
+        "34": 4,
+        "45": 5,
+        "54": 3,
+        "56": 6,
+        "44": 1,
+        "49": 1,
+        "41": 10,
+        "59": 2,
+        "50": 8,
+        "51": 6,
+        "48": 29,
+        "43": 12,
+        "36": 4
+      },
+      "prepared_pitched_events": 939,
+      "status": "prepared",
+      "shared_input": "/private/tmp/acorde-print-v3-run/prep/piano-op38n08.musicxml",
+      "shared_input_sha256": "1700a859083f88e4c912271d5d167e140afc46878990f7350156568c9acbd200",
+      "parts": 1,
+      "measures": [
+        84
+      ]
+    },
+    {
+      "score": "piano-op47n01",
+      "group": "piano",
+      "id": "op47n01",
+      "source_sha256": "cfbc52b270dc1e3de3d77a10d265d3598cf4052051153b2e50f14dffe66b5976",
+      "source": "/private/tmp/acorde-print-v3-run/sources/piano/op47n01.mscx",
+      "exports": [
+        {
+          "command": [
+            "arch",
+            "-arm64",
+            "/Applications/MuseScore 4.app/Contents/MacOS/mscore",
+            "-o",
+            "/private/tmp/acorde-print-v3-run/prep/piano-op47n01.musicxml",
+            "/private/tmp/acorde-print-v3-run/sources/piano/op47n01.mscx"
+          ],
+          "exit_code": -6,
+          "known_teardown_crash": true,
+          "log": "piano-op47n01-musicxml.log",
+          "log_sha256": "7123f2bdf543b298a41e19fd305428c2db2dc3850c3b67aeddeb5edbed3613c6",
+          "output_sha256": "958573eff621a6c3a2ea8e4a16325653fd10918820e0871c9be01c6a67d604d0",
+          "fidelity": "not established by successful output parsing"
+        }
+      ],
+      "mscx_midi_pitch_inventory": {
+        "64": 64,
+        "76": 52,
+        "75": 77,
+        "73": 63,
+        "71": 76,
+        "69": 26,
+        "83": 26,
+        "82": 24,
+        "80": 21,
+        "78": 67,
+        "70": 19,
+        "81": 30,
+        "79": 81,
+        "91": 3,
+        "90": 3,
+        "87": 3,
+        "57": 20,
+        "67": 32,
+        "66": 22,
+        "63": 27,
+        "55": 28,
+        "62": 21,
+        "61": 65,
+        "60": 21,
+        "59": 87,
+        "54": 175,
+        "52": 85,
+        "58": 14,
+        "74": 34,
+        "77": 8,
+        "65": 8,
+        "95": 2,
+        "88": 2,
+        "45": 27,
+        "43": 24,
+        "42": 26,
+        "47": 87,
+        "40": 18,
+        "50": 17,
+        "49": 12,
+        "48": 27,
+        "53": 9,
+        "51": 3,
+        "46": 3,
+        "35": 2
+      },
+      "prepared_pitched_events": 1541,
+      "status": "prepared",
+      "shared_input": "/private/tmp/acorde-print-v3-run/prep/piano-op47n01.musicxml",
+      "shared_input_sha256": "958573eff621a6c3a2ea8e4a16325653fd10918820e0871c9be01c6a67d604d0",
+      "parts": 1,
+      "measures": [
+        184
+      ]
+    },
+    {
+      "score": "piano-op37a12",
+      "group": "piano",
+      "id": "op37a12",
+      "source_sha256": "30363dcb55f22a13d2b3708e6654ffcc52d6a67abd6d14c23e51b34b987cf01b",
+      "source": "/private/tmp/acorde-print-v3-run/sources/piano/op37a12.mscx",
+      "exports": [
+        {
+          "command": [
+            "arch",
+            "-arm64",
+            "/Applications/MuseScore 4.app/Contents/MacOS/mscore",
+            "-o",
+            "/private/tmp/acorde-print-v3-run/prep/piano-op37a12.musicxml",
+            "/private/tmp/acorde-print-v3-run/sources/piano/op37a12.mscx"
+          ],
+          "exit_code": -6,
+          "known_teardown_crash": true,
+          "log": "piano-op37a12-musicxml.log",
+          "log_sha256": "c0f8051e17f8365625b96bf4bcc4d9b753a757d8f3dfb12fd339081729f8e8f1",
+          "output_sha256": "8f0831cc4ddc576fb47926e2391b2d53e939efc0c11cf73d42f9e7b3048624e2",
+          "fidelity": "not established by successful output parsing"
+        }
+      ],
+      "mscx_midi_pitch_inventory": {
+        "68": 100,
+        "63": 93,
+        "70": 31,
+        "72": 62,
+        "73": 39,
+        "67": 34,
+        "75": 62,
+        "77": 40,
+        "79": 18,
+        "80": 24,
+        "74": 26,
+        "78": 14,
+        "65": 52,
+        "76": 50,
+        "60": 110,
+        "71": 37,
+        "62": 35,
+        "61": 78,
+        "66": 39,
+        "64": 36,
+        "84": 9,
+        "69": 14,
+        "82": 6,
+        "81": 2,
+        "59": 63,
+        "56": 110,
+        "83": 2,
+        "88": 1,
+        "87": 2,
+        "92": 1,
+        "44": 34,
+        "51": 116,
+        "39": 16,
+        "46": 12,
+        "55": 47,
+        "54": 18,
+        "53": 42,
+        "45": 8,
+        "58": 57,
+        "43": 6,
+        "42": 2,
+        "41": 4,
+        "40": 3,
+        "52": 31,
+        "47": 12,
+        "48": 16,
+        "57": 8,
+        "49": 21,
+        "50": 8
+      },
+      "prepared_pitched_events": 1651,
+      "status": "prepared",
+      "shared_input": "/private/tmp/acorde-print-v3-run/prep/piano-op37a12.musicxml",
+      "shared_input_sha256": "8f0831cc4ddc576fb47926e2391b2d53e939efc0c11cf73d42f9e7b3048624e2",
+      "parts": 1,
+      "measures": [
+        176
+      ]
+    },
+    {
+      "score": "piano-op37a05",
+      "group": "piano",
+      "id": "op37a05",
+      "source_sha256": "cca288b81527aab40c6456963daf33dba4632de54ffab1c3f0237659b23bc4e4",
+      "source": "/private/tmp/acorde-print-v3-run/sources/piano/op37a05.mscx",
+      "exports": [
+        {
+          "command": [
+            "arch",
+            "-arm64",
+            "/Applications/MuseScore 4.app/Contents/MacOS/mscore",
+            "-o",
+            "/private/tmp/acorde-print-v3-run/prep/piano-op37a05.musicxml",
+            "/private/tmp/acorde-print-v3-run/sources/piano/op37a05.mscx"
+          ],
+          "exit_code": -6,
+          "known_teardown_crash": true,
+          "log": "piano-op37a05-musicxml.log",
+          "log_sha256": "8ec9ea442d4b18c847b3b35e84074a8ea4e7191061bfac87d7dece1658da9b07",
+          "output_sha256": "59bc3c3e2746fd36df1badb5406a2ff99c8a148730055f798e794241e761e297",
+          "fidelity": "not established by successful output parsing"
+        }
+      ],
+      "mscx_midi_pitch_inventory": {
+        "74": 56,
+        "71": 64,
+        "62": 71,
+        "66": 70,
+        "67": 56,
+        "69": 49,
+        "76": 20,
+        "79": 14,
+        "78": 16,
+        "72": 11,
+        "70": 35,
+        "64": 36,
+        "57": 51,
+        "83": 4,
+        "73": 25,
+        "81": 16,
+        "86": 10,
+        "82": 2,
+        "77": 5,
+        "65": 15,
+        "59": 56,
+        "55": 43,
+        "54": 56,
+        "60": 25,
+        "58": 18,
+        "75": 6,
+        "80": 1,
+        "61": 49,
+        "63": 5,
+        "68": 4,
+        "51": 9,
+        "48": 4,
+        "50": 37,
+        "52": 35,
+        "49": 28,
+        "53": 13,
+        "46": 3,
+        "43": 12,
+        "42": 15,
+        "40": 2,
+        "45": 29,
+        "47": 10,
+        "56": 11,
+        "44": 2
+      },
+      "prepared_pitched_events": 1099,
+      "status": "prepared",
+      "shared_input": "/private/tmp/acorde-print-v3-run/prep/piano-op37a05.musicxml",
+      "shared_input_sha256": "59bc3c3e2746fd36df1badb5406a2ff99c8a148730055f798e794241e761e297",
+      "parts": 1,
+      "measures": [
+        88
+      ]
+    },
+    {
+      "score": "piano-op08n05",
+      "group": "piano",
+      "id": "op08n05",
+      "source_sha256": "b4e2eb4678d64de93d938826bd30298102186f6b190fa079ee292f6a262e0474",
+      "source": "/private/tmp/acorde-print-v3-run/sources/piano/op08n05.mscx",
+      "exports": [
+        {
+          "command": [
+            "arch",
+            "-arm64",
+            "/Applications/MuseScore 4.app/Contents/MacOS/mscore",
+            "-o",
+            "/private/tmp/acorde-print-v3-run/prep/piano-op08n05.musicxml",
+            "/private/tmp/acorde-print-v3-run/sources/piano/op08n05.mscx"
+          ],
+          "exit_code": -6,
+          "known_teardown_crash": true,
+          "log": "piano-op08n05-musicxml.log",
+          "log_sha256": "e29eba10874c7b13fb9b6de26931cd34339c29153dd16c92269c77105460191b",
+          "output_sha256": "18a8a5b2d563989407d4d46addd12a3e9f0f80a94a917aa93e576e4812d2efdb",
+          "fidelity": "not established by successful output parsing"
+        }
+      ],
+      "mscx_midi_pitch_inventory": {
+        "61": 63,
+        "57": 25,
+        "66": 66,
+        "65": 19,
+        "68": 46,
+        "69": 36,
+        "64": 29,
+        "71": 26,
+        "73": 33,
+        "74": 14,
+        "76": 10,
+        "62": 20,
+        "59": 29,
+        "56": 23,
+        "54": 35,
+        "78": 7,
+        "80": 5,
+        "77": 8,
+        "75": 16,
+        "72": 5,
+        "58": 9,
+        "70": 6,
+        "63": 10,
+        "53": 9,
+        "49": 30,
+        "42": 16,
+        "37": 12,
+        "40": 10,
+        "52": 14,
+        "45": 11,
+        "47": 13,
+        "38": 5,
+        "50": 11,
+        "33": 2,
+        "35": 2,
+        "30": 4,
+        "44": 12,
+        "41": 4,
+        "48": 1,
+        "60": 1,
+        "32": 2,
+        "46": 3,
+        "51": 1,
+        "82": 1
+      },
+      "prepared_pitched_events": 704,
+      "status": "prepared",
+      "shared_input": "/private/tmp/acorde-print-v3-run/prep/piano-op08n05.musicxml",
+      "shared_input_sha256": "18a8a5b2d563989407d4d46addd12a3e9f0f80a94a917aa93e576e4812d2efdb",
+      "parts": 1,
+      "measures": [
+        81
+      ]
+    },
+    {
+      "score": "piano-op08n08",
+      "group": "piano",
+      "id": "op08n08",
+      "source_sha256": "727b87343d7ffe325334f21372b32384ce6bc3af5be4745ac711f6419904a599",
+      "source": "/private/tmp/acorde-print-v3-run/sources/piano/op08n08.mscx",
+      "exports": [],
+      "status": "failed",
+      "error": "export failed (-6); see piano-op08n08-musicxml.log"
+    },
+    {
+      "score": "vocal-lc6570310",
+      "group": "vocal",
+      "id": "lc6570310",
+      "source_sha256": "bd6711a03c29adf7ba0929333075996116646dbc42d1ecdae7a3e15f8976dfcd",
+      "source": "/private/tmp/acorde-print-v3-run/sources/vocal/lc6570310.mxl",
+      "exports": [],
+      "status": "prepared",
+      "shared_input": "/private/tmp/acorde-print-v3-run/prep/vocal-lc6570310.musicxml",
+      "shared_input_sha256": "219101912716d68855873f0967d833e406944fd1b54794a107f76c3389b69223",
+      "parts": 2,
+      "measures": [
+        39,
+        39
+      ]
+    },
+    {
+      "score": "vocal-lc6425416",
+      "group": "vocal",
+      "id": "lc6425416",
+      "source_sha256": "644c060f2c159600ac7ec09bdc231bb6fb2f32abe20608e7250aeafeef7bb837",
+      "source": "/private/tmp/acorde-print-v3-run/sources/vocal/lc6425416.mxl",
+      "exports": [],
+      "status": "prepared",
+      "shared_input": "/private/tmp/acorde-print-v3-run/prep/vocal-lc6425416.musicxml",
+      "shared_input_sha256": "f5e89f4769239b28ab6f6f376897e13902ff2ebfc7caad1d99d859af3d70848a",
+      "parts": 2,
+      "measures": [
+        64,
+        64
+      ]
+    },
+    {
+      "score": "vocal-lc6794671",
+      "group": "vocal",
+      "id": "lc6794671",
+      "source_sha256": "e7314e8341ce165af184f35786ee538a935b2309d4c6aa51f4c0a2ccfc7480e4",
+      "source": "/private/tmp/acorde-print-v3-run/sources/vocal/lc6794671.mxl",
+      "exports": [],
+      "status": "prepared",
+      "shared_input": "/private/tmp/acorde-print-v3-run/prep/vocal-lc6794671.musicxml",
+      "shared_input_sha256": "a3b0ace3b1f551de63916b7ed6eb615f2c560388692bb68a79709d8985b0171d",
+      "parts": 5,
+      "measures": [
+        71,
+        71,
+        71,
+        71,
+        71
+      ]
+    },
+    {
+      "score": "vocal-lc6245971",
+      "group": "vocal",
+      "id": "lc6245971",
+      "source_sha256": "22612b2a2a517d9418869ebb1ab4a4329f2ca9d2557cc57721a892c01964266e",
+      "source": "/private/tmp/acorde-print-v3-run/sources/vocal/lc6245971.mxl",
+      "exports": [],
+      "status": "prepared",
+      "shared_input": "/private/tmp/acorde-print-v3-run/prep/vocal-lc6245971.musicxml",
+      "shared_input_sha256": "3cf7f3623101e39bc31d228fbdd292f32a652926197f5fb1469f8b35b131a304",
+      "parts": 2,
+      "measures": [
+        36,
+        36
+      ]
+    },
+    {
+      "score": "vocal-lc6576011",
+      "group": "vocal",
+      "id": "lc6576011",
+      "source_sha256": "a9899533003895e68444ef952cb0431b00d87ba5f9ec12adb9f4943f23751b27",
+      "source": "/private/tmp/acorde-print-v3-run/sources/vocal/lc6576011.mxl",
+      "exports": [],
+      "status": "prepared",
+      "shared_input": "/private/tmp/acorde-print-v3-run/prep/vocal-lc6576011.musicxml",
+      "shared_input_sha256": "a04a888c1c5c9c6cb6c5e32fa307edd745b5ff6f462bb537ece01a7fc732e452",
+      "parts": 2,
+      "measures": [
+        44,
+        44
+      ]
+    },
+    {
+      "score": "vocal-lc6209607",
+      "group": "vocal",
+      "id": "lc6209607",
+      "source_sha256": "48e927dfcc4a711542ad4b8004cb4f130b7dd541c3473ca9fc7e369b8050fdc0",
+      "source": "/private/tmp/acorde-print-v3-run/sources/vocal/lc6209607.mxl",
+      "exports": [],
+      "status": "prepared",
+      "shared_input": "/private/tmp/acorde-print-v3-run/prep/vocal-lc6209607.musicxml",
+      "shared_input_sha256": "74ace1bea5f66d6b8b86d77532eeb6f34d276734bcd11217ae415a171e563c8b",
+      "parts": 2,
+      "measures": [
+        63,
+        63
+      ]
+    },
+    {
+      "score": "chamber-sq9160476",
+      "group": "chamber",
+      "id": "sq9160476",
+      "source_sha256": "1608abaa27e65f9a33da71bdebef23c9d8b0d7829c22664172331e350d3418c9",
+      "source": "/private/tmp/acorde-print-v3-run/sources/chamber/sq9160476.mxl",
+      "exports": [],
+      "status": "prepared",
+      "shared_input": "/private/tmp/acorde-print-v3-run/prep/chamber-sq9160476.musicxml",
+      "shared_input_sha256": "506c45e89c2709a9c7efd3cf96e9ecb11196d7bd9b44d457a8c2281b45dfcc31",
+      "parts": 4,
+      "measures": [
+        821,
+        821,
+        821,
+        821
+      ]
+    },
+    {
+      "score": "chamber-sq10414906",
+      "group": "chamber",
+      "id": "sq10414906",
+      "source_sha256": "7360330accbf5447dd064f4d8ef2f356804c17397361ed7d5e2b27b9d92f58ff",
+      "source": "/private/tmp/acorde-print-v3-run/sources/chamber/sq10414906.mxl",
+      "exports": [],
+      "status": "prepared",
+      "shared_input": "/private/tmp/acorde-print-v3-run/prep/chamber-sq10414906.musicxml",
+      "shared_input_sha256": "9e59ae1f0d79e8e60b43bcefa46aaa9376dd52cdc64a6c1966017e2f71858758",
+      "parts": 4,
+      "measures": [
+        310,
+        310,
+        310,
+        310
+      ]
+    },
+    {
+      "score": "chamber-sq15730717",
+      "group": "chamber",
+      "id": "sq15730717",
+      "source_sha256": "52693e68b573ed36339e9aa7edd8ad8dbf2a518d2ae569e91c09a21c05491e0d",
+      "source": "/private/tmp/acorde-print-v3-run/sources/chamber/sq15730717.mxl",
+      "exports": [],
+      "status": "prepared",
+      "shared_input": "/private/tmp/acorde-print-v3-run/prep/chamber-sq15730717.musicxml",
+      "shared_input_sha256": "89c0fe735ad4645de72df9d13ad24bae9c95267fe3d23aa3e11a13a5d9811a4f",
+      "parts": 4,
+      "measures": [
+        558,
+        558,
+        558,
+        558
+      ]
+    },
+    {
+      "score": "chamber-sq11246134",
+      "group": "chamber",
+      "id": "sq11246134",
+      "source_sha256": "78abc71aa38e2853b1c8d9a1961dcad93892674cc211a34c3634afa824a99b98",
+      "source": "/private/tmp/acorde-print-v3-run/sources/chamber/sq11246134.mxl",
+      "exports": [],
+      "status": "prepared",
+      "shared_input": "/private/tmp/acorde-print-v3-run/prep/chamber-sq11246134.musicxml",
+      "shared_input_sha256": "7f68c311441b5f6e8ab28f24c50538104734392fcb196b44a4be345e2419536b",
+      "parts": 4,
+      "measures": [
+        665,
+        665,
+        665,
+        665
+      ]
+    },
+    {
+      "score": "chamber-sq8438840",
+      "group": "chamber",
+      "id": "sq8438840",
+      "source_sha256": "95cf8e1f6856f2a2433035552832cb4abf18fccd0ffb09ed4eea4e3f3055398e",
+      "source": "/private/tmp/acorde-print-v3-run/sources/chamber/sq8438840.mxl",
+      "exports": [],
+      "status": "prepared",
+      "shared_input": "/private/tmp/acorde-print-v3-run/prep/chamber-sq8438840.musicxml",
+      "shared_input_sha256": "064ea64812f2d6f99cac739fef88138e53837b6a542a43c8886803fdba894db2",
+      "parts": 4,
+      "measures": [
+        155,
+        155,
+        155,
+        155
+      ]
+    },
+    {
+      "score": "chamber-sq29218964",
+      "group": "chamber",
+      "id": "sq29218964",
+      "source_sha256": "060252ee241cb6d02eba7537f499c0dc152249636798309239247cfbcaa2cb2a",
+      "source": "/private/tmp/acorde-print-v3-run/sources/chamber/sq29218964.mxl",
+      "exports": [],
+      "status": "prepared",
+      "shared_input": "/private/tmp/acorde-print-v3-run/prep/chamber-sq29218964.musicxml",
+      "shared_input_sha256": "9bea07f23ccd2842b4002056a7f094918437f630985e1040090f9c5cdc36ef5d",
+      "parts": 4,
+      "measures": [
+        868,
+        868,
+        868,
+        868
+      ]
+    },
+    {
+      "score": "part-sq8088531",
+      "group": "part",
+      "id": "sq8088531",
+      "source_sha256": "68058867233e28672b84c84150faf8d942712259bc6920d5a0b689d29199e47c",
+      "source": "/private/tmp/acorde-print-v3-run/sources/part/sq8088531.mxl",
+      "exports": [
+        {
+          "command": [
+            "arch",
+            "-arm64",
+            "/Applications/MuseScore 4.app/Contents/MacOS/mscore",
+            "--score-parts",
+            "-o",
+            "/private/tmp/acorde-print-v3-run/prep/part-sq8088531-parts.json",
+            "/private/tmp/acorde-print-v3-run/sources/part/sq8088531.mxl"
+          ],
+          "exit_code": -6,
+          "known_teardown_crash": true,
+          "log": "part-sq8088531-parts.log",
+          "log_sha256": "a84c944e3d5166a9ab4f56aca7d45f9796f11c30cdd0fce4018c4f19af532c3b",
+          "output_sha256": "beca23401878b8af0521cd3d5c1739994a44f2e65178196ccb36d7704d6dd247",
+          "fidelity": "not established by successful output parsing"
+        },
+        {
+          "command": [
+            "arch",
+            "-arm64",
+            "/Applications/MuseScore 4.app/Contents/MacOS/mscore",
+            "-o",
+            "/private/tmp/acorde-print-v3-run/prep/part-sq8088531.musicxml",
+            "/private/tmp/acorde-print-v3-run/prep/part-sq8088531.mscz"
+          ],
+          "exit_code": -6,
+          "known_teardown_crash": true,
+          "log": "part-sq8088531-musicxml.log",
+          "log_sha256": "3d6e8182a47a43285ef1d5a1fbd3550a6d178b739cf376753cd5d4a8e26d6b62",
+          "output_sha256": "687eb5bcb5b0c57354d2108b3ea6150fc4871b64ca549394d349c9193bd62b0b",
+          "fidelity": "not established by successful output parsing"
+        }
+      ],
+      "part_index": 3,
+      "part_name": "Violoncello",
+      "pitched_event_audit": {
+        "source": 1476,
+        "prepared": 1476,
+        "missing": [],
+        "extra": []
+      },
+      "status": "prepared",
+      "shared_input": "/private/tmp/acorde-print-v3-run/prep/part-sq8088531.musicxml",
+      "shared_input_sha256": "687eb5bcb5b0c57354d2108b3ea6150fc4871b64ca549394d349c9193bd62b0b",
+      "parts": 1,
+      "measures": [
+        419
+      ]
+    },
+    {
+      "score": "part-sq8885571",
+      "group": "part",
+      "id": "sq8885571",
+      "source_sha256": "6c9ce9e78bc98e750a635888eccc9d12f5c7b25c29c6c025269ab22d86ad8534",
+      "source": "/private/tmp/acorde-print-v3-run/sources/part/sq8885571.mxl",
+      "exports": [
+        {
+          "command": [
+            "arch",
+            "-arm64",
+            "/Applications/MuseScore 4.app/Contents/MacOS/mscore",
+            "--score-parts",
+            "-o",
+            "/private/tmp/acorde-print-v3-run/prep/part-sq8885571-parts.json",
+            "/private/tmp/acorde-print-v3-run/sources/part/sq8885571.mxl"
+          ],
+          "exit_code": -6,
+          "known_teardown_crash": true,
+          "log": "part-sq8885571-parts.log",
+          "log_sha256": "b0b406a70a102fecc881f9a1e644515b863d601d0548b59931543a7f7e26ab00",
+          "output_sha256": "9e78dad74e5bcc39211ff04e1cb254b82f95792a5a096b1f7d19530d1e512d06",
+          "fidelity": "not established by successful output parsing"
+        },
+        {
+          "command": [
+            "arch",
+            "-arm64",
+            "/Applications/MuseScore 4.app/Contents/MacOS/mscore",
+            "-o",
+            "/private/tmp/acorde-print-v3-run/prep/part-sq8885571.musicxml",
+            "/private/tmp/acorde-print-v3-run/prep/part-sq8885571.mscz"
+          ],
+          "exit_code": -6,
+          "known_teardown_crash": true,
+          "log": "part-sq8885571-musicxml.log",
+          "log_sha256": "d9e00fe3555e220f48d7d6e9e18bf526315b3c51caa20e00d6d283e41a932e20",
+          "output_sha256": "14996372f7474138793263bc29d888fc0b50c1284921563fe7da63ae6143ed4d",
+          "fidelity": "not established by successful output parsing"
+        }
+      ],
+      "part_index": 1,
+      "part_name": "Violin 2",
+      "pitched_event_audit": {
+        "source": 4231,
+        "prepared": 4231,
+        "missing": [],
+        "extra": []
+      },
+      "status": "prepared",
+      "shared_input": "/private/tmp/acorde-print-v3-run/prep/part-sq8885571.musicxml",
+      "shared_input_sha256": "14996372f7474138793263bc29d888fc0b50c1284921563fe7da63ae6143ed4d",
+      "parts": 1,
+      "measures": [
+        939
+      ]
+    },
+    {
+      "score": "part-sq22948888",
+      "group": "part",
+      "id": "sq22948888",
+      "source_sha256": "88c4f0ec700804ee6c4678e0b23274bd958127f29954ee3582a8ddb2aaf99415",
+      "source": "/private/tmp/acorde-print-v3-run/sources/part/sq22948888.mxl",
+      "exports": [
+        {
+          "command": [
+            "arch",
+            "-arm64",
+            "/Applications/MuseScore 4.app/Contents/MacOS/mscore",
+            "--score-parts",
+            "-o",
+            "/private/tmp/acorde-print-v3-run/prep/part-sq22948888-parts.json",
+            "/private/tmp/acorde-print-v3-run/sources/part/sq22948888.mxl"
+          ],
+          "exit_code": -6,
+          "known_teardown_crash": true,
+          "log": "part-sq22948888-parts.log",
+          "log_sha256": "a883491283c7d7026f594c4070ca73aa491514ac26ec96503ccb09dd5487c872",
+          "output_sha256": "c9f6c818f9d38481041f2761ea010b301f1d16946950638ce48aaf96f9cb5420",
+          "fidelity": "not established by successful output parsing"
+        },
+        {
+          "command": [
+            "arch",
+            "-arm64",
+            "/Applications/MuseScore 4.app/Contents/MacOS/mscore",
+            "-o",
+            "/private/tmp/acorde-print-v3-run/prep/part-sq22948888.musicxml",
+            "/private/tmp/acorde-print-v3-run/prep/part-sq22948888.mscz"
+          ],
+          "exit_code": -6,
+          "known_teardown_crash": true,
+          "log": "part-sq22948888-musicxml.log",
+          "log_sha256": "007a97907c8c206bce6ecf1c6ba10753036d6fb951f1e479262ee83c922831f8",
+          "output_sha256": "4e3b2e6b1b9082da1c982608d0d4b9d929ee30dbed13ce8301a9d20a0a25771b",
+          "fidelity": "not established by successful output parsing"
+        }
+      ],
+      "part_index": 0,
+      "part_name": "Violin 1",
+      "pitched_event_audit": {
+        "source": 3655,
+        "prepared": 3655,
+        "missing": [],
+        "extra": []
+      },
+      "status": "prepared",
+      "shared_input": "/private/tmp/acorde-print-v3-run/prep/part-sq22948888.musicxml",
+      "shared_input_sha256": "4e3b2e6b1b9082da1c982608d0d4b9d929ee30dbed13ce8301a9d20a0a25771b",
+      "parts": 1,
+      "measures": [
+        797
+      ]
+    },
+    {
+      "score": "part-sq8915514",
+      "group": "part",
+      "id": "sq8915514",
+      "source_sha256": "783e41b73970b4ca54df18c61092da5d0fa88ca49d2bd23a9511283f03bc426e",
+      "source": "/private/tmp/acorde-print-v3-run/sources/part/sq8915514.mxl",
+      "exports": [
+        {
+          "command": [
+            "arch",
+            "-arm64",
+            "/Applications/MuseScore 4.app/Contents/MacOS/mscore",
+            "--score-parts",
+            "-o",
+            "/private/tmp/acorde-print-v3-run/prep/part-sq8915514-parts.json",
+            "/private/tmp/acorde-print-v3-run/sources/part/sq8915514.mxl"
+          ],
+          "exit_code": -6,
+          "known_teardown_crash": true,
+          "log": "part-sq8915514-parts.log",
+          "log_sha256": "c11b5f8d9435a0776953b3436c6e43c8c3d8e9e8e4e4f076dcb545ff47018d4f",
+          "output_sha256": "ab1cd6134ac609d613c68e34b73e011d2d4a18ffa55483b27e61cdef0efd2e05",
+          "fidelity": "not established by successful output parsing"
+        },
+        {
+          "command": [
+            "arch",
+            "-arm64",
+            "/Applications/MuseScore 4.app/Contents/MacOS/mscore",
+            "-o",
+            "/private/tmp/acorde-print-v3-run/prep/part-sq8915514.musicxml",
+            "/private/tmp/acorde-print-v3-run/prep/part-sq8915514.mscz"
+          ],
+          "exit_code": -6,
+          "known_teardown_crash": true,
+          "log": "part-sq8915514-musicxml.log",
+          "log_sha256": "99b339ae6432b455f7baf1d5cebfceee5288596c5685bb743cf2dfef42a4d5c8",
+          "output_sha256": "ee5d4828ecbae044a4a2213af182bd2dea876bb4a690a566de14808c35af7c42",
+          "fidelity": "not established by successful output parsing"
+        }
+      ],
+      "part_index": 2,
+      "part_name": "Viola",
+      "pitched_event_audit": {
+        "source": 2565,
+        "prepared": 2565,
+        "missing": [],
+        "extra": []
+      },
+      "status": "prepared",
+      "shared_input": "/private/tmp/acorde-print-v3-run/prep/part-sq8915514.musicxml",
+      "shared_input_sha256": "ee5d4828ecbae044a4a2213af182bd2dea876bb4a690a566de14808c35af7c42",
+      "parts": 1,
+      "measures": [
+        789
+      ]
+    },
+    {
+      "score": "part-sq9608209",
+      "group": "part",
+      "id": "sq9608209",
+      "source_sha256": "0721ebffdeebb28d9888aff9e0aef8fb2dcc5fc2ca9f6785035f3adf4c81059d",
+      "source": "/private/tmp/acorde-print-v3-run/sources/part/sq9608209.mxl",
+      "exports": [
+        {
+          "command": [
+            "arch",
+            "-arm64",
+            "/Applications/MuseScore 4.app/Contents/MacOS/mscore",
+            "--score-parts",
+            "-o",
+            "/private/tmp/acorde-print-v3-run/prep/part-sq9608209-parts.json",
+            "/private/tmp/acorde-print-v3-run/sources/part/sq9608209.mxl"
+          ],
+          "exit_code": -6,
+          "known_teardown_crash": true,
+          "log": "part-sq9608209-parts.log",
+          "log_sha256": "bcb724194e1b2cf930712295b875149d18b80468a4e81ce3f8d923ff0eae89d6",
+          "output_sha256": "5d3344837ce8bc43bdc1fc2b9cb0e00a7427740c25f219a29cbf820c1ed34d88",
+          "fidelity": "not established by successful output parsing"
+        },
+        {
+          "command": [
+            "arch",
+            "-arm64",
+            "/Applications/MuseScore 4.app/Contents/MacOS/mscore",
+            "-o",
+            "/private/tmp/acorde-print-v3-run/prep/part-sq9608209.musicxml",
+            "/private/tmp/acorde-print-v3-run/prep/part-sq9608209.mscz"
+          ],
+          "exit_code": 0,
+          "known_teardown_crash": false,
+          "log": "part-sq9608209-musicxml.log",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "output_sha256": "f3a325a3f98bcc0e2cf422d772a3fd0deab9b2838966c92a2248da19b886aa2e",
+          "fidelity": "not established by successful output parsing"
+        }
+      ],
+      "part_index": 1,
+      "part_name": "Violin 2",
+      "pitched_event_audit": {
+        "source": 3609,
+        "prepared": 3609,
+        "missing": [],
+        "extra": []
+      },
+      "status": "prepared",
+      "shared_input": "/private/tmp/acorde-print-v3-run/prep/part-sq9608209.musicxml",
+      "shared_input_sha256": "f3a325a3f98bcc0e2cf422d772a3fd0deab9b2838966c92a2248da19b886aa2e",
+      "parts": 1,
+      "measures": [
+        1035
+      ]
+    },
+    {
+      "score": "part-sq10439083",
+      "group": "part",
+      "id": "sq10439083",
+      "source_sha256": "39359bf01d73ec375cd0078717dfb592bc8fdd08ce4adb37a7ca91b08876294e",
+      "source": "/private/tmp/acorde-print-v3-run/sources/part/sq10439083.mxl",
+      "exports": [
+        {
+          "command": [
+            "arch",
+            "-arm64",
+            "/Applications/MuseScore 4.app/Contents/MacOS/mscore",
+            "--score-parts",
+            "-o",
+            "/private/tmp/acorde-print-v3-run/prep/part-sq10439083-parts.json",
+            "/private/tmp/acorde-print-v3-run/sources/part/sq10439083.mxl"
+          ],
+          "exit_code": -6,
+          "known_teardown_crash": true,
+          "log": "part-sq10439083-parts.log",
+          "log_sha256": "515aa2ba39086147e4be597acc30c411332e3012881e9d80d8268b51a2e41e34",
+          "output_sha256": "514dbceae68bdbcafab4323420e6a3993a78a336a9a45199ab0fbc3fee0f1cc9",
+          "fidelity": "not established by successful output parsing"
+        },
+        {
+          "command": [
+            "arch",
+            "-arm64",
+            "/Applications/MuseScore 4.app/Contents/MacOS/mscore",
+            "-o",
+            "/private/tmp/acorde-print-v3-run/prep/part-sq10439083.musicxml",
+            "/private/tmp/acorde-print-v3-run/prep/part-sq10439083.mscz"
+          ],
+          "exit_code": -6,
+          "known_teardown_crash": true,
+          "log": "part-sq10439083-musicxml.log",
+          "log_sha256": "f7d1668839d80d8cdbbb54985cb575266413c0f2774ba02b05bc49df3651d505",
+          "output_sha256": "fdcbc66dd8fc3113d2ddd074baa67ec2f073bfeec6f41c329625cbfee2fbe95e",
+          "fidelity": "not established by successful output parsing"
+        }
+      ],
+      "part_index": 1,
+      "part_name": "Violin 2",
+      "pitched_event_audit": {
+        "source": 5062,
+        "prepared": 5062,
+        "missing": [
+          {
+            "event": [
+              0,
+              10,
+              0,
+              4,
+              "0",
+              "1",
+              "F",
+              4,
+              "0",
+              false,
+              false,
+              false,
+              false,
+              false
+            ],
+            "count": 1
+          }
+        ],
+        "extra": [
+          {
+            "event": [
+              0,
+              10,
+              0,
+              3,
+              "0",
+              "1",
+              "F",
+              4,
+              "0",
+              false,
+              false,
+              false,
+              false,
+              false
+            ],
+            "count": 1
+          }
+        ]
+      },
+      "status": "prepared",
+      "shared_input": "/private/tmp/acorde-print-v3-run/prep/part-sq10439083.musicxml",
+      "shared_input_sha256": "fdcbc66dd8fc3113d2ddd074baa67ec2f073bfeec6f41c329625cbfee2fbe95e",
+      "parts": 1,
+      "measures": [
+        1221
+      ]
+    }
+  ]
+}
