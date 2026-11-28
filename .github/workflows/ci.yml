@@ -433,6 +433,10 @@ jobs:
       - name: Install wasm-pack
         run: cargo install wasm-pack --version 0.15.0 --locked
       - name: wasm browser tests
+        # wasm-bindgen-test-runner stops a headless run after 20 s by default. That
+        # covered one test file per binary; one binary now runs them all.
+        env:
+          WASM_BINDGEN_TEST_TIMEOUT: '1200'
         run: timeout 30m wasm-pack test --headless --chrome crates/wasm ${{ matrix.feature_args }}
 
   browser-smoke:
