@@ -4,6 +4,10 @@
 //! one (about 16 s). Keeping the files as modules of this binary pays that once.
 //! Add a new test file here; `autotests = false` in Cargo.toml stops Cargo from
 //! building it as its own binary.
+//!
+//! Several test files load the same fixture file with `#[path]`; each copy is a
+//! separate module, as it was when every file was its own binary.
+#![allow(clippy::duplicate_mod)]
 
 #[path = "accordion_dynamics.rs"]
 mod accordion_dynamics;
