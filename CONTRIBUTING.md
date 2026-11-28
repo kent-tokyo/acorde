@@ -21,12 +21,37 @@ devices, fonts, PDF generation, and print dialogs in hosts such as Composer.
 cargo fmt --all -- --check
 cargo test --workspace --all-features --locked
 cargo clippy --workspace --all-features --locked --all-targets -- -D warnings
+python3 -B scripts/check_release_consistency.py
 git diff --check
 ```
 
 Run the focused feature, fuzz, WASM, browser, or package checks when the edited surface needs
 them. Keep commands transactional: invalid input must return a typed error without mutating the
 score or recording history.
+
+## Compatibility policy
+
+The published crates follow [Cargo's SemVer rules](https://doc.rust-lang.org/cargo/reference/semver.html)
+for Rust source compatibility, not only for stored score JSON. Serde defaults keep old JSON
+readable, but they do not keep Rust struct literals or exhaustive `match` expressions compiling.
+
+- **Patch releases** (`x.y.Z`) contain fixes only. Do not add public enum variants, public struct
+  fields, or required trait items; do not remove or rename public items or change their
+  signatures.
+- **Minor releases** (`x.Y.0`) may add public items, such as new functions, types, or variants of an
+  enum marked `#[non_exhaustive]`. They must not break code that compiled against the previous
+  minor release.
+- **Major releases** (`X.0.0`) are the only place for source-breaking changes. List each one, with the
+  consumer action it needs, in [`docs/migrations.md`](docs/migrations.md).
+
+`cargo semver-checks` runs in CI against the latest version on crates.io. If it reports a
+breaking change, either make the change compatible (for example, add a constructor instead of a
+new required field) or hold it for the next major release. Prefer `#[non_exhaustive]` on new public
+error enums and on enums or structs that are expected to grow.
+
+Before a release, `python3 -B scripts/check_release_consistency.py` must report that the
+workspace version, internal dependency versions, `docs/scorecard.json`, the newest `CHANGELOG.md`
+release heading, and the `ROADMAP.md` baseline agree. CI and the publish workflow run it.
 
 ## Small, reviewable changes
 

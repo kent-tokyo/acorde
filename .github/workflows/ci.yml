@@ -58,6 +58,31 @@ jobs:
           python3 -B scripts/validate_interoperability_manifest.py
           python3 -B scripts/validate_print_corpus.py --check-only
 
+  release-metadata:
+    name: Release version markers
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Check Cargo, scorecard, changelog and roadmap versions agree
+        run: |
+          python3 -B -m unittest discover -s scripts/tests -p 'test_check_release_consistency.py'
+          python3 -B scripts/check_release_consistency.py
+
+  semver:
+    name: SemVer compatibility with crates.io
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+      - name: Install cargo-semver-checks
+        run: cargo install cargo-semver-checks --version 0.51.0 --locked
+      - name: Compare the public API with the latest published release
+        # The release type is derived from the workspace version. While main
+        # still carries the last published version, any breaking change fails;
+        # bump the major version in the same change to accept one.
+        run: cargo semver-checks --workspace --all-features
+
   msrv:
     name: MSRV (Rust 1.89)
     runs-on: ubuntu-latest
