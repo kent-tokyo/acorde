@@ -1,0 +1,5943 @@
+{
+  "schema_version": 1,
+  "split": "holdout",
+  "recipe": "music21-dominant-tonic-outer-voices-v1",
+  "source_commit": "9c5f7004c5ab1f15d64e959d011dbdf3b7863c3e",
+  "projection_sha256": "a5c76331507a2dcb84ee84c1e7666a60598b2e30ba37a64e6d2b3dc317723b6d",
+  "preflight_sha256": "f2526225e1ff07d296a2a0e0f212014ebf61a1c5f5d17c2ef2eb373b7a287102",
+  "acorde_binary_sha256": "1d4d17373f4c5dbb200f19d711e97dbdc70f0c51cf3a10b6492357b36b47b1cd",
+  "acorde_command": "analyze-cadences INPUT --infer-key",
+  "music21_version": "10.5.2",
+  "script_sha256": "9150985cbc3aba6b1c7cc9093d1e8e9cb7b0d4a5c0f740968de8ad0c82dc5ce8",
+  "class_mapping": {
+    "PAC": "Authentic",
+    "IAC": "Authentic",
+    "HC": "Half",
+    "DC": "Deceptive",
+    "EC": "Evaded",
+    "PC": "Plagal"
+  },
+  "summary": {
+    "cases": 18,
+    "eligible": 23879,
+    "gold_positive": 431,
+    "acorde": {
+      "outside_eligible": 0,
+      "true_negative": 23419,
+      "missed": 401,
+      "correct": 30,
+      "false_positive": 29
+    },
+    "acorde_failures": 0,
+    "music21": {
+      "outside_eligible": 0,
+      "true_negative": 23422,
+      "missed": 387,
+      "correct": 44,
+      "false_positive": 26
+    },
+    "music21_failures": 0
+  },
+  "cases": [
+    {
+      "id": "K330-1",
+      "split": "holdout",
+      "input_sha256": "ad532005a269c993d528f8eb0974d5ef6aea3fb067b3f16d3374325a3d19b343",
+      "excluded_timeline_measures": [],
+      "eligible": 1507,
+      "gold_positive": 29,
+      "music21_key": "C major",
+      "acorde_counts": {
+        "outside_eligible": 0,
+        "true_negative": 1478,
+        "missed": 27,
+        "correct": 2
+      },
+      "music21_counts": {
+        "outside_eligible": 0,
+        "true_negative": 1478,
+        "missed": 26,
+        "correct": 3
+      },
+      "rows": [
+        {
+          "measure": 7,
+          "offset_quarter": [
+            1,
+            2
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 11,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 13,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 15,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 17,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 30,
+          "offset_quarter": [
+            3,
+            2
+          ],
+          "gold": "DC",
+          "gold_coarse": "Deceptive",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 33,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 37,
+          "offset_quarter": [
+            1,
+            2
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 41,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 47,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 53,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 55,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 57,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 65,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 78,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 82,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 94,
+          "offset_quarter": [
+            1,
+            2
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 98,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 100,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 102,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 104,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 117,
+          "offset_quarter": [
+            3,
+            2
+          ],
+          "gold": "DC",
+          "gold_coarse": "Deceptive",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 120,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 124,
+          "offset_quarter": [
+            1,
+            2
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 128,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 134,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 140,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": []
+        },
+        {
+          "measure": 142,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": []
+        },
+        {
+          "measure": 144,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        }
+      ]
+    },
+    {
+      "id": "K330-2",
+      "split": "holdout",
+      "input_sha256": "3768be7593bcb8a2dab34053cb44ec656149234ad160e5800fa794b579790132",
+      "excluded_timeline_measures": [],
+      "eligible": 464,
+      "gold_positive": 11,
+      "music21_key": "F major",
+      "acorde_counts": {
+        "outside_eligible": 0,
+        "true_negative": 453,
+        "missed": 11
+      },
+      "music21_counts": {
+        "outside_eligible": 0,
+        "true_negative": 453,
+        "missed": 9,
+        "correct": 2
+      },
+      "rows": [
+        {
+          "measure": 4,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 8,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 13,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 21,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 30,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 35,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 39,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 49,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 53,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 57,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 65,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "K330-3",
+      "split": "holdout",
+      "input_sha256": "67755ce3acfa8aa97776e1c8099749c2d68b69cb0d2bd3917dde862b2b61c73a",
+      "excluded_timeline_measures": [],
+      "eligible": 1392,
+      "gold_positive": 35,
+      "music21_key": "C major",
+      "acorde_counts": {
+        "outside_eligible": 0,
+        "true_negative": 1350,
+        "missed": 27,
+        "false_positive": 7,
+        "correct": 8
+      },
+      "music21_counts": {
+        "outside_eligible": 0,
+        "true_negative": 1351,
+        "missed": 27,
+        "correct": 8,
+        "false_positive": 6
+      },
+      "rows": [
+        {
+          "measure": 1,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 3,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 6,
+          "offset_quarter": [
+            5,
+            4
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": []
+        },
+        {
+          "measure": 7,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 9,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 11,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 15,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 15,
+          "offset_quarter": [
+            1,
+            2
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 17,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 17,
+          "offset_quarter": [
+            1,
+            2
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 19,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 31,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 34,
+          "offset_quarter": [
+            1,
+            2
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 38,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 46,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 54,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 60,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 67,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 75,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 80,
+          "offset_quarter": [
+            1,
+            2
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": []
+        },
+        {
+          "measure": 85,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 91,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 96,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 98,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 101,
+          "offset_quarter": [
+            5,
+            4
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": []
+        },
+        {
+          "measure": 102,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 104,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 106,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 110,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 110,
+          "offset_quarter": [
+            1,
+            2
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 112,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 112,
+          "offset_quarter": [
+            1,
+            2
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 114,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 130,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 133,
+          "offset_quarter": [
+            1,
+            2
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 137,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 141,
+          "offset_quarter": [
+            1,
+            2
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 145,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 153,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 153,
+          "offset_quarter": [
+            1,
+            3
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 153,
+          "offset_quarter": [
+            2,
+            3
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 159,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 168,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "DC",
+          "gold_coarse": "Deceptive",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 170,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": [
+            "Authentic"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "K331-1",
+      "split": "holdout",
+      "input_sha256": "bf69b282bc593f45d8e9590936a755f63455cce47c588a4054ed7571b5964ceb",
+      "excluded_timeline_measures": [],
+      "eligible": 1832,
+      "gold_positive": 41,
+      "music21_key": "A major",
+      "acorde_counts": {
+        "outside_eligible": 0,
+        "true_negative": 1783,
+        "missed": 35,
+        "correct": 6,
+        "false_positive": 8
+      },
+      "music21_counts": {
+        "outside_eligible": 0,
+        "true_negative": 1788,
+        "missed": 35,
+        "correct": 6,
+        "false_positive": 3
+      },
+      "rows": [
+        {
+          "measure": 3,
+          "offset_quarter": [
+            5,
+            2
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 7,
+          "offset_quarter": [
+            3,
+            2
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 11,
+          "offset_quarter": [
+            5,
+            2
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 15,
+          "offset_quarter": [
+            5,
+            2
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 17,
+          "offset_quarter": [
+            3,
+            2
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 21,
+          "offset_quarter": [
+            3,
+            2
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 25,
+          "offset_quarter": [
+            3,
+            2
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 29,
+          "offset_quarter": [
+            5,
+            2
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 32,
+          "offset_quarter": [
+            7,
+            4
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": []
+        },
+        {
+          "measure": 33,
+          "offset_quarter": [
+            5,
+            2
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 35,
+          "offset_quarter": [
+            3,
+            2
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 39,
+          "offset_quarter": [
+            5,
+            2
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 43,
+          "offset_quarter": [
+            3,
+            2
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 47,
+          "offset_quarter": [
+            5,
+            2
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 51,
+          "offset_quarter": [
+            5,
+            2
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 53,
+          "offset_quarter": [
+            3,
+            2
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 57,
+          "offset_quarter": [
+            5,
+            2
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 61,
+          "offset_quarter": [
+            3,
+            2
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 65,
+          "offset_quarter": [
+            5,
+            2
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 69,
+          "offset_quarter": [
+            3,
+            2
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 71,
+          "offset_quarter": [
+            3,
+            2
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 74,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": []
+        },
+        {
+          "measure": 75,
+          "offset_quarter": [
+            3,
+            2
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 78,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": []
+        },
+        {
+          "measure": 79,
+          "offset_quarter": [
+            3,
+            2
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 83,
+          "offset_quarter": [
+            5,
+            2
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 86,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": []
+        },
+        {
+          "measure": 87,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 89,
+          "offset_quarter": [
+            3,
+            2
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 93,
+          "offset_quarter": [
+            3,
+            2
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 97,
+          "offset_quarter": [
+            7,
+            4
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 98,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 102,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 106,
+          "offset_quarter": [
+            5,
+            2
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 108,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": []
+        },
+        {
+          "measure": 108,
+          "offset_quarter": [
+            5,
+            2
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 109,
+          "offset_quarter": [
+            5,
+            2
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": []
+        },
+        {
+          "measure": 113,
+          "offset_quarter": [
+            3,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 114,
+          "offset_quarter": [
+            1,
+            4
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 114,
+          "offset_quarter": [
+            3,
+            4
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 117,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 121,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 125,
+          "offset_quarter": [
+            3,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 127,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 128,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 134,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 135,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 135,
+          "offset_quarter": [
+            11,
+            4
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 136,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": [
+            "Authentic"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "K331-2",
+      "split": "holdout",
+      "input_sha256": "4f40ab3017729cbd64400ed408418c645091591a212ff0da76877e8dd4796922",
+      "excluded_timeline_measures": [],
+      "eligible": 614,
+      "gold_positive": 20,
+      "music21_key": "A major",
+      "acorde_counts": {
+        "outside_eligible": 0,
+        "true_negative": 594,
+        "missed": 19,
+        "correct": 1
+      },
+      "music21_counts": {
+        "outside_eligible": 0,
+        "true_negative": 594,
+        "missed": 17,
+        "correct": 3
+      },
+      "rows": [
+        {
+          "measure": 3,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 9,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 17,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 29,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 33,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 40,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 47,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 51,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 55,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 59,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": []
+        },
+        {
+          "measure": 62,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 63,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 79,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 81,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 91,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 95,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 97,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 98,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 99,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 100,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        }
+      ]
+    },
+    {
+      "id": "K331-3",
+      "split": "holdout",
+      "input_sha256": "6e6a8d4d95b82f7a62f635dfd62c82671c87dd158233c74d4a0aff8e35996551",
+      "excluded_timeline_measures": [],
+      "eligible": 683,
+      "gold_positive": 27,
+      "music21_key": "A major",
+      "acorde_counts": {
+        "outside_eligible": 0,
+        "true_negative": 655,
+        "missed": 27,
+        "false_positive": 1
+      },
+      "music21_counts": {
+        "outside_eligible": 0,
+        "true_negative": 656,
+        "missed": 27
+      },
+      "rows": [
+        {
+          "measure": 8,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 11,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 13,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 15,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 17,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 25,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 30,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 34,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 43,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 48,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 52,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 60,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 65,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 69,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 78,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 81,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 83,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 85,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 87,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 95,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 100,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 104,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 105,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 111,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 118,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": []
+        },
+        {
+          "measure": 118,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 124,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 131,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        }
+      ]
+    },
+    {
+      "id": "K332-1",
+      "split": "holdout",
+      "input_sha256": "a1226cb2bc4acacbd5d641828449e1b2c27c316529463ecc4b709a500b278786",
+      "excluded_timeline_measures": [
+        71
+      ],
+      "eligible": 1286,
+      "gold_positive": 35,
+      "music21_key": "F major",
+      "acorde_counts": {
+        "outside_eligible": 0,
+        "true_negative": 1250,
+        "missed": 33,
+        "false_positive": 1,
+        "correct": 2
+      },
+      "music21_counts": {
+        "outside_eligible": 0,
+        "true_negative": 1247,
+        "correct": 6,
+        "missed": 29,
+        "false_positive": 4
+      },
+      "rows": [
+        {
+          "measure": 11,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 15,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 19,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 20,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 21,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 36,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 43,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 47,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 51,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 55,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 66,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 75,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 81,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 83,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 85,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 92,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 94,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 96,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 100,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 102,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 104,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 108,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 122,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 132,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": []
+        },
+        {
+          "measure": 143,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 147,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 151,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 152,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 153,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 172,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 179,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 183,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 187,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 191,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 202,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 211,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 217,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 219,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 221,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": []
+        },
+        {
+          "measure": 228,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": [
+            "Authentic"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "K332-2",
+      "split": "holdout",
+      "input_sha256": "fddffeccaf1d27eac6953e3fd27ce733e67f383ce74c1a3d7c7947242e04cc43",
+      "excluded_timeline_measures": [],
+      "eligible": 674,
+      "gold_positive": 10,
+      "music21_key": "B- major",
+      "acorde_counts": {
+        "outside_eligible": 0,
+        "true_negative": 663,
+        "missed": 9,
+        "correct": 1,
+        "false_positive": 1
+      },
+      "music21_counts": {
+        "outside_eligible": 0,
+        "true_negative": 664,
+        "missed": 10
+      },
+      "rows": [
+        {
+          "measure": 3,
+          "offset_quarter": [
+            3,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 7,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 11,
+          "offset_quarter": [
+            5,
+            2
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 15,
+          "offset_quarter": [
+            3,
+            2
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 18,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 23,
+          "offset_quarter": [
+            3,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 27,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 31,
+          "offset_quarter": [
+            5,
+            2
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 35,
+          "offset_quarter": [
+            3,
+            2
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 38,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": []
+        },
+        {
+          "measure": 38,
+          "offset_quarter": [
+            1,
+            4
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": []
+        }
+      ]
+    },
+    {
+      "id": "K332-3",
+      "split": "holdout",
+      "input_sha256": "b14ea3c8878f9eaf1ee43bfaf58fb340b7ce4b6fa538655b1b4d1ced2fcbf2fc",
+      "excluded_timeline_measures": [],
+      "eligible": 1969,
+      "gold_positive": 24,
+      "music21_key": "F major",
+      "acorde_counts": {
+        "outside_eligible": 0,
+        "true_negative": 1942,
+        "missed": 22,
+        "false_positive": 3,
+        "correct": 2
+      },
+      "music21_counts": {
+        "outside_eligible": 0,
+        "true_negative": 1943,
+        "missed": 21,
+        "false_positive": 2,
+        "correct": 3
+      },
+      "rows": [
+        {
+          "measure": 5,
+          "offset_quarter": [
+            3,
+            2
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 6,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 13,
+          "offset_quarter": [
+            3,
+            2
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 25,
+          "offset_quarter": [
+            3,
+            2
+          ],
+          "gold": "DC",
+          "gold_coarse": "Deceptive",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 31,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": []
+        },
+        {
+          "measure": 31,
+          "offset_quarter": [
+            1,
+            2
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": []
+        },
+        {
+          "measure": 48,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 56,
+          "offset_quarter": [
+            3,
+            2
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 64,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 73,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 82,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 84,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 118,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 126,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 138,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 152,
+          "offset_quarter": [
+            3,
+            2
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 153,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 160,
+          "offset_quarter": [
+            3,
+            2
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 183,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 191,
+          "offset_quarter": [
+            3,
+            2
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 199,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 209,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": []
+        },
+        {
+          "measure": 219,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 221,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 231,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 235,
+          "offset_quarter": [
+            3,
+            2
+          ],
+          "gold": "DC",
+          "gold_coarse": "Deceptive",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 241,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        }
+      ]
+    },
+    {
+      "id": "K333-1",
+      "split": "holdout",
+      "input_sha256": "b992618d7ef93b3e8f2c6a8ed00c01a91a66ee7bf6c3e3cfbbab018f3d508e3b",
+      "excluded_timeline_measures": [],
+      "eligible": 1851,
+      "gold_positive": 28,
+      "music21_key": "B- major",
+      "acorde_counts": {
+        "outside_eligible": 0,
+        "true_negative": 1823,
+        "missed": 28
+      },
+      "music21_counts": {
+        "outside_eligible": 0,
+        "true_negative": 1822,
+        "missed": 28,
+        "false_positive": 1
+      },
+      "rows": [
+        {
+          "measure": 4,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 10,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 18,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 20,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 22,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 30,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 38,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 46,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 50,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 54,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 59,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 63,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 72,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 82,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 84,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 86,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 98,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 104,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 115,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 117,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 119,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 127,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 135,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 143,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 143,
+          "offset_quarter": [
+            1,
+            2
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 153,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 157,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 162,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 166,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        }
+      ]
+    },
+    {
+      "id": "K333-2",
+      "split": "holdout",
+      "input_sha256": "7e515bc20e5399b1a4405433cd08562d7cd93343b7a3a233b9c0c27424812746",
+      "excluded_timeline_measures": [],
+      "eligible": 825,
+      "gold_positive": 19,
+      "music21_key": "E- major",
+      "acorde_counts": {
+        "outside_eligible": 0,
+        "true_negative": 805,
+        "missed": 17,
+        "correct": 2,
+        "false_positive": 1
+      },
+      "music21_counts": {
+        "outside_eligible": 0,
+        "true_negative": 806,
+        "missed": 18,
+        "correct": 1
+      },
+      "rows": [
+        {
+          "measure": 3,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 5,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "DC",
+          "gold_coarse": "Deceptive",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 7,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": []
+        },
+        {
+          "measure": 12,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 20,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 24,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 28,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 30,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 34,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 42,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 47,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 53,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 57,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 62,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 70,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 70,
+          "offset_quarter": [
+            1,
+            4
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": []
+        },
+        {
+          "measure": 74,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 78,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": []
+        },
+        {
+          "measure": 81,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 82,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        }
+      ]
+    },
+    {
+      "id": "K333-3",
+      "split": "holdout",
+      "input_sha256": "006a90c0b378304c6c87f84c48c5864f568a5bea9c02d51e6e590a94a772471f",
+      "excluded_timeline_measures": [],
+      "eligible": 2001,
+      "gold_positive": 37,
+      "music21_key": "B- major",
+      "acorde_counts": {
+        "outside_eligible": 0,
+        "true_negative": 1963,
+        "missed": 37,
+        "false_positive": 1
+      },
+      "music21_counts": {
+        "outside_eligible": 0,
+        "true_negative": 1963,
+        "missed": 32,
+        "correct": 5,
+        "false_positive": 1
+      },
+      "rows": [
+        {
+          "measure": 3,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 7,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 11,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 15,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 17,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 19,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 23,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 31,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 35,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 43,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 47,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 51,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 55,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 57,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 59,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 63,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 71,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 75,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 88,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 89,
+          "offset_quarter": [
+            3,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 102,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 114,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 118,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 122,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 126,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 128,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 130,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 143,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 155,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 163,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 178,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 204,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 208,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 211,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 215,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 224,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 225,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 226,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": [
+            "Authentic"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "K457-1",
+      "split": "holdout",
+      "input_sha256": "fdab20292f5e00d35e4b54fd60ca41171413092dc0f1c981409364e29dc87421",
+      "excluded_timeline_measures": [],
+      "eligible": 1441,
+      "gold_positive": 16,
+      "music21_key": "c minor",
+      "acorde_counts": {
+        "outside_eligible": 0,
+        "true_negative": 1425,
+        "missed": 16
+      },
+      "music21_counts": {
+        "outside_eligible": 0,
+        "true_negative": 1425,
+        "missed": 16
+      },
+      "rows": [
+        {
+          "measure": 18,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 29,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 47,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "DC",
+          "gold_coarse": "Deceptive",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 58,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 62,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 66,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 70,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 117,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 125,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 144,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 155,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 159,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 163,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 175,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 178,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 181,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        }
+      ]
+    },
+    {
+      "id": "K457-2",
+      "split": "holdout",
+      "input_sha256": "38ad7f7497072ab83fe4ca2f016e6a4af917b5ab33f5550dd89f93f277dc36e5",
+      "excluded_timeline_measures": [],
+      "eligible": 1233,
+      "gold_positive": 11,
+      "music21_key": "E- major",
+      "acorde_counts": {
+        "outside_eligible": 0,
+        "true_negative": 1219,
+        "false_positive": 3,
+        "missed": 11
+      },
+      "music21_counts": {
+        "outside_eligible": 0,
+        "true_negative": 1214,
+        "missed": 9,
+        "correct": 2,
+        "false_positive": 8
+      },
+      "rows": [
+        {
+          "measure": 1,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": []
+        },
+        {
+          "measure": 2,
+          "offset_quarter": [
+            3,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 6,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 6,
+          "offset_quarter": [
+            5,
+            2
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 12,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 18,
+          "offset_quarter": [
+            3,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 22,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 22,
+          "offset_quarter": [
+            5,
+            2
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 37,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 42,
+          "offset_quarter": [
+            3,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 44,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 46,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 48,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 53,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 55,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 55,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 55,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 56,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 56,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 56,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": [
+            "Authentic"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "K457-3",
+      "split": "holdout",
+      "input_sha256": "ab5db21cd298c71468978adb403e23e55bf5d31f70d953726a3c7bba9d55ba10",
+      "excluded_timeline_measures": [],
+      "eligible": 1302,
+      "gold_positive": 24,
+      "music21_key": "c minor",
+      "acorde_counts": {
+        "outside_eligible": 0,
+        "true_negative": 1278,
+        "missed": 24
+      },
+      "music21_counts": {
+        "outside_eligible": 0,
+        "true_negative": 1278,
+        "missed": 24
+      },
+      "rows": [
+        {
+          "measure": 8,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 16,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 30,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 44,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 58,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 60,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 62,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 74,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 82,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 90,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 111,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 119,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 133,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 179,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 181,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 183,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 197,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 205,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 228,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 248,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 262,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 287,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 301,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "DC",
+          "gold_coarse": "Deceptive",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 309,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        }
+      ]
+    },
+    {
+      "id": "K533-1",
+      "split": "holdout",
+      "input_sha256": "8b376e4367ae93fa377fafd79fb26732d1d934535eb7acef0f36bc615ed59b27",
+      "excluded_timeline_measures": [
+        45,
+        168,
+        173
+      ],
+      "eligible": 2116,
+      "gold_positive": 24,
+      "music21_key": "F major",
+      "acorde_counts": {
+        "outside_eligible": 0,
+        "true_negative": 2092,
+        "missed": 21,
+        "correct": 3
+      },
+      "music21_counts": {
+        "outside_eligible": 0,
+        "true_negative": 2092,
+        "missed": 24
+      },
+      "rows": [
+        {
+          "measure": 22,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "DC",
+          "gold_coarse": "Deceptive",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 41,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 49,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 53,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 57,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 78,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 82,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "DC",
+          "gold_coarse": "Deceptive",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 89,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 92,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 95,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 97,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 99,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 117,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 169,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 177,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 181,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 185,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 212,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 220,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "DC",
+          "gold_coarse": "Deceptive",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 227,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": []
+        },
+        {
+          "measure": 230,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": []
+        },
+        {
+          "measure": 233,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 235,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 237,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": []
+        }
+      ]
+    },
+    {
+      "id": "K533-2",
+      "split": "holdout",
+      "input_sha256": "2cc886f8811f4b88ab9d8ee08a29438e63edc9ee66248383a8274c0cd7398190",
+      "excluded_timeline_measures": [
+        53
+      ],
+      "eligible": 1054,
+      "gold_positive": 14,
+      "music21_key": "B- major",
+      "acorde_counts": {
+        "outside_eligible": 0,
+        "true_negative": 1038,
+        "missed": 12,
+        "correct": 2,
+        "false_positive": 2
+      },
+      "music21_counts": {
+        "outside_eligible": 0,
+        "true_negative": 1040,
+        "missed": 12,
+        "correct": 2
+      },
+      "rows": [
+        {
+          "measure": 9,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 21,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 32,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 41,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 43,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 45,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 81,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 89,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 100,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": []
+        },
+        {
+          "measure": 109,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 111,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 113,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 116,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "DC",
+          "gold_coarse": "Deceptive",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 119,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 120,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": []
+        },
+        {
+          "measure": 121,
+          "offset_quarter": [
+            1,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": []
+        }
+      ]
+    },
+    {
+      "id": "K533-3",
+      "split": "holdout",
+      "input_sha256": "5ad32caf14fcf0de883ba812f197c71af2521a2048d0d9aa646e69acf69cb19c",
+      "excluded_timeline_measures": [],
+      "eligible": 1635,
+      "gold_positive": 26,
+      "music21_key": "F major",
+      "acorde_counts": {
+        "outside_eligible": 0,
+        "true_negative": 1608,
+        "missed": 25,
+        "false_positive": 1,
+        "correct": 1
+      },
+      "music21_counts": {
+        "outside_eligible": 0,
+        "true_negative": 1608,
+        "missed": 23,
+        "correct": 3,
+        "false_positive": 1
+      },
+      "rows": [
+        {
+          "measure": 5,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 11,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 17,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 25,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 29,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 43,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 49,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 57,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 66,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 78,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 87,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 93,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        },
+        {
+          "measure": 97,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 101,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 107,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 115,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 116,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 125,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 131,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 139,
+          "offset_quarter": [
+            2,
+            1
+          ],
+          "gold": "IAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 143,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "DC",
+          "gold_coarse": "Deceptive",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 145,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": []
+        },
+        {
+          "measure": 147,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "DC",
+          "gold_coarse": "Deceptive",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 152,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "HC",
+          "gold_coarse": "Half",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 170,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [
+            "Authentic"
+          ],
+          "music21": []
+        },
+        {
+          "measure": 180,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "EC",
+          "gold_coarse": "Evaded",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 184,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": "PAC",
+          "gold_coarse": "Authentic",
+          "acorde": [],
+          "music21": []
+        },
+        {
+          "measure": 185,
+          "offset_quarter": [
+            0,
+            1
+          ],
+          "gold": null,
+          "gold_coarse": null,
+          "acorde": [],
+          "music21": [
+            "Authentic"
+          ]
+        }
+      ]
+    }
+  ]
+}

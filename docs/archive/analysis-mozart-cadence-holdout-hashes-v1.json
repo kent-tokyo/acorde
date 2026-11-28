@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "source_commit": "9c5f7004c5ab1f15d64e959d011dbdf3b7863c3e",
+  "selection_sha256": "c4e22d92f54def3c4e82bdae4a63e3cebb785bbc941ec47ffc341810e96ceef6",
+  "classification": "reserved holdout annotations, read after protocol freeze",
+  "protocol_sha256": "61971e83a8616844ec0bdead7648c4438b9094df00bfaf97d6f3f3bef7370220",
+  "annotations": [
+    {
+      "id": "K330-1",
+      "path": "score_parts_annotated/kv330_1_spart_cadence.csv",
+      "git_blob": "6a7c0083a6ee876d6683ea507cf16ac54ad64313",
+      "sha256": "46a7fc20f10c29204ed473c6df121c06b40ae92139f502de6629fab53dcebe0d"
+    },
+    {
+      "id": "K330-2",
+      "path": "score_parts_annotated/kv330_2_spart_cadence.csv",
+      "git_blob": "08c0afd0110ba9e007cd57228db262cd9bb9694c",
+      "sha256": "5775614aebabd77799137abc3367ead8ca4221828c7c7c32db677dace4149dc8"
+    },
+    {
+      "id": "K330-3",
+      "path": "score_parts_annotated/kv330_3_spart_cadence.csv",
+      "git_blob": "2b9093420688b6dc4347ce6c9ed2e147e36a1a1e",
+      "sha256": "2cdf6cea7fcbbc2711866fffa6078693d1a446ad3c0ffe593752369a8efb904c"
+    },
+    {
+      "id": "K331-1",
+      "path": "score_parts_annotated/kv331_1_spart_cadence.csv",
+      "git_blob": "0c498bd530c8539ce9c9530350d2da21969b7ebd",
+      "sha256": "cad2bf489c8b51d8f46ab05cc0ac5485338474fa4c2d2293152cd879860910c2"
+    },
+    {
+      "id": "K331-2",
+      "path": "score_parts_annotated/kv331_2_spart_cadence.csv",
+      "git_blob": "fa808838cbe51cda123fd99c0489a4bb8fceaeb5",
+      "sha256": "ffd06dbb3fc9941e10e6a5796362d8b04699886d99c5aa29b1a19be35884db4d"
+    },
+    {
+      "id": "K331-3",
+      "path": "score_parts_annotated/kv331_3_spart_cadence.csv",
+      "git_blob": "908f756a437016ba776e89b307af08c29ef7802d",
+      "sha256": "15b3f7d6a13e4c1894df2bffe2ece5263644b0684e21df8feb0a0d4d58424fdc"
+    },
+    {
+      "id": "K332-1",
+      "path": "score_parts_annotated/kv332_1_spart_cadence.csv",
+      "git_blob": "0f20ba0d21a415e7206c11c0d1386d49d25a2004",
+      "sha256": "7fcb07a1d90126cd6cd9be7bf07f4765f6303dd0d73ad5ffcffdde2b76949ebb"
+    },
+    {
+      "id": "K332-2",
+      "path": "score_parts_annotated/kv332_2_spart_cadence.csv",
+      "git_blob": "e519ad6e861cf1989d55bd49752cab12676b09ef",
+      "sha256": "e3d9287ab914f988b23838929dd438634b4452e324243f18d5ca2a40d68255d0"
+    },
+    {
+      "id": "K332-3",
+      "path": "score_parts_annotated/kv332_3_spart_cadence.csv",
+      "git_blob": "e974a95d4de9aa770fc8ae5b568987c2e71b0f17",
+      "sha256": "da98a280f785db57d9d314027eb1773eb73b90f9e708864e80271defb6cbb607"
+    },
+    {
+      "id": "K333-1",
+      "path": "score_parts_annotated/kv333_1_spart_cadence.csv",
+      "git_blob": "9245ae79962db1aea82d0b34daa6c8668edfe081",
+      "sha256": "59289fe7284e1cbbd123abb1dff76dd596d7745f94ebf50022e18df34d505ea8"
+    },
+    {
+      "id": "K333-2",
+      "path": "score_parts_annotated/kv333_2_spart_cadence.csv",
+      "git_blob": "a993c8f456ac5bda87ee804a721b9341ea10b665",
+      "sha256": "ddedb48296586f2fb4f452162c145f8978da2526adcb811ad99308d75427c15c"
+    },
+    {
+      "id": "K333-3",
+      "path": "score_parts_annotated/kv333_3_spart_cadence.csv",
+      "git_blob": "69025e75932279ec1c3933bf804a0823c38513ed",
+      "sha256": "6630ed7f18c4dcd2c2add8ebd5686bad0c37bfabae9fba0a53df404f923ab476"
+    },
+    {
+      "id": "K457-1",
+      "path": "score_parts_annotated/kv457_1_spart_cadence.csv",
+      "git_blob": "4a3beae2bee43c10c3e3e24dba8958efb6aee0ca",
+      "sha256": "9f9865cec06d84a2a6d59eecfbaf94e861e98b7531b3ecff4ebc15f3be7dfad2"
+    },
+    {
+      "id": "K457-2",
+      "path": "score_parts_annotated/kv457_2_spart_cadence.csv",
+      "git_blob": "c2580c69ab5f84171a1af02fa7e8a26ff2b819a3",
+      "sha256": "1e8c162ccf3a828e394e3d4634a299e78e6ef19369cd68ec8b7e6eec2797f6c4"
+    },
+    {
+      "id": "K457-3",
+      "path": "score_parts_annotated/kv457_3_spart_cadence.csv",
+      "git_blob": "b5fa3a976436c6027ff2925d965286c517106d8c",
+      "sha256": "2e8cb677c578f9f9752449bbfacb460e9749d8f8972fb8018255344fb8c415cd"
+    },
+    {
+      "id": "K533-1",
+      "path": "score_parts_annotated/kv533_1_spart_cadence.csv",
+      "git_blob": "7bbe9ada39d7713de2e50b61033bdf50dc5cccc2",
+      "sha256": "c94448f3debb6101d93caf9cdd27e1b03b03fe9a99c1e23eab35a904fde1c62c"
+    },
+    {
+      "id": "K533-2",
+      "path": "score_parts_annotated/kv533_2_spart_cadence.csv",
+      "git_blob": "7f16c058b64f4e7bb5b7980d1c107537a9a2c1e0",
+      "sha256": "11a01c76c37db4377a441e7b3fd0e2f5ff8081122f61a2ed276b066c098970b0"
+    },
+    {
+      "id": "K533-3",
+      "path": "score_parts_annotated/kv533_3_spart_cadence.csv",
+      "git_blob": "e262482604e981d0eba31fe20e1a5b504c59daa7",
+      "sha256": "e698192ab9dac8a291b233ea405120b63096a7fe4730bf38109c3e3b18d49cf6"
+    }
+  ]
+}

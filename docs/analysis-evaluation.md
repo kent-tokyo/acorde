@@ -55,8 +55,7 @@ enforce those research procedures; the manifest and per-score reports must
 document them.
 
 The local-key scorer below has common annotated measure positions; source-beat
-transitions remain unsupported. Cadence still needs a pinned music21 recipe,
-source-position mapping, and a label-level adapter. The voice-leading quartet
+transitions remain unsupported. Cadence now has a pinned music21 recipe and a label-level adapter (below). The voice-leading quartet
 comparator now fixes the same four source notes for both tools, but it has no
 independently labeled precision/recall adapter. The harmony adapter below
 covers only BCMH's source-annotated onsets in a previously used development
@@ -229,6 +228,13 @@ to the folded MusicXML note IDs, define exact score positions and class mapping,
 and score false positives over the same eligible positions. Pin the music21
 cadence recipe, its version, and the candidate binary before touching the
 reserved labels. Parser acceptance alone does not validate note alignment.
+
+A [paired cadence comparison](archive/analysis-mozart-cadence-comparison-v1.md)
+(#502) now pins a music21 10.5.2 recipe that mirrors Acorde's dominant-tonic
+rule. Both tools feed this evaluator. On the 18 reserved movements, scored
+once after the protocol was frozen, Acorde has precision 0.508, recall 0.070
+and F1 0.122. The music21 recipe has 0.629, 0.102 and 0.176. Both detect
+authentic cadences only.
 
 ## Voice-leading quartet development comparison
 

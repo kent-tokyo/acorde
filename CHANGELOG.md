@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+- Compare Acorde's cadence candidates with a pinned music21 10.5.2 recipe at
+  the same Mozart onsets, through the common label evaluator. On the 18
+  reserved movements, scored once, Acorde has F1 0.122 and the music21 recipe
+  0.176; both find authentic cadences only (#502).
+
 - Add an opt-in key-path local-key estimator,
   `estimate_local_key_path_with_aarden_essen_profile` and
   `analyze-local-keys --method path`. On a new frozen 16-work When in Rome
