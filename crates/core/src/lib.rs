@@ -273,8 +273,8 @@ pub use model::melodic_insert::{
 pub use model::melody_composition::{
     MELODY_COMPOSITION_CONTRACT_VERSION, MELODY_COMPOSITION_MAX_CHORDS,
     MELODY_COMPOSITION_MAX_MEASURES, MelodyChord, MelodyCompositionError, MelodyCompositionReport,
-    MelodyCompositionRequest, MelodyCompositionResult, MelodyForm, MelodyMotif, PhraseEnding,
-    PhraseEndingTarget, compose_melody,
+    MelodyCompositionRequest, MelodyCompositionResult, MelodyForm, MelodyMotif, MelodySection,
+    PhraseEnding, PhraseEndingTarget, compose_melody,
 };
 pub use model::musical_diff::{
     MusicalChange, MusicalChangeKind, MusicalComparisonDiagnostic, MusicalComparisonOptions,
