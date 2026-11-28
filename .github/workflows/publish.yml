@@ -40,6 +40,7 @@ jobs:
           test -n "$release_version"
           workspace_version=$(sed -n 's/^version = "\([^"]*\)"$/\1/p' Cargo.toml | head -n 1)
           test "$release_version" = "$workspace_version"
+          python3 -B scripts/check_release_consistency.py --expect "$release_version"
 
       - name: Check formatting
         run: cargo fmt --all -- --check
@@ -49,6 +50,11 @@ jobs:
 
       - name: Run locked all-target clippy
         run: cargo clippy --all-features --locked --all-targets -- -D warnings
+
+      - name: Check SemVer compatibility with the previous release
+        run: |
+          cargo install cargo-semver-checks --version 0.51.0 --locked
+          cargo semver-checks --workspace --all-features
 
       - name: Verify workspace packages
         # Internal crates at the release version are not in crates.io until the
