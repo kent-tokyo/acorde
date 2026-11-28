@@ -40,7 +40,7 @@ Acorde's cadence output had been looked at before this freeze. Their local-key
 labels had not, and the key-path settings were not tuned on them. Without
 these two movements Acorde has 2,268 and music21 2,256 of 3,119 paired
 positions. That subset was chosen after scoring and breaks the protocol's
-16-work requirement, so it is not a pass. The frozen result above stands.
+16-work requirement, so it is not a pass. The frozen result below stands.
 
 ## Result
 
