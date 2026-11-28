@@ -91,6 +91,7 @@ fetch → freeze → prepare → preflight → score, and must not read labels b
 | Harmony (When in Rome) | `fetch_wir_harmony_holdout.py`, `freeze_wir_harmony_holdout.py`, `prepare_wir_harmony_inputs.py`, `compare_wir_harmony_music21.py`, `adapt_wir_harmony_report.py` |
 | Local key | `freeze_wir_local_key_holdout.py`, `freeze_wir_local_key_protocol.py`, `preflight_wir_local_key_holdout.py`, `score_wir_local_key_holdout.py`, `compare_wir_local_keys_music21.py`, `diagnose_wir_local_keys.py`, `diagnose_wir_local_key_path.py`, `freeze_wir_local_key_holdout_v2.py`, `freeze_wir_local_key_protocol_v2.py`, `score_wir_local_key_holdout_v2.py`, `adapt_wir_local_key_report.py` |
 | Cadence (Mozart) | `fetch_mozart_cadence_development.py`, `freeze_mozart_cadence.py`, `prepare_mozart_cadence_inputs.py`, `preflight_mozart_cadence_inputs.py`, `project_mozart_cadence_development.py`, `mozart_cadence_positions.py`, `score_mozart_cadence_acorde_development.py`, `diagnose_mozart_cadence_sonorities.py`, `diagnose_mozart_cadence_transition_rules.py`, `compare_mozart_cadence_tools.py`, `adapt_mozart_cadence_report.py`, `freeze_mozart_cadence_protocol.py`, `project_mozart_cadence_holdout.py` |
+| Voice leading (Bach chorales) | `freeze_voice_leading_dahn_labels.py`, `compare_voice_leading_dahn.py`, `adapt_voice_leading_dahn_report.py`, `freeze_voice_leading_protocol.py` |
 
 ## Interchange evidence
 

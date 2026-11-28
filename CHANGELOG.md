@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+- Score Acorde's parallel fifth/octave flags and music21's figured-bass
+  checker against Luke Dahn's list of consecutives in 41 Bach chorales. On the
+  20 held-out chorales, run once, both cover 9 of 24 labels; most misses are
+  measure-numbering offsets between the list and the corpus files (#502).
+
 - Compare Acorde's cadence candidates with a pinned music21 10.5.2 recipe at
   the same Mozart onsets, through the common label evaluator. On the 18
   reserved movements, scored once, Acorde has F1 0.122 and the music21 recipe

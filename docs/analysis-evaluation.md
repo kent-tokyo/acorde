@@ -56,8 +56,9 @@ document them.
 
 The local-key scorer below has common annotated measure positions; source-beat
 transitions remain unsupported. Cadence now has a pinned music21 recipe and a label-level adapter (below). The voice-leading quartet
-comparator now fixes the same four source notes for both tools, but it has no
-independently labeled precision/recall adapter. The harmony adapter below
+comparator now fixes the same four source notes for both tools, and consecutive
+fifths and octaves have a label-level adapter against an independent list
+(below). The harmony adapter below
 covers only BCMH's source-annotated onsets in a previously used development
 corpus. New untouched holdouts must fix eligibility without using either
 system's analysis prediction.
@@ -247,7 +248,15 @@ selected MusicXML fixtures, all five flags agree for six quartets, including a
 cross-bar nonadjacent pair, an antiparallel fifth, and parallel octaves.
 
 This checks rule semantics on chosen cases. It does not estimate correctness,
-precision, recall, or coverage on unseen music. For a scored task, freeze
+precision, recall, or coverage on unseen music.
+
+A [labeled comparison](archive/analysis-voice-leading-comparison-v1.md) (#502)
+scores Acorde's parallel-fifth and parallel-octave flags and music21's
+`figuredBass.checker` against Luke Dahn's published list for 41 Bach
+chorales. On the 20 held-out chorales, run once after the protocol was frozen,
+both tools cover 9 of 24 labels (recall 0.375, F1 0.340). Most misses come
+from measure numbering that differs between Dahn's edition and the corpus
+files, not from the detectors. For a scored task, freeze
 independently annotated works and eligible note quartets before running either
 analyzer, retain every zero-prediction case, and report per-rule and per-work
 false positives and missed labels. Keep written-pitch, ties, chords, malformed
