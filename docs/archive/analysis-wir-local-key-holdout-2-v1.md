@@ -33,6 +33,15 @@ ran once. The [result](analysis-wir-local-key-holdout-2-v1.json) and
 work, and the [all-file hashes](analysis-wir-local-key-holdout-2-all-hashes-v1.json)
 record the annotations.
 
+One overlap was missed. The exclusion covered only earlier When in Rome
+works. K281/1 and K283/2 are also in the Batik Mozart cadence development set
+([#502](https://github.com/kent-tokyo/acorde/issues/502)), so their notes and
+Acorde's cadence output had been looked at before this freeze. Their local-key
+labels had not, and the key-path settings were not tuned on them. Without
+these two movements Acorde has 2,268 and music21 2,256 of 3,119 paired
+positions. That subset was chosen after scoring and breaks the protocol's
+16-work requirement, so it is not a pass. The frozen result above stands.
+
 ## Result
 
 | Preregistered measure | Acorde path | music21 10.5.2 window 2 |
