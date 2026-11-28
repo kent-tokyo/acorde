@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "selection_sha256": "982a0ef1ea65bf2366c18873016dd74ada21cf2fb120841aaa2071954851b78e",
+  "commit": "1c61fe41b8c2910296d7d2bcbf6476c7c1f2fe35",
+  "files": [
+    {
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op131/5",
+      "score_sha256": "7c1da2425d83617a46f5a530612ef732e2c5fd1311ed223b5bea7dd69eecae31",
+      "score_bytes": 86047,
+      "gold_sha256": "715eca01ea02b859e9922d378bfa83a7a8ff3003e02ca33af9b1594479292f96",
+      "gold_bytes": 4914
+    },
+    {
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op095/2",
+      "score_sha256": "1bf75e1b04e0696b4685c19ac1566d74b609479123d13b57d5448ed744202c12",
+      "score_bytes": 46868,
+      "gold_sha256": "723458ded07ccea2faba79932358c1132eb463033a4e140cc5913c96325cfb1c",
+      "gold_bytes": 3936
+    },
+    {
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op132/4",
+      "score_sha256": "e48202a2defe5211841dc9dca5fa914786a4c3c06ee97f16676580f41714c54b",
+      "score_bytes": 18653,
+      "gold_sha256": "a42ac544a639b29e0d9466880225a6b57fa23e42f38e58d22b4fd998834cc016",
+      "gold_bytes": 1121
+    },
+    {
+      "work": "Corpus/Quartets/Beethoven,_Ludwig_van/Op074/2",
+      "score_sha256": "aebde1ba36674057e1b526f0c1ca51e989826debefc322e52ee5174d28f2d55b",
+      "score_bytes": 51610,
+      "gold_sha256": "803a49236805648b270345371e6ac36ec3b8debd2ffc23adeb481e3e51aff456",
+      "gold_bytes": 3485
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/15",
+      "score_sha256": "528ec9142b332ab231630ed0a293ba80b3b02f35b1517bb78daabbd880a0ae69",
+      "score_bytes": 11128,
+      "gold_sha256": "7573780602ae5cdb088a2683e3318af42ac5afdea587717cab5060e7ec8ae8b8",
+      "gold_bytes": 987
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/17",
+      "score_sha256": "b6f2da42a3c58519b20ad1a60c553a16e2e87b56f4852edd65d6794f944004e4",
+      "score_bytes": 10128,
+      "gold_sha256": "5f85d505bcc08bab97f9286380b3d0cc78e885dd2887010a9a1a52d4418c6f3c",
+      "gold_bytes": 926
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/24",
+      "score_sha256": "8fb64fe411963a27de13caaef4b62af3c27dbba756394ed96edd1e9d6154219d",
+      "score_bytes": 11341,
+      "gold_sha256": "0015316a4e7301e0caea52680937e1b615700d588554fda0526c04c092ef04e7",
+      "gold_bytes": 1683
+    },
+    {
+      "work": "Corpus/Keyboard_Other/Bach,_Johann_Sebastian/The_Well-Tempered_Clavier_I/20",
+      "score_sha256": "1a871d8cf5ef2ed50953fb4ea0e7acbf80ff29962f1ffeb445cf12288475de03",
+      "score_bytes": 10156,
+      "gold_sha256": "b1c4d9fbbfb30cb3b357396b6c3570f8007b74c841e5595082007498d54829f0",
+      "gold_bytes": 924
+    },
+    {
+      "work": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K281/1",
+      "score_sha256": "d00f02a3c319defe00ad8bbb30fe8bb488df18f90528e99f177f35ac98140a92",
+      "score_bytes": 33041,
+      "gold_sha256": "e56af795acb6213c43696ccb3e0034f3ddb6fb4f04eeea9af039d6d57dfb4077",
+      "gold_bytes": 2037
+    },
+    {
+      "work": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K332/2",
+      "score_sha256": "05a780ee3ecfcc5bff83ea92ee9ab51eb6df6fa75e5fb79ddd310fbe51ed5077",
+      "score_bytes": 21602,
+      "gold_sha256": "2eff0cb4b362f3ac54a27e38ff8bd01a06329391e998986b4f5aceadd7f0c765",
+      "gold_bytes": 1833
+    },
+    {
+      "work": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K284/3",
+      "score_sha256": "ea43c70d62a5ff7fae601a00197fb230b9c78566644c6bfe1eb91625e9206cf8",
+      "score_bytes": 78347,
+      "gold_sha256": "d534ab757d125548cdc6566fd74694e33dff358c1c28b7073969f221e46e1276",
+      "gold_bytes": 6859
+    },
+    {
+      "work": "Corpus/Piano_Sonatas/Mozart,_Wolfgang_Amadeus/K283/2",
+      "score_sha256": "c9a6a39afb16addde9a0dd6a7ed8b823dbbd7ffaa434f0a37fd6c4244aa16a58",
+      "score_bytes": 20092,
+      "gold_sha256": "83ca28b2a903e4315645b7497cbc8fba5ec94b7b0c0bee4ee0ff412f7bebc73f",
+      "gold_bytes": 1792
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Schubert,_Franz/Winterreise,_D.911/14_Der_greise_Kopf",
+      "score_sha256": "f27d79de57fd9b10b04636eadfd30baf0cc7ba423a3f6a2178d2476ee72cb2f1",
+      "score_bytes": 12819,
+      "gold_sha256": "bd627f246fe36abf3a8f4e01b719bb1e8e8607257d77c240669a9dda50961b86",
+      "gold_bytes": 774
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Mayer,_Emilie/3_Lieder,_Op.7/1_Du_bist_wie_eine_Blume",
+      "score_sha256": "c5d02fe0ac1b196bcba6cbafb35ebba0d45c12f7bc8804e23effa845851878d3",
+      "score_bytes": 14173,
+      "gold_sha256": "af53147b33b55cf780edebf935d65cdc5b042469c6dee10b52ce597b45b7c89a",
+      "gold_bytes": 917
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Wolf,_Hugo/Eichendorff-Lieder/15_Unfall",
+      "score_sha256": "cf67fa83b31cbc34e6e039006d8e4e80f6e8d33d756b86176ec6ff2a98193ff1",
+      "score_bytes": 15951,
+      "gold_sha256": "8b22123c393bf9d6edd5460c22e1547144b51161e30665314962d0050276f754",
+      "gold_bytes": 886
+    },
+    {
+      "work": "Corpus/OpenScore-LiederCorpus/Coleridge-Taylor,_Samuel/_/Oh,_the_Summer",
+      "score_sha256": "9783dca22e5e92698042ca516d0f9f63952a85e4d63a5af90607c46dbc8069d2",
+      "score_bytes": 30519,
+      "gold_sha256": "9860f9e7105c93b123b1299dd9f7aa5eef1762f483b6f763b81f38d765461f26",
+      "gold_bytes": 979
+    }
+  ]
+}

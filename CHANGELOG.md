@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+- Add an opt-in key-path local-key estimator,
+  `estimate_local_key_path_with_aarden_essen_profile` and
+  `analyze-local-keys --method path`. On a new frozen 16-work When in Rome
+  holdout it does not reach music21 (2,548 versus 2,576 exact labels); the
+  window method stays the default (#501).
+
 ## 2.0.1 - 2026-11-23
 
 - Add opt-in performer editions and rhythm engraving, with score replay and

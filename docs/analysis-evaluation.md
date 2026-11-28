@@ -190,6 +190,14 @@ music21's 1,934 on 2,903 paired-available positions, and wins two of twelve
 works versus music21's seven. Source-beat-level local keys remain a separate
 capability gap. Retain this failure when assessing music analysis overall.
 
+A second attempt (#501) added an opt-in key-path method,
+`analyze-local-keys --method path`, tuned on 48 inspected development works.
+A new [16-work holdout](archive/analysis-wir-local-key-holdout-2-v1.md),
+frozen before its annotations were fetched, also fails: 2,548 versus
+music21's 2,576 exact labels on 3,495 paired positions. Acorde leads on the
+Beethoven quartets but trails on Bach, Mozart and the songs. The window
+method stays the default.
+
 ## Mozart cadence inputs awaiting a scoring contract
 
 The [Batik cadence selection](archive/analysis-mozart-cadence-selection-v1.json)
