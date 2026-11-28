@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- MusicXML export writes every measure covered by a multi-measure rest;
+  `<multiple-rest>` stays a display hint on the first one (#505). Before, the
+  covered measures were dropped, so saving and reopening shortened the score.
+
 ## 2.0.1 - 2026-11-23
 
 - Add opt-in performer editions and rhythm engraving, with score replay and
