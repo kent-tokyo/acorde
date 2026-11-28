@@ -821,6 +821,9 @@ pub(crate) fn build_svg_with_metadata_placement(
     let mut note_points: HashMap<NoteKey, NotePoint> = HashMap::new();
     let mut beam_tip_points: HashMap<NoteKey, f32> = HashMap::new();
     let mut staff_bottoms: HashMap<(usize, usize, usize), f32> = HashMap::new();
+    // A staff's lyric baseline is a whole-staff measurement, so compute it once rather
+    // than once per row; per-row recomputation made rendering quadratic in measures.
+    let mut staff_lyric_baselines: HashMap<(usize, usize), f32> = HashMap::new();
     let mut measure_lefts: HashMap<(usize, usize), f32> = HashMap::new();
     let ottava_shifts = ottava_display_shifts(score);
     let mut resolved_annotation_obstacles = Vec::new();
@@ -1148,7 +1151,13 @@ pub(crate) fn build_svg_with_metadata_placement(
                 .and_then(|rows| rows.get(row_idx))
                 .and_then(|row| row.get(i))
                 .copied()
-                .unwrap_or_else(|| staff_lyric_baseline_u(&score.parts[part].staves[staff]).0);
+                .unwrap_or_else(|| {
+                    *staff_lyric_baselines
+                        .entry((part, staff))
+                        .or_insert_with(|| {
+                            staff_lyric_baseline_u(&score.parts[part].staves[staff]).0
+                        })
+                });
             lyric_baselines.insert(
                 (part, staff, row_idx),
                 staff_y[i] + (staff_heights_u[i] + relative) * space,
