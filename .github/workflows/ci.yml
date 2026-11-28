@@ -4,6 +4,15 @@ on:
   push:
     branches: [main]
   pull_request:
+  # The measured print Chrome test skips pull requests; run it nightly and on demand.
+  schedule:
+    - cron: "17 18 * * *"
+  workflow_dispatch:
+
+# A new push to a pull request cancels its older runs. Runs on main always finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   CARGO_TERM_COLOR: always
@@ -16,6 +25,9 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+      # Caches ~/.cargo/bin, so the pinned installs below are skipped (~3.7 min)
+      # until the toolchain or lockfile changes, as wasm-pack already is.
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
       - name: Install cargo-audit and cargo-deny
         run: |
           cargo install cargo-audit --version 0.22.1 --locked
@@ -207,7 +219,11 @@ jobs:
       - name: Check opt-in OMR bindings for wasm32
         run: cargo check -p acorde-wasm --target wasm32-unknown-unknown --all-features --locked
 
+      # About 24 minutes, so pull requests skip it. Main pushes, the nightly
+      # schedule and manual runs keep it. The build and size budget below still
+      # run on every pull request.
       - name: Test measured print in Chrome
+        if: github.event_name != 'pull_request'
         run: wasm-pack test --headless --chrome crates/wasm --features measured-print
 
       - name: Build and budget measured print profile
@@ -392,7 +408,8 @@ jobs:
     name: WASM browser contract (${{ matrix.profile }})
     runs-on: ubuntu-latest
     # Run 43984805684 passed 24 binaries before the old 8-minute full-profile cap.
-    # Browser startup costs ~16 s per binary. Stage 6's full profile reached
+    # Browser startup costs ~16 s per binary, so crates/wasm/tests/browser.rs now
+    # builds every test file into one binary. Stage 6's full profile reached
     # standard_bass_transition with passing tests at the old 20-minute command
     # cap (run 44079917318, attempt 1); allow compilation plus the full suite.
     timeout-minutes: 35
@@ -416,19 +433,21 @@ jobs:
       - name: Install wasm-pack
         run: cargo install wasm-pack --version 0.15.0 --locked
       - name: wasm browser tests
+        # wasm-bindgen-test-runner stops a headless run after 20 s by default. That
+        # covered one test file per binary; one binary now runs them all.
+        env:
+          WASM_BINDGEN_TEST_TIMEOUT: '1200'
         run: timeout 30m wasm-pack test --headless --chrome crates/wasm ${{ matrix.feature_args }}
 
-  browser-matrix:
-    name: Browser smoke (${{ matrix.browser }})
+  browser-smoke:
+    # One job builds the WASM package once and runs every Playwright project.
+    # Four jobs used to build the same package (~3.5 min each).
+    name: Browser smoke (chromium, firefox, webkit, Chromium HiDPI)
     # Playwright 1.55.0 does not install browsers on ubuntu-26.04.
     runs-on: ubuntu-24.04
     env:
       CARGO_PROFILE_RELEASE_OPT_LEVEL: s
       CARGO_PROFILE_RELEASE_LTO: thin
-    strategy:
-      fail-fast: false
-      matrix:
-        browser: [chromium, firefox, webkit]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
@@ -442,48 +461,19 @@ jobs:
       - name: Install Playwright and browsers
         run: |
           npm install --no-save playwright@1.55.0
-          npx playwright install --with-deps ${{ matrix.browser }}
+          npx playwright install --with-deps chromium firefox webkit
       - name: Start fixture server
         run: python3 -m http.server 8000 > /tmp/acorde-browser-server.log 2>&1 &
-      - name: Run browser contract smoke test
-        run: npx playwright test examples/browser/smoke.spec.mjs --project=${{ matrix.browser }}
-      - name: Upload rendered screenshot
+      - name: Run browser contract smoke tests
+        run: >-
+          npx playwright test examples/browser/smoke.spec.mjs
+          --project=chromium --project=firefox --project=webkit --project=chromium-hidpi
+      - name: Upload rendered screenshots
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: acorde-browser-${{ matrix.browser }}
-          path: test-results/**/${{ matrix.browser }}.png
-
-  browser-hidpi:
-    name: Browser smoke (Chromium HiDPI)
-    runs-on: ubuntu-24.04
-    env:
-      CARGO_PROFILE_RELEASE_OPT_LEVEL: s
-      CARGO_PROFILE_RELEASE_LTO: thin
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
-        with:
-          targets: wasm32-unknown-unknown
-      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
-      - name: Install wasm-pack
-        run: cargo install wasm-pack --version 0.15.0 --locked
-      - name: Build WASM package
-        run: wasm-pack build crates/wasm --target web
-      - name: Install Playwright and Chromium
-        run: |
-          npm install --no-save playwright@1.55.0
-          npx playwright install --with-deps chromium
-      - name: Start fixture server
-        run: python3 -m http.server 8000 > /tmp/acorde-browser-server.log 2>&1 &
-      - name: Run HiDPI browser smoke test
-        run: npx playwright test examples/browser/smoke.spec.mjs --project=chromium-hidpi
-      - name: Upload HiDPI screenshot
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: acorde-browser-chromium-hidpi
-          path: test-results/**/chromium-hidpi.png
+          name: acorde-browser-screenshots
+          path: test-results/**/*.png
 
   browser-adapter-typecheck:
     name: Browser adapter typecheck

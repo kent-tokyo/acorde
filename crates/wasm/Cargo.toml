@@ -8,9 +8,15 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 description = "WebAssembly bindings for the acorde music score library"
+# All integration tests are modules of tests/browser.rs, so wasm-pack starts one browser.
+autotests = false
 
 [lib]
 crate-type = ["cdylib", "rlib"]
+
+[[test]]
+name = "browser"
+path = "tests/browser.rs"
 
 [features]
 default = ["full"]
