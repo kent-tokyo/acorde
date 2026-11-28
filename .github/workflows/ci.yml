@@ -4,6 +4,15 @@ on:
   push:
     branches: [main]
   pull_request:
+  # The measured print Chrome test skips pull requests; run it nightly and on demand.
+  schedule:
+    - cron: "17 18 * * *"
+  workflow_dispatch:
+
+# A new push to a pull request cancels its older runs. Runs on main always finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   CARGO_TERM_COLOR: always
@@ -207,7 +216,11 @@ jobs:
       - name: Check opt-in OMR bindings for wasm32
         run: cargo check -p acorde-wasm --target wasm32-unknown-unknown --all-features --locked
 
+      # About 24 minutes, so pull requests skip it. Main pushes, the nightly
+      # schedule and manual runs keep it. The build and size budget below still
+      # run on every pull request.
       - name: Test measured print in Chrome
+        if: github.event_name != 'pull_request'
         run: wasm-pack test --headless --chrome crates/wasm --features measured-print
 
       - name: Build and budget measured print profile
