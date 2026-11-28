@@ -130,6 +130,21 @@ cargo clippy --workspace --all-features --locked --all-targets -- -D warnings
 
 请根据修改范围运行相应的 crate、模糊测试、WASM、浏览器或外部工具检查。
 测试样例的来源与功能边界也是代码审查的一部分。
+[`scripts/README.md`](scripts/README.md) 按用途列出了 CI、构建和验证脚本。
+
+### 体积优先的 WASM 构建
+
+CI 的体积预算和浏览器冒烟测试使用以下发布构建设置。用 `wasm-pack build` 构建 full、viewer、
+playback-only 以及可选的 `measured-print` 包时请使用这些设置。它们只影响 WASM 构建命令，
+不改变原生发布配置。
+
+```sh
+CARGO_PROFILE_RELEASE_OPT_LEVEL=s CARGO_PROFILE_RELEASE_LTO=thin \
+  wasm-pack build crates/wasm --target web --release
+```
+
+构建 measured print 时请追加 `--features measured-print`。不设置这些环境变量的 `wasm-pack build`
+使用 Cargo 默认发布设置，产物可能更大。性能取决于乐谱和运行环境，体积优先的构建在部分操作上可能更慢。
 
 ## 许可证
 

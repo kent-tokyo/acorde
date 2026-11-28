@@ -134,10 +134,7 @@ cargo clippy --workspace --all-features --locked --all-targets -- -D warnings
 
 Run focused package, fuzz, WASM, browser, or external-tool checks when changing those surfaces.
 Fixture provenance and capability boundaries are part of the review contract.
-
-## License
-
-MIT OR Apache-2.0, at your option.
+[`scripts/README.md`](scripts/README.md) lists the CI, build, and evidence scripts by purpose.
 
 ### Size-oriented WASM builds
 
@@ -155,3 +152,7 @@ For measured print, add `--features measured-print`. A plain `wasm-pack build`
 without these environment variables uses the default Cargo release settings
 and may produce larger artifacts. Performance depends on the score and runtime;
 the size-oriented build can be slower for some operations.
+
+## License
+
+MIT OR Apache-2.0, at your option.

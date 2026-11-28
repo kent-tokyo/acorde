@@ -20,12 +20,13 @@ For a release claim, check its tag, CI, registry, and artifacts separately.
 | Generate harmony and groove proposals | [Proposal contract](harmony-groove-proposals.md), [phrase harmony](phrase-harmony.md), [rhythm sections](rhythm-section.md) |
 | Insert passing or neighbor notes | [Melodic insertion contract](melodic-insertion.md) |
 | Review an OMR proposal | [Proposal contract](omr-proposal-contract.md), [provider matrix](omr-license-matrix.md), [validation boundary](omr-validation.md) |
+| Inspect or edit scores from an MCP client | [CLI `mcp` command](../crates/cli/README.md) (local stdio; read-only unless `--allow-write`), [scorecard](scorecard.md) |
 | Evaluate music analysis against music21 | [Analysis roadmap](../ROADMAP.md#3-music-analysis-music21-1052), [source-positioned evaluation](analysis-evaluation.md), [external evidence](external-analysis-evidence.md) |
 
 ## Evidence and maintenance
 
-[Roadmap](../ROADMAP.md) tracks priorities and planned MCP integration; it does not describe
-released features. The [scorecard](scorecard.md) is a conservative implementation inventory. The
+[Roadmap](../ROADMAP.md) tracks priorities, remaining gates, and MCP follow-up work; it does
+not describe released features. The local `acorde mcp` server is already part of the CLI. The [scorecard](scorecard.md) is a conservative implementation inventory. The
 [Verovio engraving baseline](verovio-engraving-baseline.md),
 [playback comparisons](playback-evidence.md),
 [external interoperability](external-interoperability-evidence.md), and
@@ -39,6 +40,9 @@ reproducible checks and their boundaries. Keep the changelog for releases, migra
 consumer actions, and evidence files for measurements. A local check does not establish browser,
 audio, publication, or external-format compatibility on its own.
 
-The [arrangement development](arrangement-development-v2.md) and
-[harmony/groove plan](arrangement-harmony-groove-plan.md) are dated development records.
+The [arrangement development](arrangement-development-v2.md),
+[harmony/groove plan](arrangement-harmony-groove-plan.md), and
+[arrangement and engraving plan](arrangement-and-engraving-next.md) (Japanese, based on `main`
+as of 2026-11-20) are dated development records. [Scripts](../scripts/README.md) lists the
+CI, build, and evidence scripts by purpose.
 Use the linked API contracts above for current behavior and the roadmap for remaining work.
