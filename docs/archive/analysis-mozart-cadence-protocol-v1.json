@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "classification": "preregistered Mozart cadence label holdout",
+  "issue": "https://github.com/kent-tokyo/acorde/issues/502",
+  "source_commit": "9c5f7004c5ab1f15d64e959d011dbdf3b7863c3e",
+  "holdout_cases": [
+    "K330-1",
+    "K330-2",
+    "K330-3",
+    "K331-1",
+    "K331-2",
+    "K331-3",
+    "K332-1",
+    "K332-2",
+    "K332-3",
+    "K333-1",
+    "K333-2",
+    "K333-3",
+    "K457-1",
+    "K457-2",
+    "K457-3",
+    "K533-1",
+    "K533-2",
+    "K533-3"
+  ],
+  "task": "coarse cadence class at part-0 note onsets of the projected cadence CSV",
+  "class_mapping": {
+    "PAC": "Authentic",
+    "IAC": "Authentic",
+    "HC": "Half",
+    "DC": "Deceptive",
+    "EC": "Evaded",
+    "PC": "Plagal"
+  },
+  "acorde_command": "analyze-cadences INPUT --infer-key",
+  "music21_recipe": "music21-dominant-tonic-outer-voices-v1",
+  "metrics": "precision, recall and F1 per tool from evaluate_analysis_labels.py, development and holdout reported separately; per-class counts and parse failures reported",
+  "gate": null,
+  "gate_reason": "issue #502 asks for measured precision/recall/F1 for both tools, not a superiority claim",
+  "stop_rule": "Score the reserved split once. No change to either tool, the recipe, positions, exclusions or class mapping after its CSVs are read. Afterwards these 18 movements are development data.",
+  "holdout_annotations_unread_at_freeze": true,
+  "development_summary": {
+    "cases": 18,
+    "eligible": 18467,
+    "gold_positive": 333,
+    "acorde": {
+      "outside_eligible": 0,
+      "true_negative": 18105,
+      "correct": 30,
+      "false_positive": 29,
+      "missed": 303
+    },
+    "acorde_failures": 0,
+    "music21": {
+      "outside_eligible": 0,
+      "true_negative": 18102,
+      "missed": 306,
+      "correct": 27,
+      "false_positive": 32
+    },
+    "music21_failures": 0
+  },
+  "pinned": {
+    "selection_sha256": "c4e22d92f54def3c4e82bdae4a63e3cebb785bbc941ec47ffc341810e96ceef6",
+    "inputs_sha256": "2a651264e34d6ff55540b198bcb00dda2266cd9e798da4dabf2d32769f0a13f5",
+    "preflight_sha256": "f2526225e1ff07d296a2a0e0f212014ebf61a1c5f5d17c2ef2eb373b7a287102",
+    "development_report_sha256": "964b052ba17f0df6f4b927ebb0af3d77e9505b030e50524dbe0a2247a7f55f6a",
+    "acorde_binary_sha256": "1d4d17373f4c5dbb200f19d711e97dbdc70f0c51cf3a10b6492357b36b47b1cd",
+    "script_sha256": {
+      "compare_mozart_cadence_tools.py": "9150985cbc3aba6b1c7cc9093d1e8e9cb7b0d4a5c0f740968de8ad0c82dc5ce8",
+      "adapt_mozart_cadence_report.py": "8d405ef5c0330858117f7770df8b04ad4e1ff9df91b3edb5049f47b7c9078186",
+      "project_mozart_cadence_holdout.py": "94e9604e6e4cf150fe193f26f3fc77f4fc0b75b4ea87587848aebac52ba59624",
+      "mozart_cadence_positions.py": "4fd3ef958f131a11d6371fbb54d862200c4a63e4a6689ad3f4b59295143ebd65",
+      "score_mozart_cadence_acorde_development.py": "8707467afe4cade3cb11566afaa1245bea42e4b0cb006c4f7b3e2a9faeebc57a",
+      "compare_wir_harmony_music21.py": "f11612c498d9025fb7ea54ecce15e35bbf7267b8aa3e0c0b9ca056f8a703e864",
+      "evaluate_analysis_labels.py": "f5fbe5dffca692a5a3d37994c043a2a03eb75e54680a1222a5d93faee781a68e"
+    },
+    "music21_version": "10.5.2",
+    "music21_roman_source_sha256": "372d384df4f4ec3b9665d47c2ea9d29cd5331830f15c66a9901ead3eb93e42ca",
+    "music21_discrete_source_sha256": "5110ff9d30b53d86e2907e447c9a5cf46e651391eb9afc02b1b9cfc508a1302a"
+  }
+}

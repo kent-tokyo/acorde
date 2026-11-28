@@ -1,0 +1,1268 @@
+{
+  "schema_version": 1,
+  "classification": "independent consecutive fifth/octave labels; split frozen before either tool ran",
+  "source": "https://www.bach-chorales.com/ConsecutivesInChorales.htm",
+  "source_author": "Luke Dahn",
+  "source_copyright": "2018",
+  "read_on": "2026-11-28",
+  "rows_sha256": "3dd7d96af96e4d7a47c1e1de026addf4426adaaf84aaafb493c91b77c98aec4b",
+  "seed": "acorde-voice-leading-dahn-split-20261128",
+  "music21_version": "10.5.2",
+  "not_exhaustive": "The source does not claim to list every consecutive; predictions outside it are reported as unlisted, not as confirmed errors.",
+  "excluded": "the six Dietel manuscript variants",
+  "unmatched_in_corpus": [
+    {
+      "bwv": "167.5",
+      "row": 34,
+      "table": "non-structural",
+      "riemenschneider": "X",
+      "measure_text": "11/25–12/26",
+      "measures": [
+        11,
+        12,
+        25,
+        26
+      ],
+      "voices": "T/B",
+      "description": "parallel P8s! Incomplete neighbor in T.",
+      "labels": [
+        {
+          "interval": "octave",
+          "upper": "T",
+          "lower": "B"
+        }
+      ]
+    },
+    {
+      "bwv": "22.5",
+      "row": 40,
+      "table": "structural",
+      "riemenschneider": "X",
+      "measure_text": "27–28",
+      "measures": [
+        27,
+        28
+      ],
+      "voices": "T/B",
+      "description": "m.27 beat 4 to m.28 beat 1: P8s in contrary motion",
+      "labels": [
+        {
+          "interval": "octave",
+          "upper": "T",
+          "lower": "B"
+        }
+      ]
+    }
+  ],
+  "chorales": [
+    {
+      "bwv": "7.7",
+      "corpus_file": "bwv7.7.mxl",
+      "corpus_sha256": "48b55e50482f4adbf7c1ac252bedc7821af60efe5520691af346882ec9c7c7f1",
+      "rows": [
+        {
+          "row": 39,
+          "table": "structural",
+          "riemenschneider": "X",
+          "measure_text": "2/6",
+          "measures": [
+            2,
+            6
+          ],
+          "voices": "T/B",
+          "description": "beat 1: consecutive P5s",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "T",
+              "lower": "B"
+            }
+          ]
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "bwv": "26.6",
+      "corpus_file": "bwv26.6.mxl",
+      "corpus_sha256": "b73dae968f9dba2146007d97767394bcbc011c74444a7f7729186f0497d62410",
+      "rows": [
+        {
+          "row": 25,
+          "table": "non-structural",
+          "riemenschneider": "48",
+          "measure_text": "4",
+          "measures": [
+            4
+          ],
+          "voices": "S/T",
+          "description": "\"cadential\" parallel fifths",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "S",
+              "lower": "T"
+            }
+          ]
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "bwv": "33.6",
+      "corpus_file": "bwv33.6.mxl",
+      "corpus_sha256": "b1a1a662561edcdd36ab6da4be1512878f06b5bd1173e9d6c6c8df549b418a89",
+      "rows": [
+        {
+          "row": 26,
+          "table": "non-structural",
+          "riemenschneider": "13",
+          "measure_text": "5–6",
+          "measures": [
+            5,
+            6
+          ],
+          "voices": "S/T",
+          "description": "m.2 beat 4 to m.3 beat 1: parallel P5s",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "S",
+              "lower": "T"
+            }
+          ]
+        },
+        {
+          "row": 41,
+          "table": "structural",
+          "riemenschneider": "13",
+          "measure_text": "14",
+          "measures": [
+            14
+          ],
+          "voices": "S/T",
+          "description": "beats 2–3: P5s in contrary motion",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "S",
+              "lower": "T"
+            }
+          ]
+        }
+      ],
+      "split": "development"
+    },
+    {
+      "bwv": "40.8",
+      "corpus_file": "bwv40.8.mxl",
+      "corpus_sha256": "89b527da3439fcfaf49e22ebba367bdcedbd1c624bf49759f2b30f7db789be4c",
+      "rows": [
+        {
+          "row": 27,
+          "table": "non-structural",
+          "riemenschneider": "8",
+          "measure_text": "2",
+          "measures": [
+            2
+          ],
+          "voices": "S/T",
+          "description": "\"cadential\" parallel fifths",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "S",
+              "lower": "T"
+            }
+          ]
+        },
+        {
+          "row": 28,
+          "table": "non-structural",
+          "riemenschneider": "8",
+          "measure_text": "4",
+          "measures": [
+            4
+          ],
+          "voices": "S/T",
+          "description": "\"cadential\" parallel fifths",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "S",
+              "lower": "T"
+            }
+          ]
+        },
+        {
+          "row": 29,
+          "table": "non-structural",
+          "riemenschneider": "8",
+          "measure_text": "6",
+          "measures": [
+            6
+          ],
+          "voices": "S/T",
+          "description": "\"cadential\" parallel fifths",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "S",
+              "lower": "T"
+            }
+          ]
+        },
+        {
+          "row": 30,
+          "table": "non-structural",
+          "riemenschneider": "8",
+          "measure_text": "16",
+          "measures": [
+            16
+          ],
+          "voices": "S/T",
+          "description": "\"cadential\" parallel fifths",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "S",
+              "lower": "T"
+            }
+          ]
+        }
+      ],
+      "split": "development"
+    },
+    {
+      "bwv": "48.7",
+      "corpus_file": "bwv48.7.mxl",
+      "corpus_sha256": "6120f797cf12953bfa76572e893a3bebdd272f66f799b24aad5e24dccc748341",
+      "rows": [
+        {
+          "row": 31,
+          "table": "non-structural",
+          "riemenschneider": "266",
+          "measure_text": "14",
+          "measures": [
+            14
+          ],
+          "voices": "A/T",
+          "description": "beats 1–2: parallel P5s, passing tone in A.",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "A",
+              "lower": "T"
+            }
+          ]
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "bwv": "60.5",
+      "corpus_file": "bwv60.5.mxl",
+      "corpus_sha256": "a86b7efe510c2672d83a25743e7eb52762a9f3d8608afb64dce41225d30057e3",
+      "rows": [
+        {
+          "row": 1,
+          "table": "fermata",
+          "riemenschneider": "216",
+          "measure_text": "6",
+          "measures": [
+            6
+          ],
+          "voices": "S/B",
+          "description": "consecutive P8s in contrary motion",
+          "labels": [
+            {
+              "interval": "octave",
+              "upper": "S",
+              "lower": "B"
+            }
+          ]
+        }
+      ],
+      "split": "development"
+    },
+    {
+      "bwv": "78.7",
+      "corpus_file": "bwv78.7.mxl",
+      "corpus_sha256": "e798016f58f415e496df9eaa9456538bb7801c28e7b396ea1844adf14c9cef03",
+      "rows": [
+        {
+          "row": 2,
+          "table": "fermata",
+          "riemenschneider": "297",
+          "measure_text": "4–5",
+          "measures": [
+            4,
+            5
+          ],
+          "voices": "S/B",
+          "description": "consecutive P5s in contrary motion",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "S",
+              "lower": "B"
+            }
+          ]
+        }
+      ],
+      "split": "development"
+    },
+    {
+      "bwv": "86.6",
+      "corpus_file": "bwv86.6.mxl",
+      "corpus_sha256": "5b9a0acc0010297e9f49f8c43d098361deb28f67dfc13f9f6b682cff9ec1003e",
+      "rows": [
+        {
+          "row": 42,
+          "table": "structural",
+          "riemenschneider": "4",
+          "measure_text": "13–14",
+          "measures": [
+            13,
+            14
+          ],
+          "voices": "S/T",
+          "description": "m.13 beat 4 to m.14 beat 1: parallel P5s",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "S",
+              "lower": "T"
+            }
+          ]
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "bwv": "92.9",
+      "corpus_file": "bwv92.9.mxl",
+      "corpus_sha256": "884c1290bf0a254834f511ccd600fdd7d5e40f550b56be9924032432f6b2e042",
+      "rows": [
+        {
+          "row": 3,
+          "table": "fermata",
+          "riemenschneider": "X",
+          "measure_text": "14",
+          "measures": [
+            14
+          ],
+          "voices": "S/B",
+          "description": "consecutive P5s in contrary motion",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "S",
+              "lower": "B"
+            }
+          ]
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "bwv": "99.6",
+      "corpus_file": "bwv99.6.mxl",
+      "corpus_sha256": "06bd2ebacfbb9c827fee83f9902b0f3730b417c3996407191e7b46da1a51c224",
+      "rows": [
+        {
+          "row": 4,
+          "table": "fermata",
+          "riemenschneider": "X",
+          "measure_text": "12",
+          "measures": [
+            12
+          ],
+          "voices": "A/B",
+          "description": "consecutive P5s in contrary motion",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "A",
+              "lower": "B"
+            }
+          ]
+        },
+        {
+          "row": 32,
+          "table": "non-structural",
+          "riemenschneider": "X",
+          "measure_text": "11",
+          "measures": [
+            11
+          ],
+          "voices": "S/T",
+          "description": "beats 3–4: parallel P5s, neighbor tone in S.",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "S",
+              "lower": "T"
+            }
+          ]
+        }
+      ],
+      "split": "development"
+    },
+    {
+      "bwv": "108.6",
+      "corpus_file": "bwv108.6.mxl",
+      "corpus_sha256": "88f77ee050bb90af656c887a53254e55143abcbbcf4bf440f8d44ab4fd415038",
+      "rows": [
+        {
+          "row": 5,
+          "table": "fermata",
+          "riemenschneider": "45",
+          "measure_text": "4",
+          "measures": [
+            4
+          ],
+          "voices": "T/B",
+          "description": "consecutive P5s in contrary motion",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "T",
+              "lower": "B"
+            }
+          ]
+        }
+      ],
+      "split": "development"
+    },
+    {
+      "bwv": "111.6",
+      "corpus_file": "bwv111.6.mxl",
+      "corpus_sha256": "5522178df57d3ae266c39bad744cff2b7a92e3e8c467ed6ffcf0c589f0e6ae3f",
+      "rows": [
+        {
+          "row": 6,
+          "table": "fermata",
+          "riemenschneider": "X",
+          "measure_text": "15",
+          "measures": [
+            15
+          ],
+          "voices": "S/B",
+          "description": "consecutive P5s in contrary motion",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "S",
+              "lower": "B"
+            }
+          ]
+        }
+      ],
+      "split": "development"
+    },
+    {
+      "bwv": "115.6",
+      "corpus_file": "bwv115.6.mxl",
+      "corpus_sha256": "a2b0861ea963ec7aa5fef77b4dcc57de3118b96984949e781b2d60e31d4a465a",
+      "rows": [
+        {
+          "row": 7,
+          "table": "fermata",
+          "riemenschneider": "38",
+          "measure_text": "10–11",
+          "measures": [
+            10,
+            11
+          ],
+          "voices": "A/T",
+          "description": "consecutive P5s in contrary motion",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "A",
+              "lower": "T"
+            }
+          ]
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "bwv": "146.8",
+      "corpus_file": "bwv146.8.mxl",
+      "corpus_sha256": "173ab7ed20af602599351af16284327bc0eb5f9800c73b8bde6ef078984e4160",
+      "rows": [
+        {
+          "row": 33,
+          "table": "non-structural",
+          "riemenschneider": "X",
+          "measure_text": "10",
+          "measures": [
+            10
+          ],
+          "voices": "S/T",
+          "description": "\"cadential\" parallel fifths",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "S",
+              "lower": "T"
+            }
+          ]
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "bwv": "157.5",
+      "corpus_file": "bwv157.5.mxl",
+      "corpus_sha256": "3bef117523a1283e77b2fc777519b526e306c7c2e5f38873291501c2cb1618c4",
+      "rows": [
+        {
+          "row": 8,
+          "table": "fermata",
+          "riemenschneider": "X",
+          "measure_text": "9–10",
+          "measures": [
+            9,
+            10
+          ],
+          "voices": "A/B",
+          "description": "consecutive P5s in contrary motion",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "A",
+              "lower": "B"
+            }
+          ]
+        }
+      ],
+      "split": "development"
+    },
+    {
+      "bwv": "174.5",
+      "corpus_file": "bwv174.5.mxl",
+      "corpus_sha256": "90ac5ec3887e35563f538443bf01d5cb769e7933a2a1b21851eea0154816dae2",
+      "rows": [
+        {
+          "row": 9,
+          "table": "fermata",
+          "riemenschneider": "58",
+          "measure_text": "23",
+          "measures": [
+            23
+          ],
+          "voices": "A/T",
+          "description": "consecutive P5s in parallel motion",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "A",
+              "lower": "T"
+            }
+          ]
+        }
+      ],
+      "split": "development"
+    },
+    {
+      "bwv": "183.5",
+      "corpus_file": "bwv183.5.mxl",
+      "corpus_sha256": "a8e488a911a297ee1e300df0307202c7bd092fd6dbc848f898d6815dfa81620f",
+      "rows": [
+        {
+          "row": 10,
+          "table": "fermata",
+          "riemenschneider": "123",
+          "measure_text": "14",
+          "measures": [
+            14
+          ],
+          "voices": "S/T",
+          "description": "consecutive P5s in contrary motion",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "S",
+              "lower": "T"
+            }
+          ]
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "bwv": "190.7",
+      "corpus_file": "bwv190.7.mxl",
+      "corpus_sha256": "c7bc767d237c31c34cc972bc69c0498bf9cdbb73693f95eb10802674f68f02e7",
+      "rows": [
+        {
+          "row": 11,
+          "table": "fermata",
+          "riemenschneider": "327",
+          "measure_text": "18",
+          "measures": [
+            18
+          ],
+          "voices": "A/B",
+          "description": "consecutive P5s in parallel motion",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "A",
+              "lower": "B"
+            }
+          ]
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "bwv": "244.40",
+      "corpus_file": "bwv244.40.mxl",
+      "corpus_sha256": "efa561d1690914088fc796df10fbf70457e327f7ffc1e049ecaefe7dd89082e9",
+      "rows": [
+        {
+          "row": 35,
+          "table": "non-structural",
+          "riemenschneider": "121",
+          "measure_text": "4",
+          "measures": [
+            4
+          ],
+          "voices": "S/T",
+          "description": "\"cadential\" parallel fifths",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "S",
+              "lower": "T"
+            }
+          ]
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "bwv": "244.44",
+      "corpus_file": "bwv244.44.mxl",
+      "corpus_sha256": "f0d4c90ccb2da56d23cc718394560fd101ce2beeec6f5316b8d1aacb627ec219",
+      "rows": [
+        {
+          "row": 12,
+          "table": "fermata",
+          "riemenschneider": "80",
+          "measure_text": "14",
+          "measures": [
+            14
+          ],
+          "voices": "A/T/B",
+          "description": "consecutive P5s (T/B) & P8s (A/B) in contrary motion",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "T",
+              "lower": "B"
+            },
+            {
+              "interval": "octave",
+              "upper": "A",
+              "lower": "B"
+            }
+          ]
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "bwv": "244.54",
+      "corpus_file": "bwv244.54.mxl",
+      "corpus_sha256": "a6ab971253b460c77528ff96e3be9b5171dc92653d4dd124e50e3c5929932a8e",
+      "rows": [
+        {
+          "row": 13,
+          "table": "fermata",
+          "riemenschneider": "74",
+          "measure_text": "14",
+          "measures": [
+            14
+          ],
+          "voices": "A/T/B",
+          "description": "consecutive P5s (T/B) & P8s (A/B) in contrary motion",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "T",
+              "lower": "B"
+            },
+            {
+              "interval": "octave",
+              "upper": "A",
+              "lower": "B"
+            }
+          ]
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "bwv": "244.62",
+      "corpus_file": "bwv244.62.mxl",
+      "corpus_sha256": "40dea26e17b710119c5010d4323f58a2b924e045553af0d33239daa07886a6cc",
+      "rows": [
+        {
+          "row": 14,
+          "table": "fermata",
+          "riemenschneider": "89",
+          "measure_text": "14",
+          "measures": [
+            14
+          ],
+          "voices": "A/T/B",
+          "description": "consecutive P5s (T/B) & P8s (A/B) in contrary motion",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "T",
+              "lower": "B"
+            },
+            {
+              "interval": "octave",
+              "upper": "A",
+              "lower": "B"
+            }
+          ]
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "bwv": "245.40",
+      "corpus_file": "bwv245.40.mxl",
+      "corpus_sha256": "62b797510370c79d3e9d82175a260a6748c00785fd67408c10eb97f8a7bb9944",
+      "rows": [
+        {
+          "row": 15,
+          "table": "fermata",
+          "riemenschneider": "107",
+          "measure_text": "23",
+          "measures": [
+            23
+          ],
+          "voices": "S/T",
+          "description": "consecutive P5s in contrary motion",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "S",
+              "lower": "T"
+            }
+          ]
+        },
+        {
+          "row": 43,
+          "table": "structural",
+          "riemenschneider": "107",
+          "measure_text": "23",
+          "measures": [
+            23
+          ],
+          "voices": "T/B",
+          "description": "beats 3–4: P8s in contrary motion",
+          "labels": [
+            {
+              "interval": "octave",
+              "upper": "T",
+              "lower": "B"
+            }
+          ]
+        }
+      ],
+      "split": "development"
+    },
+    {
+      "bwv": "248.33",
+      "corpus_file": "bwv248.33-3.mxl",
+      "corpus_sha256": "840aaeff30653c2cc3f4d3121b8d0545fc858c02a08c0762775d0874fc118b27",
+      "rows": [
+        {
+          "row": 36,
+          "table": "non-structural",
+          "riemenschneider": "139",
+          "measure_text": "2",
+          "measures": [
+            2
+          ],
+          "voices": "S/A",
+          "description": "beats 1–2: parallel P5s, passing tone in S.",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "S",
+              "lower": "A"
+            }
+          ]
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "bwv": "251",
+      "corpus_file": "bwv251.mxl",
+      "corpus_sha256": "cdfca01d9375a9f633984d1782af5c0cd3836ce79445683d0072d7cfb571333b",
+      "rows": [
+        {
+          "row": 44,
+          "table": "structural",
+          "riemenschneider": "329",
+          "measure_text": "13–14",
+          "measures": [
+            13,
+            14
+          ],
+          "voices": "S/T",
+          "description": "m.13 beat 4 to m.14 beat 1: P8s in contrary motion",
+          "labels": [
+            {
+              "interval": "octave",
+              "upper": "S",
+              "lower": "T"
+            }
+          ]
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "bwv": "263",
+      "corpus_file": "bwv263.mxl",
+      "corpus_sha256": "eb184d4d80c531ff392758643b9e3603a60e0cfa8421a43093f019e105420e8f",
+      "rows": [
+        {
+          "row": 37,
+          "table": "non-structural",
+          "riemenschneider": "128",
+          "measure_text": "6",
+          "measures": [
+            6
+          ],
+          "voices": "S/T",
+          "description": "\"cadential\" parallel fifths",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "S",
+              "lower": "T"
+            }
+          ]
+        }
+      ],
+      "split": "development"
+    },
+    {
+      "bwv": "266",
+      "corpus_file": "bwv266.mxl",
+      "corpus_sha256": "c2dc3a3fb188f7c1d1ba939e78f2cd15dd0091426da27205ed637fd9a88581d4",
+      "rows": [
+        {
+          "row": 16,
+          "table": "fermata",
+          "riemenschneider": "208",
+          "measure_text": "5",
+          "measures": [
+            5
+          ],
+          "voices": "A/B",
+          "description": "consecutive P5s in contrary motion",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "A",
+              "lower": "B"
+            }
+          ]
+        }
+      ],
+      "split": "development"
+    },
+    {
+      "bwv": "278",
+      "corpus_file": "bwv278.mxl",
+      "corpus_sha256": "22c5e3bef3a3ba518ea9b3196ecc70359e8e2b7679a7bc9fc3c045a105e2275f",
+      "rows": [
+        {
+          "row": 45,
+          "table": "structural",
+          "riemenschneider": "371",
+          "measure_text": "3/7",
+          "measures": [
+            3,
+            7
+          ],
+          "voices": "S/T",
+          "description": "beats 2–3: parallel P8s in parallel motion",
+          "labels": [
+            {
+              "interval": "octave",
+              "upper": "S",
+              "lower": "T"
+            }
+          ]
+        }
+      ],
+      "split": "development"
+    },
+    {
+      "bwv": "301",
+      "corpus_file": "bwv301.mxl",
+      "corpus_sha256": "2634ae537b21f2a902e33f138b7a9849f6e905d9a722e5bdba287da4166da70e",
+      "rows": [
+        {
+          "row": 17,
+          "table": "fermata",
+          "riemenschneider": "134",
+          "measure_text": "3",
+          "measures": [
+            3
+          ],
+          "voices": "T/B",
+          "description": "consecutive P5s in parallel motion",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "T",
+              "lower": "B"
+            }
+          ]
+        }
+      ],
+      "split": "development"
+    },
+    {
+      "bwv": "306",
+      "corpus_file": "bwv306.mxl",
+      "corpus_sha256": "655665743c897dcb9d0b35e43f218493210d6a4f4c8fec5be80629b826c239cc",
+      "rows": [
+        {
+          "row": 46,
+          "table": "structural",
+          "riemenschneider": "176",
+          "measure_text": "13–14",
+          "measures": [
+            13,
+            14
+          ],
+          "voices": "S/T",
+          "description": "m.13 beat 3 to m.14 beat 1: parallel P8s",
+          "labels": [
+            {
+              "interval": "octave",
+              "upper": "S",
+              "lower": "T"
+            }
+          ]
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "bwv": "308",
+      "corpus_file": "bwv308.mxl",
+      "corpus_sha256": "43c6aaace26a9750b7d818cbd898ecca08479cd4deaeee82eee108c19ccdc025",
+      "rows": [
+        {
+          "row": 47,
+          "table": "structural",
+          "riemenschneider": "27",
+          "measure_text": "9",
+          "measures": [
+            9
+          ],
+          "voices": "T/B",
+          "description": "beats 3–4: P5s in contrary motion",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "T",
+              "lower": "B"
+            }
+          ]
+        }
+      ],
+      "split": "development"
+    },
+    {
+      "bwv": "323",
+      "corpus_file": "bwv323.mxl",
+      "corpus_sha256": "b34107b2a7fedd49f3388a920517684e00049913e709727a61c0fbf6835bf656",
+      "rows": [
+        {
+          "row": 48,
+          "table": "structural",
+          "riemenschneider": "320",
+          "measure_text": "8",
+          "measures": [
+            8
+          ],
+          "voices": "S/T",
+          "description": "beats 1–3: parallel P5s",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "S",
+              "lower": "T"
+            }
+          ]
+        }
+      ],
+      "split": "development",
+      "exposed_before_freeze": "m. 8 notes and both tools' output inspected while checking the label parser"
+    },
+    {
+      "bwv": "326",
+      "corpus_file": "bwv326.mxl",
+      "corpus_sha256": "cb68db185c953b7d7090664be37e1d106e015e4cdd87a3622bbb888d021d8e06",
+      "rows": [
+        {
+          "row": 18,
+          "table": "fermata",
+          "riemenschneider": "164",
+          "measure_text": "8",
+          "measures": [
+            8
+          ],
+          "voices": "A/B",
+          "description": "consecutive P8s (A/B) in parallel motion",
+          "labels": [
+            {
+              "interval": "octave",
+              "upper": "A",
+              "lower": "B"
+            }
+          ]
+        }
+      ],
+      "split": "development"
+    },
+    {
+      "bwv": "329",
+      "corpus_file": "bwv329.mxl",
+      "corpus_sha256": "f47b895044432e9e35e1d891902dae5eccea66b5a26c0e145ca1727079c487c5",
+      "rows": [
+        {
+          "row": 19,
+          "table": "fermata",
+          "riemenschneider": "212",
+          "measure_text": "5",
+          "measures": [
+            5
+          ],
+          "voices": "S/T/B",
+          "description": "consecutive P5s (T/B) & P8s (S/B) in contrary motion",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "T",
+              "lower": "B"
+            },
+            {
+              "interval": "octave",
+              "upper": "S",
+              "lower": "B"
+            }
+          ]
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "bwv": "333",
+      "corpus_file": "bwv333.mxl",
+      "corpus_sha256": "217a6bd0e91fd658aace257942ab5a400bac4f76a49fa382ceebf32be3dda791",
+      "rows": [
+        {
+          "row": 20,
+          "table": "fermata",
+          "riemenschneider": "226",
+          "measure_text": "12",
+          "measures": [
+            12
+          ],
+          "voices": "A/T/B",
+          "description": "P5s in contrary motion (T/B) & P8s in parallel motion (A/B)",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "T",
+              "lower": "B"
+            },
+            {
+              "interval": "octave",
+              "upper": "A",
+              "lower": "B"
+            }
+          ]
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "bwv": "340",
+      "corpus_file": "bwv340.mxl",
+      "corpus_sha256": "d7cb1adac8090125e110a727d5df12442b26cc3d7a70fb16896c052220085958",
+      "rows": [
+        {
+          "row": 21,
+          "table": "fermata",
+          "riemenschneider": "277",
+          "measure_text": "21",
+          "measures": [
+            21
+          ],
+          "voices": "S/B",
+          "description": "consecutive P5s in contrary motion",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "S",
+              "lower": "B"
+            }
+          ]
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "bwv": "347",
+      "corpus_file": "bwv347.mxl",
+      "corpus_sha256": "a017649b259ceda9c0ee8a74909893a69d01163c5f60ae5e631dc3d2ac58bcb5",
+      "rows": [
+        {
+          "row": 22,
+          "table": "fermata",
+          "riemenschneider": "2",
+          "measure_text": "14",
+          "measures": [
+            14
+          ],
+          "voices": "A/B",
+          "description": "consecutive P8s in contrary motion",
+          "labels": [
+            {
+              "interval": "octave",
+              "upper": "A",
+              "lower": "B"
+            }
+          ]
+        }
+      ],
+      "split": "development"
+    },
+    {
+      "bwv": "361",
+      "corpus_file": "bwv361.mxl",
+      "corpus_sha256": "0b02c32831b100781b84328b2431794a3fdaaa5beae7b908e532519ad031ee33",
+      "rows": [
+        {
+          "row": 38,
+          "table": "non-structural",
+          "riemenschneider": "264",
+          "measure_text": "12",
+          "measures": [
+            12
+          ],
+          "voices": "S/T",
+          "description": "\"cadential\" parallel fifths",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "S",
+              "lower": "T"
+            }
+          ]
+        }
+      ],
+      "split": "development"
+    },
+    {
+      "bwv": "385",
+      "corpus_file": "bwv385.mxl",
+      "corpus_sha256": "2fb5b486d54dd7fcadf3f7499ac07c030e7063f5006a0caa446977a52e97e075",
+      "rows": [
+        {
+          "row": 23,
+          "table": "fermata",
+          "riemenschneider": "36",
+          "measure_text": "6",
+          "measures": [
+            6
+          ],
+          "voices": "T/B",
+          "description": "parallel P5s (melodically up a P8)",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "T",
+              "lower": "B"
+            }
+          ]
+        }
+      ],
+      "split": "development"
+    },
+    {
+      "bwv": "393",
+      "corpus_file": "bwv393.mxl",
+      "corpus_sha256": "8ba2a509a2b46fd3e10cee792744c546f8054e9353adb454f7258c0d9bed29a3",
+      "rows": [
+        {
+          "row": 49,
+          "table": "structural",
+          "riemenschneider": "275",
+          "measure_text": "5",
+          "measures": [
+            5
+          ],
+          "voices": "A/T",
+          "description": "beats 3–4: P5s in contrary motion",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "A",
+              "lower": "T"
+            }
+          ]
+        }
+      ],
+      "split": "development"
+    },
+    {
+      "bwv": "436",
+      "corpus_file": "bwv436.mxl",
+      "corpus_sha256": "9174761e4e8469d0bfc2fa590d0e692e1b086224289427237be483145f373449",
+      "rows": [
+        {
+          "row": 24,
+          "table": "fermata",
+          "riemenschneider": "278",
+          "measure_text": "18",
+          "measures": [
+            18
+          ],
+          "voices": "A/B",
+          "description": "consecutive P5s in contrary motion",
+          "labels": [
+            {
+              "interval": "fifth",
+              "upper": "A",
+              "lower": "B"
+            }
+          ]
+        }
+      ],
+      "split": "holdout"
+    }
+  ]
+}

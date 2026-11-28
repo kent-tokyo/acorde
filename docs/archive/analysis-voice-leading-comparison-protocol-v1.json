@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "classification": "preregistered Bach chorale consecutive fifth/octave label holdout",
+  "issue": "https://github.com/kent-tokyo/acorde/issues/502",
+  "labels_source": "https://www.bach-chorales.com/ConsecutivesInChorales.htm",
+  "holdout_chorales": [
+    "7.7",
+    "26.6",
+    "48.7",
+    "86.6",
+    "92.9",
+    "115.6",
+    "146.8",
+    "183.5",
+    "190.7",
+    "244.40",
+    "244.44",
+    "244.54",
+    "244.62",
+    "248.33",
+    "251",
+    "306",
+    "329",
+    "333",
+    "340",
+    "436"
+  ],
+  "moved_to_development_before_freeze": {
+    "323": "m. 8 notes and both tools' output inspected while checking the label parser"
+  },
+  "task": "consecutive fifths and octaves (parallel or antiparallel) per voice pair, matched when interval and voices agree and either state's measure number is listed",
+  "acorde_command": "analyze-voice-leading INPUT",
+  "music21_recipe": "music21-figuredBass-checker-v1",
+  "metrics": "recall and F1 per tool and interval from evaluate_analysis_labels.py, development and holdout separately; precision is a lower bound because the source list is not exhaustive; unlisted detections and failures reported",
+  "gate": null,
+  "gate_reason": "issue #502 asks for measured precision/recall/F1 for both tools, not a superiority claim",
+  "stop_rule": "Run the holdout chorales once. No change to either tool, the recipe, the matching rule or the labels afterwards. Afterwards these chorales are development data.",
+  "holdout_tool_output_unseen_at_freeze": true,
+  "development_summary": {
+    "chorales": 21,
+    "labels": 27,
+    "acorde": {
+      "failures": 0,
+      "covered": 20,
+      "unlisted": 6
+    },
+    "music21": {
+      "failures": 0,
+      "covered": 21,
+      "unlisted": 6
+    }
+  },
+  "pinned": {
+    "labels_sha256": "42755b254944dc24aff94b494aa6efe47dfe23bb512735ff84b54523ea4e8846",
+    "development_report_sha256": "36ad0f5f77feaee4d84fea727ed6fa06dcde533ccfffa6f99bce58c45b5c069e",
+    "acorde_binary_sha256": "1d4d17373f4c5dbb200f19d711e97dbdc70f0c51cf3a10b6492357b36b47b1cd",
+    "script_sha256": {
+      "freeze_voice_leading_dahn_labels.py": "56e7026634aa920205c047d47bbf2ca37e60595646ea436700912e0a1e019ee1",
+      "compare_voice_leading_dahn.py": "2020f16cd1cccd0d096e71dc620a32206495149c289601c2a2fa169a46e31176",
+      "adapt_voice_leading_dahn_report.py": "117ce1e97319f6cd5e93b5c144a430ad3e479d6405c28f8b76b6fc0e0b6c8a18",
+      "evaluate_analysis_labels.py": "f5fbe5dffca692a5a3d37994c043a2a03eb75e54680a1222a5d93faee781a68e"
+    },
+    "music21_version": "10.5.2",
+    "music21_checker_source_sha256": "4ccbc9f144b221869315c99e207de96175a6bc8ac68cafb64f04068a39d38380",
+    "music21_voiceLeading_source_sha256": "8311d2218a8e0e30557d67c8b2329cb935c2b63820168251711a7e9dd1fc14e1"
+  }
+}

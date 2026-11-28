@@ -1,0 +1,1567 @@
+{
+  "schema_version": 1,
+  "split": "development",
+  "recipe": "music21-figuredBass-checker-v1",
+  "labels_sha256": "42755b254944dc24aff94b494aa6efe47dfe23bb512735ff84b54523ea4e8846",
+  "acorde_binary_sha256": "1d4d17373f4c5dbb200f19d711e97dbdc70f0c51cf3a10b6492357b36b47b1cd",
+  "acorde_command": "analyze-voice-leading INPUT",
+  "music21_version": "10.5.2",
+  "script_sha256": "2020f16cd1cccd0d096e71dc620a32206495149c289601c2a2fa169a46e31176",
+  "summary": {
+    "chorales": 21,
+    "labels": 27,
+    "acorde": {
+      "failures": 0,
+      "covered": 20,
+      "unlisted": 6
+    },
+    "music21": {
+      "failures": 0,
+      "covered": 21,
+      "unlisted": 6
+    }
+  },
+  "cases": [
+    {
+      "bwv": "33.6",
+      "corpus_file": "bwv33.6.mxl",
+      "input_sha256": "b1a1a662561edcdd36ab6da4be1512878f06b5bd1173e9d6c6c8df549b418a89",
+      "labels": [
+        {
+          "id": "26.0",
+          "measures": [
+            5,
+            6
+          ],
+          "interval": "fifth",
+          "upper": "S",
+          "lower": "T"
+        },
+        {
+          "id": "41.0",
+          "measures": [
+            14
+          ],
+          "interval": "fifth",
+          "upper": "S",
+          "lower": "T"
+        }
+      ],
+      "acorde": {
+        "detections": [
+          [
+            "fifth",
+            0,
+            2,
+            5,
+            6
+          ],
+          [
+            "fifth",
+            0,
+            2,
+            8,
+            8
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "fifth",
+            "upper": "S",
+            "lower": "T",
+            "measure": 5,
+            "label": "26.0"
+          },
+          {
+            "interval": "fifth",
+            "upper": "S",
+            "lower": "T",
+            "measure": 8,
+            "label": null
+          }
+        ],
+        "covered": [
+          "26.0"
+        ],
+        "unlisted": 1
+      },
+      "music21": {
+        "detections": [
+          [
+            "fifth",
+            0,
+            2,
+            5,
+            6
+          ],
+          [
+            "fifth",
+            0,
+            2,
+            8,
+            8
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "fifth",
+            "upper": "S",
+            "lower": "T",
+            "measure": 5,
+            "label": "26.0"
+          },
+          {
+            "interval": "fifth",
+            "upper": "S",
+            "lower": "T",
+            "measure": 8,
+            "label": null
+          }
+        ],
+        "covered": [
+          "26.0"
+        ],
+        "unlisted": 1
+      }
+    },
+    {
+      "bwv": "40.8",
+      "corpus_file": "bwv40.8.mxl",
+      "input_sha256": "89b527da3439fcfaf49e22ebba367bdcedbd1c624bf49759f2b30f7db789be4c",
+      "labels": [
+        {
+          "id": "27.0",
+          "measures": [
+            2
+          ],
+          "interval": "fifth",
+          "upper": "S",
+          "lower": "T"
+        },
+        {
+          "id": "28.0",
+          "measures": [
+            4
+          ],
+          "interval": "fifth",
+          "upper": "S",
+          "lower": "T"
+        },
+        {
+          "id": "29.0",
+          "measures": [
+            6
+          ],
+          "interval": "fifth",
+          "upper": "S",
+          "lower": "T"
+        },
+        {
+          "id": "30.0",
+          "measures": [
+            16
+          ],
+          "interval": "fifth",
+          "upper": "S",
+          "lower": "T"
+        }
+      ],
+      "acorde": {
+        "detections": [
+          [
+            "fifth",
+            0,
+            2,
+            2,
+            2
+          ],
+          [
+            "fifth",
+            0,
+            2,
+            4,
+            4
+          ],
+          [
+            "fifth",
+            0,
+            2,
+            6,
+            6
+          ],
+          [
+            "fifth",
+            0,
+            2,
+            16,
+            16
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "fifth",
+            "upper": "S",
+            "lower": "T",
+            "measure": 2,
+            "label": "27.0"
+          },
+          {
+            "interval": "fifth",
+            "upper": "S",
+            "lower": "T",
+            "measure": 4,
+            "label": "28.0"
+          },
+          {
+            "interval": "fifth",
+            "upper": "S",
+            "lower": "T",
+            "measure": 6,
+            "label": "29.0"
+          },
+          {
+            "interval": "fifth",
+            "upper": "S",
+            "lower": "T",
+            "measure": 16,
+            "label": "30.0"
+          }
+        ],
+        "covered": [
+          "27.0",
+          "28.0",
+          "29.0",
+          "30.0"
+        ],
+        "unlisted": 0
+      },
+      "music21": {
+        "detections": [
+          [
+            "fifth",
+            0,
+            2,
+            2,
+            2
+          ],
+          [
+            "fifth",
+            0,
+            2,
+            4,
+            4
+          ],
+          [
+            "fifth",
+            0,
+            2,
+            6,
+            6
+          ],
+          [
+            "fifth",
+            0,
+            2,
+            16,
+            16
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "fifth",
+            "upper": "S",
+            "lower": "T",
+            "measure": 2,
+            "label": "27.0"
+          },
+          {
+            "interval": "fifth",
+            "upper": "S",
+            "lower": "T",
+            "measure": 4,
+            "label": "28.0"
+          },
+          {
+            "interval": "fifth",
+            "upper": "S",
+            "lower": "T",
+            "measure": 6,
+            "label": "29.0"
+          },
+          {
+            "interval": "fifth",
+            "upper": "S",
+            "lower": "T",
+            "measure": 16,
+            "label": "30.0"
+          }
+        ],
+        "covered": [
+          "27.0",
+          "28.0",
+          "29.0",
+          "30.0"
+        ],
+        "unlisted": 0
+      }
+    },
+    {
+      "bwv": "60.5",
+      "corpus_file": "bwv60.5.mxl",
+      "input_sha256": "a86b7efe510c2672d83a25743e7eb52762a9f3d8608afb64dce41225d30057e3",
+      "labels": [
+        {
+          "id": "1.0",
+          "measures": [
+            6
+          ],
+          "interval": "octave",
+          "upper": "S",
+          "lower": "B"
+        }
+      ],
+      "acorde": {
+        "detections": [
+          [
+            "octave",
+            0,
+            3,
+            6,
+            6
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "octave",
+            "upper": "S",
+            "lower": "B",
+            "measure": 6,
+            "label": "1.0"
+          }
+        ],
+        "covered": [
+          "1.0"
+        ],
+        "unlisted": 0
+      },
+      "music21": {
+        "detections": [
+          [
+            "octave",
+            0,
+            3,
+            6,
+            6
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "octave",
+            "upper": "S",
+            "lower": "B",
+            "measure": 6,
+            "label": "1.0"
+          }
+        ],
+        "covered": [
+          "1.0"
+        ],
+        "unlisted": 0
+      }
+    },
+    {
+      "bwv": "78.7",
+      "corpus_file": "bwv78.7.mxl",
+      "input_sha256": "e798016f58f415e496df9eaa9456538bb7801c28e7b396ea1844adf14c9cef03",
+      "labels": [
+        {
+          "id": "2.0",
+          "measures": [
+            4,
+            5
+          ],
+          "interval": "fifth",
+          "upper": "S",
+          "lower": "B"
+        }
+      ],
+      "acorde": {
+        "detections": [
+          [
+            "fifth",
+            0,
+            3,
+            4,
+            5
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "fifth",
+            "upper": "S",
+            "lower": "B",
+            "measure": 4,
+            "label": "2.0"
+          }
+        ],
+        "covered": [
+          "2.0"
+        ],
+        "unlisted": 0
+      },
+      "music21": {
+        "detections": [
+          [
+            "fifth",
+            0,
+            3,
+            4,
+            5
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "fifth",
+            "upper": "S",
+            "lower": "B",
+            "measure": 4,
+            "label": "2.0"
+          }
+        ],
+        "covered": [
+          "2.0"
+        ],
+        "unlisted": 0
+      }
+    },
+    {
+      "bwv": "99.6",
+      "corpus_file": "bwv99.6.mxl",
+      "input_sha256": "06bd2ebacfbb9c827fee83f9902b0f3730b417c3996407191e7b46da1a51c224",
+      "labels": [
+        {
+          "id": "4.0",
+          "measures": [
+            12
+          ],
+          "interval": "fifth",
+          "upper": "A",
+          "lower": "B"
+        },
+        {
+          "id": "32.0",
+          "measures": [
+            11
+          ],
+          "interval": "fifth",
+          "upper": "S",
+          "lower": "T"
+        }
+      ],
+      "acorde": {
+        "detections": [
+          [
+            "fifth",
+            0,
+            2,
+            11,
+            11
+          ],
+          [
+            "fifth",
+            1,
+            3,
+            12,
+            12
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "fifth",
+            "upper": "S",
+            "lower": "T",
+            "measure": 11,
+            "label": "32.0"
+          },
+          {
+            "interval": "fifth",
+            "upper": "A",
+            "lower": "B",
+            "measure": 12,
+            "label": "4.0"
+          }
+        ],
+        "covered": [
+          "32.0",
+          "4.0"
+        ],
+        "unlisted": 0
+      },
+      "music21": {
+        "detections": [
+          [
+            "fifth",
+            0,
+            2,
+            11,
+            11
+          ],
+          [
+            "fifth",
+            1,
+            3,
+            12,
+            12
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "fifth",
+            "upper": "S",
+            "lower": "T",
+            "measure": 11,
+            "label": "32.0"
+          },
+          {
+            "interval": "fifth",
+            "upper": "A",
+            "lower": "B",
+            "measure": 12,
+            "label": "4.0"
+          }
+        ],
+        "covered": [
+          "32.0",
+          "4.0"
+        ],
+        "unlisted": 0
+      }
+    },
+    {
+      "bwv": "108.6",
+      "corpus_file": "bwv108.6.mxl",
+      "input_sha256": "88f77ee050bb90af656c887a53254e55143abcbbcf4bf440f8d44ab4fd415038",
+      "labels": [
+        {
+          "id": "5.0",
+          "measures": [
+            4
+          ],
+          "interval": "fifth",
+          "upper": "T",
+          "lower": "B"
+        }
+      ],
+      "acorde": {
+        "detections": [
+          [
+            "fifth",
+            2,
+            3,
+            4,
+            5
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "fifth",
+            "upper": "T",
+            "lower": "B",
+            "measure": 4,
+            "label": "5.0"
+          }
+        ],
+        "covered": [
+          "5.0"
+        ],
+        "unlisted": 0
+      },
+      "music21": {
+        "detections": [
+          [
+            "fifth",
+            2,
+            3,
+            4,
+            4
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "fifth",
+            "upper": "T",
+            "lower": "B",
+            "measure": 4,
+            "label": "5.0"
+          }
+        ],
+        "covered": [
+          "5.0"
+        ],
+        "unlisted": 0
+      }
+    },
+    {
+      "bwv": "111.6",
+      "corpus_file": "bwv111.6.mxl",
+      "input_sha256": "5522178df57d3ae266c39bad744cff2b7a92e3e8c467ed6ffcf0c589f0e6ae3f",
+      "labels": [
+        {
+          "id": "6.0",
+          "measures": [
+            15
+          ],
+          "interval": "fifth",
+          "upper": "S",
+          "lower": "B"
+        }
+      ],
+      "acorde": {
+        "detections": [
+          [
+            "fifth",
+            0,
+            3,
+            15,
+            15
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "fifth",
+            "upper": "S",
+            "lower": "B",
+            "measure": 15,
+            "label": "6.0"
+          }
+        ],
+        "covered": [
+          "6.0"
+        ],
+        "unlisted": 0
+      },
+      "music21": {
+        "detections": [
+          [
+            "fifth",
+            0,
+            3,
+            15,
+            15
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "fifth",
+            "upper": "S",
+            "lower": "B",
+            "measure": 15,
+            "label": "6.0"
+          }
+        ],
+        "covered": [
+          "6.0"
+        ],
+        "unlisted": 0
+      }
+    },
+    {
+      "bwv": "157.5",
+      "corpus_file": "bwv157.5.mxl",
+      "input_sha256": "3bef117523a1283e77b2fc777519b526e306c7c2e5f38873291501c2cb1618c4",
+      "labels": [
+        {
+          "id": "8.0",
+          "measures": [
+            9,
+            10
+          ],
+          "interval": "fifth",
+          "upper": "A",
+          "lower": "B"
+        }
+      ],
+      "acorde": {
+        "detections": [
+          [
+            "fifth",
+            1,
+            3,
+            9,
+            10
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "fifth",
+            "upper": "A",
+            "lower": "B",
+            "measure": 9,
+            "label": "8.0"
+          }
+        ],
+        "covered": [
+          "8.0"
+        ],
+        "unlisted": 0
+      },
+      "music21": {
+        "detections": [
+          [
+            "fifth",
+            1,
+            3,
+            9,
+            10
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "fifth",
+            "upper": "A",
+            "lower": "B",
+            "measure": 9,
+            "label": "8.0"
+          }
+        ],
+        "covered": [
+          "8.0"
+        ],
+        "unlisted": 0
+      }
+    },
+    {
+      "bwv": "174.5",
+      "corpus_file": "bwv174.5.mxl",
+      "input_sha256": "90ac5ec3887e35563f538443bf01d5cb769e7933a2a1b21851eea0154816dae2",
+      "labels": [
+        {
+          "id": "9.0",
+          "measures": [
+            23
+          ],
+          "interval": "fifth",
+          "upper": "A",
+          "lower": "T"
+        }
+      ],
+      "acorde": {
+        "detections": [
+          [
+            "fifth",
+            1,
+            2,
+            17,
+            17
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "fifth",
+            "upper": "A",
+            "lower": "T",
+            "measure": 17,
+            "label": null
+          }
+        ],
+        "covered": [],
+        "unlisted": 1
+      },
+      "music21": {
+        "detections": [
+          [
+            "fifth",
+            1,
+            2,
+            17,
+            17
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "fifth",
+            "upper": "A",
+            "lower": "T",
+            "measure": 17,
+            "label": null
+          }
+        ],
+        "covered": [],
+        "unlisted": 1
+      }
+    },
+    {
+      "bwv": "245.40",
+      "corpus_file": "bwv245.40.mxl",
+      "input_sha256": "62b797510370c79d3e9d82175a260a6748c00785fd67408c10eb97f8a7bb9944",
+      "labels": [
+        {
+          "id": "15.0",
+          "measures": [
+            23
+          ],
+          "interval": "fifth",
+          "upper": "S",
+          "lower": "T"
+        },
+        {
+          "id": "43.0",
+          "measures": [
+            23
+          ],
+          "interval": "octave",
+          "upper": "T",
+          "lower": "B"
+        }
+      ],
+      "acorde": {
+        "detections": [
+          [
+            "fifth",
+            0,
+            2,
+            23,
+            23
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "fifth",
+            "upper": "S",
+            "lower": "T",
+            "measure": 23,
+            "label": "15.0"
+          }
+        ],
+        "covered": [
+          "15.0"
+        ],
+        "unlisted": 0
+      },
+      "music21": {
+        "detections": [
+          [
+            "fifth",
+            0,
+            2,
+            23,
+            23
+          ],
+          [
+            "octave",
+            2,
+            3,
+            23,
+            23
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "fifth",
+            "upper": "S",
+            "lower": "T",
+            "measure": 23,
+            "label": "15.0"
+          },
+          {
+            "interval": "octave",
+            "upper": "T",
+            "lower": "B",
+            "measure": 23,
+            "label": "43.0"
+          }
+        ],
+        "covered": [
+          "15.0",
+          "43.0"
+        ],
+        "unlisted": 0
+      }
+    },
+    {
+      "bwv": "263",
+      "corpus_file": "bwv263.mxl",
+      "input_sha256": "eb184d4d80c531ff392758643b9e3603a60e0cfa8421a43093f019e105420e8f",
+      "labels": [
+        {
+          "id": "37.0",
+          "measures": [
+            6
+          ],
+          "interval": "fifth",
+          "upper": "S",
+          "lower": "T"
+        }
+      ],
+      "acorde": {
+        "detections": [
+          [
+            "fifth",
+            0,
+            2,
+            6,
+            6
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "fifth",
+            "upper": "S",
+            "lower": "T",
+            "measure": 6,
+            "label": "37.0"
+          }
+        ],
+        "covered": [
+          "37.0"
+        ],
+        "unlisted": 0
+      },
+      "music21": {
+        "detections": [
+          [
+            "fifth",
+            0,
+            2,
+            6,
+            6
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "fifth",
+            "upper": "S",
+            "lower": "T",
+            "measure": 6,
+            "label": "37.0"
+          }
+        ],
+        "covered": [
+          "37.0"
+        ],
+        "unlisted": 0
+      }
+    },
+    {
+      "bwv": "266",
+      "corpus_file": "bwv266.mxl",
+      "input_sha256": "c2dc3a3fb188f7c1d1ba939e78f2cd15dd0091426da27205ed637fd9a88581d4",
+      "labels": [
+        {
+          "id": "16.0",
+          "measures": [
+            5
+          ],
+          "interval": "fifth",
+          "upper": "A",
+          "lower": "B"
+        }
+      ],
+      "acorde": {
+        "detections": [
+          [
+            "fifth",
+            1,
+            3,
+            5,
+            5
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "fifth",
+            "upper": "A",
+            "lower": "B",
+            "measure": 5,
+            "label": "16.0"
+          }
+        ],
+        "covered": [
+          "16.0"
+        ],
+        "unlisted": 0
+      },
+      "music21": {
+        "detections": [
+          [
+            "fifth",
+            1,
+            3,
+            5,
+            5
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "fifth",
+            "upper": "A",
+            "lower": "B",
+            "measure": 5,
+            "label": "16.0"
+          }
+        ],
+        "covered": [
+          "16.0"
+        ],
+        "unlisted": 0
+      }
+    },
+    {
+      "bwv": "278",
+      "corpus_file": "bwv278.mxl",
+      "input_sha256": "22c5e3bef3a3ba518ea9b3196ecc70359e8e2b7679a7bc9fc3c045a105e2275f",
+      "labels": [
+        {
+          "id": "45.0",
+          "measures": [
+            3,
+            7
+          ],
+          "interval": "octave",
+          "upper": "S",
+          "lower": "T"
+        }
+      ],
+      "acorde": {
+        "detections": [
+          [
+            "octave",
+            0,
+            2,
+            3,
+            3
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "octave",
+            "upper": "S",
+            "lower": "T",
+            "measure": 3,
+            "label": "45.0"
+          }
+        ],
+        "covered": [
+          "45.0"
+        ],
+        "unlisted": 0
+      },
+      "music21": {
+        "detections": [
+          [
+            "octave",
+            0,
+            2,
+            3,
+            3
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "octave",
+            "upper": "S",
+            "lower": "T",
+            "measure": 3,
+            "label": "45.0"
+          }
+        ],
+        "covered": [
+          "45.0"
+        ],
+        "unlisted": 0
+      }
+    },
+    {
+      "bwv": "301",
+      "corpus_file": "bwv301.mxl",
+      "input_sha256": "2634ae537b21f2a902e33f138b7a9849f6e905d9a722e5bdba287da4166da70e",
+      "labels": [
+        {
+          "id": "17.0",
+          "measures": [
+            3
+          ],
+          "interval": "fifth",
+          "upper": "T",
+          "lower": "B"
+        }
+      ],
+      "acorde": {
+        "detections": [
+          [
+            "fifth",
+            2,
+            3,
+            3,
+            3
+          ],
+          [
+            "fifth",
+            1,
+            2,
+            7,
+            7
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "fifth",
+            "upper": "A",
+            "lower": "T",
+            "measure": 7,
+            "label": null
+          },
+          {
+            "interval": "fifth",
+            "upper": "T",
+            "lower": "B",
+            "measure": 3,
+            "label": "17.0"
+          }
+        ],
+        "covered": [
+          "17.0"
+        ],
+        "unlisted": 1
+      },
+      "music21": {
+        "detections": [
+          [
+            "fifth",
+            2,
+            3,
+            3,
+            3
+          ],
+          [
+            "fifth",
+            1,
+            2,
+            7,
+            7
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "fifth",
+            "upper": "A",
+            "lower": "T",
+            "measure": 7,
+            "label": null
+          },
+          {
+            "interval": "fifth",
+            "upper": "T",
+            "lower": "B",
+            "measure": 3,
+            "label": "17.0"
+          }
+        ],
+        "covered": [
+          "17.0"
+        ],
+        "unlisted": 1
+      }
+    },
+    {
+      "bwv": "308",
+      "corpus_file": "bwv308.mxl",
+      "input_sha256": "43c6aaace26a9750b7d818cbd898ecca08479cd4deaeee82eee108c19ccdc025",
+      "labels": [
+        {
+          "id": "47.0",
+          "measures": [
+            9
+          ],
+          "interval": "fifth",
+          "upper": "T",
+          "lower": "B"
+        }
+      ],
+      "acorde": {
+        "detections": [
+          [
+            "fifth",
+            2,
+            3,
+            5,
+            5
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "fifth",
+            "upper": "T",
+            "lower": "B",
+            "measure": 5,
+            "label": null
+          }
+        ],
+        "covered": [],
+        "unlisted": 1
+      },
+      "music21": {
+        "detections": [
+          [
+            "fifth",
+            2,
+            3,
+            5,
+            5
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "fifth",
+            "upper": "T",
+            "lower": "B",
+            "measure": 5,
+            "label": null
+          }
+        ],
+        "covered": [],
+        "unlisted": 1
+      }
+    },
+    {
+      "bwv": "323",
+      "corpus_file": "bwv323.mxl",
+      "input_sha256": "b34107b2a7fedd49f3388a920517684e00049913e709727a61c0fbf6835bf656",
+      "labels": [
+        {
+          "id": "48.0",
+          "measures": [
+            8
+          ],
+          "interval": "fifth",
+          "upper": "S",
+          "lower": "T"
+        }
+      ],
+      "acorde": {
+        "detections": [],
+        "positions": [],
+        "covered": [],
+        "unlisted": 0
+      },
+      "music21": {
+        "detections": [],
+        "positions": [],
+        "covered": [],
+        "unlisted": 0
+      }
+    },
+    {
+      "bwv": "326",
+      "corpus_file": "bwv326.mxl",
+      "input_sha256": "cb68db185c953b7d7090664be37e1d106e015e4cdd87a3622bbb888d021d8e06",
+      "labels": [
+        {
+          "id": "18.0",
+          "measures": [
+            8
+          ],
+          "interval": "octave",
+          "upper": "A",
+          "lower": "B"
+        }
+      ],
+      "acorde": {
+        "detections": [
+          [
+            "octave",
+            1,
+            3,
+            8,
+            9
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "octave",
+            "upper": "A",
+            "lower": "B",
+            "measure": 8,
+            "label": "18.0"
+          }
+        ],
+        "covered": [
+          "18.0"
+        ],
+        "unlisted": 0
+      },
+      "music21": {
+        "detections": [
+          [
+            "octave",
+            1,
+            3,
+            8,
+            8
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "octave",
+            "upper": "A",
+            "lower": "B",
+            "measure": 8,
+            "label": "18.0"
+          }
+        ],
+        "covered": [
+          "18.0"
+        ],
+        "unlisted": 0
+      }
+    },
+    {
+      "bwv": "347",
+      "corpus_file": "bwv347.mxl",
+      "input_sha256": "a017649b259ceda9c0ee8a74909893a69d01163c5f60ae5e631dc3d2ac58bcb5",
+      "labels": [
+        {
+          "id": "22.0",
+          "measures": [
+            14
+          ],
+          "interval": "octave",
+          "upper": "A",
+          "lower": "B"
+        }
+      ],
+      "acorde": {
+        "detections": [
+          [
+            "octave",
+            1,
+            3,
+            10,
+            10
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "octave",
+            "upper": "A",
+            "lower": "B",
+            "measure": 10,
+            "label": null
+          }
+        ],
+        "covered": [],
+        "unlisted": 1
+      },
+      "music21": {
+        "detections": [
+          [
+            "octave",
+            1,
+            3,
+            10,
+            10
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "octave",
+            "upper": "A",
+            "lower": "B",
+            "measure": 10,
+            "label": null
+          }
+        ],
+        "covered": [],
+        "unlisted": 1
+      }
+    },
+    {
+      "bwv": "361",
+      "corpus_file": "bwv361.mxl",
+      "input_sha256": "0b02c32831b100781b84328b2431794a3fdaaa5beae7b908e532519ad031ee33",
+      "labels": [
+        {
+          "id": "38.0",
+          "measures": [
+            12
+          ],
+          "interval": "fifth",
+          "upper": "S",
+          "lower": "T"
+        }
+      ],
+      "acorde": {
+        "detections": [
+          [
+            "fifth",
+            0,
+            2,
+            12,
+            12
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "fifth",
+            "upper": "S",
+            "lower": "T",
+            "measure": 12,
+            "label": "38.0"
+          }
+        ],
+        "covered": [
+          "38.0"
+        ],
+        "unlisted": 0
+      },
+      "music21": {
+        "detections": [
+          [
+            "fifth",
+            0,
+            2,
+            12,
+            12
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "fifth",
+            "upper": "S",
+            "lower": "T",
+            "measure": 12,
+            "label": "38.0"
+          }
+        ],
+        "covered": [
+          "38.0"
+        ],
+        "unlisted": 0
+      }
+    },
+    {
+      "bwv": "385",
+      "corpus_file": "bwv385.mxl",
+      "input_sha256": "2fb5b486d54dd7fcadf3f7499ac07c030e7063f5006a0caa446977a52e97e075",
+      "labels": [
+        {
+          "id": "23.0",
+          "measures": [
+            6
+          ],
+          "interval": "fifth",
+          "upper": "T",
+          "lower": "B"
+        }
+      ],
+      "acorde": {
+        "detections": [
+          [
+            "fifth",
+            2,
+            3,
+            6,
+            6
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "fifth",
+            "upper": "T",
+            "lower": "B",
+            "measure": 6,
+            "label": "23.0"
+          }
+        ],
+        "covered": [
+          "23.0"
+        ],
+        "unlisted": 0
+      },
+      "music21": {
+        "detections": [
+          [
+            "fifth",
+            2,
+            3,
+            6,
+            6
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "fifth",
+            "upper": "T",
+            "lower": "B",
+            "measure": 6,
+            "label": "23.0"
+          }
+        ],
+        "covered": [
+          "23.0"
+        ],
+        "unlisted": 0
+      }
+    },
+    {
+      "bwv": "393",
+      "corpus_file": "bwv393.mxl",
+      "input_sha256": "8ba2a509a2b46fd3e10cee792744c546f8054e9353adb454f7258c0d9bed29a3",
+      "labels": [
+        {
+          "id": "49.0",
+          "measures": [
+            5
+          ],
+          "interval": "fifth",
+          "upper": "A",
+          "lower": "T"
+        }
+      ],
+      "acorde": {
+        "detections": [
+          [
+            "fifth",
+            1,
+            3,
+            5,
+            5
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "fifth",
+            "upper": "A",
+            "lower": "B",
+            "measure": 5,
+            "label": null
+          }
+        ],
+        "covered": [],
+        "unlisted": 1
+      },
+      "music21": {
+        "detections": [
+          [
+            "fifth",
+            1,
+            3,
+            5,
+            5
+          ]
+        ],
+        "positions": [
+          {
+            "interval": "fifth",
+            "upper": "A",
+            "lower": "B",
+            "measure": 5,
+            "label": null
+          }
+        ],
+        "covered": [],
+        "unlisted": 1
+      }
+    }
+  ]
+}
