@@ -9,6 +9,9 @@
 - Add `suggest_arrangements` and `replay_arrangement` behind the same feature: one request
   and result shape for the six arrangement proposal engines, with optional assessment
   limits that set candidates aside. See [arrangement suggestions](docs/arrangement-suggestions.md).
+- Add `suggest_reharmonizations` and `apply_reharmonizations` behind the same feature: find
+  secondary-dominant, tritone-substitution and two-five candidates inside an editable range,
+  with locks and melody-fit ranking. See [reharmonization](docs/reharmonization.md).
 
 ## 2.0.1 - 2026-11-23
 

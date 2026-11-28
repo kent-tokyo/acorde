@@ -321,6 +321,13 @@ pub use model::playback::{
     project_tablature_performance, tablature_round_trip_report, to_playback_events,
     to_playback_events_bounded,
 };
+#[cfg(feature = "unstable-arrangement")]
+pub use model::reharmonization::{
+    REHARMONIZATION_CONTRACT_VERSION, REHARMONIZATION_MAX_CANDIDATES, REHARMONIZATION_MAX_ENTRIES,
+    ReharmonizationAvoidNote, ReharmonizationCandidate, ReharmonizationChord, ReharmonizationError,
+    ReharmonizationMelodyFit, ReharmonizationRequest, ReharmonizationResult,
+    ReharmonizationTechnique, apply_reharmonizations, suggest_reharmonizations,
+};
 pub use model::repeat::measure_sequence;
 pub use model::scale::{Scale, ScaleKind};
 pub use model::score::{

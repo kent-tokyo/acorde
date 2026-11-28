@@ -56,6 +56,8 @@ pub mod phrase_melody;
 pub mod pitch;
 pub mod playback;
 pub mod profiled_chord_plan;
+#[cfg(feature = "unstable-arrangement")]
+pub mod reharmonization;
 pub mod repeat;
 pub mod rhythm_engraving;
 pub mod rhythm_section;

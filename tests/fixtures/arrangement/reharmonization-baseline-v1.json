@@ -1,0 +1,481 @@
+{
+  "contract_version": 1,
+  "results": {
+    "compound-6-8/secondary-dominant-0": {
+      "avoid_beats": 0.0,
+      "bass_leaps": [
+        0,
+        0
+      ],
+      "chords": [
+        "A dominant"
+      ],
+      "out_of_range_notes": [
+        0,
+        0
+      ],
+      "semitone_clash_ticks": [
+        0,
+        0
+      ]
+    },
+    "compound-6-8/tritone-substitution-0": {
+      "avoid_beats": 0.0,
+      "bass_leaps": [
+        0,
+        0
+      ],
+      "chords": [
+        "Eb dominant"
+      ],
+      "out_of_range_notes": [
+        0,
+        0
+      ],
+      "semitone_clash_ticks": [
+        0,
+        480
+      ]
+    },
+    "compound-6-8/two-five-0": {
+      "avoid_beats": 0.0,
+      "bass_leaps": [
+        0,
+        0
+      ],
+      "chords": [
+        "E minor-seventh",
+        "A dominant"
+      ],
+      "out_of_range_notes": [
+        0,
+        0
+      ],
+      "semitone_clash_ticks": [
+        0,
+        0
+      ]
+    },
+    "irregular-5-8/secondary-dominant-0": {
+      "avoid_beats": 0.0,
+      "bass_leaps": [
+        0,
+        0
+      ],
+      "chords": [
+        "C dominant"
+      ],
+      "out_of_range_notes": [
+        0,
+        0
+      ],
+      "semitone_clash_ticks": [
+        0,
+        0
+      ]
+    },
+    "irregular-5-8/tritone-substitution-0": {
+      "avoid_beats": 0.0,
+      "bass_leaps": [
+        0,
+        0
+      ],
+      "chords": [
+        "Gb dominant"
+      ],
+      "out_of_range_notes": [
+        0,
+        0
+      ],
+      "semitone_clash_ticks": [
+        0,
+        480
+      ]
+    },
+    "irregular-5-8/two-five-0": {
+      "avoid_beats": 0.0,
+      "bass_leaps": [
+        0,
+        0
+      ],
+      "chords": [
+        "G minor-seventh",
+        "C dominant"
+      ],
+      "out_of_range_notes": [
+        0,
+        0
+      ],
+      "semitone_clash_ticks": [
+        0,
+        0
+      ]
+    },
+    "irregular-7-8/secondary-dominant-0": {
+      "avoid_beats": 0.0,
+      "bass_leaps": [
+        0,
+        0
+      ],
+      "chords": [
+        "D dominant"
+      ],
+      "out_of_range_notes": [
+        0,
+        0
+      ],
+      "semitone_clash_ticks": [
+        0,
+        0
+      ]
+    },
+    "irregular-7-8/tritone-substitution-0": {
+      "avoid_beats": 0.0,
+      "bass_leaps": [
+        0,
+        0
+      ],
+      "chords": [
+        "Ab dominant"
+      ],
+      "out_of_range_notes": [
+        0,
+        0
+      ],
+      "semitone_clash_ticks": [
+        0,
+        720
+      ]
+    },
+    "irregular-7-8/two-five-0": {
+      "avoid_beats": 0.0,
+      "bass_leaps": [
+        0,
+        0
+      ],
+      "chords": [
+        "A minor-seventh",
+        "D dominant"
+      ],
+      "out_of_range_notes": [
+        0,
+        0
+      ],
+      "semitone_clash_ticks": [
+        0,
+        0
+      ]
+    },
+    "major-4-4/secondary-dominant-0": {
+      "avoid_beats": 0.0,
+      "bass_leaps": [
+        0,
+        0
+      ],
+      "chords": [
+        "C dominant"
+      ],
+      "out_of_range_notes": [
+        0,
+        0
+      ],
+      "semitone_clash_ticks": [
+        0,
+        0
+      ]
+    },
+    "major-4-4/tritone-substitution-0": {
+      "avoid_beats": 0.0,
+      "bass_leaps": [
+        0,
+        0
+      ],
+      "chords": [
+        "Gb dominant"
+      ],
+      "out_of_range_notes": [
+        0,
+        0
+      ],
+      "semitone_clash_ticks": [
+        0,
+        1920
+      ]
+    },
+    "major-4-4/two-five-0": {
+      "avoid_beats": 0.0,
+      "bass_leaps": [
+        0,
+        0
+      ],
+      "chords": [
+        "G minor-seventh",
+        "C dominant"
+      ],
+      "out_of_range_notes": [
+        0,
+        0
+      ],
+      "semitone_clash_ticks": [
+        0,
+        0
+      ]
+    },
+    "midbar-4-4/secondary-dominant-0": {
+      "avoid_beats": 0.0,
+      "bass_leaps": [
+        0,
+        0
+      ],
+      "chords": [
+        "C dominant"
+      ],
+      "out_of_range_notes": [
+        0,
+        0
+      ],
+      "semitone_clash_ticks": [
+        0,
+        0
+      ]
+    },
+    "midbar-4-4/secondary-dominant-1": {
+      "avoid_beats": 0.0,
+      "bass_leaps": [
+        0,
+        0
+      ],
+      "chords": [
+        "D dominant"
+      ],
+      "out_of_range_notes": [
+        0,
+        0
+      ],
+      "semitone_clash_ticks": [
+        0,
+        0
+      ]
+    },
+    "midbar-4-4/tritone-substitution-0": {
+      "avoid_beats": 0.0,
+      "bass_leaps": [
+        0,
+        0
+      ],
+      "chords": [
+        "Gb dominant"
+      ],
+      "out_of_range_notes": [
+        0,
+        0
+      ],
+      "semitone_clash_ticks": [
+        0,
+        0
+      ]
+    },
+    "midbar-4-4/tritone-substitution-1": {
+      "avoid_beats": 0.0,
+      "bass_leaps": [
+        0,
+        0
+      ],
+      "chords": [
+        "Ab dominant"
+      ],
+      "out_of_range_notes": [
+        0,
+        0
+      ],
+      "semitone_clash_ticks": [
+        0,
+        480
+      ]
+    },
+    "midbar-4-4/two-five-0": {
+      "avoid_beats": 0.0,
+      "bass_leaps": [
+        0,
+        0
+      ],
+      "chords": [
+        "G minor-seventh",
+        "C dominant"
+      ],
+      "out_of_range_notes": [
+        0,
+        0
+      ],
+      "semitone_clash_ticks": [
+        0,
+        0
+      ]
+    },
+    "midbar-4-4/two-five-1": {
+      "avoid_beats": 1.0,
+      "bass_leaps": [
+        0,
+        0
+      ],
+      "chords": [
+        "A minor-seventh",
+        "D dominant"
+      ],
+      "out_of_range_notes": [
+        0,
+        0
+      ],
+      "semitone_clash_ticks": [
+        0,
+        480
+      ]
+    },
+    "minor-3-4/secondary-dominant-0": {
+      "avoid_beats": 0.0,
+      "bass_leaps": [
+        0,
+        0
+      ],
+      "chords": [
+        "B dominant"
+      ],
+      "out_of_range_notes": [
+        0,
+        0
+      ],
+      "semitone_clash_ticks": [
+        480,
+        960
+      ]
+    },
+    "minor-3-4/tritone-substitution-0": {
+      "avoid_beats": 0.0,
+      "bass_leaps": [
+        0,
+        0
+      ],
+      "chords": [
+        "F dominant"
+      ],
+      "out_of_range_notes": [
+        0,
+        0
+      ],
+      "semitone_clash_ticks": [
+        480,
+        480
+      ]
+    },
+    "minor-3-4/two-five-0": {
+      "avoid_beats": 0.5,
+      "bass_leaps": [
+        0,
+        0
+      ],
+      "chords": [
+        "F# minor-seventh",
+        "B dominant"
+      ],
+      "out_of_range_notes": [
+        0,
+        0
+      ],
+      "semitone_clash_ticks": [
+        480,
+        720
+      ]
+    },
+    "multipart-4-4/secondary-dominant-0": {
+      "avoid_beats": 0.0,
+      "bass_leaps": [
+        0,
+        0
+      ],
+      "chords": [
+        "C dominant"
+      ],
+      "out_of_range_notes": [
+        0,
+        0
+      ],
+      "semitone_clash_ticks": [
+        480,
+        480
+      ]
+    },
+    "multipart-4-4/tritone-substitution-0": {
+      "avoid_beats": 0.0,
+      "bass_leaps": [
+        0,
+        0
+      ],
+      "chords": [
+        "Gb dominant"
+      ],
+      "out_of_range_notes": [
+        0,
+        0
+      ],
+      "semitone_clash_ticks": [
+        480,
+        1440
+      ]
+    },
+    "multipart-4-4/two-five-0": {
+      "avoid_beats": 0.0,
+      "bass_leaps": [
+        0,
+        0
+      ],
+      "chords": [
+        "G minor-seventh",
+        "C dominant"
+      ],
+      "out_of_range_notes": [
+        0,
+        0
+      ],
+      "semitone_clash_ticks": [
+        480,
+        480
+      ]
+    },
+    "pickup-4-4/secondary-dominant-0": {
+      "avoid_beats": 0.0,
+      "bass_leaps": [
+        0,
+        0
+      ],
+      "chords": [
+        "C dominant"
+      ],
+      "out_of_range_notes": [
+        0,
+        0
+      ],
+      "semitone_clash_ticks": [
+        0,
+        0
+      ]
+    },
+    "pickup-4-4/tritone-substitution-0": {
+      "avoid_beats": 0.0,
+      "bass_leaps": [
+        0,
+        0
+      ],
+      "chords": [
+        "Gb dominant"
+      ],
+      "out_of_range_notes": [
+        0,
+        0
+      ],
+      "semitone_clash_ticks": [
+        0,
+        240
+      ]
+    }
+  }
+}

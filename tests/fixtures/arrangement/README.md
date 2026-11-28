@@ -31,6 +31,10 @@ masking, semitone clashes, parallels, range, bass leaps) for the same five profi
 and the three unified proposals of every case. See
 [arrangement assessment](../../../docs/arrangement-assessment.md).
 
+`reharmonization-baseline-v1.json` freezes every reharmonization candidate on the same
+cases, with assessment counts before and after. See
+[reharmonization](../../../docs/reharmonization.md).
+
 ## Long-form development corpus v2
 
 `development-v2.json` contains twelve distinct original source melodies of
