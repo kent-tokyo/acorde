@@ -10,7 +10,7 @@ For a release claim, check its tag, CI, registry, and artifacts separately.
 | Task | Start here |
 |---|---|
 | Check supported notation and format loss | [Notation coverage](notation-coverage.md), [interchange evidence](interchange-evidence.md) |
-| Upgrade an existing integration | [Migration notes](migrations.md), [changelog](../CHANGELOG.md) |
+| Upgrade an existing integration | [Migration notes](migrations.md), [changelog](../CHANGELOG.md), [3.0 type extensibility plan](api-extensibility.md) |
 | Embed in a browser or reduce WASM size | [Browser contract](browser-rendering.md), [browser checks](browser-support.md), [viewer](wasm-viewer-profile.md) and [playback-only](wasm-playback-profile.md) profiles |
 | Generate print pages or PDFs | [Print layout](print-layout.md), [page SVG](print-svg-contract.md), [PDF export](pdf-export.md) |
 | Schedule playback or render audio | [Playback evidence](playback-evidence.md), [soundfont crate](../crates/soundfont/README.md) |

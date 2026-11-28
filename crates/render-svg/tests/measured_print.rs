@@ -3007,3 +3007,46 @@ fn authored_cross_staff_tuplets_do_not_inflate_staff_spacing_or_reappear_when_hi
         }
     }
 }
+
+#[test]
+fn measured_systems_share_room_between_staggered_ink() {
+    // Four staves (voice, viola, piano). Before systems were spaced from their
+    // ink skylines this fixture needed 15 pages at four measures per system.
+    let score = acorde_io::parse_mxl(include_bytes!(
+        "../../../tests/fixtures/openscore_lieder_brahms_gestillte_sehnsucht.mxl"
+    ))
+    .unwrap();
+    let config = PrintConfig {
+        measures_per_system: 4,
+        ..Default::default()
+    };
+    let output = engrave_print_pages(&score, &config, FONT).unwrap();
+    assert!(output.pages.len() <= 13, "{} pages", output.pages.len());
+    assert!(
+        output
+            .layout
+            .pages
+            .iter()
+            .any(|page| page.systems.len() >= 3)
+    );
+    let space = 1.8 * 4.0;
+    for page in &output.pages {
+        let doc = roxmltree::Document::parse(page).unwrap();
+        let mut ys: Vec<f32> = doc
+            .descendants()
+            .filter(|n| n.attribute("class") == Some("acorde-staff-line"))
+            .map(|n| n.attribute("y1").unwrap().parse().unwrap())
+            .collect();
+        ys.sort_by(f32::total_cmp);
+        ys.dedup_by(|a, b| (*a - *b).abs() < 0.01);
+        // Five lines per staff and four staves per system.
+        let systems: Vec<_> = ys.chunks(20).map(|s| (s[0], s[s.len() - 1])).collect();
+        for pair in systems.windows(2) {
+            let distance = pair[1].0 - pair[0].1;
+            assert!(
+                distance >= 7.0 * space - 0.05,
+                "systems {distance} units apart"
+            );
+        }
+    }
+}

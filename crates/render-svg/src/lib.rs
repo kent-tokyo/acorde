@@ -44,6 +44,8 @@ mod print_preflight;
 mod render;
 mod smufl;
 mod spans;
+#[cfg(feature = "font-metrics")]
+mod system_skyline;
 mod tab_technique;
 mod tuplets;
 

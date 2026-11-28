@@ -1,6 +1,7 @@
 // One isolated Node process per engine/input. Both engines parse the same plain
 // MusicXML and render every page on each iteration. No result is a quality pass.
 // Usage: bench_print_parity.mjs acorde|verovio MODULE_OR_PREFIX INPUT.xml FONT CONFIG [ROUNDS]
+// VEROVIO_VERSION selects the expected npm version (default 6.4.1).
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -24,7 +25,8 @@ if (engine === 'acorde') {
 } else {
   const dir = path.join(modulePath, 'node_modules/verovio');
   const version = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8')).version;
-  if (version !== '6.4.1') throw new Error(`unexpected Verovio version: ${version}`);
+  const expected = process.env.VEROVIO_VERSION || '6.4.1';
+  if (version !== expected) throw new Error(`unexpected Verovio version: ${version}`);
   const { default: createModule } = await import(pathToFileURL(path.join(dir, 'dist/verovio-module.mjs')));
   const { VerovioToolkit } = await import(pathToFileURL(path.join(dir, 'dist/verovio.mjs')));
   const toolkit = new VerovioToolkit(await createModule());

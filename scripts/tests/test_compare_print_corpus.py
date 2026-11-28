@@ -2,11 +2,34 @@ import importlib.util
 import pathlib
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 
 SCRIPT = pathlib.Path(__file__).resolve().parents[1] / "compare_print_corpus.py"
 spec = importlib.util.spec_from_file_location("compare_print_corpus", SCRIPT)
 compare = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(compare)
+
+
+class SourceInputTest(unittest.TestCase):
+    def test_one_dynamics_element_counts_once(self):
+        root = ET.fromstring('''<score-partwise><part><measure>
+          <direction><direction-type><dynamics><p/><other-dynamics>Das zweite mal</other-dynamics><pp/></dynamics></direction-type></direction>
+          <direction><direction-type><dynamics><f/></dynamics></direction-type></direction>
+          <direction><direction-type><dynamics><other-dynamics>dolce</other-dynamics></dynamics></direction-type></direction>
+        </measure></part></score-partwise>''')
+        self.assertEqual(compare.expected_marks(root)["dynamics"], 2)
+
+    def test_strip_print_breaks_keeps_other_print_settings(self):
+        root = ET.fromstring('''<score-partwise><part>
+          <measure><print new-page="yes"><system-layout/></print></measure>
+          <measure><print new-system="yes" staff-spacing="70"/></measure>
+          <measure><print new-system="no"/></measure>
+        </part></score-partwise>''')
+        self.assertEqual(compare.strip_print_breaks(root), 2)
+        prints = list(root.iter("print"))
+        self.assertTrue(all("new-system" not in p.attrib and "new-page" not in p.attrib for p in prints))
+        self.assertEqual(prints[1].get("staff-spacing"), "70")
+        self.assertIsNotNone(prints[0].find("system-layout"))
 
 
 class OutlinedTextScreenTest(unittest.TestCase):
