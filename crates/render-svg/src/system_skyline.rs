@@ -138,7 +138,7 @@ fn path_points(d: &str) -> Vec<(f32, f32, f32)> {
         let relative = command.is_ascii_lowercase();
         match command.to_ascii_uppercase() {
             'M' | 'L' | 'T' => {
-                for (n, pair) in args.chunks_exact(2).enumerate() {
+                for (n, pair) in args.as_chunks::<2>().0.iter().enumerate() {
                     let (bx, by) = if relative { (x, y) } else { (0.0, 0.0) };
                     x = bx + pair[0];
                     y = by + pair[1];
@@ -168,7 +168,7 @@ fn path_points(d: &str) -> Vec<(f32, f32, f32)> {
                 };
                 for chunk in args.chunks_exact(size) {
                     let (bx, by) = if relative { (x, y) } else { (0.0, 0.0) };
-                    for pair in chunk.chunks_exact(2) {
+                    for pair in chunk.as_chunks::<2>().0 {
                         points.push((bx + pair[0], by + pair[1], 0.0));
                     }
                     x = bx + chunk[size - 2];
@@ -176,7 +176,7 @@ fn path_points(d: &str) -> Vec<(f32, f32, f32)> {
                 }
             }
             'A' => {
-                for chunk in args.chunks_exact(7) {
+                for chunk in args.as_chunks::<7>().0 {
                     let (bx, by) = if relative { (x, y) } else { (0.0, 0.0) };
                     let radius = chunk[0].abs().max(chunk[1].abs());
                     points.push((x, y, radius));
@@ -239,7 +239,12 @@ fn local_box(node: roxmltree::Node<'_, '_>) -> Option<[f32; 4]> {
         }
         "polygon" | "polyline" => {
             let values = numbers(node.attribute("points").unwrap_or(""));
-            let points: Vec<_> = values.chunks_exact(2).map(|p| (p[0], p[1], 0.0)).collect();
+            let points: Vec<_> = values
+                .as_chunks::<2>()
+                .0
+                .iter()
+                .map(|p| (p[0], p[1], 0.0))
+                .collect();
             from_points(&points)?
         }
         "path" => from_points(&path_points(node.attribute("d").unwrap_or("")))?,
