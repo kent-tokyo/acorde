@@ -1,0 +1,49 @@
+fermata | 60.5 | 216 | 6 | S/B | consecutive P8s in contrary motion
+fermata | 78.7 | 297 | 4–5 | S/B | consecutive P5s in contrary motion
+fermata | 92.9 | X | 14 | S/B | consecutive P5s in contrary motion
+fermata | 99.6 | X | 12 | A/B | consecutive P5s in contrary motion
+fermata | 108.6 | 45 | 4 | T/B | consecutive P5s in contrary motion
+fermata | 111.6 | X | 15 | S/B | consecutive P5s in contrary motion
+fermata | 115.6 | 38 | 10–11 | A/T | consecutive P5s in contrary motion
+fermata | 157.5 | X | 9–10 | A/B | consecutive P5s in contrary motion
+fermata | 174.5 | 58 | 23 | A/T | consecutive P5s in parallel motion
+fermata | 183.5 | 123 | 14 | S/T | consecutive P5s in contrary motion
+fermata | 190.7 | 327 | 18 | A/B | consecutive P5s in parallel motion
+fermata | 244.44 | 80 | 14 | A/T/B | consecutive P5s (T/B) & P8s (A/B) in contrary motion
+fermata | 244.54 | 74 | 14 | A/T/B | consecutive P5s (T/B) & P8s (A/B) in contrary motion
+fermata | 244.62 | 89 | 14 | A/T/B | consecutive P5s (T/B) & P8s (A/B) in contrary motion
+fermata | 245.40 | 107 | 23 | S/T | consecutive P5s in contrary motion
+fermata | 266 | 208 | 5 | A/B | consecutive P5s in contrary motion
+fermata | 301 | 134 | 3 | T/B | consecutive P5s in parallel motion
+fermata | 326 | 164 | 8 | A/B | consecutive P8s (A/B) in parallel motion
+fermata | 329 | 212 | 5 | S/T/B | consecutive P5s (T/B) & P8s (S/B) in contrary motion
+fermata | 333 | 226 | 12 | A/T/B | P5s in contrary motion (T/B) & P8s in parallel motion (A/B)
+fermata | 340 | 277 | 21 | S/B | consecutive P5s in contrary motion
+fermata | 347 | 2 | 14 | A/B | consecutive P8s in contrary motion
+fermata | 385 | 36 | 6 | T/B | parallel P5s (melodically up a P8)
+fermata | 436 | 278 | 18 | A/B | consecutive P5s in contrary motion
+non-structural | 26.6 | 48 | 4 | S/T | "cadential" parallel fifths
+non-structural | 33.6 | 13 | 5–6 | S/T | m.2 beat 4 to m.3 beat 1: parallel P5s
+non-structural | 40.8 | 8 | 2 | S/T | "cadential" parallel fifths
+non-structural | 40.8 | 8 | 4 | S/T | "cadential" parallel fifths
+non-structural | 40.8 | 8 | 6 | S/T | "cadential" parallel fifths
+non-structural | 40.8 | 8 | 16 | S/T | "cadential" parallel fifths
+non-structural | 48.7 | 266 | 14 | A/T | beats 1–2: parallel P5s, passing tone in A.
+non-structural | 99.6 | X | 11 | S/T | beats 3–4: parallel P5s, neighbor tone in S.
+non-structural | 146.8 | X | 10 | S/T | "cadential" parallel fifths
+non-structural | 167.5 | X | 11/25–12/26 | T/B | parallel P8s! Incomplete neighbor in T.
+non-structural | 244.40 | 121 | 4 | S/T | "cadential" parallel fifths
+non-structural | 248.33 | 139 | 2 | S/A | beats 1–2: parallel P5s, passing tone in S.
+non-structural | 263 | 128 | 6 | S/T | "cadential" parallel fifths
+non-structural | 361 | 264 | 12 | S/T | "cadential" parallel fifths
+structural | 7.7 | X | 2/6 | T/B | beat 1: consecutive P5s
+structural | 22.5 | X | 27–28 | T/B | m.27 beat 4 to m.28 beat 1: P8s in contrary motion
+structural | 33.6 | 13 | 14 | S/T | beats 2–3: P5s in contrary motion
+structural | 86.6 | 4 | 13–14 | S/T | m.13 beat 4 to m.14 beat 1: parallel P5s
+structural | 245.40 | 107 | 23 | T/B | beats 3–4: P8s in contrary motion
+structural | 251 | 329 | 13–14 | S/T | m.13 beat 4 to m.14 beat 1: P8s in contrary motion
+structural | 278 | 371 | 3/7 | S/T | beats 2–3: parallel P8s in parallel motion
+structural | 306 | 176 | 13–14 | S/T | m.13 beat 3 to m.14 beat 1: parallel P8s
+structural | 308 | 27 | 9 | T/B | beats 3–4: P5s in contrary motion
+structural | 323 | 320 | 8 | S/T | beats 1–3: parallel P5s
+structural | 393 | 275 | 5 | A/T | beats 3–4: P5s in contrary motion
