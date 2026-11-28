@@ -111,8 +111,10 @@ acorde omr-apply-report provider-result.json draft.mscz --report application.jso
 
 ## 文書
 
-[文書案内](docs/README.md)から用途別に参照してください。主な入口は、[記譜対応と既知の情報欠落](docs/notation-coverage.md)、
+[文書案内](docs/README.md)から用途別に参照してください。今後の計画は[ロードマップ](ROADMAP.md)にあります。主な入口は、[記譜対応と既知の情報欠落](docs/notation-coverage.md)、
 [移行メモ](docs/migrations.md)、[ブラウザ契約](docs/browser-rendering.md)、[PDF出力契約](docs/pdf-export.md)です。
+楽曲分析を比較するときは、music21 との優劣を判断する前に[位置付き評価の契約](docs/analysis-evaluation.md)と
+タスク別の証拠を確認してください。
 
 [English README](README.md)、[简体中文 README](README_zh.md)、[セキュリティ契約](docs/security/threat-model.md)、
 [貢献ガイド](CONTRIBUTING.md)は独立した入口として維持します。
@@ -127,6 +129,22 @@ cargo clippy --workspace --all-features --locked --all-targets -- -D warnings
 
 変更箇所に応じて、パッケージ、fuzz、WASM、ブラウザ、外部ツールの検査も実行してください。
 フィクスチャの出所と機能境界もレビュー対象です。
+[`scripts/README.md`](scripts/README.md) に、CI・ビルド・検証用スクリプトを用途別にまとめています。
+
+### 容量優先のWASMビルド
+
+CIの容量上限とブラウザのスモークテストは、次のリリースビルド設定を使います。full、viewer、
+playback-only、任意の `measured-print` パッケージを `wasm-pack build` で作るときに指定してください。
+この設定はWASMのビルドコマンドにだけ効き、ネイティブのリリースプロファイルは変えません。
+
+```sh
+CARGO_PROFILE_RELEASE_OPT_LEVEL=s CARGO_PROFILE_RELEASE_LTO=thin \
+  wasm-pack build crates/wasm --target web --release
+```
+
+measured print では `--features measured-print` を追加します。環境変数を付けない `wasm-pack build` は
+Cargo の既定のリリース設定を使うため、成果物が大きくなることがあります。性能は譜面と実行環境に
+よって変わり、容量優先のビルドは一部の処理で遅くなる場合があります。
 
 ## ライセンス
 
