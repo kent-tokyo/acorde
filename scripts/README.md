@@ -15,6 +15,7 @@ their header comment names under `target/wasm-profiles/`.
 # Contracts checked in CI (no external tools needed)
 python3 -B scripts/validate_interoperability_manifest.py
 python3 -B scripts/validate_print_corpus.py --check-only
+python3 -B scripts/check_doc_links.py
 
 # Unit tests for the evidence scripts (some modules also need mido or music21)
 python3 -B -m unittest discover -s scripts/tests -p 'test_*.py'
@@ -33,6 +34,7 @@ them with the `wasm-pack` commands in the `wasm` job of
 | --- | --- |
 | `validate_interoperability_manifest.py` | **CI.** Validate the external-interoperability corpus contract. |
 | `validate_print_corpus.py` | **CI.** Validate print fixtures and deterministic logical-layout reports. |
+| `check_doc_links.py` | **CI.** Check relative links and heading anchors in tracked Markdown. |
 | `check-wasm-playback-profile.mjs` | **CI.** Check full, viewer, and playback-only WASM packages. |
 | `check-wasm-arrangement-plan.mjs` | **CI.** Check arrangement-plan replay through WASM. |
 | `check-wasm-arrangement-plan-shuffle.mjs` | **CI.** Check seeded arrangement-plan selection through WASM. |

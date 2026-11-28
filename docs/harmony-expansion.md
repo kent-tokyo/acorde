@@ -42,4 +42,4 @@ altered tensions, B-sharp spelling, diminished sevenths and root omission.
 This API is opt-in. Existing standard-bass capabilities and arrangement presets
 are unchanged. Bass-aware omission and voice assignment belong to stage 2;
 onset scheduling and complete three-way arrangements belong to stage 3 of the
-[implementation plan](arrangement-harmony-groove-plan.md).
+[implementation plan](development/arrangement-harmony-groove-plan.md).

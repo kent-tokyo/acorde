@@ -1,16 +1,16 @@
 # 和声・声部配置・先取りを組み合わせる編曲拡張計画
 
 > これは2026-11-18時点の開発記録です。以下の draft・未マージという記述は当時の状態です。
-> 実装の一部は後に v1.3.14 で公開されました。現在の提供範囲は[変更履歴](../CHANGELOG.md)、
-> 残る評価課題は[ロードマップ](../ROADMAP.md)を参照してください。
+> 実装の一部は後に v1.3.14 で公開されました。現在の提供範囲は[変更履歴](../../CHANGELOG.md)、
+> 残る評価課題は[ロードマップ](../../ROADMAP.md)を参照してください。
 
 2026-11-18 更新。状態: 段階0〜8の開発用実装と固定例の検証・試聴は完了。段階0〜3の記録は `harmony-groove-progress.json`、段階4・5は `harmony-targets-rhythm-progress.json`、段階6〜8は `arrangement-stage678-progress.json` に残す。未使用6作品と3人以上の聴き手による最終評価、公開、各draft PRのマージは別に扱う。
 
-段階4は `cc852678`、段階4・5を統合した検証版は `7c8b340c`。統合版は3 OSの全機能テスト各2,617件、Chrome full 126件・viewer 123件、WASM容量検査を含むCI 20項目が通過した。以前のWebKitのUndo失敗は同条件の再実行で通過し、最新の実行でも通過している。初回失敗の原因が未特定であることも記録に残す。両段階の8/16小節音源は生成・再現確認済みで、試聴の受け入れも完了した。証跡は [`harmony-targets-rhythm-progress.json`](harmony-targets-rhythm-progress.json)、API仕様は [`harmony-targets.md`](harmony-targets.md) と [`rhythm-section.md`](rhythm-section.md) に記録する。開発PRは [#446](https://github.com/kent-tokyo/acorde/pull/446) と [#447](https://github.com/kent-tokyo/acorde/pull/447)。いずれもdraft・未マージ。
+段階4は `cc852678`、段階4・5を統合した検証版は `7c8b340c`。統合版は3 OSの全機能テスト各2,617件、Chrome full 126件・viewer 123件、WASM容量検査を含むCI 20項目が通過した。以前のWebKitのUndo失敗は同条件の再実行で通過し、最新の実行でも通過している。初回失敗の原因が未特定であることも記録に残す。両段階の8/16小節音源は生成・再現確認済みで、試聴の受け入れも完了した。証跡は [`harmony-targets-rhythm-progress.json`](../harmony-targets-rhythm-progress.json)、API仕様は [`harmony-targets.md`](../harmony-targets.md) と [`rhythm-section.md`](../rhythm-section.md) に記録する。開発PRは [#446](https://github.com/kent-tokyo/acorde/pull/446) と [#447](https://github.com/kent-tokyo/acorde/pull/447)。いずれもdraft・未マージ。
 
-段階6〜8は [#448](https://github.com/kent-tokyo/acorde/pull/448)、[#449](https://github.com/kent-tokyo/acorde/pull/449)、[#450](https://github.com/kent-tokyo/acorde/pull/450) で実装し、固定8/16小節の3案をユーザーが「問題なし」と確認した。3 OS と Chrome full/viewer を含む各段階のCIは、最終コードで19/19項目通過。段階7・8の最適化済み full WASM は8,704,678バイトで、実測に基づく8,740,000バイトの上限内だった。確定設定・発音差・WAVハッシュ、性能とサイズの範囲は [`arrangement-stage678-progress.json`](arrangement-stage678-progress.json)、[`arrangement-stage678-performance.json`](arrangement-stage678-performance.json)、[`arrangement-stage678-wasm-size.json`](arrangement-stage678-wasm-size.json) に記録した。
+段階6〜8は [#448](https://github.com/kent-tokyo/acorde/pull/448)、[#449](https://github.com/kent-tokyo/acorde/pull/449)、[#450](https://github.com/kent-tokyo/acorde/pull/450) で実装し、固定8/16小節の3案をユーザーが「問題なし」と確認した。3 OS と Chrome full/viewer を含む各段階のCIは、最終コードで19/19項目通過。段階7・8の最適化済み full WASM は8,704,678バイトで、実測に基づく8,740,000バイトの上限内だった。確定設定・発音差・WAVハッシュ、性能とサイズの範囲は [`arrangement-stage678-progress.json`](../arrangement-stage678-progress.json)、[`arrangement-stage678-performance.json`](../arrangement-stage678-performance.json)、[`arrangement-stage678-wasm-size.json`](../arrangement-stage678-wasm-size.json) に記録した。
 
-生成時間と探索回数は [`arrangement-stage45-performance.json`](arrangement-stage45-performance.json) に記録した。段階0には当時の時間計測がなかったため、その固定コミットと現行版を同じ環境で再ビルドして比較した。既存の16小節処理は同じ入力・再生結果で中央値比0.9824。新APIは8/16小節の固定例を各60回測定し、観測したp95の最大値は段階4が7.446 ms、段階5が0.804 msだった。段階4の実現試行は1回または4回、段階5は探索を行わず決定的に生成する。入力準備・検証・音声合成は計測外で、最大入力やブラウザーでの遅延保証には使わない。
+生成時間と探索回数は [`arrangement-stage45-performance.json`](../arrangement-stage45-performance.json) に記録した。段階0には当時の時間計測がなかったため、その固定コミットと現行版を同じ環境で再ビルドして比較した。既存の16小節処理は同じ入力・再生結果で中央値比0.9824。新APIは8/16小節の固定例を各60回測定し、観測したp95の最大値は段階4が7.446 ms、段階5が0.804 msだった。段階4の実現試行は1回または4回、段階5は探索を行わず決定的に生成する。入力準備・検証・音声合成は計測外で、最大入力やブラウザーでの遅延保証には使わない。
 
 WASM内のcore呼び出しとの比較に加え、ネイティブのrelease実行から得た14ケースの再生イベントと確定設定を `stage45-native-parity.json` に固定した。生成・再現の両方をChromeのfull/viewerで直接照合し、元パート、音高、時刻、音価、強弱、解決先などの一致を確認した。試聴確認の代わりにはしない。
 

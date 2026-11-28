@@ -4,7 +4,7 @@ This is a dated development record, not the current release status. The
 seven-outcome acceptance gates described here still need their stated musical
 evaluation. Stages 0–3 were later developed in the
 [harmony and groove plan](arrangement-harmony-groove-plan.md); consult the
-[changelog](../CHANGELOG.md) and current API contracts for released behavior.
+[changelog](../../CHANGELOG.md) and current API contracts for released behavior.
 
 The historical objective included all seven outcomes below and musical evaluation.
 The first implementation milestone (a 16-bar phrase-aware arrangement) does not

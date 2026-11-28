@@ -1,7 +1,7 @@
 # Arrangement plans over written measures
 
 For the dated development record behind harmony, voicing, groove and sound
-extensions, see the [historical plan](arrangement-harmony-groove-plan.md)
+extensions, see the [historical plan](development/arrangement-harmony-groove-plan.md)
 (Japanese). The [changelog](../CHANGELOG.md) identifies released work.
 
 `arrange_accordion_plan` (Rust and full/viewer WASM) applies existing accompaniment
