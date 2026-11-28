@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- Render SVG in time linear in the measure count again: a staff's lyric baseline
+  is computed once per staff instead of once per system row (#506). Output is
+  unchanged; 10,000 measures render in under 1 s instead of about 80 s.
+
 ## 2.0.1 - 2026-11-23
 
 - Add opt-in performer editions and rhythm engraving, with score replay and
