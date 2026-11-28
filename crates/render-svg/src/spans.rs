@@ -281,7 +281,20 @@ pub(crate) fn hairpin_baseline(
         } else {
             0.0
         };
-        let edge = edge + if above { -extra } else { extra };
+        // Measured print clears each note by its own stem direction: a stem
+        // pointing toward the wedge needs the stem length, a notehead alone needs
+        // only its clearance. Other paths keep the uniform four-space offset.
+        let clearance = if !crate::render::measured_print_active() || stem_up == above {
+            4.0
+        } else {
+            1.5
+        } * space;
+        let edge = edge
+            + if above {
+                -extra - clearance
+            } else {
+                extra + clearance
+            };
         extreme = Some(extreme.map_or(edge, |a| if above { a.min(edge) } else { a.max(edge) }));
         if stem_up == above
             && let Some(&tip) = beam_tips.get(&key)
@@ -295,13 +308,17 @@ pub(crate) fn hairpin_baseline(
         .copied()
         .unwrap_or(fallback_y);
     if above {
-        let base = (extreme.unwrap_or(fallback_y) - 4.0 * space).min(staff_floor - 5.2 * space);
+        let base = extreme
+            .unwrap_or(fallback_y - 4.0 * space)
+            .min(staff_floor - 5.2 * space);
         (
             beam_extreme.map_or(base, |tip| base.min(tip - 0.8 * space)),
             true,
         )
     } else {
-        let base = (extreme.unwrap_or(fallback_y) + 4.0 * space).max(staff_floor + 1.2 * space);
+        let base = extreme
+            .unwrap_or(fallback_y + 4.0 * space)
+            .max(staff_floor + 1.2 * space);
         (
             beam_extreme.map_or(base, |tip| base.max(tip + 0.8 * space)),
             false,

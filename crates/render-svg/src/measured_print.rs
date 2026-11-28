@@ -194,13 +194,22 @@ pub fn engrave_print_pages(
             .collect::<Result<Vec<_>, MeasuredEngravingError>>()?;
         let mut needs_new_breaks = false;
         let mut relaxation_attempted = false;
+        // Staff spaces of each row's bottom reservation that the next system may
+        // reuse, from the ink skylines of both rows (see `system_skyline`).
+        let mut savings_u = vec![0.0_f32; rows.len()];
+        let mut skyline_measured = false;
         for _ in 0..32 {
-            // Cover two sub-threshold (0.01 staff-space) top/bottom changes.
-            let heights = geometry
+            let (layout, applied_u) =
+                paginate_with_savings(score, config, &rows, &geometry, &savings_u)?;
+            let render_geometry = geometry
                 .iter()
-                .map(|g| (g.top_u + g.system_u + g.bottom_u) * 1.8 + 0.05)
+                .zip(&applied_u)
+                .map(|(g, saving)| {
+                    let mut g = g.clone();
+                    g.bottom_u -= saving;
+                    g
+                })
                 .collect::<Vec<_>>();
-            let layout = acorde_layout::paginate_measured_systems(score, config, &rows, &heights)?;
             let mut system_insets_mm = vec![0.0; rows.len()];
             for page in &layout.pages {
                 if let Some(system) = page.systems.first() {
@@ -244,7 +253,7 @@ pub fn engrave_print_pages(
                 render_score,
                 render_layout,
                 &crate::SvgGlyphSource::Vector,
-                Some(&geometry),
+                Some(&render_geometry),
                 label_width,
                 Some(&system_insets_mm),
             )?;
@@ -282,6 +291,45 @@ pub fn engrave_print_pages(
                 .iter()
                 .map(|svg| crate::outline_text::outline_page_text(svg, &font))
                 .collect::<Result<Vec<_>, _>>()?;
+            let skylines = crate::system_skyline::row_skylines(
+                render_score,
+                render_layout,
+                &geometry,
+                &pages,
+            )?;
+            let target_u = (0..rows.len())
+                .map(|row| {
+                    let (Some(upper), Some(lower)) = (geometry.get(row), geometry.get(row + 1))
+                    else {
+                        return 0.0;
+                    };
+                    let reserved = upper.bottom_u + lower.top_u;
+                    let required = crate::system_skyline::required_distance_u(
+                        &skylines[row],
+                        &skylines[row + 1],
+                    );
+                    (reserved - required).clamp(0.0, upper.bottom_u.max(0.0))
+                })
+                .collect::<Vec<_>>();
+            // Measure once, then only give back room. Shrinking a saving after
+            // the first measurement keeps the pass count bounded.
+            let needs_room = target_u
+                .iter()
+                .zip(&savings_u)
+                .any(|(target, saving)| *target < saving - 0.01);
+            if !skyline_measured || needs_room {
+                let first = !skyline_measured;
+                skyline_measured = true;
+                let mut changed = false;
+                for (saving, target) in savings_u.iter_mut().zip(&target_u) {
+                    let next = if first { *target } else { saving.min(*target) };
+                    changed |= (next - *saving).abs() > 0.01;
+                    *saving = next;
+                }
+                if changed {
+                    continue;
+                }
+            }
             return Ok(MeasuredPrintOutput {
                 layout,
                 pages,
@@ -297,4 +345,46 @@ pub fn engrave_print_pages(
     }
 
     Err(MeasuredEngravingError::CollisionReflowLimit)
+}
+
+/// Paginates measured rows with each row's height reduced by its saving. A row
+/// that ends a page has no following system to share room with. It keeps its
+/// saving only when its full reservation still fits above the bottom margin;
+/// otherwise the saving is cancelled and the score paginated again. Returns the
+/// savings applied.
+fn paginate_with_savings(
+    score: &Score,
+    config: &PrintConfig,
+    rows: &[acorde_layout::RowLayout],
+    geometry: &[crate::render::MeasuredRowGeometry],
+    savings_u: &[f32],
+) -> Result<(PrintLayoutResult, Vec<f32>), MeasuredEngravingError> {
+    let mut applied = savings_u.to_vec();
+    loop {
+        // Cover two sub-threshold (0.01 staff-space) top/bottom changes.
+        let heights = geometry
+            .iter()
+            .zip(&applied)
+            .map(|(g, saving)| (g.top_u + g.system_u + g.bottom_u - saving) * 1.8 + 0.05)
+            .collect::<Vec<_>>();
+        let layout = acorde_layout::paginate_measured_systems(score, config, rows, &heights)?;
+        let mut cancelled = false;
+        for page in &layout.pages {
+            if let Some(last) = page.systems.last() {
+                let saving = applied
+                    .get_mut(last.system_index)
+                    .ok_or(MeasuredEngravingError::InvalidGeneratedGeometry)?;
+                let content_bottom_mm =
+                    page.height_mm - config.margin_bottom_mm - config.safe_bottom_mm;
+                if *saving > 0.0 && last.top_mm + last.height_mm + *saving * 1.8 > content_bottom_mm
+                {
+                    *saving = 0.0;
+                    cancelled = true;
+                }
+            }
+        }
+        if !cancelled {
+            return Ok((layout, applied));
+        }
+    }
 }
