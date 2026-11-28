@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+- Add `assess_arrangement` behind the new `unstable-arrangement` feature of `acorde-core`.
+  It counts melody masking, semitone clashes, parallel fifths and octaves, out-of-range
+  notes and bass leaps in a finished arrangement, with a frozen baseline for the
+  arrangement corpus v1. See [arrangement assessment](docs/arrangement-assessment.md).
+
 ## 2.0.1 - 2026-11-23
 
 - Add opt-in performer editions and rhythm engraving, with score replay and

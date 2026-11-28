@@ -4,6 +4,8 @@ pub mod accordion_sections;
 pub mod accordion_voicing;
 pub mod arrange;
 pub mod arrange_presets;
+#[cfg(feature = "unstable-arrangement")]
+pub mod arrangement_assessment;
 pub mod arrangement_plan;
 pub mod arrangement_plan_shuffle;
 pub mod arrangement_proposals;

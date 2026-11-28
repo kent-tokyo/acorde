@@ -18,6 +18,7 @@ For a release claim, check its tag, CI, registry, and artifacts separately.
 | Arrange for accordion | [Reduction](accordion-reduction.md), [guided arrangement](accordion-guided-arrangement.md), [layers](accordion-layered-arrangement.md), [preset contract](accordion-preset-contract.md), [measure-range plans](arrangement-plans.md) |
 | Check standard-bass playability | [Exact harmony/groove screen](harmony-groove-standard-bass.md), [button profiles](standard-bass-simplified-arrangement.md), [three-staff migration](migrations.md#v1315-standard-bass-accompaniment-staves) |
 | Generate harmony and groove proposals | [Proposal contract](harmony-groove-proposals.md), [phrase harmony](phrase-harmony.md), [rhythm sections](rhythm-section.md) |
+| Check a finished arrangement automatically | [Arrangement assessment](arrangement-assessment.md) (`unstable-arrangement` feature) |
 | Insert passing or neighbor notes | [Melodic insertion contract](melodic-insertion.md) |
 | Review an OMR proposal | [Proposal contract](omr-proposal-contract.md), [provider matrix](omr-license-matrix.md), [validation boundary](omr-validation.md) |
 | Inspect or edit scores from an MCP client | [CLI `mcp` command](../crates/cli/README.md) (local stdio; read-only unless `--allow-write`), [scorecard](scorecard.md) |

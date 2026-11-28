@@ -26,6 +26,11 @@ make an algorithm look better. Its structural invariant and snapshot tests run
 in CI; these are not listening review or musical-quality scores. The structural
 comparison is recorded in `docs/arrangement-corpus-v1-review.md`.
 
+`assessment-baseline-v1.json` freezes the automatic assessment counts (melody
+masking, semitone clashes, parallels, range, bass leaps) for the same five profiles
+and the three unified proposals of every case. See
+[arrangement assessment](../../../docs/arrangement-assessment.md).
+
 ## Long-form development corpus v2
 
 `development-v2.json` contains twelve distinct original source melodies of

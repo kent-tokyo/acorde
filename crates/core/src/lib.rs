@@ -42,6 +42,14 @@ pub use model::arrange_presets::{
     arrange_accordion_preset, arrange_from_resolved_layers, arrange_from_resolved_preset,
     shuffle_accordion_layers, shuffle_accordion_preset,
 };
+#[cfg(feature = "unstable-arrangement")]
+pub use model::arrangement_assessment::{
+    ARRANGEMENT_ASSESSMENT_CONTRACT_VERSION, ARRANGEMENT_ASSESSMENT_MAX_EVENTS,
+    ARRANGEMENT_ASSESSMENT_MAX_FINDINGS, ARRANGEMENT_ASSESSMENT_MAX_LEAP_LIMIT,
+    ARRANGEMENT_ASSESSMENT_TICKS_PER_BEAT, ArrangementAssessment, ArrangementAssessmentError,
+    ArrangementAssessmentRequest, ArrangementFinding, ArrangementFindingKind, ArrangementPartRange,
+    assess_arrangement,
+};
 pub use model::arrangement_plan::{
     ACCORDION_PLAN_CONTRACT_VERSION, ACCORDION_PLAN_ENGINE_VERSION, ACCORDION_PLAN_MAX_CHORDS,
     ACCORDION_PLAN_MAX_MEASURES, ACCORDION_PLAN_MAX_SECTIONS, ACCORDION_PLAN_MAX_SOURCE_NOTES,
